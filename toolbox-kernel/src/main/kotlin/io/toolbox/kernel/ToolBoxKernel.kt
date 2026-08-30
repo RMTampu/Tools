@@ -10,13 +10,14 @@ public class ToolBoxKernel(
     public val ports: KernelPorts = KernelPorts()
 ) {
     private val revision = AtomicLong(0)
+    private val mutationGuard = KernelMutationGuard()
     private val safeLogger: KernelLogger = SafeKernelLogger(ports.logger)
     private val safeClock: KernelClock = SafeKernelClock(ports.clock)
     private val supervisor = CallbackSupervisor(ports.executor, safeLogger)
-    private val services = ServiceRegistry(::mutated)
-    private val capabilities = CapabilityRegistry(::mutated)
-    private val events = EventBus(safeLogger, supervisor, config.eventListenerTimeoutMillis, ::mutated)
-    private val commands = CommandBus(supervisor, config.commandTimeoutMillis, ::mutated)
+    private val services = ServiceRegistry(mutationGuard, ::mutated)
+    private val capabilities = CapabilityRegistry(mutationGuard, ::mutated)
+    private val events = EventBus(safeLogger, supervisor, config.eventListenerTimeoutMillis, mutationGuard, ::mutated)
+    private val commands = CommandBus(supervisor, config.commandTimeoutMillis, mutationGuard, ::mutated)
     private val modules = ModuleRegistry(::mutated)
     private val lifecycle = LifecycleCoordinator(
         config,
@@ -304,20 +305,16 @@ public class ToolBoxKernel(
         KernelResult.success(health)
     }
 
-    public fun snapshot(): KernelSnapshot {
-        var last: KernelSnapshot? = null
-        repeat(5) {
-            val before = revision.get()
-            if (operationInProgress.get()) {
-                Thread.yield()
-                return@repeat
-            }
-            val candidate = snapshotAt(before, consistent = false)
-            val after = revision.get()
-            if (before == after && !operationInProgress.get()) return candidate.copy(revision = after, consistent = true)
-            last = candidate.copy(revision = after, consistent = false)
-        }
-        return last ?: snapshotAt(revision.get(), consistent = false)
+    public fun snapshot(): KernelSnapshot = mutationGuard.snapshot {
+        val before = revision.get()
+        val operationBefore = operationInProgress.get()
+        val candidate = snapshotAt(before, consistent = false)
+        val after = revision.get()
+        val operationAfter = operationInProgress.get()
+        candidate.copy(
+            revision = after,
+            consistent = before == after && !operationBefore && !operationAfter
+        )
     }
 
     public fun moduleDescriptors(): List<ModuleDescriptor> = modules.descriptors()
