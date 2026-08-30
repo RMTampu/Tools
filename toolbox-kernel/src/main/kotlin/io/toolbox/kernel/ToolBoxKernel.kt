@@ -139,8 +139,7 @@ public class ToolBoxKernel(
             verification.policyId.isBlank()
         ) {
             return@runOperation KernelResult.failure(
-                KernelError(
-                    KernelErrorCode.SOURCE_VERIFICATION,
+                KernelError(\ernelErrorCode.SOURCE_VERIFICATION,
                     verification.reason.ifBlank { "Source verification rejected ${stableSource.id}" }
                 )
             )
@@ -468,6 +467,11 @@ public class ToolBoxKernel(
     }
 
     private fun setState(newState: KernelState): Unit {
+        val current = stateRef.get()
+        if (current == newState) return
+        check(KernelStateMachine.canTransition(current, newState)) {
+            "Illegal kernel state transition: $current -> $newState"
+        }
         stateRef.set(newState)
         mutated()
         persistState(newState)
@@ -542,6 +546,7 @@ public class ToolBoxKernel(
             block()
         } catch (error: Throwable) {
             safeLogger.error("Unexpected kernel operation failure: $name", error)
+            recoverFromUnexpectedOperationFailure(name)
             KernelResult.failure(
                 KernelError(KernelErrorCode.LIFECYCLE, "Unexpected kernel operation failure: $name", error)
             )
@@ -549,6 +554,19 @@ public class ToolBoxKernel(
             currentOperation.set(null)
             operationInProgress.set(false)
             persistState(state)
+        }
+    }
+
+    private fun recoverFromUnexpectedOperationFailure(name: String): Unit {
+        val recovery = KernelStateMachine.recoveryAfterUnexpected(state)
+        if (recovery == state) return
+        try {
+            setState(recovery)
+        } catch (recoveryError: Throwable) {
+            safeLogger.error("Kernel state recovery failed after unexpected operation $name", recoveryError)
+            stateRef.set(KernelState.FAILED)
+            mutated()
+            persistState(KernelState.FAILED)
         }
     }
 }
