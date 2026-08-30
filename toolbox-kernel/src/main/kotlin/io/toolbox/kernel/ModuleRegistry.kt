@@ -180,7 +180,7 @@ internal class ModuleRegistry(
             .filter { it.descriptor.id != providerId }
             .filter { !startedOnly || it.state == ModuleState.STARTED }
             .filter { consumer ->
-                hasDirectRequiredDependency(consumer, providerId) ||
+                hasDirectRequiredDependency(consumer, provider) ||
                     requiredCapabilitiesSatisfiedBy(consumer, provider).isNotEmpty()
             }
             .map { it.descriptor.id }
@@ -199,7 +199,7 @@ internal class ModuleRegistry(
             .asSequence()
             .filter { it.descriptor.id != providerId }
             .filter { consumer ->
-                if (hasDirectRequiredDependency(consumer, providerId)) return@filter true
+                if (hasDirectRequiredDependency(consumer, provider)) return@filter true
 
                 val matchingRequirements = requiredCapabilitiesSatisfiedBy(consumer, provider)
                 if (matchingRequirements.isEmpty()) return@filter false
@@ -245,9 +245,11 @@ internal class ModuleRegistry(
         KernelResult.success(merged)
     }
 
-    private fun hasDirectRequiredDependency(consumer: Record, providerId: String): Boolean =
+    private fun hasDirectRequiredDependency(consumer: Record, provider: Record): Boolean =
         consumer.descriptor.dependencies.any { dependency ->
-            dependency.kind == DependencyKind.REQUIRED && dependency.id == providerId
+            dependency.kind == DependencyKind.REQUIRED &&
+                dependency.id == provider.descriptor.id &&
+                dependency.versionRange.contains(provider.descriptor.version)
         }
 
     private fun requiredCapabilitiesSatisfiedBy(consumer: Record, provider: Record): List<CapabilityRequirement> =
