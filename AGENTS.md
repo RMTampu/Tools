@@ -216,3 +216,28 @@ ROUTE_PROOF_PASS
 ```
 
 Build tetap tertutup sampai `ROUTE_PROOF_PASS` terintegrasi dengan seluruh syarat Gate 5 dan `PREBUILD_ASSET_GATE = PASS`.
+
+## 20. Aturan Hasil Riset ASSET_SAFE_100 Terintegrasi
+
+Untuk setiap pekerjaan asset/resource yang akan masuk ke rantai build/test atau akan dinilai dengan status `ASSET_SAFE_100`, agen WAJIB membaca dan mematuhi:
+
+- `ASSET_SAFE_100_METHODS.md`;
+- `ASSET_SAFE_100_PROCESS.md`.
+
+`ASSET_SAFE_100_METHODS.md` hanya memuat metode hasil riset yang sudah diterima setelah penyaringan, penggabungan metode yang tumpang tindih, dominance filtering, dan audit kontra terhadap aturan aktif. Metode yang ditolak, lebih lemah, redundant, atau tidak menambah jaminan tidak boleh dipakai untuk menggantikan metode aktif.
+
+`ASSET_SAFE_100_PROCESS.md` memetakan seluruh metode tersebut ke Gate 0–9 pada `PREBUILD_ASSET_GATE.md`. Dokumen tersebut tidak boleh digunakan untuk membuat urutan paralel atau melewati build boundary yang sudah ditetapkan.
+
+Final status `ASSET_SAFE_100` hanya boleh diberikan jika seluruh syarat dari:
+
+```text
+ASSET_SAFE_100_RULES.md
+AND ASSET_SAFE_100_METHODS.md
+AND ASSET_SAFE_100_PROCESS.md
+```
+
+terpenuhi untuk scope yang berlaku.
+
+Jika route/reference/resolution termasuk scope, final status juga memerlukan `ROUTE_PROOF_PASS` sesuai `ASSET_ROUTE_PROOF_PROCESS.md`.
+
+Build tetap dilarang sampai seluruh bagian prebuild pada `ASSET_SAFE_100_PROCESS.md` dan seluruh Gate 0–5 pada `PREBUILD_ASSET_GATE.md` selesai serta PASS.
