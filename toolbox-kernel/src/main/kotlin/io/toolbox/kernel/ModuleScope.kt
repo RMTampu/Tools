@@ -63,15 +63,15 @@ internal class ModuleScope(
     internal val commands = ModuleCommands(owner, commandBus)
 
     private val ownerId = owner
-    private val services = servicesRegistry
-    private val capabilitiesRegistry = capabilityRegistry
-    private val eventsBus = eventBus
-    private val commandsBus = commandBus
+    private val serviceRegistry = servicesRegistry
+    private val capabilityRegistryRef = capabilityRegistry
+    private val eventBusRef = eventBus
+    private val commandBusRef = commandBus
 
     override fun close(): Unit {
-        eventsBus.removeOwner(ownerId)
-        commandsBus.removeOwner(ownerId)
-        capabilitiesRegistry.removeOwner(ownerId)
-        services.removeOwner(ownerId)
+        eventBusRef.removeOwner(ownerId)
+        commandBusRef.removeOwner(ownerId)
+        capabilityRegistryRef.removeOwner(ownerId)
+        serviceRegistry.removeOwner(ownerId)
     }
 }

@@ -22,9 +22,11 @@ internal class ServiceRegistry {
 
     internal fun <T : Any> get(type: Class<T>): T? = services[type]?.value?.let(type::cast)
 
-    internal fun unregister(owner: String, type: Class<*>): Boolean = services.computeIfPresent(type) { _, current ->
-        if (current.owner == owner) null else current
-    } == null
+    internal fun unregister(owner: String, type: Class<*>): Boolean {
+        val current = services[type] ?: return false
+        if (current.owner != owner) return false
+        return services.remove(type, current)
+    }
 
     internal fun removeOwner(owner: String): Unit {
         services.entries.removeIf { it.value.owner == owner }
@@ -52,9 +54,11 @@ internal class CapabilityRegistry {
 
     internal fun get(id: String): Capability? = capabilities[id]?.value
 
-    internal fun unregister(owner: String, id: String): Boolean = capabilities.computeIfPresent(id) { _, current ->
-        if (current.owner == owner) null else current
-    } == null
+    internal fun unregister(owner: String, id: String): Boolean {
+        val current = capabilities[id] ?: return false
+        if (current.owner != owner) return false
+        return capabilities.remove(id, current)
+    }
 
     internal fun removeOwner(owner: String): Unit {
         capabilities.entries.removeIf { it.value.owner == owner }
@@ -140,9 +144,11 @@ internal class CommandBus {
         return runCatching { handler.callback(command) }.getOrElse(CommandResult::failure)
     }
 
-    internal fun unregister(owner: String, commandName: String): Boolean = handlers.computeIfPresent(commandName) { _, current ->
-        if (current.owner == owner) null else current
-    } == null
+    internal fun unregister(owner: String, commandName: String): Boolean {
+        val current = handlers[commandName] ?: return false
+        if (current.owner != owner) return false
+        return handlers.remove(commandName, current)
+    }
 
     internal fun removeOwner(owner: String): Unit {
         handlers.entries.removeIf { it.value.owner == owner }

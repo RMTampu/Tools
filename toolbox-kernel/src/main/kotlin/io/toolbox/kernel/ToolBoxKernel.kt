@@ -98,7 +98,7 @@ public class ToolBoxKernel(
 
     @Synchronized
     public fun retryModule(moduleId: String): KernelResult<Unit> {
-        val result = lifecycle.retry(moduleId, activate = isOperational())
+        val result = lifecycle.retry(moduleId, activateNow = isOperational())
         if (result.isSuccess && isOperational()) lifecycle.probeHealth()
         refreshOperationalState()
         return result

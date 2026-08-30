@@ -146,7 +146,7 @@ internal class LifecycleCoordinator(
         return KernelResult.success(true)
     }
 
-    internal fun retry(moduleId: String, activate: Boolean): KernelResult<Unit> {
+    internal fun retry(moduleId: String, activateNow: Boolean): KernelResult<Unit> {
         val handle = modules.handle(moduleId)
             ?: return KernelResult.failure(KernelError(KernelErrorCode.NOT_FOUND, "Unknown module: $moduleId"))
         if (handle.state != ModuleState.FAILED) {
@@ -155,7 +155,7 @@ internal class LifecycleCoordinator(
         scopes.remove(moduleId)?.close()
         modules.forceState(moduleId, ModuleState.REGISTERED)
         modules.setHealth(moduleId, HealthStatus.unknown())
-        return if (activate) activate(moduleId) else KernelResult.success(Unit)
+        return if (activateNow) activate(moduleId) else KernelResult.success(Unit)
     }
 
     internal fun discardFailedRegistration(moduleId: String): Unit {

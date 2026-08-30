@@ -10,13 +10,12 @@ class RegistryTest {
     fun `wildcard topic is delivered once`() {
         var count = 0
         val kernel = ToolBoxKernel(ports = KernelPorts(clock = KernelClock { 42L }))
-        kernel.subscribe("*") { count++ }
         val module = object : ToolBoxModule {
             override val descriptor = ModuleDescriptor("publisher", "publisher", "1.0")
-            override fun onStart() = Unit
             override fun onLoad(context: KernelContext) { context.events.publish("*") }
         }
         kernel.install(module)
+        kernel.subscribe("*") { count++ }
         kernel.start()
         assertEquals(3, count)
     }
