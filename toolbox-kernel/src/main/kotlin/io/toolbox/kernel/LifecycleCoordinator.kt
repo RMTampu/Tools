@@ -420,9 +420,14 @@ internal class LifecycleCoordinator(
         primary: ModuleFailure,
         failures: MutableList<ModuleFailure>
     ): Unit {
+        var finalFailure = primary
         when (val cleanup = supervisor.execute("module:$moduleId:unload-after-load-failure", config.lifecycleTimeoutMillis) { module.onUnload() }) {
             is CallbackOutcome.Success -> Unit
-            is CallbackOutcome.Failure -> failures += ModuleFailure(moduleId, LifecyclePhase.UNLOAD, cleanup.error, ModuleState.LOADING)
+            is CallbackOutcome.Failure -> {
+                val cleanupFailure = ModuleFailure(moduleId, LifecyclePhase.UNLOAD, cleanup.error, ModuleState.LOADING)
+                failures += cleanupFailure
+                finalFailure = cleanupFailure
+            }
             is CallbackOutcome.TimedOut -> {
                 val timeoutFailure = ModuleFailure(moduleId, LifecyclePhase.UNLOAD, cleanup.error, ModuleState.LOADING)
                 failures += timeoutFailure
@@ -431,7 +436,7 @@ internal class LifecycleCoordinator(
             }
         }
         scopes.remove(moduleId)?.close()
-        modules.markFailure(moduleId, setOf(ModuleState.LOADING), primary)
+        modules.markFailure(moduleId, setOf(ModuleState.LOADING), finalFailure)
     }
 
     private fun cleanupAfterCompletedStartFailure(
@@ -440,9 +445,14 @@ internal class LifecycleCoordinator(
         primary: ModuleFailure,
         failures: MutableList<ModuleFailure>
     ): Unit {
+        var finalFailure = primary
         when (val cleanup = supervisor.execute("module:$moduleId:unload-after-start-failure", config.lifecycleTimeoutMillis) { module.onUnload() }) {
             is CallbackOutcome.Success -> Unit
-            is CallbackOutcome.Failure -> failures += ModuleFailure(moduleId, LifecyclePhase.UNLOAD, cleanup.error, ModuleState.STARTING)
+            is CallbackOutcome.Failure -> {
+                val cleanupFailure = ModuleFailure(moduleId, LifecyclePhase.UNLOAD, cleanup.error, ModuleState.STARTING)
+                failures += cleanupFailure
+                finalFailure = cleanupFailure
+            }
             is CallbackOutcome.TimedOut -> {
                 val timeoutFailure = ModuleFailure(moduleId, LifecyclePhase.UNLOAD, cleanup.error, ModuleState.STARTING)
                 failures += timeoutFailure
@@ -451,7 +461,7 @@ internal class LifecycleCoordinator(
             }
         }
         scopes.remove(moduleId)?.close()
-        modules.markFailure(moduleId, setOf(ModuleState.STARTING), primary)
+        modules.markFailure(moduleId, setOf(ModuleState.STARTING), finalFailure)
     }
 
     private fun quarantine(
