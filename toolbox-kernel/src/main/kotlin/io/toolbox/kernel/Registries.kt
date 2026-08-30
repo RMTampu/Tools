@@ -17,32 +17,29 @@ internal data class CapabilitySnapshot(
 internal class ServiceRegistry(
     private val onMutation: () -> Unit
 ) {
-    private val services = ConcurrentHashMap<ServiceKey<*>, OwnedValue<Any>>()
+    private val services =
+        ConcurrentHashMap<ServiceKey<*>, ConcurrentHashMap<OwnerToken, OwnedValue<Any>>>()
 
     internal fun <T : Any> register(owner: ResourceOwner, key: ServiceKey<T>, service: T, replace: Boolean): Unit {
         owner.assertContextOpen()
+        val bucket = services.computeIfAbsent(key) { ConcurrentHashMap() }
         val replacement = OwnedValue(owner, service as Any)
         if (!replace) {
-            check(services.putIfAbsent(key, replacement) == null) {
-                "Service already registered: ${key.type.name}:${key.qualifier}"
+            check(bucket.putIfAbsent(owner.token, replacement) == null) {
+                "Service already registered by ${owner.token.id}: ${key.type.name}:${key.qualifier}"
             }
             onMutation()
             return
         }
-        services.compute(key) { _, current ->
-            check(current == null || current.owner.token == owner.token) {
-                "Service ${key.type.name}:${key.qualifier} is owned by ${current?.owner?.token?.id}"
-            }
-            replacement
-        }
+        bucket[owner.token] = replacement
         onMutation()
     }
 
     internal fun unregister(owner: ResourceOwner, key: ServiceKey<*>): Boolean {
         owner.assertContextOpen()
-        val current = services[key] ?: return false
-        if (current.owner.token != owner.token) return false
-        val removed = services.remove(key, current)
+        val bucket = services[key] ?: return false
+        val removed = bucket.remove(owner.token) != null
+        if (bucket.isEmpty()) services.remove(key, bucket)
         if (removed) onMutation()
         return removed
     }
@@ -51,18 +48,30 @@ internal class ServiceRegistry(
         key: ServiceKey<T>,
         providerAllowed: (OwnerToken) -> Boolean
     ): OwnedValue<T>? {
-        val current = services[key] ?: return null
-        if (!current.owner.isAcceptingInvocations() || !providerAllowed(current.owner.token)) return null
+        val current = services[key]
+            ?.values
+            ?.asSequence()
+            ?.filter { it.owner.isAcceptingInvocations() && providerAllowed(it.owner.token) }
+            ?.sortedWith(
+                compareBy<OwnedValue<Any>> { it.owner.token.id }
+                    .thenByDescending { it.owner.token.generation }
+            )
+            ?.firstOrNull()
+            ?: return null
         @Suppress("UNCHECKED_CAST")
         return OwnedValue(current.owner, key.type.cast(current.value))
     }
 
     internal fun removeOwner(owner: OwnerToken): Unit {
-        val changed = services.entries.removeIf { it.value.owner.token == owner }
+        var changed = false
+        services.forEach { (key, bucket) ->
+            if (bucket.remove(owner) != null) changed = true
+            if (bucket.isEmpty()) services.remove(key, bucket)
+        }
         if (changed) onMutation()
     }
 
-    internal val size: Int get() = services.size
+    internal val size: Int get() = services.values.sumOf { it.size }
 }
 
 internal class CapabilityRegistry(
