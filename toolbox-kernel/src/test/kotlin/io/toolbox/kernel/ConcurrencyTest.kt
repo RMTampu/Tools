@@ -2,6 +2,7 @@ package io.toolbox.kernel
 
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -93,5 +94,56 @@ class ConcurrencyTest {
             listOf("before", "load", "after", "before", "start", "after", "before", "health", "after"),
             order
         )
+    }
+
+    @Test
+    fun `executor that schedules after returning cannot execute callback late`() {
+        val scheduled = AtomicReference<(() -> Unit)?>(null)
+        val callbackCount = AtomicInteger(0)
+        val executor = KernelExecutor { _, task -> scheduled.set(task) }
+        val kernel = ToolBoxKernel(ports = KernelPorts(executor = executor))
+        kernel.install(module("late", onLoadBlock = { callbackCount.incrementAndGet() }))
+
+        val result = kernel.start()
+        assertFalse(result.isSuccess)
+        assertEquals(ModuleState.FAILED, kernel.moduleState("late"))
+        assertEquals(0, callbackCount.get())
+
+        assertNotNull(scheduled.get()).invoke()
+        assertEquals(0, callbackCount.get())
+    }
+
+    @Test
+    fun `executor returning while callback runs is protocol failure but completion remains tracked`() {
+        val entered = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val executor = KernelExecutor { _, task ->
+            Thread {
+                task()
+            }.start()
+        }
+        val kernel = ToolBoxKernel(
+            config = KernelConfig(lifecycleTimeoutMillis = 500),
+            ports = KernelPorts(executor = executor)
+        )
+        kernel.install(
+            module(
+                "async",
+                onLoadBlock = {
+                    entered.countDown()
+                    release.await(1, TimeUnit.SECONDS)
+                }
+            )
+        )
+
+        val startResult = AtomicReference<KernelResult<Unit>>()
+        val starter = Thread { startResult.set(kernel.start()) }
+        starter.start()
+        assertTrue(entered.await(1, TimeUnit.SECONDS))
+        release.countDown()
+        starter.join(2_000)
+
+        assertFalse(startResult.get().isSuccess)
+        assertEquals(ModuleState.FAILED, kernel.moduleState("async"))
     }
 }
