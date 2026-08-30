@@ -6,6 +6,8 @@ Dokumen ini adalah rantai gate wajib untuk seluruh pekerjaan asset/resource sebe
 
 Dokumen ini tidak menggantikan `ASSET_SAFE_100_RULES.md`. Dokumen ini menentukan urutan wajib kapan setiap kelompok aturan harus dijalankan.
 
+Seluruh gate dalam dokumen ini WAJIB dijalankan sesuai `AGENT_PROCEDURE_EXECUTION_RULES.md`. Keterbatasan context/memory agen hanya boleh menyebabkan eksekusi dipecah menjadi unit yang lebih kecil; tidak boleh menyebabkan aturan, langkah, coverage, proof, atau evidence dikurangi.
+
 ---
 
 # 2. Larangan Build Sebelum Rangkaian Selesai
@@ -24,6 +26,7 @@ UNKNOWN            != PASS
 INCOMPLETE_PROOF   != PASS
 INDETERMINATE_TOOL != PASS
 FAIL_ASSET         != PASS
+NOT_PROVEN         != PASS
 ```
 
 Jika satu gate belum PASS, proses berhenti pada gate tersebut dan BUILD DILARANG DIMULAI.
@@ -67,10 +70,14 @@ GATE 9  — FINAL ACCEPTANCE
 Sebelum asset disentuh:
 
 - baca `AGENTS.md`;
+- baca `AGENT_PROCEDURE_EXECUTION_RULES.md`;
 - baca `PREBUILD_ASSET_GATE.md`;
 - baca `ASSET_SAFE_100_RULES.md`;
+- ikuti seluruh referensi aturan tambahan yang diwajibkan oleh scope aktif;
 - tentukan scope asset dan perubahan yang sedang dikerjakan;
-- jangan memulai gate berikutnya bila scope belum diketahui.
+- jangan memulai gate berikutnya bila scope atau aturan aktif belum diketahui lengkap.
+
+Jika semua aturan tidak dapat dipertahankan secara lengkap sekaligus, Gate 0 WAJIB menetapkan eksekusi bertahap sesuai `AGENT_PROCEDURE_EXECUTION_RULES.md` sebelum pekerjaan dilanjutkan.
 
 ---
 
@@ -112,7 +119,7 @@ Tidak boleh ada jalur putus, salah alamat, ambigu, tidak diketahui, atau bypass 
 
 Gate ini adalah keputusan terakhir sebelum build.
 
-BUILD hanya boleh dibuka bila seluruh gate 0 sampai 4 telah PASS dan tidak ada proof wajib yang masih UNKNOWN, SKIPPED, INCOMPLETE, atau INDETERMINATE.
+BUILD hanya boleh dibuka bila seluruh gate 0 sampai 4 telah PASS dan tidak ada proof wajib yang masih UNKNOWN, SKIPPED, INCOMPLETE, INDETERMINATE, NOT_LOADED, NOT_READ, atau NOT_PROVEN.
 
 Status:
 
@@ -165,7 +172,11 @@ Dilarang:
 - mengubah UNKNOWN menjadi PASS;
 - menjadikan keberhasilan compiler sebagai pengganti proof pre-build;
 - mengabaikan gate karena perubahan dianggap kecil;
-- menggunakan artifact dari build yang melanggar rantai sebagai final artifact.
+- menggunakan artifact dari build yang melanggar rantai sebagai final artifact;
+- mengurangi prosedur karena context/memory agen tidak cukup;
+- menggunakan ringkasan sebagai pengganti aturan sumber;
+- melanjutkan dari state prosedur yang tidak diketahui;
+- menganggap rule yang belum dibaca atau evidence yang hilang sebagai PASS.
 
 ---
 
@@ -186,3 +197,10 @@ PREPARE
 ```
 
 Jika satu tahap tidak terbukti selesai, tahap berikutnya tetap tertutup.
+
+Jika kapasitas agen tidak cukup untuk menjalankan satu tahap secara lengkap sekaligus:
+
+```text
+PECAH EKSEKUSI MENJADI UNIT LEBIH KECIL
+TETAPI JANGAN KURANGI ATURAN, COVERAGE, PROOF, ATAU EVIDENCE
+```
