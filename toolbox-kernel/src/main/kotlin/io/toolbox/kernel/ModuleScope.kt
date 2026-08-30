@@ -3,22 +3,31 @@ package io.toolbox.kernel
 import java.util.concurrent.atomic.AtomicBoolean
 
 public class ServiceHandle<T : Any> internal constructor(
-    private val owner: ResourceOwner,
+    private val consumerOwner: ResourceOwner,
+    private val providerOwner: ResourceOwner,
     private val value: T
 ) {
-    public val available: Boolean get() = owner.isAcceptingInvocations()
+    public val available: Boolean get() = consumerOwner.isContextUsable() && providerOwner.isAcceptingInvocations()
 
     /**
-     * Uses the service while holding a provider invocation lease. Callers must not retain [service]
-     * beyond the callback because the provider can be stopped immediately after this method returns.
+     * Uses the service while holding both the consumer-generation context lease and provider
+     * invocation lease. A handle cannot outlive either side of the route.
      */
     public fun <R> use(block: (service: T) -> R): R {
-        val permit = owner.tryAcquireInvocation()
-            ?: throw IllegalStateException("Service provider ${owner.token.id} is not active")
+        val consumerPermit = consumerOwner.tryAcquireContextUse()
+            ?: throw IllegalStateException(
+                "Service consumer ${consumerOwner.token.id}#${consumerOwner.token.generation} is no longer active"
+            )
+        val providerPermit = providerOwner.tryAcquireInvocation()
+        if (providerPermit == null) {
+            consumerPermit.close()
+            throw IllegalStateException("Service provider ${providerOwner.token.id} is not active")
+        }
         return try {
             block(value)
         } finally {
-            permit.close()
+            providerPermit.close()
+            consumerPermit.close()
         }
     }
 }
@@ -35,12 +44,14 @@ public class ModuleServices internal constructor(
         replace: Boolean = false
     ): Unit = registry.register(owner, ServiceKey(type, qualifier), service, replace)
 
-    public fun <T : Any> reference(type: Class<T>, qualifier: String = "default"): ServiceHandle<T>? {
-        val key = ServiceKey(type, qualifier)
-        val registration = registry.reference(key) { token -> token.id == owner.token.id || token.id in allowedProviderIds }
-            ?: return null
-        return ServiceHandle(registration.owner, registration.value)
-    }
+    public fun <T : Any> reference(type: Class<T>, qualifier: String = "default"): ServiceHandle<T>? =
+        owner.withContextUse {
+            val key = ServiceKey(type, qualifier)
+            val registration = registry.reference(key) { token ->
+                token.id == owner.token.id || token.id in allowedProviderIds
+            } ?: return@withContextUse null
+            ServiceHandle(owner, registration.owner, registration.value)
+        }
 
     public fun <T : Any> unregister(type: Class<T>, qualifier: String = "default"): Boolean =
         registry.unregister(owner, ServiceKey(type, qualifier))
@@ -78,19 +89,21 @@ public class ModuleCapabilities internal constructor(
         )
     }
 
-    public fun get(id: String): Capability? {
-        val provider = capabilityBindings[id] ?: if (declared.containsKey(id)) owner.token.id else return null
-        return registry.findActive(CapabilityRequirement.required(id), provider)
+    public fun get(id: String): Capability? = owner.withContextUse {
+        val provider = capabilityBindings[id] ?: if (declared.containsKey(id)) owner.token.id else return@withContextUse null
+        registry.findActive(CapabilityRequirement.required(id), provider)
     }
 
-    public fun all(): List<Capability> = buildList {
-        capabilityBindings.forEach { (id, provider) ->
-            registry.findActive(CapabilityRequirement.required(id), provider)?.let(::add)
-        }
-        declared.keys.forEach { id ->
-            registry.findActive(CapabilityRequirement.required(id), owner.token.id)?.let(::add)
-        }
-    }.distinctBy { Triple(it.id, it.version, it.providerModuleId) }
+    public fun all(): List<Capability> = owner.withContextUse {
+        buildList {
+            capabilityBindings.forEach { (id, provider) ->
+                registry.findActive(CapabilityRequirement.required(id), provider)?.let(::add)
+            }
+            declared.keys.forEach { id ->
+                registry.findActive(CapabilityRequirement.required(id), owner.token.id)?.let(::add)
+            }
+        }.distinctBy { Triple(it.id, it.version, it.providerModuleId) }
+    }
 
     /** Descriptor-declared capabilities are immutable for the life of this module generation. */
     public fun unregister(id: String): Boolean {
@@ -113,8 +126,10 @@ public class ModuleCommands internal constructor(
         handler: (KernelCommand) -> CommandResult
     ): Unit = bus.register(owner, commandName, replace, handler)
 
-    public fun execute(command: KernelCommand): CommandResult = bus.execute(command) { token ->
-        token.id == owner.token.id || token.id in allowedProviderIds
+    public fun execute(command: KernelCommand): CommandResult = owner.withContextUse {
+        bus.execute(command) { token ->
+            token.id == owner.token.id || token.id in allowedProviderIds
+        }
     }
 
     public fun unregister(commandName: String): Boolean = bus.unregister(owner, commandName)
@@ -128,8 +143,7 @@ public class ModuleEvents internal constructor(
     public fun subscribe(topic: String, listener: (KernelEvent) -> Unit): Subscription =
         bus.subscribe(owner, topic, listener)
 
-    public fun publish(topic: String, payload: Any? = null): Unit {
-        owner.assertContextOpen()
+    public fun publish(topic: String, payload: Any? = null): Unit = owner.withContextUse {
         bus.publish(KernelEvent(topic, owner.token.id, payload, clock.nowMillis()))
     }
 }
