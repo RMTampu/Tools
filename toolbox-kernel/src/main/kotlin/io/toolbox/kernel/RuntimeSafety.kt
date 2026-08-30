@@ -1,6 +1,7 @@
 package io.toolbox.kernel
 
 import java.util.LinkedHashSet
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.Semaphore
@@ -125,16 +126,15 @@ internal class ModuleLease(
     internal fun hasActiveInvocations(): Boolean = synchronized(lock) { activeInvocations > 0 }
 
     internal fun quiesce(timeoutMillis: Long): Boolean {
-        val deadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis.coerceAtLeast(0))
+        val startedAtNanos = System.nanoTime()
         synchronized(lock) {
             acceptingInvocations = false
             contextUsesOpen = false
             while (activeInvocations > 0) {
-                val remainingNanos = deadlineNanos - System.nanoTime()
-                if (remainingNanos <= 0) return false
-                val millis = TimeUnit.NANOSECONDS.toMillis(remainingNanos).coerceAtLeast(1)
+                val remainingMillis = remainingMillis(startedAtNanos, timeoutMillis)
+                if (remainingMillis <= 0) return false
                 try {
-                    lock.wait(millis)
+                    lock.wait(remainingMillis)
                 } catch (interrupted: InterruptedException) {
                     Thread.currentThread().interrupt()
                     return false
@@ -175,6 +175,8 @@ internal sealed class CallbackOutcome<out T> {
         val completion: CallbackCompletion
     ) : CallbackOutcome<Nothing>()
 }
+
+internal class CallbackCapacityException(message: String) : RejectedExecutionException(message)
 
 private enum class CallbackExecutionState {
     PENDING,
@@ -294,30 +296,82 @@ private class GuardedCallback<T>(
 
 /**
  * Executes untrusted callbacks outside kernel monitors with bounded concurrency.
+ *
+ * Lifecycle/control callbacks and extension callbacks have independent pools, so extension work
+ * cannot consume the capacity required by stop/unload/recovery. Extension callbacks additionally
+ * use an owner quota, preventing one module generation from monopolizing the extension pool.
  * A timeout requests interruption but keeps an actual-completion token because Java interruption
  * does not prove that callback code has terminated.
  */
 internal class CallbackSupervisor(
     private val executor: KernelExecutor,
-    private val logger: KernelLogger,
-    maxConcurrentCallbacks: Int = DEFAULT_MAX_CONCURRENT_CALLBACKS
+    private val logger: KernelLogger
 ) {
-    private val capacity = Semaphore(maxConcurrentCallbacks, true)
+    internal val limits: KernelRuntimeLimits =
+        (executor as? KernelRuntimeLimitsProvider)?.runtimeLimits ?: KernelRuntimeLimits()
 
-    init {
-        require(maxConcurrentCallbacks > 0) { "Callback concurrency limit must be positive" }
-    }
+    private val lifecycleCapacity = Semaphore(limits.maxLifecycleCallbacks, true)
+    private val extensionCapacity = Semaphore(limits.maxExtensionCallbacks, true)
+    private val activeExtensionCallbacksByOwner = ConcurrentHashMap<OwnerToken, Int>()
 
-    internal fun <T> execute(taskName: String, timeoutMillis: Long, task: () -> T): CallbackOutcome<T> {
+    internal fun <T> execute(taskName: String, timeoutMillis: Long, task: () -> T): CallbackOutcome<T> =
+        executeBounded(
+            taskName = taskName,
+            timeoutMillis = timeoutMillis,
+            capacity = lifecycleCapacity,
+            capacityName = "lifecycle",
+            owner = null,
+            task = task
+        )
+
+    internal fun <T> executeExtension(
+        owner: OwnerToken,
+        taskName: String,
+        timeoutMillis: Long,
+        task: () -> T
+    ): CallbackOutcome<T> = executeBounded(
+        taskName = taskName,
+        timeoutMillis = timeoutMillis,
+        capacity = extensionCapacity,
+        capacityName = "extension",
+        owner = owner,
+        task = task
+    )
+
+    private fun <T> executeBounded(
+        taskName: String,
+        timeoutMillis: Long,
+        capacity: Semaphore,
+        capacityName: String,
+        owner: OwnerToken?,
+        task: () -> T
+    ): CallbackOutcome<T> {
+        require(timeoutMillis > 0) { "Callback timeout must be positive" }
         if (!capacity.tryAcquire()) {
             return CallbackOutcome.Failure(
-                RejectedExecutionException("Kernel callback capacity exhausted while scheduling $taskName")
+                CallbackCapacityException("Kernel $capacityName callback capacity exhausted while scheduling $taskName")
+            )
+        }
+        if (owner != null && !tryAcquireOwner(owner)) {
+            capacity.release()
+            return CallbackOutcome.Failure(
+                CallbackCapacityException(
+                    "Kernel extension callback quota exhausted for ${owner.id}#${owner.generation} while scheduling $taskName"
+                )
             )
         }
 
-        val deadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis)
+        val startedAtNanos = System.nanoTime()
         val completion = CallbackCompletion(taskName)
-        val guarded = GuardedCallback(taskName, task, completion, capacity::release)
+        val guarded = GuardedCallback(
+            taskName = taskName,
+            task = task,
+            completion = completion,
+            releaseCapacity = {
+                if (owner != null) releaseOwner(owner)
+                capacity.release()
+            }
+        )
         val worker = Thread(
             {
                 try {
@@ -339,13 +393,36 @@ internal class CallbackSupervisor(
             return CallbackOutcome.Failure(error)
         }
 
-        if (!completion.await(remainingMillis(deadlineNanos))) {
+        if (!completion.await(remainingMillis(startedAtNanos, timeoutMillis))) {
             return timeout(taskName, timeoutMillis, completion, guarded, worker)
         }
-        if (!guarded.awaitExecutorReturn(remainingMillis(deadlineNanos))) {
+        if (!guarded.awaitExecutorReturn(remainingMillis(startedAtNanos, timeoutMillis))) {
             return timeout(taskName, timeoutMillis, completion, guarded, worker)
         }
         return guarded.outcome()
+    }
+
+    private fun tryAcquireOwner(owner: OwnerToken): Boolean {
+        var acquired = false
+        activeExtensionCallbacksByOwner.compute(owner) { _, current ->
+            val count = current ?: 0
+            if (count >= limits.maxExtensionCallbacksPerOwner) {
+                count
+            } else {
+                acquired = true
+                count + 1
+            }
+        }
+        return acquired
+    }
+
+    private fun releaseOwner(owner: OwnerToken): Unit {
+        activeExtensionCallbacksByOwner.compute(owner) { _, current ->
+            check(current != null && current > 0) {
+                "Extension callback quota underflow for ${owner.id}#${owner.generation}"
+            }
+            if (current == 1) null else current - 1
+        }
     }
 
     private fun <T> timeout(
@@ -362,14 +439,13 @@ internal class CallbackSupervisor(
         logger.error(timeout.message ?: "Kernel callback timeout", timeout)
         return CallbackOutcome.TimedOut(timeout, completion)
     }
+}
 
-    private fun remainingMillis(deadlineNanos: Long): Long {
-        val remaining = deadlineNanos - System.nanoTime()
-        if (remaining <= 0) return 0
-        return TimeUnit.NANOSECONDS.toMillis(remaining).coerceAtLeast(1)
-    }
-
-    private companion object {
-        private const val DEFAULT_MAX_CONCURRENT_CALLBACKS: Int = 32
-    }
+internal fun remainingMillis(startedAtNanos: Long, timeoutMillis: Long): Long {
+    if (timeoutMillis <= 0) return 0
+    val budgetNanos = TimeUnit.MILLISECONDS.toNanos(timeoutMillis)
+    val elapsedNanos = (System.nanoTime() - startedAtNanos).coerceAtLeast(0)
+    val remainingNanos = budgetNanos - elapsedNanos
+    if (remainingNanos <= 0) return 0
+    return TimeUnit.NANOSECONDS.toMillis(remainingNanos).coerceAtLeast(1)
 }
