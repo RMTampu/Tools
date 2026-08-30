@@ -169,6 +169,59 @@ internal class ModuleRegistry(
         removed
     }
 
+    /**
+     * Conservative fallback used only when actual active wiring is unavailable. It never treats an
+     * unknown route as proof that there are no required dependents.
+     */
+    internal fun potentialRequiredDependentsOf(providerId: String, startedOnly: Boolean): List<String> = synchronized(lock) {
+        val provider = records[providerId] ?: return@synchronized emptyList()
+        records.values
+            .asSequence()
+            .filter { it.descriptor.id != providerId }
+            .filter { !startedOnly || it.state == ModuleState.STARTED }
+            .filter { consumer ->
+                hasDirectRequiredDependency(consumer, providerId) ||
+                    requiredCapabilitiesSatisfiedBy(consumer, provider).isNotEmpty()
+            }
+            .map { it.descriptor.id }
+            .sorted()
+            .toList()
+    }
+
+    /**
+     * Returns installed consumers that would lose a required route if [providerId] were removed.
+     * Active capability routes use the exact binding. Inactive routes may release a provider only
+     * when a different provider is proven independently resolvable without the provider being removed.
+     */
+    internal fun removalBlockers(providerId: String, activePlan: ResolutionPlan?): List<String> = synchronized(lock) {
+        val provider = records[providerId] ?: return@synchronized emptyList()
+        records.values
+            .asSequence()
+            .filter { it.descriptor.id != providerId }
+            .filter { consumer ->
+                if (hasDirectRequiredDependency(consumer, providerId)) return@filter true
+
+                val matchingRequirements = requiredCapabilitiesSatisfiedBy(consumer, provider)
+                if (matchingRequirements.isEmpty()) return@filter false
+
+                if (consumer.state == ModuleState.STARTED) {
+                    return@filter matchingRequirements.any { requirement ->
+                        val binding = activePlan?.capabilityBindings?.get(
+                            CapabilityBindingKey(consumer.descriptor.id, requirement.id)
+                        )
+                        binding == null || binding == providerId
+                    }
+                }
+
+                matchingRequirements.any { requirement ->
+                    !hasResolvableAlternativeProvider(requirement, providerId, consumer.descriptor.id)
+                }
+            }
+            .map { it.descriptor.id }
+            .sorted()
+            .toList()
+    }
+
     /** Resolves only [moduleId] and the providers needed by its closure. Unrelated broken modules are ignored. */
     internal fun resolvePlanFor(moduleId: String): KernelResult<ResolutionPlan> = synchronized(lock) {
         if (moduleId !in records) {
@@ -191,6 +244,40 @@ internal class ModuleRegistry(
         }
         KernelResult.success(merged)
     }
+
+    private fun hasDirectRequiredDependency(consumer: Record, providerId: String): Boolean =
+        consumer.descriptor.dependencies.any { dependency ->
+            dependency.kind == DependencyKind.REQUIRED && dependency.id == providerId
+        }
+
+    private fun requiredCapabilitiesSatisfiedBy(consumer: Record, provider: Record): List<CapabilityRequirement> =
+        consumer.descriptor.requiredCapabilities
+            .filter { it.kind == DependencyKind.REQUIRED }
+            .filter { requirement ->
+                provider.descriptor.providedCapabilities.any { declaration ->
+                    declaration.id == requirement.id && requirement.versionRange.contains(declaration.version)
+                }
+            }
+
+    private fun hasResolvableAlternativeProvider(
+        requirement: CapabilityRequirement,
+        excludedProviderId: String,
+        consumerId: String
+    ): Boolean = records.values
+        .asSequence()
+        .filter { candidate ->
+            candidate.descriptor.id != excludedProviderId &&
+                candidate.descriptor.id != consumerId &&
+                candidate.state !in setOf(ModuleState.FAILED, ModuleState.QUARANTINED)
+        }
+        .filter { candidate ->
+            candidate.descriptor.providedCapabilities.any { declaration ->
+                declaration.id == requirement.id && requirement.versionRange.contains(declaration.version)
+            }
+        }
+        .any { candidate ->
+            resolveModule(candidate.descriptor.id, linkedSetOf(consumerId, excludedProviderId)) is ResolveAttempt.Success
+        }
 
     private fun resolveModule(moduleId: String, path: LinkedHashSet<String>): ResolveAttempt {
         if (moduleId in path) {
