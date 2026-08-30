@@ -15,33 +15,35 @@ internal data class CapabilitySnapshot(
 ) : Capability
 
 internal class ServiceRegistry(
+    private val mutationGuard: KernelMutationGuard,
     private val onMutation: () -> Unit
 ) {
     private val services =
         ConcurrentHashMap<ServiceKey<*>, ConcurrentHashMap<OwnerToken, OwnedValue<Any>>>()
 
-    internal fun <T : Any> register(owner: ResourceOwner, key: ServiceKey<T>, service: T, replace: Boolean): Unit {
-        owner.assertContextOpen()
-        val bucket = services.computeIfAbsent(key) { ConcurrentHashMap() }
-        val replacement = OwnedValue(owner, service as Any)
-        if (!replace) {
-            check(bucket.putIfAbsent(owner.token, replacement) == null) {
-                "Service already registered by ${owner.token.id}: ${key.type.name}:${key.qualifier}"
+    internal fun <T : Any> register(owner: ResourceOwner, key: ServiceKey<T>, service: T, replace: Boolean): Unit =
+        mutationGuard.mutate {
+            owner.assertContextOpen()
+            val bucket = services.computeIfAbsent(key) { ConcurrentHashMap() }
+            val replacement = OwnedValue(owner, service as Any)
+            if (!replace) {
+                check(bucket.putIfAbsent(owner.token, replacement) == null) {
+                    "Service already registered by ${owner.token.id}: ${key.type.name}:${key.qualifier}"
+                }
+                onMutation()
+                return@mutate
             }
+            bucket[owner.token] = replacement
             onMutation()
-            return
         }
-        bucket[owner.token] = replacement
-        onMutation()
-    }
 
-    internal fun unregister(owner: ResourceOwner, key: ServiceKey<*>): Boolean {
+    internal fun unregister(owner: ResourceOwner, key: ServiceKey<*>): Boolean = mutationGuard.mutate {
         owner.assertContextOpen()
-        val bucket = services[key] ?: return false
+        val bucket = services[key] ?: return@mutate false
         val removed = bucket.remove(owner.token) != null
         if (bucket.isEmpty()) services.remove(key, bucket)
         if (removed) onMutation()
-        return removed
+        removed
     }
 
     internal fun <T : Any> reference(
@@ -62,7 +64,7 @@ internal class ServiceRegistry(
         return OwnedValue(current.owner, key.type.cast(current.value))
     }
 
-    internal fun removeOwner(owner: OwnerToken): Unit {
+    internal fun removeOwner(owner: OwnerToken): Unit = mutationGuard.mutate {
         var changed = false
         services.forEach { (key, bucket) ->
             if (bucket.remove(owner) != null) changed = true
@@ -75,6 +77,7 @@ internal class ServiceRegistry(
 }
 
 internal class CapabilityRegistry(
+    private val mutationGuard: KernelMutationGuard,
     private val onMutation: () -> Unit
 ) {
     private val capabilities = ConcurrentHashMap<String, ConcurrentHashMap<OwnerToken, OwnedValue<CapabilitySnapshot>>>()
@@ -103,7 +106,7 @@ internal class CapabilityRegistry(
         capability: CapabilitySnapshot,
         replace: Boolean,
         allowIdentical: Boolean
-    ): Unit {
+    ): Unit = mutationGuard.mutate {
         owner.assertContextOpen()
         KernelIdentifiers.requireValid(capability.id, "Capability id")
         require(capability.providerModuleId == owner.token.id) {
@@ -113,24 +116,24 @@ internal class CapabilityRegistry(
         val replacement = OwnedValue(owner, capability)
         val existing = bucket[owner.token]
         if (!replace) {
-            if (allowIdentical && existing?.value == capability) return
+            if (allowIdentical && existing?.value == capability) return@mutate
             check(bucket.putIfAbsent(owner.token, replacement) == null) {
                 "Capability ${capability.id} already registered by ${owner.token.id}"
             }
             onMutation()
-            return
+            return@mutate
         }
         bucket[owner.token] = replacement
         if (existing?.value != capability) onMutation()
     }
 
-    internal fun unregister(owner: ResourceOwner, id: String): Boolean {
+    internal fun unregister(owner: ResourceOwner, id: String): Boolean = mutationGuard.mutate {
         owner.assertContextOpen()
-        val bucket = capabilities[id] ?: return false
+        val bucket = capabilities[id] ?: return@mutate false
         val removed = bucket.remove(owner.token) != null
         if (bucket.isEmpty()) capabilities.remove(id, bucket)
         if (removed) onMutation()
-        return removed
+        removed
     }
 
     internal fun findOwned(owner: OwnerToken, id: String): Capability? =
@@ -153,7 +156,7 @@ internal class CapabilityRegistry(
         .map { it.value }
         .sortedWith(compareBy<CapabilitySnapshot> { it.id }.thenByDescending { it.version }.thenBy { it.providerModuleId })
 
-    internal fun removeOwner(owner: OwnerToken): Unit {
+    internal fun removeOwner(owner: OwnerToken): Unit = mutationGuard.mutate {
         var changed = false
         capabilities.forEach { (id, bucket) ->
             if (bucket.remove(owner) != null) changed = true
@@ -173,6 +176,7 @@ internal class EventBus(
     private val logger: KernelLogger,
     private val supervisor: CallbackSupervisor,
     private val listenerTimeoutMillis: Long,
+    private val mutationGuard: KernelMutationGuard,
     private val onMutation: () -> Unit
 ) {
     private data class Listener(val owner: ResourceOwner, val callback: (KernelEvent) -> Unit)
@@ -183,13 +187,18 @@ internal class EventBus(
         owner.assertContextOpen()
         requireValidTopic(topic)
         val record = Listener(owner, listener)
-        val bucket = listeners.computeIfAbsent(topic) { CopyOnWriteArrayList() }
-        bucket += record
-        onMutation()
+        val bucket = mutationGuard.mutate {
+            val current = listeners.computeIfAbsent(topic) { CopyOnWriteArrayList() }
+            current += record
+            onMutation()
+            current
+        }
         return Subscription {
-            val removed = bucket.remove(record)
-            if (bucket.isEmpty()) listeners.remove(topic, bucket)
-            if (removed) onMutation()
+            mutationGuard.mutate {
+                val removed = bucket.remove(record)
+                if (bucket.isEmpty()) listeners.remove(topic, bucket)
+                if (removed) onMutation()
+            }
         }
     }
 
@@ -229,7 +238,7 @@ internal class EventBus(
         }
     }
 
-    internal fun removeOwner(owner: OwnerToken): Unit {
+    internal fun removeOwner(owner: OwnerToken): Unit = mutationGuard.mutate {
         var changed = false
         listeners.forEach { (topic, bucket) ->
             if (bucket.removeIf { it.owner.token == owner }) changed = true
@@ -252,6 +261,7 @@ internal class EventBus(
 internal class CommandBus(
     private val supervisor: CallbackSupervisor,
     private val timeoutMillis: Long,
+    private val mutationGuard: KernelMutationGuard,
     private val onMutation: () -> Unit
 ) {
     private data class Handler(val owner: ResourceOwner, val callback: (KernelCommand) -> CommandResult)
@@ -263,14 +273,14 @@ internal class CommandBus(
         commandName: String,
         replace: Boolean,
         handler: (KernelCommand) -> CommandResult
-    ): Unit {
+    ): Unit = mutationGuard.mutate {
         owner.assertContextOpen()
         KernelIdentifiers.requireValid(commandName, "Command name")
         val replacement = Handler(owner, handler)
         if (!replace) {
             check(handlers.putIfAbsent(commandName, replacement) == null) { "Command already registered: $commandName" }
             onMutation()
-            return
+            return@mutate
         }
         handlers.compute(commandName) { _, current ->
             check(current == null || current.owner.token == owner.token) {
@@ -319,16 +329,16 @@ internal class CommandBus(
         }
     }
 
-    internal fun unregister(owner: ResourceOwner, commandName: String): Boolean {
+    internal fun unregister(owner: ResourceOwner, commandName: String): Boolean = mutationGuard.mutate {
         owner.assertContextOpen()
-        val current = handlers[commandName] ?: return false
-        if (current.owner.token != owner.token) return false
+        val current = handlers[commandName] ?: return@mutate false
+        if (current.owner.token != owner.token) return@mutate false
         val removed = handlers.remove(commandName, current)
         if (removed) onMutation()
-        return removed
+        removed
     }
 
-    internal fun removeOwner(owner: OwnerToken): Unit {
+    internal fun removeOwner(owner: OwnerToken): Unit = mutationGuard.mutate {
         val changed = handlers.entries.removeIf { it.value.owner.token == owner }
         if (changed) onMutation()
     }
