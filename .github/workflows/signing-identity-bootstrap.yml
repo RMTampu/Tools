@@ -1,0 +1,207 @@
+name: ToolBox Release Signing Identity Bootstrap
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/signing-identity-bootstrap.yml'
+      - 'verification/signing_contract.json'
+
+permissions:
+  contents: write
+
+jobs:
+  prove-release-signing-identity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+
+      - name: Setup exact Temurin JDK
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '17.0.20+1'
+          java-package: jdk
+          architecture: x64
+          check-latest: false
+
+      - name: Verify exact Java runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -version 2>&1 | tee "$RUNNER_TEMP/java-version.txt"
+          grep -F 'openjdk version "17.0.20.1"' "$RUNNER_TEMP/java-version.txt"
+          grep -F 'Temurin-17.0.20.1+1' "$RUNNER_TEMP/java-version.txt"
+          test -s "$JAVA_HOME/release"
+          grep -F 'JAVA_VERSION="17.0.20.1"' "$JAVA_HOME/release"
+          grep -F 'IMPLEMENTOR="Eclipse Adoptium"' "$JAVA_HOME/release"
+
+      - name: Require release signing secrets
+        shell: bash
+        env:
+          TOOLBOX_KEYSTORE_BASE64: ${{ secrets.TOOLBOX_KEYSTORE_BASE64 }}
+          TOOLBOX_KEYSTORE_PASSWORD: ${{ secrets.TOOLBOX_KEYSTORE_PASSWORD }}
+          TOOLBOX_KEY_ALIAS: ${{ secrets.TOOLBOX_KEY_ALIAS }}
+          TOOLBOX_KEY_PASSWORD: ${{ secrets.TOOLBOX_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$TOOLBOX_KEYSTORE_BASE64"
+          test -n "$TOOLBOX_KEYSTORE_PASSWORD"
+          test -n "$TOOLBOX_KEY_ALIAS"
+          test -n "$TOOLBOX_KEY_PASSWORD"
+
+      - name: Extract and cross-check public certificate identity
+        id: cert
+        shell: bash
+        env:
+          TOOLBOX_KEYSTORE_BASE64: ${{ secrets.TOOLBOX_KEYSTORE_BASE64 }}
+          TOOLBOX_KEYSTORE_PASSWORD: ${{ secrets.TOOLBOX_KEYSTORE_PASSWORD }}
+          TOOLBOX_KEY_ALIAS: ${{ secrets.TOOLBOX_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          umask 077
+          KEYSTORE="$RUNNER_TEMP/toolbox-release.keystore"
+          CERT_DER="$RUNNER_TEMP/toolbox-release-cert.der"
+          printf '%s' "$TOOLBOX_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
+          test -s "$KEYSTORE"
+
+          keytool -exportcert \
+            -keystore "$KEYSTORE" \
+            -storepass "$TOOLBOX_KEYSTORE_PASSWORD" \
+            -alias "$TOOLBOX_KEY_ALIAS" \
+            -file "$CERT_DER"
+          test -s "$CERT_DER"
+
+          SHA256SUM_FINGERPRINT="$(sha256sum "$CERT_DER" | awk '{print tolower($1)}')"
+          OPENSSL_FINGERPRINT="$(openssl x509 -inform DER -in "$CERT_DER" -noout -fingerprint -sha256 | sed 's/^sha256 Fingerprint=//I;s/://g' | tr 'A-F' 'a-f')"
+          test "$SHA256SUM_FINGERPRINT" = "$OPENSSL_FINGERPRINT"
+          [[ "$SHA256SUM_FINGERPRINT" =~ ^[0-9a-f]{64}$ ]]
+
+          CURRENT_PIN="$(python3 - <<'PY'
+          import json
+          from pathlib import Path
+          value = json.loads(Path('verification/signing_contract.json').read_text())['release'].get('expectedCertificateSha256')
+          print('' if value is None else str(value).lower())
+          PY
+          )"
+          if [[ -n "$CURRENT_PIN" ]]; then
+            test "$CURRENT_PIN" = "$SHA256SUM_FINGERPRINT"
+          fi
+
+          echo "fingerprint=$SHA256SUM_FINGERPRINT" >> "$GITHUB_OUTPUT"
+          rm -f "$CERT_DER"
+
+      - name: Prove private-key usability without building APK
+        shell: bash
+        env:
+          TOOLBOX_KEYSTORE_BASE64: ${{ secrets.TOOLBOX_KEYSTORE_BASE64 }}
+          TOOLBOX_KEYSTORE_PASSWORD: ${{ secrets.TOOLBOX_KEYSTORE_PASSWORD }}
+          TOOLBOX_KEY_ALIAS: ${{ secrets.TOOLBOX_KEY_ALIAS }}
+          TOOLBOX_KEY_PASSWORD: ${{ secrets.TOOLBOX_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          umask 077
+          KEYSTORE="$RUNNER_TEMP/toolbox-release-probe.keystore"
+          PROBE_DIR="$RUNNER_TEMP/signing-probe"
+          PROBE_JAR="$RUNNER_TEMP/signing-probe.jar"
+          mkdir -p "$PROBE_DIR"
+          printf '%s' "$TOOLBOX_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
+          printf 'ToolBox signing identity probe\n' > "$PROBE_DIR/payload.txt"
+          jar --create --file "$PROBE_JAR" -C "$PROBE_DIR" payload.txt
+          jarsigner \
+            -keystore "$KEYSTORE" \
+            -storepass "$TOOLBOX_KEYSTORE_PASSWORD" \
+            -keypass "$TOOLBOX_KEY_PASSWORD" \
+            "$PROBE_JAR" "$TOOLBOX_KEY_ALIAS" >/dev/null
+          jarsigner -verify "$PROBE_JAR" | tee "$RUNNER_TEMP/jarsigner-verify.txt"
+          grep -F 'jar verified.' "$RUNNER_TEMP/jarsigner-verify.txt"
+          rm -f "$KEYSTORE" "$PROBE_JAR"
+          rm -rf "$PROBE_DIR"
+
+      - name: Create unreviewed signing identity candidate
+        shell: bash
+        env:
+          CERTIFICATE_SHA256: ${{ steps.cert.outputs.fingerprint }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          def sha256(path: Path) -> str:
+              h = hashlib.sha256()
+              with path.open('rb') as f:
+                  for block in iter(lambda: f.read(1024 * 1024), b''):
+                      h.update(block)
+              return h.hexdigest()
+
+          contract = Path('verification/signing_contract.json')
+          candidate = {
+              'schemaVersion': 1,
+              'status': 'SIGNING_IDENTITY_CANDIDATE_UNREVIEWED',
+              'generatedFromGitSha': os.environ['GITHUB_SHA'],
+              'workflowRunId': os.environ['GITHUB_RUN_ID'],
+              'workflowRunAttempt': os.environ['GITHUB_RUN_ATTEMPT'],
+              'signingContractSha256': sha256(contract),
+              'certificateSha256': os.environ['CERTIFICATE_SHA256'].lower(),
+              'evidence': {
+                  'certificateExportedByKeytool': True,
+                  'certificateParsedByOpenSSL': True,
+                  'sha256sumMatchesOpenSSL': True,
+                  'privateKeySigningProbeVerified': True,
+                  'apkBuilt': False,
+                  'privateKeyPersisted': False,
+              },
+              'toolchain': {
+                  'jdkSelector': '17.0.20+1',
+                  'jdkRuntime': '17.0.20.1+1',
+                  'javaReleaseSha256': sha256(Path(os.environ['JAVA_HOME']) / 'release'),
+              },
+          }
+          Path('verification/signing_identity_candidate.json').write_text(
+              json.dumps(candidate, indent=2, sort_keys=True) + '\n',
+              encoding='utf-8',
+          )
+          PY
+
+      - name: Package public signing identity evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf verification/signing-bootstrap
+          mkdir -p verification/signing-bootstrap
+          cp verification/signing_identity_candidate.json verification/signing-bootstrap/
+          cp "$RUNNER_TEMP/java-version.txt" verification/signing-bootstrap/
+          cp "$RUNNER_TEMP/jarsigner-verify.txt" verification/signing-bootstrap/
+          (
+            cd verification/signing-bootstrap
+            sha256sum signing_identity_candidate.json java-version.txt jarsigner-verify.txt > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+      - name: Upload signing identity evidence
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        with:
+          name: release-signing-identity-candidate
+          path: verification/signing-bootstrap
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Commit signing identity candidate only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add verification/signing_identity_candidate.json
+          mapfile -t staged < <(git diff --cached --name-only)
+          test "${#staged[@]}" -eq 1
+          test "${staged[0]}" = 'verification/signing_identity_candidate.json'
+          git config user.name 'toolbox-signing-bootstrap[bot]'
+          git config user.email 'toolbox-signing-bootstrap[bot]@users.noreply.github.com'
+          git commit -m 'Record release signing identity candidate'
+          git push origin HEAD:main
