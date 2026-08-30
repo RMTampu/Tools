@@ -13,6 +13,11 @@ public class ToolBoxKernel(
     private val mutationGuard = KernelMutationGuard()
     private val safeLogger: KernelLogger = SafeKernelLogger(ports.logger)
     private val safeClock: KernelClock = SafeKernelClock(ports.clock)
+    private val safeStateStore = SafeKernelStateStore(
+        delegate = ports.stateStore,
+        logger = safeLogger,
+        timeoutMillis = minOf(config.lifecycleTimeoutMillis, HostSafetyDefaults.PERSISTENCE_TIMEOUT_MILLIS)
+    )
     private val supervisor = CallbackSupervisor(ports.executor, safeLogger)
     private val hostCalls = HostCallSupervisor(HostSafetyDefaults.MAX_CONTROL_CALLS)
     private val services = ServiceRegistry(mutationGuard, ::mutated)
@@ -552,7 +557,7 @@ public class ToolBoxKernel(
     )
 
     private fun readPersistedState(): KernelState? = try {
-        val canonical = ports.stateStore.get(statePrefix + "record")
+        val canonical = safeStateStore.get(statePrefix + "record")
         if (canonical != null) {
             val decoded = PersistedKernelStateCodec.decode(canonical)
             if (decoded == null) {
@@ -562,7 +567,7 @@ public class ToolBoxKernel(
                 decoded.state
             }
         } else {
-            ports.stateStore.get(statePrefix + "state")?.let(KernelState::valueOf)
+            safeStateStore.get(statePrefix + "state")?.let(KernelState::valueOf)
         }
     } catch (error: Throwable) {
         safeLogger.warn("Unable to read previous kernel state", error)
@@ -579,11 +584,11 @@ public class ToolBoxKernel(
                 updatedAtMillis = updatedAt,
                 operation = operation
             )
-            ports.stateStore.put(statePrefix + "record", PersistedKernelStateCodec.encode(record))
-            ports.stateStore.put(statePrefix + "state", newState.name)
-            ports.stateStore.put(statePrefix + "session", sessionId)
-            ports.stateStore.put(statePrefix + "updatedAt", updatedAt.toString())
-            ports.stateStore.put(statePrefix + "operation", operation ?: "none")
+            safeStateStore.put(statePrefix + "record", PersistedKernelStateCodec.encode(record))
+            safeStateStore.put(statePrefix + "state", newState.name)
+            safeStateStore.put(statePrefix + "session", sessionId)
+            safeStateStore.put(statePrefix + "updatedAt", updatedAt.toString())
+            safeStateStore.put(statePrefix + "operation", operation ?: "none")
         } catch (error: Throwable) {
             safeLogger.warn("Unable to persist kernel state", error)
         }
