@@ -73,6 +73,89 @@ class ResourceBoundTest {
     }
 
     @Test
+    fun `oversized module source metadata is rejected before snapshot`() {
+        var inspectCalled = false
+        val metadata = (0..KernelResourceBounds.MAX_SOURCE_METADATA_ENTRIES)
+            .associate { index -> "key$index" to "value" }
+        val source = ModuleSource("external", "package.zip", metadata)
+        val loader = object : ModuleLoader {
+            override fun inspect(source: StagedModuleSource): ModuleDescriptor {
+                inspectCalled = true
+                return ModuleDescriptor("external", "external", "1.0.0")
+            }
+
+            override fun load(source: VerifiedModuleSource, descriptor: ModuleDescriptor): ToolBoxModule =
+                module("external")
+        }
+        val kernel = ToolBoxKernel(ports = authoritativePorts())
+
+        val result = kernel.install(source, loader)
+
+        assertFalse(result.isSuccess)
+        val error = result.errors.single()
+        assertEquals(KernelErrorCode.INVALID_DESCRIPTOR, error.code)
+        assertTrue(error.cause?.message?.contains("metadata has too many entries") == true)
+        assertFalse(inspectCalled)
+        assertEquals(KernelState.NEW, kernel.state)
+    }
+
+    @Test
+    fun `oversized staged source metadata is rejected before inspection`() {
+        var inspectCalled = false
+        val metadata = (0..KernelResourceBounds.MAX_SOURCE_METADATA_ENTRIES)
+            .associate { index -> "key$index" to "value" }
+        val ports = authoritativePorts(
+            stager = ModuleSourceStager { source -> staged(source).copy(metadata = metadata) }
+        )
+        val loader = object : ModuleLoader {
+            override fun inspect(source: StagedModuleSource): ModuleDescriptor {
+                inspectCalled = true
+                return ModuleDescriptor("external", "external", "1.0.0")
+            }
+
+            override fun load(source: VerifiedModuleSource, descriptor: ModuleDescriptor): ToolBoxModule =
+                module("external")
+        }
+        val kernel = ToolBoxKernel(ports = ports)
+
+        val result = kernel.install(ModuleSource("external", "package.zip"), loader)
+
+        assertFalse(result.isSuccess)
+        val error = result.errors.single()
+        assertEquals(KernelErrorCode.SOURCE_STAGING, error.code)
+        assertTrue(error.cause?.message?.contains("metadata has too many entries") == true)
+        assertFalse(inspectCalled)
+        assertEquals(KernelState.NEW, kernel.state)
+    }
+
+    @Test
+    fun `source location length is bounded before snapshot retention`() {
+        var inspectCalled = false
+        val loader = object : ModuleLoader {
+            override fun inspect(source: StagedModuleSource): ModuleDescriptor {
+                inspectCalled = true
+                return ModuleDescriptor("external", "external", "1.0.0")
+            }
+
+            override fun load(source: VerifiedModuleSource, descriptor: ModuleDescriptor): ToolBoxModule =
+                module("external")
+        }
+        val source = ModuleSource(
+            "external",
+            "x".repeat(KernelResourceBounds.MAX_SOURCE_LOCATION_LENGTH + 1)
+        )
+        val kernel = ToolBoxKernel(ports = authoritativePorts())
+
+        val result = kernel.install(source, loader)
+
+        assertFalse(result.isSuccess)
+        assertEquals(KernelErrorCode.INVALID_DESCRIPTOR, result.errors.single().code)
+        assertTrue(result.errors.single().cause?.message?.contains("location is too long") == true)
+        assertFalse(inspectCalled)
+        assertEquals(KernelState.NEW, kernel.state)
+    }
+
+    @Test
     fun `registry installed module capacity is finite`() {
         val registry = ModuleRegistry { }
         repeat(KernelResourceBounds.MAX_INSTALLED_MODULES) { index ->
