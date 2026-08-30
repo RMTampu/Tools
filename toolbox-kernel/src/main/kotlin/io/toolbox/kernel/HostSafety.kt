@@ -8,7 +8,9 @@ internal object HostSafetyDefaults {
     internal const val MAX_CONTROL_CALLS: Int = 8
     internal const val MAX_LOG_CALLS: Int = 2
     internal const val MAX_CLOCK_CALLS: Int = 1
+    internal const val MAX_STATE_STORE_CALLS: Int = 1
     internal const val OBSERVABILITY_TIMEOUT_MILLIS: Long = 100
+    internal const val PERSISTENCE_TIMEOUT_MILLIS: Long = 250
 }
 
 private enum class HostCallState {
