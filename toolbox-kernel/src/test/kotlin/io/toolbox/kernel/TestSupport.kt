@@ -38,17 +38,35 @@ internal fun command(name: String): KernelCommand = object : KernelCommand {
     override val name: String = name
 }
 
+internal fun staged(source: ModuleSource): StagedModuleSource = StagedModuleSource(
+    sourceId = source.id,
+    artifactId = "artifact:${source.id}",
+    location = "internal:${source.location}",
+    metadata = source.metadata,
+    immutable = true
+)
+
 internal fun authoritativePorts(
     logger: KernelLogger = NoopKernelLogger,
     clock: KernelClock = SystemKernelClock,
     executor: KernelExecutor = DirectKernelExecutor,
+    stager: ModuleSourceStager = ModuleSourceStager(::staged),
     verifier: ModuleSourceVerifier = ModuleSourceVerifier { _, _ ->
-        SourceVerificationResult(true, fingerprint = "sha256:test")
-    }
+        SourceVerificationResult(
+            verified = true,
+            fingerprint = "sha256:test",
+            algorithm = "SHA-256",
+            signerId = "test-signer",
+            policyId = "test-policy"
+        )
+    },
+    admissionPolicy: ModuleAdmissionPolicy = AllowAllModuleAdmissionPolicy
 ): KernelPorts = KernelPorts(
     logger = logger,
     clock = clock,
     executor = executor,
     runtimeEnvironment = KernelRuntimeEnvironment.authoritative(30, "arm64-v8a"),
+    admissionPolicy = admissionPolicy,
+    sourceStager = stager,
     sourceVerifier = verifier
 )

@@ -43,6 +43,7 @@ public enum class LifecyclePhase {
     STOP,
     UNLOAD,
     HEALTH,
+    SOURCE_STAGING,
     SOURCE_INSPECTION,
     SOURCE_VERIFICATION,
     SOURCE_LOAD
@@ -320,16 +321,44 @@ internal fun ModuleSource.validationError(): String? {
     return null
 }
 
+/**
+ * Host-created stable artifact. For Android the host should stage into app-private storage and make
+ * the executable artifact immutable/read-only before inspection, verification, or loading.
+ */
+public data class StagedModuleSource(
+    public val sourceId: String,
+    public val artifactId: String,
+    public val location: String,
+    public val metadata: Map<String, String> = emptyMap(),
+    public val immutable: Boolean
+)
+
+internal fun StagedModuleSource.snapshot(): StagedModuleSource = copy(metadata = immutableMap(metadata))
+
+internal fun StagedModuleSource.validationError(): String? {
+    if (!KernelIdentifiers.isValid(sourceId)) return "Staged source id is invalid: $sourceId"
+    if (artifactId.isBlank()) return "Staged artifact id cannot be blank"
+    if (location.isBlank()) return "Staged artifact location cannot be blank"
+    if (!immutable) return "Staged executable artifact must be immutable before verification/loading"
+    return null
+}
+
 public data class VerifiedModuleSource internal constructor(
-    public val source: ModuleSource,
+    public val stagedSource: StagedModuleSource,
     public val fingerprint: String,
-    public val verifiedAtMillis: Long
+    public val verifiedAtMillis: Long,
+    public val algorithm: String,
+    public val signerId: String?,
+    public val policyId: String
 )
 
 public data class SourceVerificationResult(
     public val verified: Boolean,
     public val fingerprint: String = "",
-    public val reason: String = if (verified) "Verified" else "Unverified"
+    public val reason: String = if (verified) "Verified" else "Unverified",
+    public val algorithm: String = "unspecified",
+    public val signerId: String? = null,
+    public val policyId: String = "default"
 )
 
 public data class HealthStatus(
@@ -393,6 +422,7 @@ public enum class KernelErrorCode {
     TIMEOUT,
     QUARANTINED,
     SOURCE_MISMATCH,
+    SOURCE_STAGING,
     SOURCE_INSPECTION,
     SOURCE_VERIFICATION,
     SOURCE_LOAD,

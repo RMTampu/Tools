@@ -61,8 +61,10 @@ public class ToolBoxKernel(
                 KernelError(KernelErrorCode.INVALID_DESCRIPTOR, "Failed to read module descriptor", error)
             )
         }
-        val preflight = preflightDescriptor(descriptor, null, requireAuthoritativeRuntime = false)
-        if (!preflight.isSuccess) return@runOperation preflight
+        val compatibility = preflightCompatibility(descriptor, requireAuthoritativeRuntime = false)
+        if (!compatibility.isSuccess) return@runOperation compatibility
+        val admission = evaluateAdmission(descriptor, source = null, verifiedSource = null)
+        if (!admission.isSuccess) return@runOperation admission
         registerPreflighted(module, descriptor)
     }
 
@@ -81,35 +83,60 @@ public class ToolBoxKernel(
             )
         }
 
-        val inspectedDescriptor = try {
-            loader.inspect(stableSource).snapshot()
+        val staged = try {
+            ports.sourceStager.stage(stableSource).snapshot()
         } catch (error: Throwable) {
-            safeLogger.error("Failed to inspect module source ${stableSource.id}", error)
+            safeLogger.error("Failed to stage module source ${stableSource.id}", error)
             return@runOperation KernelResult.failure(
-                KernelError(KernelErrorCode.SOURCE_INSPECTION, "Failed to inspect module source ${stableSource.id}", error)
+                KernelError(KernelErrorCode.SOURCE_STAGING, "Failed to stage module source ${stableSource.id}", error)
             )
         }
-        if (stableSource.id != inspectedDescriptor.id) {
+        staged.validationError()?.let { message ->
+            return@runOperation KernelResult.failure(KernelError(KernelErrorCode.SOURCE_STAGING, message))
+        }
+        if (stableSource.id != staged.sourceId) {
             return@runOperation KernelResult.failure(
                 KernelError(
                     KernelErrorCode.SOURCE_MISMATCH,
-                    "Source id ${stableSource.id} does not match inspected descriptor id ${inspectedDescriptor.id}"
+                    "Source id ${stableSource.id} does not match staged source id ${staged.sourceId}"
                 )
             )
         }
 
-        val preflight = preflightDescriptor(inspectedDescriptor, stableSource, requireAuthoritativeRuntime = true)
-        if (!preflight.isSuccess) return@runOperation preflight
+        val inspectedDescriptor = try {
+            loader.inspect(staged).snapshot()
+        } catch (error: Throwable) {
+            safeLogger.error("Failed to inspect staged module source ${stableSource.id}", error)
+            return@runOperation KernelResult.failure(
+                KernelError(KernelErrorCode.SOURCE_INSPECTION, "Failed to inspect staged module source ${stableSource.id}", error)
+            )
+        }
+        if (staged.sourceId != inspectedDescriptor.id) {
+            return@runOperation KernelResult.failure(
+                KernelError(
+                    KernelErrorCode.SOURCE_MISMATCH,
+                    "Staged source id ${staged.sourceId} does not match inspected descriptor id ${inspectedDescriptor.id}"
+                )
+            )
+        }
+
+        val compatibility = preflightCompatibility(inspectedDescriptor, requireAuthoritativeRuntime = true)
+        if (!compatibility.isSuccess) return@runOperation compatibility
 
         val verification = try {
-            ports.sourceVerifier.verify(stableSource, inspectedDescriptor)
+            ports.sourceVerifier.verify(staged, inspectedDescriptor)
         } catch (error: Throwable) {
             safeLogger.error("Source verifier failed for ${stableSource.id}", error)
             return@runOperation KernelResult.failure(
                 KernelError(KernelErrorCode.SOURCE_VERIFICATION, "Source verifier failed for ${stableSource.id}", error)
             )
         }
-        if (!verification.verified || verification.fingerprint.isBlank()) {
+        if (
+            !verification.verified ||
+            verification.fingerprint.isBlank() ||
+            verification.algorithm.isBlank() ||
+            verification.policyId.isBlank()
+        ) {
             return@runOperation KernelResult.failure(
                 KernelError(
                     KernelErrorCode.SOURCE_VERIFICATION,
@@ -117,14 +144,24 @@ public class ToolBoxKernel(
                 )
             )
         }
-        val verifiedSource = VerifiedModuleSource(stableSource, verification.fingerprint, safeClock.nowMillis())
+        val verifiedSource = VerifiedModuleSource(
+            stagedSource = staged,
+            fingerprint = verification.fingerprint,
+            verifiedAtMillis = safeClock.nowMillis(),
+            algorithm = verification.algorithm,
+            signerId = verification.signerId,
+            policyId = verification.policyId
+        )
+
+        val admission = evaluateAdmission(inspectedDescriptor, stableSource, verifiedSource)
+        if (!admission.isSuccess) return@runOperation admission
 
         val loaded = try {
             loader.load(verifiedSource, inspectedDescriptor)
         } catch (error: Throwable) {
-            safeLogger.error("Failed to load module source ${stableSource.id}", error)
+            safeLogger.error("Failed to load verified module source ${stableSource.id}", error)
             return@runOperation KernelResult.failure(
-                KernelError(KernelErrorCode.SOURCE_LOAD, "Failed to load module source ${stableSource.id}", error)
+                KernelError(KernelErrorCode.SOURCE_LOAD, "Failed to load verified module source ${stableSource.id}", error)
             )
         }
         val loadedDescriptor = try {
@@ -297,9 +334,8 @@ public class ToolBoxKernel(
             null
         }
 
-    private fun preflightDescriptor(
+    private fun preflightCompatibility(
         descriptor: ModuleDescriptor,
-        source: ModuleSource?,
         requireAuthoritativeRuntime: Boolean
     ): KernelResult<ModuleDescriptor> {
         descriptor.validationError()?.let { message ->
@@ -334,9 +370,16 @@ public class ToolBoxKernel(
             publish(KernelTopics.MODULE_REJECTED, descriptor)
             return KernelResult.failure(KernelError(KernelErrorCode.INCOMPATIBLE_MODULE, additional.reason))
         }
+        return KernelResult.success(descriptor)
+    }
 
+    private fun evaluateAdmission(
+        descriptor: ModuleDescriptor,
+        source: ModuleSource?,
+        verifiedSource: VerifiedModuleSource?
+    ): KernelResult<ModuleDescriptor> {
         val admission = try {
-            ports.admissionPolicy.evaluate(descriptor, source)
+            ports.admissionPolicy.evaluate(descriptor, source, verifiedSource)
         } catch (error: Throwable) {
             safeLogger.error("Admission policy failed for ${descriptor.id}", error)
             return KernelResult.failure(
@@ -381,6 +424,7 @@ public class ToolBoxKernel(
         val startedCount = health.count { it.state == ModuleState.STARTED }
         val unhealthy = health.any { moduleHealth ->
             moduleHealth.state in setOf(ModuleState.FAILED, ModuleState.QUARANTINED) ||
+                moduleHealth.lastFailure?.phase == LifecyclePhase.RESOLUTION ||
                 (moduleHealth.state == ModuleState.STARTED && isBadHealth(moduleHealth.health))
         }
         val next = when {
@@ -395,6 +439,7 @@ public class ToolBoxKernel(
         if (state !in setOf(KernelState.RUNNING, KernelState.DEGRADED)) return
         val unhealthy = modules.healthSnapshot().any { moduleHealth ->
             moduleHealth.state in setOf(ModuleState.FAILED, ModuleState.QUARANTINED) ||
+                moduleHealth.lastFailure?.phase == LifecyclePhase.RESOLUTION ||
                 (moduleHealth.state == ModuleState.STARTED && isBadHealth(moduleHealth.health))
         }
         setState(if (unhealthy) KernelState.DEGRADED else KernelState.RUNNING)

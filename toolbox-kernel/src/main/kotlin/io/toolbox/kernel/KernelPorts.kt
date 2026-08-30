@@ -69,30 +69,57 @@ public object DefaultCompatibilityPolicy : CompatibilityPolicy {
     ): CompatibilityResult = CompatibilityResult(true)
 }
 
+/**
+ * Admission runs after compatibility and, for external modules, after source verification so policy
+ * can use verified signer/fingerprint identity rather than trusting unverified source metadata.
+ */
 public fun interface ModuleAdmissionPolicy {
-    public fun evaluate(descriptor: ModuleDescriptor, source: ModuleSource?): AdmissionDecision
+    public fun evaluate(
+        descriptor: ModuleDescriptor,
+        source: ModuleSource?,
+        verifiedSource: VerifiedModuleSource?
+    ): AdmissionDecision
 }
 
 public object AllowAllModuleAdmissionPolicy : ModuleAdmissionPolicy {
-    override fun evaluate(descriptor: ModuleDescriptor, source: ModuleSource?): AdmissionDecision = AdmissionDecision(true)
+    override fun evaluate(
+        descriptor: ModuleDescriptor,
+        source: ModuleSource?,
+        verifiedSource: VerifiedModuleSource?
+    ): AdmissionDecision = AdmissionDecision(true)
+}
+
+/**
+ * Copies an external source into a stable host-controlled artifact before any executable inspection
+ * or verification. Android hosts should stage into app-private storage and make the executable
+ * read-only/immutable before returning.
+ */
+public fun interface ModuleSourceStager {
+    public fun stage(source: ModuleSource): StagedModuleSource
+}
+
+/** External loading is fail-closed until the host provides a trusted stager. */
+public object RejectUnstagedModuleSourceStager : ModuleSourceStager {
+    override fun stage(source: ModuleSource): StagedModuleSource =
+        throw IllegalStateException("No ModuleSourceStager configured")
 }
 
 public fun interface ModuleSourceVerifier {
-    /** Verifies content/integrity before executable loading. */
-    public fun verify(source: ModuleSource, descriptor: ModuleDescriptor): SourceVerificationResult
+    /** Verifies the exact staged artifact that will later be loaded. */
+    public fun verify(source: StagedModuleSource, descriptor: ModuleDescriptor): SourceVerificationResult
 }
 
 /** External executable loading is fail-closed until the host supplies an integrity verifier. */
 public object RejectUnverifiedModuleSourceVerifier : ModuleSourceVerifier {
-    override fun verify(source: ModuleSource, descriptor: ModuleDescriptor): SourceVerificationResult =
+    override fun verify(source: StagedModuleSource, descriptor: ModuleDescriptor): SourceVerificationResult =
         SourceVerificationResult(false, reason = "No ModuleSourceVerifier configured")
 }
 
 public interface ModuleLoader {
-    /** Reads source metadata without intentionally executing module code. This reader is part of the trusted host boundary. */
-    public fun inspect(source: ModuleSource): ModuleDescriptor
+    /** Reads metadata from the staged immutable artifact without intentionally executing module code. */
+    public fun inspect(source: StagedModuleSource): ModuleDescriptor
 
-    /** Loads executable module code only from a kernel-issued verified source after preflight succeeds. */
+    /** Loads executable code only from the exact staged artifact represented by [source]. */
     public fun load(source: VerifiedModuleSource, descriptor: ModuleDescriptor): ToolBoxModule
 }
 
@@ -104,6 +131,7 @@ public data class KernelPorts(
     public val runtimeEnvironment: KernelRuntimeEnvironment = KernelRuntimeEnvironment(30, "arm64-v8a", authoritative = false),
     public val compatibilityPolicy: CompatibilityPolicy = DefaultCompatibilityPolicy,
     public val admissionPolicy: ModuleAdmissionPolicy = AllowAllModuleAdmissionPolicy,
+    public val sourceStager: ModuleSourceStager = RejectUnstagedModuleSourceStager,
     public val sourceVerifier: ModuleSourceVerifier = RejectUnverifiedModuleSourceVerifier
 )
 

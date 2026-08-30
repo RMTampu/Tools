@@ -29,19 +29,35 @@ class CompatibilityTest {
 
     @Test
     fun `external loading requires authoritative runtime environment`() {
-        var loadCalled = false
+        var stageCalled = false
         val descriptor = ModuleDescriptor("external", "external", "1.0.0")
         val loader = object : ModuleLoader {
-            override fun inspect(source: ModuleSource): ModuleDescriptor = descriptor
-            override fun load(source: VerifiedModuleSource, descriptor: ModuleDescriptor): ToolBoxModule {
-                loadCalled = true
-                return module("external")
-            }
+            override fun inspect(source: StagedModuleSource): ModuleDescriptor = descriptor
+            override fun load(source: VerifiedModuleSource, descriptor: ModuleDescriptor): ToolBoxModule = module("external")
         }
-        val result = ToolBoxKernel().install(ModuleSource("external", "package.zip"), loader)
+        val ports = KernelPorts(sourceStager = ModuleSourceStager { source -> stageCalled = true; staged(source) })
+        val result = ToolBoxKernel(ports = ports).install(ModuleSource("external", "package.zip"), loader)
         assertFalse(result.isSuccess)
         assertEquals(KernelErrorCode.RUNTIME_ENVIRONMENT_REQUIRED, result.errors.first().code)
-        assertFalse(loadCalled)
+        assertFalse(stageCalled)
+    }
+
+    @Test
+    fun `external loading fails closed without trusted stager`() {
+        var inspectCalled = false
+        val descriptor = ModuleDescriptor("external", "external", "1.0.0")
+        val loader = object : ModuleLoader {
+            override fun inspect(source: StagedModuleSource): ModuleDescriptor {
+                inspectCalled = true
+                return descriptor
+            }
+            override fun load(source: VerifiedModuleSource, descriptor: ModuleDescriptor): ToolBoxModule = module("external")
+        }
+        val ports = KernelPorts(runtimeEnvironment = KernelRuntimeEnvironment.authoritative(30, "arm64-v8a"))
+        val result = ToolBoxKernel(ports = ports).install(ModuleSource("external", "package.zip"), loader)
+        assertFalse(result.isSuccess)
+        assertEquals(KernelErrorCode.SOURCE_STAGING, result.errors.first().code)
+        assertFalse(inspectCalled)
     }
 
     @Test
@@ -49,13 +65,16 @@ class CompatibilityTest {
         var loadCalled = false
         val descriptor = ModuleDescriptor("external", "external", "1.0.0")
         val loader = object : ModuleLoader {
-            override fun inspect(source: ModuleSource): ModuleDescriptor = descriptor
+            override fun inspect(source: StagedModuleSource): ModuleDescriptor = descriptor
             override fun load(source: VerifiedModuleSource, descriptor: ModuleDescriptor): ToolBoxModule {
                 loadCalled = true
                 return module("external")
             }
         }
-        val ports = KernelPorts(runtimeEnvironment = KernelRuntimeEnvironment.authoritative(30, "arm64-v8a"))
+        val ports = KernelPorts(
+            runtimeEnvironment = KernelRuntimeEnvironment.authoritative(30, "arm64-v8a"),
+            sourceStager = ModuleSourceStager(::staged)
+        )
         val result = ToolBoxKernel(ports = ports).install(ModuleSource("external", "package.zip"), loader)
         assertFalse(result.isSuccess)
         assertEquals(KernelErrorCode.SOURCE_VERIFICATION, result.errors.first().code)
@@ -67,7 +86,7 @@ class CompatibilityTest {
         val inspected = ModuleDescriptor("external", "external", "1.0.0")
         val drifted = inspected.copy(version = ModuleVersion.parse("2.0.0"))
         val loader = object : ModuleLoader {
-            override fun inspect(source: ModuleSource): ModuleDescriptor = inspected
+            override fun inspect(source: StagedModuleSource): ModuleDescriptor = inspected
             override fun load(source: VerifiedModuleSource, descriptor: ModuleDescriptor): ToolBoxModule =
                 object : ToolBoxModule { override val descriptor = drifted }
         }
@@ -82,10 +101,12 @@ class CompatibilityTest {
     fun `verified external source installs when metadata remains stable`() {
         val descriptor = ModuleDescriptor("external", "external", "1.0.0")
         var fingerprintSeen: String? = null
+        var stagedLocationSeen: String? = null
         val loader = object : ModuleLoader {
-            override fun inspect(source: ModuleSource): ModuleDescriptor = descriptor
+            override fun inspect(source: StagedModuleSource): ModuleDescriptor = descriptor
             override fun load(source: VerifiedModuleSource, descriptor: ModuleDescriptor): ToolBoxModule {
                 fingerprintSeen = source.fingerprint
+                stagedLocationSeen = source.stagedSource.location
                 return object : ToolBoxModule { override val descriptor = descriptor }
             }
         }
@@ -93,6 +114,7 @@ class CompatibilityTest {
         val result = kernel.install(ModuleSource("external", "package.zip"), loader)
         assertTrue(result.isSuccess)
         assertEquals("sha256:test", fingerprintSeen)
+        assertEquals("internal:package.zip", stagedLocationSeen)
         assertEquals(ModuleState.REGISTERED, kernel.moduleState("external"))
     }
 
