@@ -322,7 +322,7 @@ public class ToolBoxKernel(
 
     public fun <T : Any> service(type: Class<T>, qualifier: String = "default"): ServiceHandle<T>? {
         val registration = services.reference(ServiceKey(type, qualifier)) { true } ?: return null
-        return ServiceHandle(registration.owner, registration.value)
+        return ServiceHandle(KernelResourceOwner, registration.owner, registration.value)
     }
 
     public fun capabilities(): List<Capability> = capabilities.allActive()
