@@ -11,10 +11,4 @@ allprojects {
     dependencyLocking {
         lockAllConfigurations()
     }
-
-    configurations.configureEach {
-        resolutionStrategy {
-            failOnVersionConflict()
-        }
-    }
 }
