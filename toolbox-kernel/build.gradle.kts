@@ -12,14 +12,20 @@ java {
 
 kotlin {
     jvmToolchain(17)
+    explicitApi()
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
     kotlinOptions.jvmTarget = "11"
+    kotlinOptions.allWarningsAsErrors = true
 }
 
 tasks.test {
     useJUnitPlatform()
+    testLogging {
+        events("failed", "skipped")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+    }
 }
 
 dependencies {

@@ -2,171 +2,208 @@ package io.toolbox.kernel
 
 import java.util.concurrent.atomic.AtomicReference
 
-class ToolBoxKernel(
-    val config: KernelConfig = KernelConfig(),
-    val ports: KernelPorts = KernelPorts()
+public class ToolBoxKernel(
+    public val config: KernelConfig = KernelConfig(),
+    public val ports: KernelPorts = KernelPorts()
 ) {
-    val services = ServiceRegistry()
-    val capabilities = CapabilityRegistry()
-    val events = EventBus()
-    val commands = CommandBus()
-    val modules = ModuleRegistry()
-
+    private val services = ServiceRegistry()
+    private val capabilities = CapabilityRegistry()
+    private val events = EventBus(ports.logger)
+    private val commands = CommandBus()
+    private val modules = ModuleRegistry()
+    private val lifecycle = LifecycleCoordinator(config, ports, modules, services, capabilities, events, commands)
     private val stateRef = AtomicReference(KernelState.NEW)
 
-    val state: KernelState get() = stateRef.get()
-
-    private val context = KernelContext(
-        config = config,
-        services = services,
-        capabilities = capabilities,
-        events = events,
-        commands = commands,
-        ports = ports
-    )
+    public val state: KernelState get() = stateRef.get()
+    public val previousPersistedState: KernelState? = readPersistedState()
 
     init {
+        if (previousPersistedState in setOf(KernelState.STARTING, KernelState.RUNNING, KernelState.DEGRADED, KernelState.STOPPING, KernelState.FAILED)) {
+            ports.logger.warn("Previous kernel lifecycle ended in $previousPersistedState")
+        }
         persistState(KernelState.NEW)
     }
 
     @Synchronized
-    fun install(module: ToolBoxModule): List<ModuleFailure> = installInternal(module, null)
+    public fun install(module: ToolBoxModule): KernelResult<ModuleDescriptor> = installInternal(module, null)
 
     @Synchronized
-    fun install(source: ModuleSource, loader: ModuleLoader): List<ModuleFailure> {
-        val module = runCatching { loader.load(source) }
-            .getOrElse {
-                ports.logger.error("Failed to load module source ${source.id}", it)
-                return listOf(ModuleFailure(source.id, "source-load", it))
-            }
-        return installInternal(module, source)
+    public fun install(source: ModuleSource, loader: ModuleLoader): KernelResult<ModuleDescriptor> {
+        if (source.id.isBlank()) {
+            return KernelResult.failure(KernelError(KernelErrorCode.INVALID_DESCRIPTOR, "Module source id cannot be blank"))
+        }
+        val loaded = runCatching { loader.load(source) }.getOrElse { error ->
+            ports.logger.error("Failed to load module source ${source.id}", error)
+            return KernelResult.failure(KernelError(KernelErrorCode.SOURCE_LOAD, "Failed to load module source ${source.id}", error))
+        }
+        if (source.id != loaded.descriptor.id) {
+            return KernelResult.failure(KernelError(KernelErrorCode.SOURCE_MISMATCH, "Source id ${source.id} does not match descriptor id ${loaded.descriptor.id}"))
+        }
+        return installInternal(loaded, source)
     }
 
-    private fun installInternal(module: ToolBoxModule, source: ModuleSource?): List<ModuleFailure> {
-        check(state !in setOf(KernelState.STARTING, KernelState.STOPPING, KernelState.FAILED)) {
-            "Cannot install module while kernel state is $state"
+    private fun installInternal(module: ToolBoxModule, source: ModuleSource?): KernelResult<ModuleDescriptor> {
+        if (state in setOf(KernelState.STARTING, KernelState.STOPPING, KernelState.FAILED)) {
+            return KernelResult.failure(KernelError(KernelErrorCode.INVALID_STATE, "Cannot install module while kernel state is $state"))
         }
-
-        val descriptor = module.descriptor
+        val descriptor = module.descriptor.snapshot()
+        descriptor.validationError()?.let { message ->
+            return KernelResult.failure(KernelError(KernelErrorCode.INVALID_DESCRIPTOR, message))
+        }
         val compatibility = ports.compatibilityPolicy.check(config, descriptor)
         if (!compatibility.compatible) {
-            val error = IllegalArgumentException(compatibility.reason)
-            ports.logger.warn("Rejected incompatible module ${descriptor.id}", error)
-            events.publish(KernelEvent("kernel.module.rejected", config.name, descriptor))
-            return listOf(ModuleFailure(descriptor.id, "compatibility", error))
+            publish("kernel.module.rejected", descriptor)
+            return KernelResult.failure(KernelError(KernelErrorCode.INCOMPATIBLE_MODULE, compatibility.reason))
         }
-
         val admission = ports.admissionPolicy.evaluate(descriptor, source)
         if (!admission.allowed) {
-            val error = IllegalStateException(admission.reason)
-            ports.logger.warn("Module admission rejected ${descriptor.id}", error)
-            events.publish(KernelEvent("kernel.module.rejected", config.name, descriptor))
-            return listOf(ModuleFailure(descriptor.id, "admission", error))
+            publish("kernel.module.rejected", descriptor)
+            return KernelResult.failure(KernelError(KernelErrorCode.ADMISSION_REJECTED, admission.reason))
+        }
+        val registered = runCatching { modules.register(module, descriptor) }
+        if (registered.isFailure) {
+            val error = registered.exceptionOrNull()
+            return KernelResult.failure(KernelError(KernelErrorCode.CONFLICT, error?.message ?: "Module registration conflict", error))
         }
 
-        modules.install(module)
-        val failures = if (state in setOf(KernelState.RUNNING, KernelState.DEGRADED)) {
-            modules.loadAndStart(descriptor.id, context)
-        } else {
-            emptyList()
+        if (isOperational()) {
+            val activation = lifecycle.activate(descriptor.id)
+            if (!activation.isSuccess) {
+                lifecycle.discardFailedRegistration(descriptor.id)
+                refreshOperationalState()
+                publish("kernel.module.activation_failed", descriptor)
+                return KernelResult(value = null, errors = activation.errors, failures = activation.failures)
+            }
+            lifecycle.probeHealth()
+            refreshOperationalState()
         }
-
-        if (failures.isNotEmpty() && state in setOf(KernelState.RUNNING, KernelState.DEGRADED)) {
-            setState(KernelState.DEGRADED)
-        }
-
-        events.publish(
-            KernelEvent(
-                topic = "kernel.module.installed",
-                source = config.name,
-                payload = descriptor
-            )
-        )
+        publish("kernel.module.installed", descriptor)
         ports.logger.info("Installed module ${descriptor.id} ${descriptor.version}")
-        return failures
+        return KernelResult.success(descriptor)
     }
 
     @Synchronized
-    fun uninstall(moduleId: String): Boolean {
-        check(state !in setOf(KernelState.STARTING, KernelState.STOPPING)) {
-            "Cannot uninstall module while kernel state is $state"
+    public fun uninstall(moduleId: String): KernelResult<Boolean> {
+        if (state in setOf(KernelState.STARTING, KernelState.STOPPING)) {
+            return KernelResult.failure(KernelError(KernelErrorCode.INVALID_STATE, "Cannot uninstall module while kernel state is $state"))
         }
-        val removed = modules.uninstall(moduleId)
-        if (removed) {
-            events.publish(KernelEvent("kernel.module.uninstalled", config.name, moduleId))
+        val result = lifecycle.uninstall(moduleId)
+        if (result.isSuccess && result.value == true) {
+            publish("kernel.module.uninstalled", moduleId)
             ports.logger.info("Uninstalled module $moduleId")
             refreshOperationalState()
         }
-        return removed
+        return result
     }
 
     @Synchronized
-    fun start(): List<ModuleFailure> {
-        check(state in setOf(KernelState.NEW, KernelState.STOPPED)) {
-            "Kernel cannot start from state $state"
-        }
+    public fun retryModule(moduleId: String): KernelResult<Unit> {
+        val result = lifecycle.retry(moduleId, activate = isOperational())
+        if (result.isSuccess && isOperational()) lifecycle.probeHealth()
+        refreshOperationalState()
+        return result
+    }
 
+    @Synchronized
+    public fun start(): KernelResult<Unit> {
+        if (state !in setOf(KernelState.NEW, KernelState.STOPPED)) {
+            return KernelResult.failure(KernelError(KernelErrorCode.INVALID_STATE, "Kernel cannot start from state $state"))
+        }
         setState(KernelState.STARTING)
-        events.publish(KernelEvent("kernel.starting", config.name))
+        publish("kernel.starting")
         ports.logger.info("Starting ${config.name} kernel ${config.version}")
 
-        val failures = mutableListOf<ModuleFailure>()
-        failures += modules.loadAll(context)
-        failures += modules.startAll()
-
-        setState(if (failures.isEmpty()) KernelState.RUNNING else KernelState.DEGRADED)
-        failures.forEach { ports.logger.error("Module ${it.moduleId} failed during ${it.phase}", it.cause) }
-        events.publish(KernelEvent("kernel.started", config.name, failures.toList()))
-        return failures
+        val result = lifecycle.startAll()
+        lifecycle.probeHealth()
+        updateStateAfterStart(result)
+        result.failures.forEach { ports.logger.error("Module ${it.moduleId} failed during ${it.phase}", it.cause) }
+        publish("kernel.started", result.failures)
+        return result
     }
 
     @Synchronized
-    fun stop(): List<ModuleFailure> {
+    public fun stop(): KernelResult<Unit> {
         if (state in setOf(KernelState.NEW, KernelState.STOPPED)) {
             setState(KernelState.STOPPED)
-            return emptyList()
+            return KernelResult.success(Unit)
         }
-        check(state in setOf(KernelState.RUNNING, KernelState.DEGRADED, KernelState.FAILED)) {
-            "Kernel cannot stop from state $state"
+        if (state !in setOf(KernelState.RUNNING, KernelState.DEGRADED, KernelState.FAILED)) {
+            return KernelResult.failure(KernelError(KernelErrorCode.INVALID_STATE, "Kernel cannot stop from state $state"))
         }
-
         setState(KernelState.STOPPING)
-        events.publish(KernelEvent("kernel.stopping", config.name))
-
-        val failures = modules.stopAll()
-        setState(if (failures.isEmpty()) KernelState.STOPPED else KernelState.FAILED)
-        failures.forEach { ports.logger.error("Module ${it.moduleId} failed during ${it.phase}", it.cause) }
-        events.publish(KernelEvent("kernel.stopped", config.name, failures.toList()))
-        return failures
+        publish("kernel.stopping")
+        val result = lifecycle.stopAll()
+        setState(if (result.isSuccess) KernelState.STOPPED else KernelState.FAILED)
+        result.failures.forEach { ports.logger.error("Module ${it.moduleId} failed during ${it.phase}", it.cause) }
+        publish("kernel.stopped", result.failures)
+        return result
     }
 
-    fun snapshot(): KernelSnapshot = KernelSnapshot(
+    @Synchronized
+    public fun probeHealth(): List<ModuleHealth> {
+        val health = lifecycle.probeHealth()
+        refreshOperationalState()
+        return health
+    }
+
+    public fun snapshot(): KernelSnapshot = KernelSnapshot(
         config = config,
         state = state,
-        modules = modules.health(),
+        previousPersistedState = previousPersistedState,
+        modules = modules.healthSnapshot(),
         registeredServices = services.size,
         registeredCapabilities = capabilities.size,
-        registeredCommands = commands.size
+        registeredCommands = commands.size,
+        eventSubscriptions = events.size
     )
 
-    fun isOperational(): Boolean = state in setOf(KernelState.RUNNING, KernelState.DEGRADED)
+    public fun moduleDescriptors(): List<ModuleDescriptor> = modules.descriptors()
+    public fun moduleState(moduleId: String): ModuleState? = modules.stateOf(moduleId)
+    public fun <T : Any> service(type: Class<T>): T? = services.get(type)
+    public fun capabilities(): List<Capability> = capabilities.all()
+    public fun execute(command: KernelCommand): CommandResult = commands.execute(command)
+    public fun subscribe(topic: String, listener: (KernelEvent) -> Unit): Subscription = events.subscribe(KERNEL_OWNER, topic, listener)
+    public fun isOperational(): Boolean = state in setOf(KernelState.RUNNING, KernelState.DEGRADED)
 
-    @Synchronized
-    private fun refreshOperationalState() {
+    private fun updateStateAfterStart(result: KernelResult<Unit>): Unit {
+        val health = modules.healthSnapshot()
+        val startedCount = health.count { it.state == ModuleState.STARTED }
+        val unhealthy = health.any { it.state == ModuleState.FAILED || (it.state == ModuleState.STARTED && it.health.state == HealthState.UNHEALTHY) }
+        val next = when {
+            result.isSuccess && !unhealthy -> KernelState.RUNNING
+            startedCount > 0 -> KernelState.DEGRADED
+            else -> KernelState.FAILED
+        }
+        setState(next)
+    }
+
+    private fun refreshOperationalState(): Unit {
         if (state !in setOf(KernelState.RUNNING, KernelState.DEGRADED)) return
-        val unhealthy = modules.health().any {
-            it.state == ModuleState.FAILED || (it.state == ModuleState.STARTED && !it.health.healthy)
+        val unhealthy = modules.healthSnapshot().any {
+            it.state == ModuleState.FAILED || (it.state == ModuleState.STARTED && it.health.state == HealthState.UNHEALTHY)
         }
         setState(if (unhealthy) KernelState.DEGRADED else KernelState.RUNNING)
     }
 
-    private fun setState(newState: KernelState) {
+    private fun publish(topic: String, payload: Any? = null): Unit =
+        events.publish(KernelEvent(topic, config.name, payload, ports.clock.nowMillis()))
+
+    private fun setState(newState: KernelState): Unit {
         stateRef.set(newState)
         persistState(newState)
     }
 
-    private fun persistState(newState: KernelState) {
-        runCatching { ports.stateStore.put("kernel.state", newState.name) }
+    private fun readPersistedState(): KernelState? = runCatching {
+        ports.stateStore.get(STATE_KEY)?.let(KernelState::valueOf)
+    }.onFailure { ports.logger.warn("Unable to read previous kernel state", it) }.getOrNull()
+
+    private fun persistState(newState: KernelState): Unit {
+        runCatching { ports.stateStore.put(STATE_KEY, newState.name) }
             .onFailure { ports.logger.warn("Unable to persist kernel state", it) }
+    }
+
+    private companion object {
+        const val STATE_KEY: String = "kernel.state"
+        const val KERNEL_OWNER: String = "kernel"
     }
 }

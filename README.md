@@ -1,21 +1,22 @@
 # ToolBox
 
-ToolBox is the core extensible kernel for an Android 11 (API 30) arm64 tool workbench.
+ToolBox is a small, UI-independent, extensible kernel foundation targeting Android 11 / API 30 / arm64-compatible JVM bytecode.
 
-This repository starts with a small, UI-independent kernel. Engines and tools plug into the kernel through stable contracts instead of modifying the kernel foundation.
+## Kernel guarantees
 
-## Core goals
+- The kernel is the only authority that mutates module lifecycle state.
+- Module descriptors are validated and snapshotted at installation time.
+- Required dependencies are resolved deterministically before lifecycle execution.
+- Module callbacks run outside registry locks.
+- Services, capabilities, commands, and subscriptions are owned by a module scope and are cleaned automatically.
+- Runtime installation is atomic: activation failure removes the failed registration and owned resources.
+- Lifecycle failures are isolated and returned as structured `KernelResult` values.
+- Health probing is explicit; `snapshot()` is passive and never invokes module code.
+- Public API exposure is checked with Kotlin explicit API mode.
+- Platform-specific loaders and storage implementations remain outside the pure Kotlin kernel.
 
-- Stable kernel lifecycle
-- Dynamic module/engine registration
-- Service and capability registries
-- Command and event routing
-- Health checks and failure isolation
-- No Android permissions required by the kernel itself
-- Android 11 / API 30 baseline
+## Module
 
-## Modules
+- `toolbox-kernel`: public API/SPI plus the internal runtime.
 
-- `toolbox-kernel`: pure Kotlin core contracts and runtime
-
-UI, editors, engines, storage adapters, package/update handlers, and other tools are intended to be added as modules above this kernel.
+See `ARCHITECTURE.md` and `ACCEPTANCE-TESTS.md` for the current foundation contract.

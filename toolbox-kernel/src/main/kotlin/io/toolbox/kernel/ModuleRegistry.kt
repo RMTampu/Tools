@@ -1,191 +1,95 @@
 package io.toolbox.kernel
 
-class ModuleRegistry {
+internal data class ModuleHandle(
+    val module: ToolBoxModule,
+    val descriptor: ModuleDescriptor,
+    val state: ModuleState,
+    val health: HealthStatus
+)
+
+internal class ModuleRegistry {
     private data class Record(
         val module: ToolBoxModule,
-        var state: ModuleState = ModuleState.REGISTERED
+        val descriptor: ModuleDescriptor,
+        var state: ModuleState = ModuleState.REGISTERED,
+        var health: HealthStatus = HealthStatus.unknown()
     )
 
+    private val lock = Any()
     private val records = linkedMapOf<String, Record>()
 
-    @Synchronized
-    fun install(module: ToolBoxModule) {
-        val descriptor = module.descriptor
-        require(descriptor.id.isNotBlank()) { "Module id cannot be blank" }
-        require(descriptor.name.isNotBlank()) { "Module name cannot be blank" }
+    internal fun register(module: ToolBoxModule, descriptor: ModuleDescriptor): Unit = synchronized(lock) {
         check(descriptor.id !in records) { "Module already installed: ${descriptor.id}" }
-        records[descriptor.id] = Record(module)
+        records[descriptor.id] = Record(module, descriptor)
     }
 
-    @Synchronized
-    fun uninstall(moduleId: String): Boolean {
-        val record = records[moduleId] ?: return false
-        val dependents = records.values.filter { moduleId in it.module.descriptor.dependencies }
-        check(dependents.isEmpty()) {
-            "Cannot uninstall $moduleId; required by ${dependents.joinToString { it.module.descriptor.id }}"
-        }
-        if (record.state == ModuleState.STARTED) {
-            runCatching { record.module.onStop() }
-            record.state = ModuleState.STOPPED
-        }
-        records.remove(moduleId)
-        return true
+    internal fun contains(moduleId: String): Boolean = synchronized(lock) { moduleId in records }
+
+    internal fun handle(moduleId: String): ModuleHandle? = synchronized(lock) {
+        records[moduleId]?.let { ModuleHandle(it.module, it.descriptor, it.state, it.health) }
     }
 
-    @Synchronized
-    fun loadAll(context: KernelContext): List<ModuleFailure> {
-        val order = runCatching { resolveOrder() }
-            .getOrElse { return listOf(ModuleFailure("kernel", "dependency-resolution", it)) }
-        val failures = mutableListOf<ModuleFailure>()
+    internal fun descriptors(): List<ModuleDescriptor> = synchronized(lock) { records.values.map { it.descriptor } }
 
-        order.forEach { record ->
-            if (record.state != ModuleState.REGISTERED) return@forEach
-            val missingReadyDependency = record.module.descriptor.dependencies.firstOrNull { dependencyId ->
-                records[dependencyId]?.state !in setOf(ModuleState.LOADED, ModuleState.STARTED, ModuleState.STOPPED)
+    internal fun stateOf(moduleId: String): ModuleState? = synchronized(lock) { records[moduleId]?.state }
+
+    internal fun healthSnapshot(): List<ModuleHealth> = synchronized(lock) {
+        records.values.map { ModuleHealth(it.descriptor, it.state, it.health) }
+    }
+
+    internal fun transition(moduleId: String, expected: Set<ModuleState>, next: ModuleState): Boolean = synchronized(lock) {
+        val record = records[moduleId] ?: return@synchronized false
+        if (record.state !in expected) return@synchronized false
+        record.state = next
+        true
+    }
+
+    internal fun forceState(moduleId: String, next: ModuleState): Unit = synchronized(lock) {
+        records[moduleId]?.state = next
+    }
+
+    internal fun setHealth(moduleId: String, health: HealthStatus): Unit = synchronized(lock) {
+        records[moduleId]?.health = health
+    }
+
+    internal fun remove(moduleId: String): ModuleHandle? = synchronized(lock) {
+        records.remove(moduleId)?.let { ModuleHandle(it.module, it.descriptor, it.state, it.health) }
+    }
+
+    internal fun requiredDependents(moduleId: String): List<String> = synchronized(lock) {
+        records.values.filter { record ->
+            record.descriptor.dependencies.any { dependency -> dependency.id == moduleId && !dependency.optional }
+        }.map { it.descriptor.id }
+    }
+
+    internal fun resolvePlan(): KernelResult<List<String>> = synchronized(lock) {
+        val visiting = linkedSetOf<String>()
+        val visited = linkedSetOf<String>()
+        val result = mutableListOf<String>()
+
+        fun visit(moduleId: String): KernelError? {
+            if (moduleId in visited) return null
+            if (moduleId in visiting) {
+                return KernelError(KernelErrorCode.DEPENDENCY_RESOLUTION, "Module dependency cycle detected at $moduleId")
             }
-            if (missingReadyDependency != null) {
-                record.state = ModuleState.FAILED
-                failures += ModuleFailure(
-                    record.module.descriptor.id,
-                    "load",
-                    IllegalStateException("Dependency not ready: $missingReadyDependency")
-                )
-                return@forEach
-            }
-
-            runCatching { record.module.onLoad(context) }
-                .onSuccess { record.state = ModuleState.LOADED }
-                .onFailure {
-                    record.state = ModuleState.FAILED
-                    failures += ModuleFailure(record.module.descriptor.id, "load", it)
-                }
-        }
-        return failures
-    }
-
-    @Synchronized
-    fun startAll(): List<ModuleFailure> {
-        val order = runCatching { resolveOrder() }
-            .getOrElse { return listOf(ModuleFailure("kernel", "dependency-resolution", it)) }
-        val failures = mutableListOf<ModuleFailure>()
-
-        order.forEach { record ->
-            if (record.state !in setOf(ModuleState.LOADED, ModuleState.STOPPED)) return@forEach
-            val inactiveDependency = record.module.descriptor.dependencies.firstOrNull { dependencyId ->
-                records[dependencyId]?.state != ModuleState.STARTED
-            }
-            if (inactiveDependency != null) {
-                record.state = ModuleState.FAILED
-                failures += ModuleFailure(
-                    record.module.descriptor.id,
-                    "start",
-                    IllegalStateException("Dependency not started: $inactiveDependency")
-                )
-                return@forEach
-            }
-
-            runCatching { record.module.onStart() }
-                .onSuccess { record.state = ModuleState.STARTED }
-                .onFailure {
-                    record.state = ModuleState.FAILED
-                    failures += ModuleFailure(record.module.descriptor.id, "start", it)
-                }
-        }
-        return failures
-    }
-
-    @Synchronized
-    fun loadAndStart(moduleId: String, context: KernelContext): List<ModuleFailure> {
-        val record = records[moduleId]
-            ?: return listOf(ModuleFailure(moduleId, "install", IllegalArgumentException("Unknown module")))
-        val failures = mutableListOf<ModuleFailure>()
-
-        val missingDependency = record.module.descriptor.dependencies.firstOrNull { dependencyId ->
-            records[dependencyId]?.state != ModuleState.STARTED
-        }
-        if (missingDependency != null) {
-            record.state = ModuleState.FAILED
-            return listOf(
-                ModuleFailure(
-                    moduleId,
-                    "install",
-                    IllegalStateException("Dependency not started: $missingDependency")
-                )
-            )
-        }
-
-        if (record.state == ModuleState.REGISTERED) {
-            runCatching { record.module.onLoad(context) }
-                .onSuccess { record.state = ModuleState.LOADED }
-                .onFailure {
-                    record.state = ModuleState.FAILED
-                    failures += ModuleFailure(moduleId, "load", it)
-                }
-        }
-
-        if (record.state in setOf(ModuleState.LOADED, ModuleState.STOPPED)) {
-            runCatching { record.module.onStart() }
-                .onSuccess { record.state = ModuleState.STARTED }
-                .onFailure {
-                    record.state = ModuleState.FAILED
-                    failures += ModuleFailure(moduleId, "start", it)
-                }
-        }
-        return failures
-    }
-
-    @Synchronized
-    fun stopAll(): List<ModuleFailure> {
-        val order = runCatching { resolveOrder().asReversed() }
-            .getOrElse { records.values.toList().asReversed() }
-        val failures = mutableListOf<ModuleFailure>()
-
-        order.forEach { record ->
-            if (record.state != ModuleState.STARTED) return@forEach
-            runCatching { record.module.onStop() }
-                .onSuccess { record.state = ModuleState.STOPPED }
-                .onFailure {
-                    record.state = ModuleState.FAILED
-                    failures += ModuleFailure(record.module.descriptor.id, "stop", it)
-                }
-        }
-        return failures
-    }
-
-    @Synchronized
-    fun health(): List<ModuleHealth> = records.values.map { record ->
-        val status = when (record.state) {
-            ModuleState.STARTED -> runCatching { record.module.healthCheck() }
-                .getOrElse { HealthStatus.failed(it.message ?: it::class.java.simpleName) }
-            ModuleState.FAILED -> HealthStatus.failed("Module lifecycle failed")
-            else -> HealthStatus.ok("State: ${record.state}")
-        }
-        ModuleHealth(record.module.descriptor, record.state, status)
-    }
-
-    @Synchronized
-    fun stateOf(moduleId: String): ModuleState? = records[moduleId]?.state
-
-    @Synchronized
-    fun descriptors(): List<ModuleDescriptor> = records.values.map { it.module.descriptor }
-
-    private fun resolveOrder(): List<Record> {
-        val visiting = mutableSetOf<String>()
-        val visited = mutableSetOf<String>()
-        val result = mutableListOf<Record>()
-
-        fun visit(moduleId: String) {
-            if (moduleId in visited) return
-            check(moduleId !in visiting) { "Module dependency cycle detected at $moduleId" }
-            val record = records[moduleId] ?: error("Missing module dependency: $moduleId")
+            val record = records[moduleId]
+                ?: return KernelError(KernelErrorCode.DEPENDENCY_RESOLUTION, "Missing module dependency: $moduleId")
             visiting += moduleId
-            record.module.descriptor.dependencies.forEach(::visit)
+            record.descriptor.dependencies.forEach { dependency ->
+                if (dependency.id !in records && dependency.optional) return@forEach
+                val error = visit(dependency.id)
+                if (error != null) return error
+            }
             visiting -= moduleId
             visited += moduleId
-            result += record
+            result += moduleId
+            return null
         }
 
-        records.keys.forEach(::visit)
-        return result
+        records.keys.forEach { moduleId ->
+            val error = visit(moduleId)
+            if (error != null) return@synchronized KernelResult.failure(error)
+        }
+        KernelResult.success(result.toList())
     }
 }

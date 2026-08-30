@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  kernel-test:
+  kernel-check:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -29,5 +29,5 @@ jobs:
         with:
           gradle-version: '8.7'
 
-      - name: Run kernel tests
-        run: gradle --no-daemon :toolbox-kernel:test
+      - name: Verify kernel
+        run: gradle --no-daemon --warning-mode=all :toolbox-kernel:clean :toolbox-kernel:check

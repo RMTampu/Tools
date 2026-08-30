@@ -3,108 +3,150 @@ package io.toolbox.kernel
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
-class ServiceRegistry {
-    private val services = ConcurrentHashMap<Class<*>, Any>()
+internal data class OwnedValue<T>(val owner: String, val value: T)
 
-    fun <T : Any> register(type: Class<T>, service: T, replace: Boolean = false) {
-        if (replace) {
-            services[type] = service
+internal class ServiceRegistry {
+    private val services = ConcurrentHashMap<Class<*>, OwnedValue<Any>>()
+
+    internal fun <T : Any> register(owner: String, type: Class<T>, service: T, replace: Boolean): Unit {
+        val replacement = OwnedValue(owner, service as Any)
+        if (!replace) {
+            check(services.putIfAbsent(type, replacement) == null) { "Service already registered: ${type.name}" }
             return
         }
-        check(services.putIfAbsent(type, service) == null) {
-            "Service already registered: ${type.name}"
+        services.compute(type) { _, current ->
+            check(current == null || current.owner == owner) { "Service ${type.name} is owned by ${current?.owner}" }
+            replacement
         }
     }
 
-    fun <T : Any> get(type: Class<T>): T? = services[type]?.let(type::cast)
+    internal fun <T : Any> get(type: Class<T>): T? = services[type]?.value?.let(type::cast)
 
-    fun unregister(type: Class<*>) {
-        services.remove(type)
+    internal fun unregister(owner: String, type: Class<*>): Boolean = services.computeIfPresent(type) { _, current ->
+        if (current.owner == owner) null else current
+    } == null
+
+    internal fun removeOwner(owner: String): Unit {
+        services.entries.removeIf { it.value.owner == owner }
     }
 
-    val size: Int get() = services.size
+    internal val size: Int get() = services.size
 }
 
-class CapabilityRegistry {
-    private val capabilities = ConcurrentHashMap<String, Capability>()
+internal class CapabilityRegistry {
+    private val capabilities = ConcurrentHashMap<String, OwnedValue<Capability>>()
 
-    fun register(capability: Capability, replace: Boolean = false) {
+    internal fun register(owner: String, capability: Capability, replace: Boolean): Unit {
         require(capability.id.isNotBlank()) { "Capability id cannot be blank" }
-        if (replace) {
-            capabilities[capability.id] = capability
+        require(capability.providerModuleId == owner) { "Capability provider must match owner $owner" }
+        val replacement = OwnedValue(owner, capability)
+        if (!replace) {
+            check(capabilities.putIfAbsent(capability.id, replacement) == null) { "Capability already registered: ${capability.id}" }
             return
         }
-        check(capabilities.putIfAbsent(capability.id, capability) == null) {
-            "Capability already registered: ${capability.id}"
+        capabilities.compute(capability.id) { _, current ->
+            check(current == null || current.owner == owner) { "Capability ${capability.id} is owned by ${current?.owner}" }
+            replacement
         }
     }
 
-    fun get(id: String): Capability? = capabilities[id]
+    internal fun get(id: String): Capability? = capabilities[id]?.value
 
-    fun unregister(id: String) {
-        capabilities.remove(id)
+    internal fun unregister(owner: String, id: String): Boolean = capabilities.computeIfPresent(id) { _, current ->
+        if (current.owner == owner) null else current
+    } == null
+
+    internal fun removeOwner(owner: String): Unit {
+        capabilities.entries.removeIf { it.value.owner == owner }
     }
 
-    fun all(): List<Capability> = capabilities.values.sortedBy { it.id }
+    internal fun all(): List<Capability> = capabilities.values.map { it.value }.sortedBy { it.id }
 
-    val size: Int get() = capabilities.size
+    internal val size: Int get() = capabilities.size
 }
 
-class EventBus {
-    private val listeners = ConcurrentHashMap<String, CopyOnWriteArrayList<(KernelEvent) -> Unit>>()
+public fun interface Subscription : AutoCloseable {
+    override fun close(): Unit
+}
 
-    fun subscribe(topic: String, listener: (KernelEvent) -> Unit): Subscription {
+internal class EventBus(private val logger: KernelLogger) {
+    private data class Listener(val owner: String, val callback: (KernelEvent) -> Unit)
+
+    private val listeners = ConcurrentHashMap<String, CopyOnWriteArrayList<Listener>>()
+
+    internal fun subscribe(owner: String, topic: String, listener: (KernelEvent) -> Unit): Subscription {
+        require(topic.isNotBlank()) { "Event topic cannot be blank" }
+        val record = Listener(owner, listener)
         val bucket = listeners.computeIfAbsent(topic) { CopyOnWriteArrayList() }
-        bucket += listener
-        return Subscription { bucket.remove(listener) }
-    }
-
-    fun publish(event: KernelEvent) {
-        listeners[event.topic]?.forEach { listener ->
-            runCatching { listener(event) }
-        }
-        listeners[WILDCARD]?.forEach { listener ->
-            runCatching { listener(event) }
+        bucket += record
+        return Subscription {
+            bucket.remove(record)
+            if (bucket.isEmpty()) listeners.remove(topic, bucket)
         }
     }
 
-    fun interface Subscription : AutoCloseable {
-        override fun close()
+    internal fun publish(event: KernelEvent): Unit {
+        deliver(listeners[event.topic], event)
+        if (event.topic != WILDCARD) deliver(listeners[WILDCARD], event)
     }
 
-    companion object {
-        const val WILDCARD = "*"
+    private fun deliver(bucket: List<Listener>?, event: KernelEvent): Unit {
+        bucket?.forEach { record ->
+            runCatching { record.callback(event) }
+                .onFailure { logger.warn("Event listener owned by ${record.owner} failed for ${event.topic}", it) }
+        }
+    }
+
+    internal fun removeOwner(owner: String): Unit {
+        listeners.forEach { (topic, bucket) ->
+            bucket.removeIf { it.owner == owner }
+            if (bucket.isEmpty()) listeners.remove(topic, bucket)
+        }
+    }
+
+    internal val size: Int get() = listeners.values.sumOf { it.size }
+
+    internal companion object {
+        const val WILDCARD: String = "*"
     }
 }
 
-class CommandBus {
-    private val handlers = ConcurrentHashMap<String, (KernelCommand) -> CommandResult>()
+internal class CommandBus {
+    private data class Handler(val owner: String, val callback: (KernelCommand) -> CommandResult)
 
-    fun register(
+    private val handlers = ConcurrentHashMap<String, Handler>()
+
+    internal fun register(
+        owner: String,
         commandName: String,
-        replace: Boolean = false,
+        replace: Boolean,
         handler: (KernelCommand) -> CommandResult
-    ) {
+    ): Unit {
         require(commandName.isNotBlank()) { "Command name cannot be blank" }
-        if (replace) {
-            handlers[commandName] = handler
+        val replacement = Handler(owner, handler)
+        if (!replace) {
+            check(handlers.putIfAbsent(commandName, replacement) == null) { "Command already registered: $commandName" }
             return
         }
-        check(handlers.putIfAbsent(commandName, handler) == null) {
-            "Command already registered: $commandName"
+        handlers.compute(commandName) { _, current ->
+            check(current == null || current.owner == owner) { "Command $commandName is owned by ${current?.owner}" }
+            replacement
         }
     }
 
-    fun execute(command: KernelCommand): CommandResult {
+    internal fun execute(command: KernelCommand): CommandResult {
         val handler = handlers[command.name]
             ?: return CommandResult.failure(IllegalArgumentException("No handler for command: ${command.name}"))
-        return runCatching { handler(command) }
-            .getOrElse(CommandResult::failure)
+        return runCatching { handler.callback(command) }.getOrElse(CommandResult::failure)
     }
 
-    fun unregister(commandName: String) {
-        handlers.remove(commandName)
+    internal fun unregister(owner: String, commandName: String): Boolean = handlers.computeIfPresent(commandName) { _, current ->
+        if (current.owner == owner) null else current
+    } == null
+
+    internal fun removeOwner(owner: String): Unit {
+        handlers.entries.removeIf { it.value.owner == owner }
     }
 
-    val size: Int get() = handlers.size
+    internal val size: Int get() = handlers.size
 }

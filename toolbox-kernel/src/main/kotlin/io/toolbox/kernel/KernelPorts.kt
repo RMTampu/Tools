@@ -2,51 +2,59 @@ package io.toolbox.kernel
 
 import java.util.concurrent.ConcurrentHashMap
 
-interface KernelStateStore {
-    fun put(key: String, value: String)
-    fun get(key: String): String?
-    fun remove(key: String)
-    fun keys(prefix: String = ""): Set<String>
+public interface KernelStateStore {
+    public fun put(key: String, value: String): Unit
+    public fun get(key: String): String?
+    public fun remove(key: String): Unit
+    public fun keys(prefix: String = ""): Set<String>
 }
 
-class InMemoryKernelStateStore : KernelStateStore {
-    private val data = ConcurrentHashMap<String, String>()
+public class InMemoryKernelStateStore : KernelStateStore {
+    private val data: ConcurrentHashMap<String, String> = ConcurrentHashMap()
 
-    override fun put(key: String, value: String) {
+    override fun put(key: String, value: String): Unit {
         data[key] = value
     }
 
     override fun get(key: String): String? = data[key]
 
-    override fun remove(key: String) {
+    override fun remove(key: String): Unit {
         data.remove(key)
     }
 
     override fun keys(prefix: String): Set<String> = data.keys.filterTo(linkedSetOf()) { it.startsWith(prefix) }
 }
 
-interface KernelLogger {
-    fun debug(message: String) = Unit
-    fun info(message: String) = Unit
-    fun warn(message: String, error: Throwable? = null) = Unit
-    fun error(message: String, error: Throwable? = null) = Unit
+public interface KernelLogger {
+    public fun debug(message: String): Unit = Unit
+    public fun info(message: String): Unit = Unit
+    public fun warn(message: String, error: Throwable? = null): Unit = Unit
+    public fun error(message: String, error: Throwable? = null): Unit = Unit
 }
 
-object NoopKernelLogger : KernelLogger
+public object NoopKernelLogger : KernelLogger
 
-fun interface KernelExecutor {
-    fun execute(taskName: String, task: () -> Unit)
+public fun interface KernelExecutor {
+    public fun execute(taskName: String, task: () -> Unit): Unit
 }
 
-object DirectKernelExecutor : KernelExecutor {
-    override fun execute(taskName: String, task: () -> Unit) = task()
+public object DirectKernelExecutor : KernelExecutor {
+    override fun execute(taskName: String, task: () -> Unit): Unit = task()
 }
 
-fun interface CompatibilityPolicy {
-    fun check(config: KernelConfig, descriptor: ModuleDescriptor): CompatibilityResult
+public fun interface KernelClock {
+    public fun nowMillis(): Long
 }
 
-object DefaultCompatibilityPolicy : CompatibilityPolicy {
+public object SystemKernelClock : KernelClock {
+    override fun nowMillis(): Long = System.currentTimeMillis()
+}
+
+public fun interface CompatibilityPolicy {
+    public fun check(config: KernelConfig, descriptor: ModuleDescriptor): CompatibilityResult
+}
+
+public object DefaultCompatibilityPolicy : CompatibilityPolicy {
     override fun check(config: KernelConfig, descriptor: ModuleDescriptor): CompatibilityResult {
         if (descriptor.apiVersion > config.moduleApiVersion) {
             return CompatibilityResult(false, "Module API ${descriptor.apiVersion} exceeds kernel API ${config.moduleApiVersion}")
@@ -61,22 +69,23 @@ object DefaultCompatibilityPolicy : CompatibilityPolicy {
     }
 }
 
-fun interface ModuleAdmissionPolicy {
-    fun evaluate(descriptor: ModuleDescriptor, source: ModuleSource?): AdmissionDecision
+public fun interface ModuleAdmissionPolicy {
+    public fun evaluate(descriptor: ModuleDescriptor, source: ModuleSource?): AdmissionDecision
 }
 
-object AllowAllModuleAdmissionPolicy : ModuleAdmissionPolicy {
+public object AllowAllModuleAdmissionPolicy : ModuleAdmissionPolicy {
     override fun evaluate(descriptor: ModuleDescriptor, source: ModuleSource?): AdmissionDecision = AdmissionDecision(true)
 }
 
-fun interface ModuleLoader {
-    fun load(source: ModuleSource): ToolBoxModule
+public fun interface ModuleLoader {
+    public fun load(source: ModuleSource): ToolBoxModule
 }
 
-data class KernelPorts(
-    val stateStore: KernelStateStore = InMemoryKernelStateStore(),
-    val logger: KernelLogger = NoopKernelLogger,
-    val executor: KernelExecutor = DirectKernelExecutor,
-    val compatibilityPolicy: CompatibilityPolicy = DefaultCompatibilityPolicy,
-    val admissionPolicy: ModuleAdmissionPolicy = AllowAllModuleAdmissionPolicy
+public data class KernelPorts(
+    public val stateStore: KernelStateStore = InMemoryKernelStateStore(),
+    public val logger: KernelLogger = NoopKernelLogger,
+    public val executor: KernelExecutor = DirectKernelExecutor,
+    public val clock: KernelClock = SystemKernelClock,
+    public val compatibilityPolicy: CompatibilityPolicy = DefaultCompatibilityPolicy,
+    public val admissionPolicy: ModuleAdmissionPolicy = AllowAllModuleAdmissionPolicy
 )
