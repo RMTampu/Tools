@@ -197,3 +197,22 @@ Jika context, memory, tool output, atau kapasitas pemrosesan tidak memadai untuk
 **Keterbatasan kapasitas hanya boleh mengubah ukuran unit eksekusi. Keterbatasan tersebut DILARANG digunakan untuk mengurangi aturan, coverage, invariant, proof, evidence, atau syarat PASS.**
 
 Jika detail aturan aktif tidak tersedia, state prosedur tidak diketahui, evidence hilang, atau agen tidak dapat memastikan bahwa langkah telah dijalankan lengkap, status default adalah `NOT_PROVEN`, bukan PASS. Agen wajib membaca kembali sumber dan merekonstruksi state sebelum melanjutkan.
+
+## 19. Aturan Hasil Riset Asset Route Proof
+
+Untuk setiap pekerjaan yang menyentuh jalur consumer → asset, asset → asset, reference, dependency, alias, dynamic lookup, resource resolution, configuration → variant, fallback, authority/capability, contextual route, atau transitive asset route, agen WAJIB membaca dan mematuhi:
+
+- `ASSET_ROUTE_PROOF_METHODS.md`;
+- `ASSET_ROUTE_PROOF_PROCESS.md`.
+
+`ASSET_ROUTE_PROOF_METHODS.md` adalah korpus aktif metode hasil riset yang sudah diterima, disaring, digabungkan, dan diaudit agar tidak kontra. Metode yang ditolak, lebih lemah, redundant, atau tidak menambah jaminan tidak boleh dipakai untuk menggantikan metode aktif tersebut.
+
+`ASSET_ROUTE_PROOF_PROCESS.md` menentukan urutan eksekusi wajib untuk Gate 4 pada `PREBUILD_ASSET_GATE.md`.
+
+Jika scope build mempunyai asset route/reference/resolution, Gate 4 DILARANG dinyatakan PASS sebelum proses tersebut menghasilkan:
+
+```text
+ROUTE_PROOF_PASS
+```
+
+Build tetap tertutup sampai `ROUTE_PROOF_PASS` terintegrasi dengan seluruh syarat Gate 5 dan `PREBUILD_ASSET_GATE = PASS`.
