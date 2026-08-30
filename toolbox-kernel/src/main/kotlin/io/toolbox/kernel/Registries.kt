@@ -8,6 +8,12 @@ internal data class OwnedValue<T>(
     val value: T
 )
 
+internal data class CapabilitySnapshot(
+    override val id: String,
+    override val version: ModuleVersion,
+    override val providerModuleId: String
+) : Capability
+
 internal class ServiceRegistry(
     private val onMutation: () -> Unit
 ) {
@@ -62,15 +68,43 @@ internal class ServiceRegistry(
 internal class CapabilityRegistry(
     private val onMutation: () -> Unit
 ) {
-    private val capabilities = ConcurrentHashMap<String, ConcurrentHashMap<OwnerToken, OwnedValue<Capability>>>()
+    private val capabilities = ConcurrentHashMap<String, ConcurrentHashMap<OwnerToken, OwnedValue<CapabilitySnapshot>>>()
+
+    internal fun registerDeclared(owner: ResourceOwner, declaration: CapabilityDeclaration): Unit {
+        registerSnapshot(
+            owner,
+            CapabilitySnapshot(declaration.id, declaration.version, owner.token.id),
+            replace = false,
+            allowIdentical = true
+        )
+    }
 
     internal fun register(owner: ResourceOwner, capability: Capability, replace: Boolean): Unit {
         owner.assertContextOpen()
+        val snapshot = CapabilitySnapshot(
+            id = capability.id,
+            version = capability.version,
+            providerModuleId = capability.providerModuleId
+        )
+        registerSnapshot(owner, snapshot, replace, allowIdentical = true)
+    }
+
+    private fun registerSnapshot(
+        owner: ResourceOwner,
+        capability: CapabilitySnapshot,
+        replace: Boolean,
+        allowIdentical: Boolean
+    ): Unit {
+        owner.assertContextOpen()
         KernelIdentifiers.requireValid(capability.id, "Capability id")
-        require(capability.providerModuleId == owner.token.id) { "Capability provider must match owner ${owner.token.id}" }
+        require(capability.providerModuleId == owner.token.id) {
+            "Capability provider must match owner ${owner.token.id}"
+        }
         val bucket = capabilities.computeIfAbsent(capability.id) { ConcurrentHashMap() }
         val replacement = OwnedValue(owner, capability)
+        val existing = bucket[owner.token]
         if (!replace) {
+            if (allowIdentical && existing?.value == capability) return
             check(bucket.putIfAbsent(owner.token, replacement) == null) {
                 "Capability ${capability.id} already registered by ${owner.token.id}"
             }
@@ -78,7 +112,7 @@ internal class CapabilityRegistry(
             return
         }
         bucket[owner.token] = replacement
-        onMutation()
+        if (existing?.value != capability) onMutation()
     }
 
     internal fun unregister(owner: ResourceOwner, id: String): Boolean {
@@ -90,6 +124,9 @@ internal class CapabilityRegistry(
         return removed
     }
 
+    internal fun findOwned(owner: OwnerToken, id: String): Capability? =
+        capabilities[id]?.get(owner)?.value
+
     internal fun findActive(requirement: CapabilityRequirement, providerId: String? = null): Capability? =
         capabilities[requirement.id]
             ?.values
@@ -98,14 +135,14 @@ internal class CapabilityRegistry(
             ?.filter { providerId == null || it.owner.token.id == providerId }
             ?.map { it.value }
             ?.filter { requirement.versionRange.contains(it.version) }
-            ?.sortedWith(compareByDescending<Capability> { it.version }.thenBy { it.providerModuleId })
+            ?.sortedWith(compareByDescending<CapabilitySnapshot> { it.version }.thenBy { it.providerModuleId })
             ?.firstOrNull()
 
     internal fun allActive(): List<Capability> = capabilities.values
         .flatMap { it.values }
         .filter { it.owner.isAcceptingInvocations() }
         .map { it.value }
-        .sortedWith(compareBy<Capability> { it.id }.thenByDescending { it.version }.thenBy { it.providerModuleId })
+        .sortedWith(compareBy<CapabilitySnapshot> { it.id }.thenByDescending { it.version }.thenBy { it.providerModuleId })
 
     internal fun removeOwner(owner: OwnerToken): Unit {
         var changed = false
@@ -236,31 +273,40 @@ internal class CommandBus(
     }
 
     internal fun execute(command: KernelCommand, ownerAllowed: (OwnerToken) -> Boolean = { true }): CommandResult {
-        KernelIdentifiers.requireValid(command.name, "Command name")
-        val handler = handlers[command.name]
-            ?: return CommandResult.failure(IllegalArgumentException("No handler for command: ${command.name}"))
-        if (!ownerAllowed(handler.owner.token)) {
-            return CommandResult.failure(IllegalStateException("Command ${command.name} is not visible to this caller"))
+        val commandName = try {
+            command.name
+        } catch (error: Throwable) {
+            return CommandResult.failure(error)
         }
-        val permit = handler.owner.tryAcquireInvocation()
-            ?: return CommandResult.failure(IllegalStateException("Command ${command.name} is not active"))
-        val outcome = supervisor.execute("command:${handler.owner.token.id}:${command.name}", timeoutMillis) {
-            try {
-                handler.callback(command)
-            } finally {
-                permit.close()
+        return try {
+            KernelIdentifiers.requireValid(commandName, "Command name")
+            val handler = handlers[commandName]
+                ?: return CommandResult.failure(IllegalArgumentException("No handler for command: $commandName"))
+            if (!ownerAllowed(handler.owner.token)) {
+                return CommandResult.failure(IllegalStateException("Command $commandName is not visible to this caller"))
             }
-        }
-        return when (outcome) {
-            is CallbackOutcome.Success -> outcome.value
-            is CallbackOutcome.Failure -> {
-                permit.close()
-                CommandResult.failure(outcome.error)
+            val permit = handler.owner.tryAcquireInvocation()
+                ?: return CommandResult.failure(IllegalStateException("Command $commandName is not active"))
+            val outcome = supervisor.execute("command:${handler.owner.token.id}:$commandName", timeoutMillis) {
+                try {
+                    handler.callback(command)
+                } finally {
+                    permit.close()
+                }
             }
-            is CallbackOutcome.TimedOut -> {
-                handler.owner.trackTimedOut(outcome.completion)
-                CommandResult.failure(outcome.error)
+            when (outcome) {
+                is CallbackOutcome.Success -> outcome.value
+                is CallbackOutcome.Failure -> {
+                    permit.close()
+                    CommandResult.failure(outcome.error)
+                }
+                is CallbackOutcome.TimedOut -> {
+                    handler.owner.trackTimedOut(outcome.completion)
+                    CommandResult.failure(outcome.error)
+                }
             }
+        } catch (error: Throwable) {
+            CommandResult.failure(error)
         }
     }
 
