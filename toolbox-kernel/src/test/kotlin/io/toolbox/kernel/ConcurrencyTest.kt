@@ -117,7 +117,9 @@ class ConcurrencyTest {
     fun `executor returning while callback runs is protocol failure but completion remains tracked`() {
         val entered = CountDownLatch(1)
         val release = CountDownLatch(1)
+        val executorWorker = AtomicReference<Thread>()
         val executor = KernelExecutor { _, task ->
+            executorWorker.set(Thread.currentThread())
             Thread { task() }.start()
             entered.await(1, TimeUnit.SECONDS)
         }
@@ -139,6 +141,10 @@ class ConcurrencyTest {
         val starter = Thread { startResult.set(kernel.start()) }
         starter.start()
         assertTrue(entered.await(1, TimeUnit.SECONDS))
+
+        val worker = assertNotNull(executorWorker.get())
+        worker.join(1_000)
+        assertFalse(worker.isAlive)
         release.countDown()
         starter.join(2_000)
 
