@@ -69,7 +69,7 @@ internal class ModuleRegistry(
 
     private sealed class ResolveAttempt {
         data class Success(val plan: ResolutionPlan) : ResolveAttempt()
-        data class Failure(val error: KernelError) : ResolveAttempt()
+        data class Failure(val error: KernelError, val fatal: Boolean = false) : ResolveAttempt()
     }
 
     private val lock = Any()
@@ -77,6 +77,10 @@ internal class ModuleRegistry(
 
     internal fun register(module: ToolBoxModule, descriptor: ModuleDescriptor): Unit = synchronized(lock) {
         check(descriptor.id !in records) { "Module already installed: ${descriptor.id}" }
+        check(records.size < KernelResourceBounds.MAX_INSTALLED_MODULES) {
+            "Installed module capacity exhausted (${KernelResourceBounds.MAX_INSTALLED_MODULES})"
+        }
+        descriptor.resourceLimitError()?.let { throw IllegalArgumentException(it) }
         records[descriptor.id] = Record(module, descriptor)
         onMutation()
     }
@@ -195,6 +199,7 @@ internal class ModuleRegistry(
      */
     internal fun removalBlockers(providerId: String, activePlan: ResolutionPlan?): List<String> = synchronized(lock) {
         val provider = records[providerId] ?: return@synchronized emptyList()
+        val budget = ResolutionBudget()
         records.values
             .asSequence()
             .filter { it.descriptor.id != providerId }
@@ -214,7 +219,7 @@ internal class ModuleRegistry(
                 }
 
                 matchingRequirements.any { requirement ->
-                    !hasResolvableAlternativeProvider(requirement, providerId, consumer.descriptor.id)
+                    !hasResolvableAlternativeProvider(requirement, providerId, consumer.descriptor.id, budget)
                 }
             }
             .map { it.descriptor.id }
@@ -227,7 +232,8 @@ internal class ModuleRegistry(
         if (moduleId !in records) {
             return@synchronized KernelResult.failure(KernelError(KernelErrorCode.NOT_FOUND, "Unknown module: $moduleId"))
         }
-        when (val attempt = resolveModule(moduleId, linkedSetOf())) {
+        val budget = ResolutionBudget()
+        when (val attempt = resolveModule(moduleId, linkedSetOf(), budget)) {
             is ResolveAttempt.Success -> KernelResult.success(attempt.plan)
             is ResolveAttempt.Failure -> KernelResult.failure(attempt.error)
         }
@@ -236,8 +242,9 @@ internal class ModuleRegistry(
     /** Strict all-module resolution retained for diagnostics; lifecycle startup uses per-root isolation. */
     internal fun resolvePlan(): KernelResult<ResolutionPlan> = synchronized(lock) {
         var merged = ResolutionPlan.empty()
+        val budget = ResolutionBudget()
         records.keys.sorted().forEach { moduleId ->
-            when (val attempt = resolveModule(moduleId, linkedSetOf())) {
+            when (val attempt = resolveModule(moduleId, linkedSetOf(), budget)) {
                 is ResolveAttempt.Success -> merged = merged.merge(attempt.plan)
                 is ResolveAttempt.Failure -> return@synchronized KernelResult.failure(attempt.error)
             }
@@ -264,7 +271,8 @@ internal class ModuleRegistry(
     private fun hasResolvableAlternativeProvider(
         requirement: CapabilityRequirement,
         excludedProviderId: String,
-        consumerId: String
+        consumerId: String,
+        budget: ResolutionBudget
     ): Boolean = records.values
         .asSequence()
         .filter { candidate ->
@@ -278,10 +286,14 @@ internal class ModuleRegistry(
             }
         }
         .any { candidate ->
-            resolveModule(candidate.descriptor.id, linkedSetOf(consumerId, excludedProviderId)) is ResolveAttempt.Success
+            resolveModule(candidate.descriptor.id, linkedSetOf(consumerId, excludedProviderId), budget) is ResolveAttempt.Success
         }
 
-    private fun resolveModule(moduleId: String, path: LinkedHashSet<String>): ResolveAttempt {
+    private fun resolveModule(
+        moduleId: String,
+        path: LinkedHashSet<String>,
+        budget: ResolutionBudget
+    ): ResolveAttempt {
         if (moduleId in path) {
             return ResolveAttempt.Failure(
                 KernelError(
@@ -290,6 +302,19 @@ internal class ModuleRegistry(
                 )
             )
         }
+        if (path.size >= KernelResourceBounds.MAX_RESOLUTION_DEPTH) {
+            return ResolveAttempt.Failure(
+                KernelError(
+                    KernelErrorCode.DEPENDENCY_RESOLUTION,
+                    "Dependency resolution depth limit exceeded (${KernelResourceBounds.MAX_RESOLUTION_DEPTH}) while resolving $moduleId"
+                ),
+                fatal = true
+            )
+        }
+        budget.consume(moduleId)?.let { error ->
+            return ResolveAttempt.Failure(error, fatal = true)
+        }
+
         val record = records[moduleId] ?: return ResolveAttempt.Failure(
             KernelError(KernelErrorCode.DEPENDENCY_RESOLUTION, "Missing required module dependency $moduleId")
         )
@@ -320,9 +345,9 @@ internal class ModuleRegistry(
                 return@forEach
             }
 
-            val dependencyAttempt = resolveModule(dependency.id, nextPath)
+            val dependencyAttempt = resolveModule(dependency.id, nextPath, budget)
             if (dependencyAttempt is ResolveAttempt.Failure) {
-                if (dependency.kind == DependencyKind.REQUIRED) return dependencyAttempt
+                if (dependency.kind == DependencyKind.REQUIRED || dependencyAttempt.fatal) return dependencyAttempt
                 return@forEach
             }
             dependencyAttempt as ResolveAttempt.Success
@@ -350,12 +375,12 @@ internal class ModuleRegistry(
 
             var selected: Pair<Record, ResolutionPlan>? = null
             for (candidate in candidates) {
-                when (val attempt = resolveModule(candidate.first.descriptor.id, nextPath)) {
+                when (val attempt = resolveModule(candidate.first.descriptor.id, nextPath, budget)) {
                     is ResolveAttempt.Success -> {
                         selected = candidate.first to attempt.plan
                         break
                     }
-                    is ResolveAttempt.Failure -> Unit
+                    is ResolveAttempt.Failure -> if (attempt.fatal) return attempt
                 }
             }
 
