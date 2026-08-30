@@ -1,26 +1,20 @@
 {
-  "dependencyInputsSha256": {
-    ".github/workflows/dependency-bootstrap.yml": "fd94e196145166b0bea58860b071e0eff6c30a6d3ade81b7afd13fd473df2a49",
-    "build.gradle.kts": "2e1a6184be5d2b5e406322b461dc7d1c776d4fb3fbc1db9f215f085aeda84c57",
-    "gradle.properties": "6874547b8a17f26b34852aeaca97d35f22e71188b1e576c91428ffc20efc1be9",
-    "settings.gradle.kts": "b01c7668c47966f1dff519d96353e6f2692a0b51c5abb6275beab4d02a12344a",
-    "toolbox-app/build.gradle.kts": "9f077cf1395aeab5f45f7ddbac614a484504a2e47f01e5f6383b6ea50360c200",
-    "toolbox-kernel/build.gradle.kts": "5495798436eea1b0768f287042566cf5b81cd113bc77e4b07c088bb527a641a2",
-    "verification/application_scope.json": "5ffc167f8d5dee78da6371e6daafcda90473fc007049fe7badb2af0b6969a5ef"
-  },
-  "generatedFromGitSha": "13928eb3e57ef2e40fb711af5afbb69193113b17",
+  "generatedFromGitSha": "6334a133a03c61cafbd47a2cb54cef13652e4d86",
   "generator": {
     "dependencyVerification": "sha256",
     "gradle": "8.7",
-    "jdk": "17"
+    "gradleDistributionSha256": "544c35d6bd849ae8a5ed0bcea39ba677dc40f49df7d1835561582da2009b961d",
+    "independentCleanReplicas": 2,
+    "jdk": "17.0.20+1",
+    "sharedDependencyCache": false
   },
   "outputsSha256": {
-    "gradle/verification-metadata.xml": "7d1ebd3d53d1b3715783f022a238c8d97ab52f63919ebfd9b80cd6c8329a88a3",
-    "toolbox-app/gradle.lockfile": "325e1a544d865f35fb05a3fa048ea0740559868f6ff57a283e6d1a2353501ea9",
-    "toolbox-kernel/gradle.lockfile": "1086872557691f340196c827c192694167809ca65cc92eb00300b45f943d1f81"
+    "gradle/verification-metadata.xml": "95a9e01b0d96cb538d9a22602dead1fa9c6967b4ee53a135dbb6856881a1a891",
+    "toolbox-app/gradle.lockfile": "eb37af1ab94dc057970afdba3165667147eb807bdba6a0d46d676e8cdfeb611d",
+    "toolbox-kernel/gradle.lockfile": "1fbb2f1b1ab2ffa8e694fdc038267562428b04bd099a8aae1d6fbb47455c2c52"
   },
-  "schemaVersion": 1,
-  "status": "CANDIDATE_UNREVIEWED",
+  "schemaVersion": 4,
+  "status": "CANDIDATE_CONVERGED_REVIEWED_FOR_HARDENING",
   "workflowRunAttempt": "1",
-  "workflowRunId": "33334994542"
+  "workflowRunId": "33336714084"
 }
