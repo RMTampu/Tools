@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "debug": {
+    "purpose": "CI verification artifact only; never a production identity.",
+    "requireV2": true,
+    "requireV3": false,
+    "expectedCertificateSha256": null
+  },
+  "release": {
+    "purpose": "Production/release identity.",
+    "requiredSecrets": [
+      "TOOLBOX_KEYSTORE_BASE64",
+      "TOOLBOX_KEYSTORE_PASSWORD",
+      "TOOLBOX_KEY_ALIAS",
+      "TOOLBOX_KEY_PASSWORD"
+    ],
+    "requireV2": true,
+    "requireV3": true,
+    "expectedCertificateSha256": null,
+    "statusUntilFingerprintIsPinned": "NOT_PROVEN"
+  },
+  "rules": [
+    "Private key material must never be committed to the repository.",
+    "Release signature validity is insufficient without a pinned expected certificate SHA-256 identity.",
+    "Any certificate rotation requires an explicit lineage/update of this contract and invalidates affected release proof.",
+    "The exact APK verified here must be the exact APK installed, tested, attested and distributed."
+  ]
+}
