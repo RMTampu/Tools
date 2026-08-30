@@ -10,6 +10,11 @@ internal object KernelResourceBounds {
     internal const val MAX_MODULE_NAME_LENGTH: Int = 256
     internal const val MAX_ENTRY_POINT_LENGTH: Int = 512
     internal const val MAX_ABI_NAME_LENGTH: Int = 64
+    internal const val MAX_SOURCE_LOCATION_LENGTH: Int = 4_096
+    internal const val MAX_ARTIFACT_ID_LENGTH: Int = 256
+    internal const val MAX_SOURCE_METADATA_ENTRIES: Int = 128
+    internal const val MAX_SOURCE_METADATA_KEY_LENGTH: Int = 128
+    internal const val MAX_SOURCE_METADATA_VALUE_LENGTH: Int = 4_096
     internal const val MAX_INSTALLED_MODULES: Int = 512
     internal const val MAX_DEPENDENCIES_PER_MODULE: Int = 128
     internal const val MAX_PROVIDED_CAPABILITIES_PER_MODULE: Int = 128
@@ -36,6 +41,34 @@ internal fun ModuleDescriptor.resourceLimitError(): String? = when {
         "Module declares too many provided capabilities: ${providedCapabilities.size} > ${KernelResourceBounds.MAX_PROVIDED_CAPABILITIES_PER_MODULE}"
     requiredCapabilities.size > KernelResourceBounds.MAX_REQUIRED_CAPABILITIES_PER_MODULE ->
         "Module declares too many required capabilities: ${requiredCapabilities.size} > ${KernelResourceBounds.MAX_REQUIRED_CAPABILITIES_PER_MODULE}"
+    else -> null
+}
+
+internal fun ModuleSource.resourceLimitError(): String? = when {
+    id.length > KernelResourceBounds.MAX_IDENTIFIER_LENGTH ->
+        "Module source id is too long: ${id.length} > ${KernelResourceBounds.MAX_IDENTIFIER_LENGTH}"
+    location.length > KernelResourceBounds.MAX_SOURCE_LOCATION_LENGTH ->
+        "Module source location is too long: ${location.length} > ${KernelResourceBounds.MAX_SOURCE_LOCATION_LENGTH}"
+    else -> metadata.resourceLimitError("Module source")
+}
+
+internal fun StagedModuleSource.resourceLimitError(): String? = when {
+    sourceId.length > KernelResourceBounds.MAX_IDENTIFIER_LENGTH ->
+        "Staged source id is too long: ${sourceId.length} > ${KernelResourceBounds.MAX_IDENTIFIER_LENGTH}"
+    artifactId.length > KernelResourceBounds.MAX_ARTIFACT_ID_LENGTH ->
+        "Staged artifact id is too long: ${artifactId.length} > ${KernelResourceBounds.MAX_ARTIFACT_ID_LENGTH}"
+    location.length > KernelResourceBounds.MAX_SOURCE_LOCATION_LENGTH ->
+        "Staged source location is too long: ${location.length} > ${KernelResourceBounds.MAX_SOURCE_LOCATION_LENGTH}"
+    else -> metadata.resourceLimitError("Staged source")
+}
+
+private fun Map<String, String>.resourceLimitError(label: String): String? = when {
+    size > KernelResourceBounds.MAX_SOURCE_METADATA_ENTRIES ->
+        "$label metadata has too many entries: $size > ${KernelResourceBounds.MAX_SOURCE_METADATA_ENTRIES}"
+    keys.any { it.length > KernelResourceBounds.MAX_SOURCE_METADATA_KEY_LENGTH } ->
+        "$label metadata key exceeds ${KernelResourceBounds.MAX_SOURCE_METADATA_KEY_LENGTH} characters"
+    values.any { it.length > KernelResourceBounds.MAX_SOURCE_METADATA_VALUE_LENGTH } ->
+        "$label metadata value exceeds ${KernelResourceBounds.MAX_SOURCE_METADATA_VALUE_LENGTH} characters"
     else -> null
 }
 
