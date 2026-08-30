@@ -30,6 +30,29 @@ class DependencyProtectionTest {
     }
 
     @Test
+    fun `incompatible direct provider can be removed so a compatible version can replace it`() {
+        val kernel = ToolBoxKernel()
+        assertTrue(kernel.install(module("provider", version = "1.0.0")).isSuccess)
+        assertTrue(
+            kernel.install(
+                module(
+                    "consumer",
+                    dependencies = setOf(
+                        ModuleDependency.required(
+                            "provider",
+                            VersionRange.atLeast(ModuleVersion.parse("2.0.0"))
+                        )
+                    )
+                )
+            ).isSuccess
+        )
+
+        assertTrue(kernel.uninstall("provider").isSuccess)
+        assertNull(kernel.moduleState("provider"))
+        assertEquals(ModuleState.REGISTERED, kernel.moduleState("consumer"))
+    }
+
+    @Test
     fun `unrelated unresolved graph does not block independent uninstall`() {
         val kernel = ToolBoxKernel()
         assertTrue(kernel.install(module("independent")).isSuccess)
