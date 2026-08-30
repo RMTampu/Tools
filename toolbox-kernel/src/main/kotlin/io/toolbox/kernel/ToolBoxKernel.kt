@@ -265,9 +265,17 @@ public class ToolBoxKernel(
     }
 
     public fun stop(): KernelResult<Unit> = runOperation("stop") {
-        if (state in setOf(KernelState.NEW, KernelState.STOPPED, KernelState.STOPPED_WITH_ERRORS)) {
+        if (state in setOf(KernelState.NEW, KernelState.STOPPED)) {
             setState(KernelState.STOPPED)
             return@runOperation KernelResult.success(Unit)
+        }
+        if (state == KernelState.STOPPED_WITH_ERRORS) {
+            return@runOperation KernelResult.failure(
+                KernelError(
+                    KernelErrorCode.INVALID_STATE,
+                    "Kernel is already stopped with unresolved lifecycle errors; repeated stop cannot clear them"
+                )
+            )
         }
         if (state !in setOf(KernelState.RUNNING, KernelState.DEGRADED, KernelState.FAILED)) {
             return@runOperation KernelResult.failure(
@@ -522,6 +530,7 @@ public class ToolBoxKernel(
         } finally {
             currentOperation.set(null)
             operationInProgress.set(false)
+            persistState(state)
         }
     }
 }
