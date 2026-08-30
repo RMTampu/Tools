@@ -2,10 +2,15 @@ package io.toolbox.kernel
 
 import java.util.concurrent.ConcurrentHashMap
 
+/**
+ * Observational persistence for lifecycle diagnostics. Kernel runtime correctness and lifecycle
+ * progress must not depend on this store being available. A host that needs full crash-resume or
+ * transactional recovery must provide that policy above this pure kernel boundary.
+ */
 public interface KernelStateStore {
     /**
-     * Replaces one key atomically. Durable implementations must never expose a torn value for a
-     * single key because kernel recovery commits its canonical state record through one [put].
+     * Replaces one key atomically. Durable implementations must never expose a torn single-key
+     * value so the canonical diagnostic record can be read consistently after process restart.
      */
     public fun put(key: String, value: String): Unit
     public fun get(key: String): String?
