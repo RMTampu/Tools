@@ -35,7 +35,16 @@ jobs:
         run: gradle --no-daemon --warning-mode=all :toolbox-kernel:clean :toolbox-kernel:check
 
       - name: Install Android API 30 toolchain
-        run: sdkmanager "platforms;android-30" "build-tools;35.0.0"
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d "$ANDROID_HOME/cmdline-tools"
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -perm -u+x | sort | tail -n 1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-30" "build-tools;35.0.0"
+          test -f "$ANDROID_HOME/platforms/android-30/android.jar"
+          test -x "$ANDROID_HOME/build-tools/35.0.0/d8"
 
       - name: Verify Android API 30 DEX compatibility
         shell: bash
