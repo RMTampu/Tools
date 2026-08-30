@@ -6,7 +6,8 @@ ToolBox is a small, UI-independent, extensible kernel foundation targeting Andro
 
 - The kernel is the only authority that mutates module lifecycle state.
 - Module descriptors are validated and snapshotted at installation time.
-- Android API range, ABI, required capabilities, module API, and entry-point metadata are explicit compatibility contracts.
+- External module sources are inspected before executable module code is loaded.
+- Android API range, actual runtime API/ABI, required capabilities, module API, and entry-point metadata are explicit compatibility contracts.
 - Required dependencies are resolved deterministically before lifecycle execution.
 - Module callbacks run outside registry locks.
 - Services, capabilities, commands, and subscriptions are owned by a module scope and are cleaned automatically.

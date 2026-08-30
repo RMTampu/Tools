@@ -33,13 +33,22 @@ The descriptor carries the kernel-level metadata needed to reject incompatible m
 - entry point
 - module dependencies
 
-The distribution baseline is Android 11 / API 30 / `arm64-v8a`. The kernel remains platform-aware rather than hard-coding platform-specific loaders.
+`KernelRuntimeEnvironment` carries the actual Android API and ABI reported by the host. The default compatibility policy requires that runtime environment to match the configured distribution target and verifies that the module supports both. The distribution baseline is Android 11 / API 30 / `arm64-v8a`.
+
+## External module preflight
+
+`ModuleLoader` has two distinct phases:
+
+1. `inspect(source)` reads metadata only and must not execute module code.
+2. `load(source, descriptor)` is called only after source identity, descriptor validity, compatibility, and admission checks succeed.
+
+The kernel then verifies that the loaded module exposes the same descriptor that passed preflight. A platform loader remains responsible for checking package/content integrity before executing externally supplied code; the kernel guarantees the ordering boundary needed for that implementation.
 
 ## Dependencies and capabilities
 
 Dependencies are represented by `ModuleDependency` rather than raw strings. Required dependencies participate in graph resolution and startup ordering. Optional missing dependencies are ignored. Cycles and missing required dependencies fail resolution before callbacks run.
 
-Required capabilities are checked after required dependency modules have loaded and before the dependent module's `onLoad`. Providers should therefore register required capabilities during `onLoad`.
+Required capabilities are checked after required dependency modules have loaded and before the dependent module's `onLoad`. Providers should therefore register required capabilities during `onLoad` and be declared as dependencies when deterministic ordering is required.
 
 ## Module scope and ownership
 
@@ -66,4 +75,4 @@ The state store records the last observed kernel state. On construction, the pre
 
 ## Platform boundary
 
-The kernel emits Java 11 bytecode and contains no Android framework dependency. `KernelPorts` provides state, logging, execution, clock, compatibility, and admission extension points. Concrete Android loaders must remain outside this module, inspect the real device API/ABI, and verify external-code integrity before loading it.
+The kernel emits Java 11 bytecode and contains no Android framework dependency. `KernelPorts` provides state, logging, execution, clock, runtime-environment, compatibility, and admission extension points. A concrete Android host supplies the real API/ABI values. A concrete external-code loader must inspect metadata without executing module code and verify payload integrity before its `load` phase executes code.

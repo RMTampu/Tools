@@ -51,25 +51,45 @@ public object SystemKernelClock : KernelClock {
 }
 
 public fun interface CompatibilityPolicy {
-    public fun check(config: KernelConfig, descriptor: ModuleDescriptor): CompatibilityResult
+    public fun check(
+        config: KernelConfig,
+        runtimeEnvironment: KernelRuntimeEnvironment,
+        descriptor: ModuleDescriptor
+    ): CompatibilityResult
 }
 
 public object DefaultCompatibilityPolicy : CompatibilityPolicy {
-    override fun check(config: KernelConfig, descriptor: ModuleDescriptor): CompatibilityResult {
+    override fun check(
+        config: KernelConfig,
+        runtimeEnvironment: KernelRuntimeEnvironment,
+        descriptor: ModuleDescriptor
+    ): CompatibilityResult {
         if (descriptor.apiVersion > config.moduleApiVersion) {
             return CompatibilityResult(false, "Module API ${descriptor.apiVersion} exceeds kernel API ${config.moduleApiVersion}")
         }
-        if (descriptor.minAndroidApi > config.androidApiBaseline) {
-            return CompatibilityResult(false, "Module requires Android API ${descriptor.minAndroidApi}")
+        if (runtimeEnvironment.androidApi != config.androidApiBaseline) {
+            return CompatibilityResult(false, "Runtime Android API ${runtimeEnvironment.androidApi} does not match kernel target API ${config.androidApiBaseline}")
         }
-        if (descriptor.maxAndroidApi != null && config.androidApiBaseline > descriptor.maxAndroidApi) {
-            return CompatibilityResult(false, "Module supports Android only through API ${descriptor.maxAndroidApi}")
+        if (runtimeEnvironment.abi != config.architectureBaseline) {
+            return CompatibilityResult(false, "Runtime ABI ${runtimeEnvironment.abi} does not match kernel target ABI ${config.architectureBaseline}")
+        }
+        if (!descriptor.supportsAndroidApi(config.androidApiBaseline)) {
+            return CompatibilityResult(false, "Module does not support kernel target Android API ${config.androidApiBaseline}")
         }
         if (config.architectureBaseline !in descriptor.supportedAbis) {
-            return CompatibilityResult(false, "Module does not support ABI ${config.architectureBaseline}")
+            return CompatibilityResult(false, "Module does not support kernel target ABI ${config.architectureBaseline}")
+        }
+        if (!descriptor.supportsAndroidApi(runtimeEnvironment.androidApi)) {
+            return CompatibilityResult(false, "Module does not support runtime Android API ${runtimeEnvironment.androidApi}")
+        }
+        if (runtimeEnvironment.abi !in descriptor.supportedAbis) {
+            return CompatibilityResult(false, "Module does not support runtime ABI ${runtimeEnvironment.abi}")
         }
         return CompatibilityResult(true)
     }
+
+    private fun ModuleDescriptor.supportsAndroidApi(api: Int): Boolean =
+        api >= minAndroidApi && (maxAndroidApi == null || api <= maxAndroidApi)
 }
 
 public fun interface ModuleAdmissionPolicy {
@@ -80,8 +100,12 @@ public object AllowAllModuleAdmissionPolicy : ModuleAdmissionPolicy {
     override fun evaluate(descriptor: ModuleDescriptor, source: ModuleSource?): AdmissionDecision = AdmissionDecision(true)
 }
 
-public fun interface ModuleLoader {
-    public fun load(source: ModuleSource): ToolBoxModule
+public interface ModuleLoader {
+    /** Reads source metadata without executing module code. */
+    public fun inspect(source: ModuleSource): ModuleDescriptor
+
+    /** Loads executable module code only after kernel preflight has succeeded. */
+    public fun load(source: ModuleSource, descriptor: ModuleDescriptor): ToolBoxModule
 }
 
 public data class KernelPorts(
@@ -89,6 +113,7 @@ public data class KernelPorts(
     public val logger: KernelLogger = NoopKernelLogger,
     public val executor: KernelExecutor = DirectKernelExecutor,
     public val clock: KernelClock = SystemKernelClock,
+    public val runtimeEnvironment: KernelRuntimeEnvironment = KernelRuntimeEnvironment(),
     public val compatibilityPolicy: CompatibilityPolicy = DefaultCompatibilityPolicy,
     public val admissionPolicy: ModuleAdmissionPolicy = AllowAllModuleAdmissionPolicy
 )

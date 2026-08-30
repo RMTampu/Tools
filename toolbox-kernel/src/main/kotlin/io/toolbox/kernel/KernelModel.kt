@@ -36,6 +36,16 @@ public data class KernelConfig(
     public val architectureBaseline: String = "arm64-v8a"
 )
 
+public data class KernelRuntimeEnvironment(
+    public val androidApi: Int = 30,
+    public val abi: String = "arm64-v8a"
+) {
+    init {
+        require(androidApi > 0) { "Runtime Android API must be positive" }
+        require(abi.isNotBlank()) { "Runtime ABI cannot be blank" }
+    }
+}
+
 public data class ModuleDependency(
     public val id: String,
     public val optional: Boolean = false
@@ -100,6 +110,14 @@ public data class ModuleSource(
     public val metadata: Map<String, String> = emptyMap()
 )
 
+internal fun ModuleSource.snapshot(): ModuleSource = copy(metadata = metadata.toMap())
+
+internal fun ModuleSource.validationError(): String? {
+    if (id.isBlank()) return "Module source id cannot be blank"
+    if (location.isBlank()) return "Module source location cannot be blank"
+    return null
+}
+
 public data class HealthStatus(
     public val state: HealthState,
     public val message: String
@@ -121,6 +139,7 @@ public data class ModuleHealth(
 
 public data class KernelSnapshot(
     public val config: KernelConfig,
+    public val runtimeEnvironment: KernelRuntimeEnvironment,
     public val state: KernelState,
     public val previousPersistedState: KernelState?,
     public val modules: List<ModuleHealth>,
@@ -143,9 +162,9 @@ public enum class KernelErrorCode {
     ADMISSION_REJECTED,
     CONFLICT,
     DEPENDENCY_RESOLUTION,
-    CAPABILITY_RESOLUTION,
     LIFECYCLE,
     SOURCE_MISMATCH,
+    SOURCE_INSPECTION,
     NOT_FOUND,
     SOURCE_LOAD
 }

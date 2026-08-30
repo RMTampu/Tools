@@ -25,6 +25,23 @@ class CompatibilityTest {
     }
 
     @Test
+    fun `runtime Android API must match configured target`() {
+        val kernel = ToolBoxKernel(ports = KernelPorts(runtimeEnvironment = KernelRuntimeEnvironment(androidApi = 31)))
+        val result = kernel.install(moduleWith(ModuleDescriptor("runtime-api", "runtime-api", "1.0", minAndroidApi = 21)))
+        assertFalse(result.isSuccess)
+        assertEquals(KernelErrorCode.INCOMPATIBLE_MODULE, result.errors.first().code)
+    }
+
+    @Test
+    fun `runtime ABI must match configured target`() {
+        val kernel = ToolBoxKernel(ports = KernelPorts(runtimeEnvironment = KernelRuntimeEnvironment(abi = "x86_64")))
+        val descriptor = ModuleDescriptor("runtime-abi", "runtime-abi", "1.0", supportedAbis = setOf("arm64-v8a", "x86_64"))
+        val result = kernel.install(moduleWith(descriptor))
+        assertFalse(result.isSuccess)
+        assertEquals(KernelErrorCode.INCOMPATIBLE_MODULE, result.errors.first().code)
+    }
+
+    @Test
     fun `missing required capability blocks module load`() {
         val kernel = ToolBoxKernel()
         val module = moduleWith(ModuleDescriptor("consumer", "consumer", "1.0", requiredCapabilities = setOf("storage")))

@@ -25,32 +25,61 @@ public class ToolBoxKernel(
     }
 
     @Synchronized
-    public fun install(module: ToolBoxModule): KernelResult<ModuleDescriptor> = installInternal(module, null)
+    public fun install(module: ToolBoxModule): KernelResult<ModuleDescriptor> {
+        invalidInstallState()?.let { return KernelResult.failure(it) }
+        val descriptor = module.descriptor.snapshot()
+        val preflight = preflightDescriptor(descriptor, null)
+        if (!preflight.isSuccess) return preflight
+        return registerPreflighted(module, descriptor)
+    }
 
     @Synchronized
     public fun install(source: ModuleSource, loader: ModuleLoader): KernelResult<ModuleDescriptor> {
-        if (source.id.isBlank()) {
-            return KernelResult.failure(KernelError(KernelErrorCode.INVALID_DESCRIPTOR, "Module source id cannot be blank"))
+        invalidInstallState()?.let { return KernelResult.failure(it) }
+        val stableSource = source.snapshot()
+        stableSource.validationError()?.let { message ->
+            return KernelResult.failure(KernelError(KernelErrorCode.INVALID_DESCRIPTOR, message))
         }
-        val loaded = runCatching { loader.load(source) }.getOrElse { error ->
-            ports.logger.error("Failed to load module source ${source.id}", error)
-            return KernelResult.failure(KernelError(KernelErrorCode.SOURCE_LOAD, "Failed to load module source ${source.id}", error))
+
+        val inspectedDescriptor = runCatching { loader.inspect(stableSource).snapshot() }.getOrElse { error ->
+            ports.logger.error("Failed to inspect module source ${stableSource.id}", error)
+            return KernelResult.failure(KernelError(KernelErrorCode.SOURCE_INSPECTION, "Failed to inspect module source ${stableSource.id}", error))
         }
-        if (source.id != loaded.descriptor.id) {
-            return KernelResult.failure(KernelError(KernelErrorCode.SOURCE_MISMATCH, "Source id ${source.id} does not match descriptor id ${loaded.descriptor.id}"))
+        if (stableSource.id != inspectedDescriptor.id) {
+            return KernelResult.failure(KernelError(KernelErrorCode.SOURCE_MISMATCH, "Source id ${stableSource.id} does not match inspected descriptor id ${inspectedDescriptor.id}"))
         }
-        return installInternal(loaded, source)
+
+        val preflight = preflightDescriptor(inspectedDescriptor, stableSource)
+        if (!preflight.isSuccess) return preflight
+
+        val loaded = runCatching { loader.load(stableSource, inspectedDescriptor) }.getOrElse { error ->
+            ports.logger.error("Failed to load module source ${stableSource.id}", error)
+            return KernelResult.failure(KernelError(KernelErrorCode.SOURCE_LOAD, "Failed to load module source ${stableSource.id}", error))
+        }
+        val loadedDescriptor = loaded.descriptor.snapshot()
+        if (loadedDescriptor != inspectedDescriptor) {
+            return KernelResult.failure(
+                KernelError(
+                    KernelErrorCode.SOURCE_MISMATCH,
+                    "Loaded module descriptor does not match the descriptor that passed preflight for ${stableSource.id}"
+                )
+            )
+        }
+        return registerPreflighted(loaded, inspectedDescriptor)
     }
 
-    private fun installInternal(module: ToolBoxModule, source: ModuleSource?): KernelResult<ModuleDescriptor> {
+    private fun invalidInstallState(): KernelError? =
         if (state in setOf(KernelState.STARTING, KernelState.STOPPING, KernelState.FAILED)) {
-            return KernelResult.failure(KernelError(KernelErrorCode.INVALID_STATE, "Cannot install module while kernel state is $state"))
+            KernelError(KernelErrorCode.INVALID_STATE, "Cannot install module while kernel state is $state")
+        } else {
+            null
         }
-        val descriptor = module.descriptor.snapshot()
+
+    private fun preflightDescriptor(descriptor: ModuleDescriptor, source: ModuleSource?): KernelResult<ModuleDescriptor> {
         descriptor.validationError()?.let { message ->
             return KernelResult.failure(KernelError(KernelErrorCode.INVALID_DESCRIPTOR, message))
         }
-        val compatibility = ports.compatibilityPolicy.check(config, descriptor)
+        val compatibility = ports.compatibilityPolicy.check(config, ports.runtimeEnvironment, descriptor)
         if (!compatibility.compatible) {
             publish("kernel.module.rejected", descriptor)
             return KernelResult.failure(KernelError(KernelErrorCode.INCOMPATIBLE_MODULE, compatibility.reason))
@@ -60,6 +89,10 @@ public class ToolBoxKernel(
             publish("kernel.module.rejected", descriptor)
             return KernelResult.failure(KernelError(KernelErrorCode.ADMISSION_REJECTED, admission.reason))
         }
+        return KernelResult.success(descriptor)
+    }
+
+    private fun registerPreflighted(module: ToolBoxModule, descriptor: ModuleDescriptor): KernelResult<ModuleDescriptor> {
         val registered = runCatching { modules.register(module, descriptor) }
         if (registered.isFailure) {
             val error = registered.exceptionOrNull()
@@ -148,6 +181,7 @@ public class ToolBoxKernel(
 
     public fun snapshot(): KernelSnapshot = KernelSnapshot(
         config = config,
+        runtimeEnvironment = ports.runtimeEnvironment,
         state = state,
         previousPersistedState = previousPersistedState,
         modules = modules.healthSnapshot(),

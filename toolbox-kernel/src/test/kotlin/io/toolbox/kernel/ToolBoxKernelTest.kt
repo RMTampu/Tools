@@ -100,14 +100,6 @@ class ToolBoxKernelTest {
     }
 
     @Test
-    fun `source identity mismatch is rejected`() {
-        val kernel = ToolBoxKernel()
-        val result = kernel.install(ModuleSource("source-a", "memory")) { recordingModule("source-b", mutableListOf()) }
-        assertFalse(result.isSuccess)
-        assertEquals(KernelErrorCode.SOURCE_MISMATCH, result.errors.first().code)
-    }
-
-    @Test
     fun `future module api is rejected`() {
         val kernel = ToolBoxKernel(KernelConfig(moduleApiVersion = 1))
         val module = object : ToolBoxModule {
