@@ -381,9 +381,13 @@ public data class ModuleSource(
     public val metadata: Map<String, String> = emptyMap()
 )
 
-internal fun ModuleSource.snapshot(): ModuleSource = copy(metadata = immutableMap(metadata))
+internal fun ModuleSource.snapshot(): ModuleSource {
+    resourceLimitError()?.let { throw IllegalArgumentException(it) }
+    return copy(metadata = immutableMap(metadata))
+}
 
 internal fun ModuleSource.validationError(): String? {
+    resourceLimitError()?.let { return it }
     if (!KernelIdentifiers.isValid(id)) return "Module source id is invalid: $id"
     if (location.isBlank()) return "Module source location cannot be blank"
     return null
@@ -401,9 +405,13 @@ public data class StagedModuleSource(
     public val immutable: Boolean
 )
 
-internal fun StagedModuleSource.snapshot(): StagedModuleSource = copy(metadata = immutableMap(metadata))
+internal fun StagedModuleSource.snapshot(): StagedModuleSource {
+    resourceLimitError()?.let { throw IllegalArgumentException(it) }
+    return copy(metadata = immutableMap(metadata))
+}
 
 internal fun StagedModuleSource.validationError(): String? {
+    resourceLimitError()?.let { return it }
     if (!KernelIdentifiers.isValid(sourceId)) return "Staged source id is invalid: $sourceId"
     if (artifactId.isBlank()) return "Staged artifact id cannot be blank"
     if (location.isBlank()) return "Staged artifact location cannot be blank"
