@@ -93,7 +93,10 @@ internal class LifecycleCoordinator(
             ?: return KernelResult.failure(KernelError(KernelErrorCode.NOT_FOUND, "Unknown module: $moduleId"))
         if (handle.state == ModuleState.QUARANTINED) {
             return KernelResult.failure(
-                KernelError(KernelErrorCode.QUARANTINED, "Module $moduleId is quarantined; use forceUninstall to remove it without callbacks")
+                KernelError(
+                    KernelErrorCode.QUARANTINED,
+                    "Module $moduleId is quarantined; it can be purged only after all timed-out work actually terminates"
+                )
             )
         }
         val plan = currentPlan()
@@ -122,11 +125,44 @@ internal class LifecycleCoordinator(
         return KernelResult.success(true)
     }
 
+    /**
+     * Emergency purge skips module callbacks but never skips dependency or execution-safety invariants.
+     * It is intentionally limited to already-failed/quarantined modules.
+     */
     internal fun forceUninstall(moduleId: String): KernelResult<Boolean> {
-        if (!modules.contains(moduleId)) {
-            return KernelResult.failure(KernelError(KernelErrorCode.NOT_FOUND, "Unknown module: $moduleId"))
+        val handle = modules.handle(moduleId)
+            ?: return KernelResult.failure(KernelError(KernelErrorCode.NOT_FOUND, "Unknown module: $moduleId"))
+        if (handle.state !in setOf(ModuleState.FAILED, ModuleState.QUARANTINED)) {
+            return KernelResult.failure(
+                KernelError(
+                    KernelErrorCode.INVALID_STATE,
+                    "Emergency purge is allowed only for FAILED or QUARANTINED modules; $moduleId is ${handle.state}"
+                )
+            )
         }
-        scopes.remove(moduleId)?.close()
+
+        val plan = currentPlan()
+        if (!plan.isSuccess) return KernelResult.failure(plan.errors, plan.failures)
+        val dependents = plan.value?.dependentsOf(moduleId).orEmpty()
+        if (dependents.isNotEmpty()) {
+            return KernelResult.failure(
+                KernelError(KernelErrorCode.CONFLICT, "Cannot purge $moduleId; required by ${dependents.joinToString()}")
+            )
+        }
+
+        val scope = scopes[moduleId]
+        if (scope != null) {
+            scope.close()
+            if (scope.lease.hasActiveInvocations() || scope.lease.hasOutstandingCallbacks()) {
+                return KernelResult.failure(
+                    KernelError(
+                        KernelErrorCode.QUARANTINED,
+                        "Cannot purge $moduleId while timed-out callbacks or active invocations are still running"
+                    )
+                )
+            }
+            scopes.remove(moduleId, scope)
+        }
         modules.forceRemove(moduleId)
         activePlan = null
         return KernelResult.success(true)
@@ -189,6 +225,7 @@ internal class LifecycleCoordinator(
                     HealthStatus.failed(outcome.error.message ?: outcome.error::class.java.simpleName, clock.nowMillis(), outcome.error)
                 }
                 is CallbackOutcome.TimedOut -> {
+                    scope.lease.trackTimedOut(outcome.completion)
                     val failure = ModuleFailure(descriptor.id, LifecyclePhase.HEALTH, outcome.error, ModuleState.STARTED)
                     modules.recordFailure(descriptor.id, failure)
                     HealthStatus.failed(outcome.error.message ?: "Health probe timed out", clock.nowMillis(), outcome.error)
@@ -277,8 +314,7 @@ internal class LifecycleCoordinator(
             is CallbackOutcome.TimedOut -> {
                 val failure = ModuleFailure(moduleId, LifecyclePhase.LOAD, outcome.error, ModuleState.LOADING)
                 failures += failure
-                scopes.remove(moduleId)?.close()
-                modules.markFailure(moduleId, setOf(ModuleState.LOADING), failure, quarantine = true)
+                quarantine(moduleId, setOf(ModuleState.LOADING), failure, outcome.completion)
             }
         }
     }
@@ -302,8 +338,7 @@ internal class LifecycleCoordinator(
             is CallbackOutcome.TimedOut -> {
                 val failure = ModuleFailure(moduleId, LifecyclePhase.START, outcome.error, ModuleState.STARTING)
                 failures += failure
-                scopes.remove(moduleId)?.close()
-                modules.markFailure(moduleId, setOf(ModuleState.STARTING), failure, quarantine = true)
+                quarantine(moduleId, setOf(ModuleState.STARTING), failure, outcome.completion)
             }
         }
     }
@@ -317,7 +352,7 @@ internal class LifecycleCoordinator(
             val error = java.util.concurrent.TimeoutException("Active invocations did not drain for $moduleId")
             val failure = ModuleFailure(moduleId, LifecyclePhase.QUIESCE, error, ModuleState.QUIESCING)
             failures += failure
-            scopes.remove(moduleId)?.close()
+            scope.close()
             modules.markFailure(moduleId, setOf(ModuleState.QUIESCING), failure, quarantine = true)
             return
         }
@@ -334,8 +369,7 @@ internal class LifecycleCoordinator(
             is CallbackOutcome.TimedOut -> {
                 val failure = ModuleFailure(moduleId, LifecyclePhase.STOP, outcome.error, ModuleState.STOPPING)
                 failures += failure
-                scopes.remove(moduleId)?.close()
-                modules.markFailure(moduleId, setOf(ModuleState.STOPPING), failure, quarantine = true)
+                quarantine(moduleId, setOf(ModuleState.STOPPING), failure, outcome.completion)
                 return
             }
         }
@@ -351,8 +385,7 @@ internal class LifecycleCoordinator(
             is CallbackOutcome.TimedOut -> {
                 val failure = ModuleFailure(moduleId, LifecyclePhase.UNLOAD, outcome.error, ModuleState.UNLOADING)
                 failures += failure
-                scopes.remove(moduleId)?.close()
-                modules.markFailure(moduleId, setOf(ModuleState.UNLOADING), failure, quarantine = true)
+                quarantine(moduleId, setOf(ModuleState.UNLOADING), failure, outcome.completion)
                 return
             }
         }
@@ -376,8 +409,7 @@ internal class LifecycleCoordinator(
             is CallbackOutcome.TimedOut -> {
                 val timeoutFailure = ModuleFailure(moduleId, LifecyclePhase.UNLOAD, cleanup.error, ModuleState.LOADING)
                 failures += timeoutFailure
-                scopes.remove(moduleId)?.close()
-                modules.markFailure(moduleId, setOf(ModuleState.LOADING), timeoutFailure, quarantine = true)
+                quarantine(moduleId, setOf(ModuleState.LOADING), timeoutFailure, cleanup.completion)
                 return
             }
         }
@@ -397,13 +429,25 @@ internal class LifecycleCoordinator(
             is CallbackOutcome.TimedOut -> {
                 val timeoutFailure = ModuleFailure(moduleId, LifecyclePhase.UNLOAD, cleanup.error, ModuleState.STARTING)
                 failures += timeoutFailure
-                scopes.remove(moduleId)?.close()
-                modules.markFailure(moduleId, setOf(ModuleState.STARTING), timeoutFailure, quarantine = true)
+                quarantine(moduleId, setOf(ModuleState.STARTING), timeoutFailure, cleanup.completion)
                 return
             }
         }
         scopes.remove(moduleId)?.close()
         modules.markFailure(moduleId, setOf(ModuleState.STARTING), primary)
+    }
+
+    private fun quarantine(
+        moduleId: String,
+        expected: Set<ModuleState>,
+        failure: ModuleFailure,
+        completion: CallbackCompletion
+    ): Unit {
+        scopes[moduleId]?.let { scope ->
+            scope.lease.trackTimedOut(completion)
+            scope.close()
+        }
+        modules.markFailure(moduleId, expected, failure, quarantine = true)
     }
 
     private fun dependencyClosure(moduleId: String, plan: ResolutionPlan): Set<String> {

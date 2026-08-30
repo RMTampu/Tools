@@ -1,10 +1,13 @@
 package io.toolbox.kernel
 
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class RobustnessTest {
@@ -65,19 +68,25 @@ class RobustnessTest {
     }
 
     @Test
-    fun `lifecycle timeout quarantines module and force uninstall can remove it`() {
+    fun `timed out lifecycle callback must actually terminate before quarantined module can be purged`() {
+        val release = CountDownLatch(1)
+        val exited = CountDownLatch(1)
         val config = KernelConfig(lifecycleTimeoutMillis = 50)
         val kernel = ToolBoxKernel(config)
         kernel.install(
             module(
                 "hung",
                 onLoadBlock = {
-                    while (true) {
-                        try {
-                            Thread.sleep(10_000)
-                        } catch (_: InterruptedException) {
-                            // Deliberately ignore interruption to simulate hostile/stuck module code.
+                    try {
+                        while (release.count > 0) {
+                            try {
+                                release.await(1, TimeUnit.SECONDS)
+                            } catch (_: InterruptedException) {
+                                // Deliberately ignore timeout interruption until the test releases the callback.
+                            }
                         }
+                    } finally {
+                        exited.countDown()
                     }
                 }
             )
@@ -86,8 +95,27 @@ class RobustnessTest {
         assertFalse(result.isSuccess)
         assertEquals(ModuleState.QUARANTINED, kernel.moduleState("hung"))
         assertEquals(LifecyclePhase.LOAD, result.failures.first().phase)
+
+        val prematurePurge = kernel.forceUninstall("hung")
+        assertFalse(prematurePurge.isSuccess)
+        assertEquals(KernelErrorCode.QUARANTINED, prematurePurge.errors.first().code)
+        assertEquals(ModuleState.QUARANTINED, kernel.moduleState("hung"))
+
+        release.countDown()
+        assertTrue(exited.await(1, TimeUnit.SECONDS))
         assertTrue(kernel.forceUninstall("hung").isSuccess)
-        assertEquals(null, kernel.moduleState("hung"))
+        assertNull(kernel.moduleState("hung"))
+    }
+
+    @Test
+    fun `force uninstall cannot remove a healthy active module`() {
+        val kernel = ToolBoxKernel()
+        kernel.install(module("active"))
+        assertTrue(kernel.start().isSuccess)
+        val result = kernel.forceUninstall("active")
+        assertFalse(result.isSuccess)
+        assertEquals(KernelErrorCode.INVALID_STATE, result.errors.first().code)
+        assertEquals(ModuleState.STARTED, kernel.moduleState("active"))
     }
 
     @Test

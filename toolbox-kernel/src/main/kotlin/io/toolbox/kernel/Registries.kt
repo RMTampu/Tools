@@ -172,10 +172,13 @@ internal class EventBus(
                     permit.close()
                     logger.warn("Event listener owned by ${record.owner.token.id} failed for ${event.topic}", outcome.error)
                 }
-                is CallbackOutcome.TimedOut -> logger.warn(
-                    "Event listener owned by ${record.owner.token.id} timed out for ${event.topic}",
-                    outcome.error
-                )
+                is CallbackOutcome.TimedOut -> {
+                    record.owner.trackTimedOut(outcome.completion)
+                    logger.warn(
+                        "Event listener owned by ${record.owner.token.id} timed out for ${event.topic}",
+                        outcome.error
+                    )
+                }
             }
         }
     }
@@ -254,7 +257,10 @@ internal class CommandBus(
                 permit.close()
                 CommandResult.failure(outcome.error)
             }
-            is CallbackOutcome.TimedOut -> CommandResult.failure(outcome.error)
+            is CallbackOutcome.TimedOut -> {
+                handler.owner.trackTimedOut(outcome.completion)
+                CommandResult.failure(outcome.error)
+            }
         }
     }
 
