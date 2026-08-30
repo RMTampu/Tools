@@ -146,6 +146,56 @@ class ToolBoxKernelTest {
     }
 
     @Test
+    fun `runtime load rollback cleanup failure remains failed and non retryable`() {
+        val kernel = ToolBoxKernel()
+        assertTrue(kernel.start().isSuccess)
+
+        val result = kernel.install(
+            module(
+                "dirty-load",
+                onLoadBlock = { error("load failed") },
+                onUnloadBlock = { error("cleanup failed") }
+            )
+        )
+
+        assertFalse(result.isSuccess)
+        assertEquals(ModuleState.FAILED, kernel.moduleState("dirty-load"))
+        assertEquals(KernelState.DEGRADED, kernel.state)
+        assertEquals(
+            LifecyclePhase.UNLOAD,
+            kernel.snapshot().modules.single { it.descriptor.id == "dirty-load" }.lastFailure?.phase
+        )
+        assertFalse(kernel.retryModule("dirty-load").isSuccess)
+        assertTrue(kernel.forceUninstall("dirty-load").isSuccess)
+        assertNull(kernel.moduleState("dirty-load"))
+    }
+
+    @Test
+    fun `runtime start rollback cleanup failure remains failed and non retryable`() {
+        val kernel = ToolBoxKernel()
+        assertTrue(kernel.start().isSuccess)
+
+        val result = kernel.install(
+            module(
+                "dirty-start",
+                onStartBlock = { error("start failed") },
+                onUnloadBlock = { error("cleanup failed") }
+            )
+        )
+
+        assertFalse(result.isSuccess)
+        assertEquals(ModuleState.FAILED, kernel.moduleState("dirty-start"))
+        assertEquals(KernelState.DEGRADED, kernel.state)
+        assertEquals(
+            LifecyclePhase.UNLOAD,
+            kernel.snapshot().modules.single { it.descriptor.id == "dirty-start" }.lastFailure?.phase
+        )
+        assertFalse(kernel.retryModule("dirty-start").isSuccess)
+        assertTrue(kernel.forceUninstall("dirty-start").isSuccess)
+        assertNull(kernel.moduleState("dirty-start"))
+    }
+
+    @Test
     fun `individual stop refuses active required dependent`() {
         val kernel = ToolBoxKernel()
         kernel.install(module("base"))
