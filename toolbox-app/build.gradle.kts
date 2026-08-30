@@ -95,6 +95,8 @@ android {
         checkDependencies = true
         htmlReport = true
         xmlReport = true
+        // API 30 is an explicit product contract in AGENTS.md, not an accidental stale target.
+        disable += "ExpiredTargetSdkVersion"
     }
 }
 
@@ -117,15 +119,14 @@ tasks.withType<Test>().configureEach {
     useJUnitPlatform()
 }
 
-val releaseRuntime = configurations.named("releaseRuntimeClasspath")
-
 tasks.register("writeReleaseDependencyInventory") {
     description = "Writes exact release runtime dependency inventory used as R6 evidence."
     group = "verification"
     val output = layout.buildDirectory.file("reports/verification/release-dependencies.txt")
     outputs.file(output)
     doLast {
-        val lines = releaseRuntime.get().resolvedConfiguration.resolvedArtifacts
+        val releaseRuntime = configurations.getByName("releaseRuntimeClasspath")
+        val lines = releaseRuntime.resolvedConfiguration.resolvedArtifacts
             .map { artifact ->
                 val id = artifact.moduleVersion.id
                 "${id.group}:${id.name}:${id.version}|${artifact.file.name}|${artifact.file.length()}"
