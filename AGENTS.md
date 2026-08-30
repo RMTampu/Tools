@@ -177,3 +177,42 @@ Untuk setiap pekerjaan yang membaca, menambah, mengubah, menghapus, memindahkan,
 `ASSET_SAFE_100_RULES.md` adalah sumber aturan khusus asset untuk repository ini. Agen tidak boleh menyederhanakan, mengurangi, mengganti, atau melewati gate wajib di dalamnya hanya agar build/test menjadi PASS.
 
 Kesalahan alat seperti emulator, CI runner, compiler, toolchain, atau validator tidak boleh diklasifikasikan sebagai kegagalan asset tanpa bukti bahwa asset itu sendiri adalah penyebabnya. Status asset hanya boleh dinyatakan `ASSET_SAFE_100` apabila seluruh invariant wajib dalam `ASSET_SAFE_100_RULES.md` telah terpenuhi.
+
+## 17. Rantai Wajib Asset → Build → Test
+
+Sebelum melakukan build yang melibatkan asset/resource aplikasi, agen WAJIB membaca dan menjalankan `PREBUILD_ASSET_GATE.md` secara berurutan.
+
+**Build APK / production build / final resource packaging DILARANG DIMULAI sebelum seluruh gate pre-build yang diwajibkan dalam `PREBUILD_ASSET_GATE.md` selesai dan berstatus PASS.**
+
+Gate tidak boleh dilompati, dianggap PASS tanpa bukti, atau dilewati hanya untuk melihat apakah build berhasil. Jika perubahan asset atau input terkait membatalkan proof yang sudah ada, agen wajib kembali ke gate paling awal yang terdampak sebelum build dapat dibuka kembali.
+
+## 18. Aturan Kapasitas Agen dan Eksekusi Bertahap
+
+Untuk setiap pekerjaan yang dikendalikan oleh prosedur, gate, audit, validasi, build, atau test, agen WAJIB membaca dan mematuhi `AGENT_PROCEDURE_EXECUTION_RULES.md`.
+
+Agen tidak diwajibkan menyimpan seluruh aturan repository di memory sekaligus. Namun seluruh aturan yang berlaku untuk langkah aktif WAJIB tersedia, dibaca, dipahami, dan dijalankan lengkap pada saat langkah tersebut dieksekusi.
+
+Jika context, memory, tool output, atau kapasitas pemrosesan tidak memadai untuk menjalankan seluruh prosedur secara lengkap sekaligus, agen WAJIB memecah eksekusi menjadi gate, sub-gate, rule group, individual rule, atau individual check yang lebih kecil.
+
+**Keterbatasan kapasitas hanya boleh mengubah ukuran unit eksekusi. Keterbatasan tersebut DILARANG digunakan untuk mengurangi aturan, coverage, invariant, proof, evidence, atau syarat PASS.**
+
+Jika detail aturan aktif tidak tersedia, state prosedur tidak diketahui, evidence hilang, atau agen tidak dapat memastikan bahwa langkah telah dijalankan lengkap, status default adalah `NOT_PROVEN`, bukan PASS. Agen wajib membaca kembali sumber dan merekonstruksi state sebelum melanjutkan.
+
+## 19. Aturan Hasil Riset Asset Route Proof
+
+Untuk setiap pekerjaan yang menyentuh jalur consumer → asset, asset → asset, reference, dependency, alias, dynamic lookup, resource resolution, configuration → variant, fallback, authority/capability, contextual route, atau transitive asset route, agen WAJIB membaca dan mematuhi:
+
+- `ASSET_ROUTE_PROOF_METHODS.md`;
+- `ASSET_ROUTE_PROOF_PROCESS.md`.
+
+`ASSET_ROUTE_PROOF_METHODS.md` adalah korpus aktif metode hasil riset yang sudah diterima, disaring, digabungkan, dan diaudit agar tidak kontra. Metode yang ditolak, lebih lemah, redundant, atau tidak menambah jaminan tidak boleh dipakai untuk menggantikan metode aktif tersebut.
+
+`ASSET_ROUTE_PROOF_PROCESS.md` menentukan urutan eksekusi wajib untuk Gate 4 pada `PREBUILD_ASSET_GATE.md`.
+
+Jika scope build mempunyai asset route/reference/resolution, Gate 4 DILARANG dinyatakan PASS sebelum proses tersebut menghasilkan:
+
+```text
+ROUTE_PROOF_PASS
+```
+
+Build tetap tertutup sampai `ROUTE_PROOF_PASS` terintegrasi dengan seluruh syarat Gate 5 dan `PREBUILD_ASSET_GATE = PASS`.
