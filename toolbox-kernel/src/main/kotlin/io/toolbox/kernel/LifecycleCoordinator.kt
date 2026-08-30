@@ -327,8 +327,9 @@ internal class LifecycleCoordinator(
         when (val outcome = supervisor.execute("module:$moduleId:stop", config.lifecycleTimeoutMillis) { handle.module.onStop() }) {
             is CallbackOutcome.Success -> Unit
             is CallbackOutcome.Failure -> {
-                callbackFailure = ModuleFailure(moduleId, LifecyclePhase.STOP, outcome.error, ModuleState.STOPPING)
-                failures += callbackFailure!!
+                val failure = ModuleFailure(moduleId, LifecyclePhase.STOP, outcome.error, ModuleState.STOPPING)
+                callbackFailure = failure
+                failures += failure
             }
             is CallbackOutcome.TimedOut -> {
                 val failure = ModuleFailure(moduleId, LifecyclePhase.STOP, outcome.error, ModuleState.STOPPING)
@@ -343,8 +344,9 @@ internal class LifecycleCoordinator(
         when (val outcome = supervisor.execute("module:$moduleId:unload", config.lifecycleTimeoutMillis) { handle.module.onUnload() }) {
             is CallbackOutcome.Success -> Unit
             is CallbackOutcome.Failure -> {
-                callbackFailure = ModuleFailure(moduleId, LifecyclePhase.UNLOAD, outcome.error, ModuleState.UNLOADING)
-                failures += callbackFailure!!
+                val failure = ModuleFailure(moduleId, LifecyclePhase.UNLOAD, outcome.error, ModuleState.UNLOADING)
+                callbackFailure = failure
+                failures += failure
             }
             is CallbackOutcome.TimedOut -> {
                 val failure = ModuleFailure(moduleId, LifecyclePhase.UNLOAD, outcome.error, ModuleState.UNLOADING)
@@ -357,7 +359,7 @@ internal class LifecycleCoordinator(
 
         scopes.remove(moduleId)?.close()
         if (modules.transition(moduleId, setOf(ModuleState.UNLOADING), ModuleState.STOPPED)) {
-            if (callbackFailure != null) modules.recordFailure(moduleId, callbackFailure!!) else modules.clearFailure(moduleId)
+            callbackFailure?.let { modules.recordFailure(moduleId, it) } ?: modules.clearFailure(moduleId)
             modules.setHealth(moduleId, HealthStatus.unknown("Stopped"))
         }
     }
