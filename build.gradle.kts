@@ -11,18 +11,4 @@ allprojects {
     dependencyLocking {
         lockAllConfigurations()
     }
-
-    tasks.register("resolveAndLockAll") {
-        notCompatibleWithConfigurationCache("Resolves configurations at execution time for dependency trust closure")
-        doFirst {
-            require(gradle.startParameter.isWriteDependencyLocks) {
-                "$path must be run with --write-locks"
-            }
-        }
-        doLast {
-            configurations
-                .filter { it.isCanBeResolved }
-                .forEach { it.resolve() }
-        }
-    }
 }

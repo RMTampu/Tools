@@ -26,11 +26,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
 
-      - name: Setup Java 17
+      - name: Setup exact Temurin JDK
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '17.0.20.1+1'
+          java-package: jdk
+          architecture: x64
+          check-latest: false
+
+      - name: Verify exact Java runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -version 2>&1 | tee "$RUNNER_TEMP/java-version.txt"
+          grep -F '17.0.20.1' "$RUNNER_TEMP/java-version.txt"
+          test -s "$JAVA_HOME/release"
 
       - name: Setup Gradle 8.7 without shared dependency cache
         uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
@@ -38,14 +49,32 @@ jobs:
           gradle-version: '8.7'
           cache-disabled: true
 
-      - name: Setup Android SDK command line tools
+      - name: Verify Gradle distribution identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle --version
+          GRADLE_ZIP="$RUNNER_TEMP/.gradle-actions/gradle-installations/downloads/gradle-8.7-bin.zip"
+          test -f "$GRADLE_ZIP"
+          echo '544c35d6bd849ae8a5ed0bcea39ba677dc40f49df7d1835561582da2009b961d  '"$GRADLE_ZIP" | sha256sum -c -
+
+      - name: Setup exact Android SDK command line tools only
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699
         with:
           cmdline-tools-version: '14742923'
+          packages: ''
+          log-accepted-android-sdk-licenses: 'false'
 
-      - name: Install pinned Android build inputs
+      - name: Install declared Android build inputs
         shell: bash
-        run: sdkmanager 'platforms;android-35' 'build-tools;34.0.0'
+        run: |
+          set -euo pipefail
+          sdkmanager 'platforms;android-35' 'build-tools;34.0.0'
+          test -s "$ANDROID_SDK_ROOT/platforms/android-35/android.jar"
+          test -s "$ANDROID_SDK_ROOT/platforms/android-35/source.properties"
+          test -s "$ANDROID_SDK_ROOT/build-tools/34.0.0/source.properties"
+          test -s "$ANDROID_SDK_ROOT/cmdline-tools/20.0/source.properties"
+          grep -F 'Pkg.Revision=20.0' "$ANDROID_SDK_ROOT/cmdline-tools/20.0/source.properties"
 
       - name: Create two clean source replicas
         shell: bash
@@ -74,8 +103,8 @@ jobs:
           --refresh-dependencies
           --write-locks
           --write-verification-metadata sha256
-          :toolbox-kernel:resolveAndLockAll
-          :toolbox-app:resolveAndLockAll
+          :toolbox-kernel:dependencies
+          :toolbox-app:dependencies
 
       - name: Resolve replica B from clean Gradle home
         shell: bash
@@ -87,8 +116,8 @@ jobs:
           --refresh-dependencies
           --write-locks
           --write-verification-metadata sha256
-          :toolbox-kernel:resolveAndLockAll
-          :toolbox-app:resolveAndLockAll
+          :toolbox-kernel:dependencies
+          :toolbox-app:dependencies
 
       - name: Validate both generated trust states
         shell: bash
@@ -219,6 +248,8 @@ jobs:
               return h.hexdigest()
 
           canonical_path = pathlib.Path(os.environ['RUNNER_TEMP']) / 'source-a' / 'verification-metadata.canonical.json'
+          sdk = pathlib.Path(os.environ['ANDROID_SDK_ROOT'])
+          java_home = pathlib.Path(os.environ['JAVA_HOME'])
           inputs = {
               path: sha256(root / path)
               for path in sorted(tracked)
@@ -230,19 +261,33 @@ jobs:
               'gradle/verification-metadata.xml': sha256(root / 'gradle/verification-metadata.xml'),
           }
           candidate = {
-              'schemaVersion': 2,
+              'schemaVersion': 3,
               'status': 'CANDIDATE_UNREVIEWED',
               'generatedFromGitSha': os.environ['GITHUB_SHA'],
               'workflowRunId': os.environ['GITHUB_RUN_ID'],
               'workflowRunAttempt': os.environ['GITHUB_RUN_ATTEMPT'],
+              'runner': {
+                  'os': os.environ.get('RUNNER_OS'),
+                  'arch': os.environ.get('RUNNER_ARCH'),
+                  'imageOS': os.environ.get('ImageOS'),
+                  'imageVersion': os.environ.get('ImageVersion'),
+              },
               'generator': {
                   'gradle': '8.7',
-                  'jdk': '17',
+                  'gradleDistributionSha256': '544c35d6bd849ae8a5ed0bcea39ba677dc40f49df7d1835561582da2009b961d',
+                  'jdk': '17.0.20.1+1',
                   'compileSdk': '35',
                   'buildTools': '34.0.0',
                   'androidCommandLineTools': '14742923',
                   'dependencyVerification': 'sha256',
                   'refreshDependencies': True,
+              },
+              'observedToolchainSha256': {
+                  'javaRelease': sha256(java_home / 'release'),
+                  'androidJar': sha256(sdk / 'platforms/android-35/android.jar'),
+                  'androidPlatformProperties': sha256(sdk / 'platforms/android-35/source.properties'),
+                  'androidBuildToolsProperties': sha256(sdk / 'build-tools/34.0.0/source.properties'),
+                  'androidCommandLineToolsProperties': sha256(sdk / 'cmdline-tools/20.0/source.properties'),
               },
               'convergence': {
                   'independentCleanReplicas': 2,
@@ -269,6 +314,7 @@ jobs:
           cp gradle/verification-metadata.xml verification/bootstrap/verification-metadata.xml
           cp verification/dependency_trust_candidate.json verification/bootstrap/dependency_trust_candidate.json
           cp "$RUNNER_TEMP/source-a/verification-metadata.canonical.json" verification/bootstrap/verification-metadata.canonical.json
+          cp "$RUNNER_TEMP/java-version.txt" verification/bootstrap/java-version.txt
           (
             cd verification/bootstrap
             sha256sum \
@@ -276,7 +322,8 @@ jobs:
               toolbox-app.gradle.lockfile \
               verification-metadata.xml \
               verification-metadata.canonical.json \
-              dependency_trust_candidate.json > SHA256SUMS
+              dependency_trust_candidate.json \
+              java-version.txt > SHA256SUMS
             sha256sum -c SHA256SUMS
           )
 

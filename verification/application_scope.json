@@ -7,9 +7,10 @@
     "abi": "arm64-v8a",
     "compileSdk": 35,
     "buildTools": "34.0.0",
+    "androidCommandLineTools": "14742923",
     "agp": "8.6.1",
     "gradle": "8.7",
-    "jdk": "17",
+    "jdk": "17.0.20.1+1",
     "kotlin": "1.9.24"
   },
   "runtimeEnvironmentBoundary": {
