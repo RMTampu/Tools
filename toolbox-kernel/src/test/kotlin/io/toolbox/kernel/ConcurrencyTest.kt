@@ -118,9 +118,8 @@ class ConcurrencyTest {
         val entered = CountDownLatch(1)
         val release = CountDownLatch(1)
         val executor = KernelExecutor { _, task ->
-            Thread {
-                task()
-            }.start()
+            Thread { task() }.start()
+            entered.await(1, TimeUnit.SECONDS)
         }
         val kernel = ToolBoxKernel(
             config = KernelConfig(lifecycleTimeoutMillis = 500),
