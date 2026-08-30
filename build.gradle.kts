@@ -1,12 +1,21 @@
 plugins {
     kotlin("jvm") version "1.9.24" apply false
+    id("com.android.application") version "8.6.1" apply false
+    id("org.jetbrains.kotlin.android") version "1.9.24" apply false
 }
 
 allprojects {
     group = "io.toolbox"
     version = "0.1.0"
 
-    repositories {
-        mavenCentral()
+    dependencyLocking {
+        lockAllConfigurations()
+    }
+
+    configurations.configureEach {
+        resolutionStrategy {
+            failOnVersionConflict()
+            failOnNonReproducibleResolution()
+        }
     }
 }
