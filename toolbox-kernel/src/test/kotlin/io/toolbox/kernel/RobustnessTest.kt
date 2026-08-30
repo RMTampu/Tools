@@ -65,6 +65,8 @@ class RobustnessTest {
         assertEquals(KernelState.RUNNING.name, store.get("kernel.first.state"))
         assertEquals(KernelState.RUNNING.name, store.get("kernel.second.state"))
         assertTrue(store.get("kernel.first.session") != store.get("kernel.second.session"))
+        assertEquals("none", store.get("kernel.first.operation"))
+        assertEquals("none", store.get("kernel.second.operation"))
     }
 
     @Test
