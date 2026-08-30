@@ -405,8 +405,14 @@ public class ToolBoxKernel(
         if (isOperational()) {
             val activation = lifecycle.activate(descriptor.id)
             if (!activation.isSuccess) {
-                val quarantined = modules.stateOf(descriptor.id) == ModuleState.QUARANTINED
-                if (!quarantined) lifecycle.discardFailedRegistration(descriptor.id)
+                val cleanupFailure = activation.failures.lastOrNull {
+                    it.moduleId == descriptor.id && it.phase == LifecyclePhase.UNLOAD
+                }
+                when {
+                    cleanupFailure != null -> modules.recordFailure(descriptor.id, cleanupFailure)
+                    modules.stateOf(descriptor.id) == ModuleState.QUARANTINED -> Unit
+                    else -> lifecycle.discardFailedRegistration(descriptor.id)
+                }
                 refreshOperationalState()
                 publish(KernelTopics.MODULE_ACTIVATION_FAILED, descriptor)
                 return KernelResult.failure(activation.errors, activation.failures)
