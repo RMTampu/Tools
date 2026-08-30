@@ -11,6 +11,7 @@
     "agp": "8.6.1",
     "gradle": "8.7",
     "jdk": "17.0.20+1",
+    "jdkRuntime": "17.0.20.1+1",
     "kotlin": "1.9.24"
   },
   "runtimeEnvironmentBoundary": {

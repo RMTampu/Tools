@@ -40,9 +40,10 @@ jobs:
         run: |
           set -euo pipefail
           java -version 2>&1 | tee "$RUNNER_TEMP/java-version.txt"
-          grep -F 'openjdk version "17.0.20"' "$RUNNER_TEMP/java-version.txt"
+          grep -F 'openjdk version "17.0.20.1"' "$RUNNER_TEMP/java-version.txt"
+          grep -F 'Temurin-17.0.20.1+1' "$RUNNER_TEMP/java-version.txt"
           test -s "$JAVA_HOME/release"
-          grep -F 'JAVA_VERSION="17.0.20"' "$JAVA_HOME/release"
+          grep -F 'JAVA_VERSION="17.0.20.1"' "$JAVA_HOME/release"
           grep -F 'IMPLEMENTOR="Eclipse Adoptium"' "$JAVA_HOME/release"
 
       - name: Setup Gradle 8.7 without shared dependency cache
@@ -278,6 +279,7 @@ jobs:
                   'gradle': '8.7',
                   'gradleDistributionSha256': '544c35d6bd849ae8a5ed0bcea39ba677dc40f49df7d1835561582da2009b961d',
                   'jdk': '17.0.20+1',
+                  'jdkRuntime': '17.0.20.1+1',
                   'compileSdk': '35',
                   'buildTools': '34.0.0',
                   'androidCommandLineTools': '14742923',
