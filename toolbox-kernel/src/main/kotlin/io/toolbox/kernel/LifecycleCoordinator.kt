@@ -122,6 +122,14 @@ internal class LifecycleCoordinator(
                 )
             )
         }
+        if (handle.state == ModuleState.FAILED && handle.lastFailure?.phase == LifecyclePhase.UNLOAD) {
+            return KernelResult.failure(
+                KernelError(
+                    KernelErrorCode.INVALID_STATE,
+                    "Module $moduleId has an unresolved unload cleanup failure; use forceUninstall only after accepting emergency purge semantics"
+                )
+            )
+        }
         val dependents = modules.removalBlockers(moduleId, activePlan)
         if (dependents.isNotEmpty()) {
             return KernelResult.failure(
