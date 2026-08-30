@@ -2,7 +2,7 @@
 
 ## Scope
 
-This document describes only the kernel foundation implemented in this repository. UI, Android host code, concrete dynamic-code loaders, storage implementations, and application features are outside this module.
+This document describes only the kernel foundation implemented in this repository. UI, Android host code, concrete dynamic-code loaders, storage implementations, native packages, and application features are outside this module.
 
 ## Authority boundary
 
@@ -18,13 +18,28 @@ Uninstall adds `UNLOADING`. Any lifecycle callback failure moves the module to `
 
 Module callbacks are always executed outside registry structural locks.
 
-## Module identity
+## Module identity and compatibility metadata
 
-A module descriptor is validated and copied at installation. Its ID and dependency set therefore cannot change underneath the registry even if a module exposes a computed descriptor property.
+A module descriptor is validated and copied at installation. Its identity and compatibility declaration therefore cannot change underneath the registry even if a module exposes a computed descriptor property.
 
-## Dependencies
+The descriptor carries the kernel-level metadata needed to reject incompatible modules before activation:
+
+- module ID and version
+- module API version
+- minimum Android API
+- optional maximum Android API
+- supported ABIs
+- required capabilities
+- entry point
+- module dependencies
+
+The distribution baseline is Android 11 / API 30 / `arm64-v8a`. The kernel remains platform-aware rather than hard-coding platform-specific loaders.
+
+## Dependencies and capabilities
 
 Dependencies are represented by `ModuleDependency` rather than raw strings. Required dependencies participate in graph resolution and startup ordering. Optional missing dependencies are ignored. Cycles and missing required dependencies fail resolution before callbacks run.
+
+Required capabilities are checked after required dependency modules have loaded and before the dependent module's `onLoad`. Providers should therefore register required capabilities during `onLoad`.
 
 ## Module scope and ownership
 
@@ -51,4 +66,4 @@ The state store records the last observed kernel state. On construction, the pre
 
 ## Platform boundary
 
-The kernel emits Java 11 bytecode and contains no Android framework dependency. `KernelPorts` provides state, logging, execution, clock, compatibility, and admission extension points. Concrete Android loaders must remain outside this module and should verify integrity before loading external code.
+The kernel emits Java 11 bytecode and contains no Android framework dependency. `KernelPorts` provides state, logging, execution, clock, compatibility, and admission extension points. Concrete Android loaders must remain outside this module, inspect the real device API/ABI, and verify external-code integrity before loading it.

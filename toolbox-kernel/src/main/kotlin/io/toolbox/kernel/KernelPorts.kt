@@ -62,8 +62,11 @@ public object DefaultCompatibilityPolicy : CompatibilityPolicy {
         if (descriptor.minAndroidApi > config.androidApiBaseline) {
             return CompatibilityResult(false, "Module requires Android API ${descriptor.minAndroidApi}")
         }
-        if (descriptor.supportedArchitectures.isNotEmpty() && config.architectureBaseline !in descriptor.supportedArchitectures) {
-            return CompatibilityResult(false, "Module does not support ${config.architectureBaseline}")
+        if (descriptor.maxAndroidApi != null && config.androidApiBaseline > descriptor.maxAndroidApi) {
+            return CompatibilityResult(false, "Module supports Android only through API ${descriptor.maxAndroidApi}")
+        }
+        if (config.architectureBaseline !in descriptor.supportedAbis) {
+            return CompatibilityResult(false, "Module does not support ABI ${config.architectureBaseline}")
         }
         return CompatibilityResult(true)
     }

@@ -83,7 +83,31 @@ Gunakan versi dependency yang stabil dan kompatibel dengan target tersebut. Jang
 
 Perubahan dependency tidak boleh dilakukan hanya karena versi yang lebih baru tersedia.
 
-## 9. Kualitas Implementasi
+## 9. Penguncian Pembangunan Android 11 ARM64
+
+Target distribusi utama ToolBox dikunci ke **Android 11 / API 30 / ARM64 (`arm64-v8a`)**.
+
+Penguncian ini berlaku pada hasil build, dependency, native library, engine, runtime compatibility, dan CI. Tujuannya adalah memastikan seluruh hasil pembangunan benar-benar berjalan pada target tersebut tanpa membuat desain kernel menjadi buntu untuk pengembangan di masa depan.
+
+Aturan penguncian:
+
+- ABI utama adalah `arm64-v8a` / AArch64 64-bit.
+- Jangan membawa `armeabi-v7a`, `x86`, atau `x86_64` pada release utama kecuali ada kebutuhan yang secara eksplisit disetujui.
+- Modul yang memakai NDK/native code harus membatasi ABI ke `arm64-v8a`.
+- Dependency native wajib menyediakan binary `arm64-v8a` yang kompatibel dengan Android 11.
+- Dependency yang hanya dapat berjalan pada API Android di atas target utama tidak boleh menjadi bagian wajib fungsi inti.
+- Native library `.so` harus diperiksa agar ABI-nya benar dan tidak bergantung pada arsitektur lain.
+- Engine baru wajib mendeklarasikan metadata kompatibilitas minimal: `engineId`, `engineVersion`, `minAndroidApi`, `maxAndroidApi` bila diperlukan, `supportedAbi`, `requiredCapabilities`, dan `entryPoint`.
+- Engine yang tidak mendukung `arm64-v8a` atau tidak kompatibel dengan Android 11 harus ditolak sebelum dimuat.
+- Runtime harus memeriksa Android API, ABI perangkat, dan kompatibilitas engine sebelum proses load.
+- Tidak boleh ada fallback diam-diam ke ABI atau target platform lain.
+- Paket engine native harus menempatkan binary ARM64 pada jalur yang jelas seperti `native/arm64-v8a/`.
+- GitHub Actions harus melakukan verifikasi ABI, dependency, isi APK, kompatibilitas Android 11, kompatibilitas ARM64, serta pengujian pemuatan engine bila relevan.
+- Build harus dinyatakan gagal jika dependency/native binary tidak menyediakan ARM64, engine mengklaim ARM64 tetapi binary tidak sesuai, requirement API inti melebihi target yang ditetapkan, atau hasil APK kehilangan kompatibilitas dengan target Android 11 ARM64.
+
+Penguncian ini tidak berarti desain kernel hanya boleh mengenal satu CPU. **Kernel tetap platform-aware dan extensible**, sedangkan target distribusi utama saat ini dikunci ke **Android 11 / API 30 / ARM64**. Dengan demikian ToolBox fokus dan stabil pada target sekarang, tetapi fondasi tidak perlu dibangun ulang ketika engine baru ditambahkan atau target lain dipertimbangkan di masa depan.
+
+## 10. Kualitas Implementasi
 
 Sebelum menyatakan pekerjaan selesai, periksa minimal:
 
@@ -96,7 +120,7 @@ Sebelum menyatakan pekerjaan selesai, periksa minimal:
 7. target Android 11 / arm64 tetap terpenuhi;
 8. fondasi tetap dapat menerima engine/tool baru tanpa perubahan besar yang tidak perlu.
 
-## 10. Testing
+## 11. Testing
 
 Setiap fitur baru harus mempunyai cara verifikasi yang jelas.
 
@@ -106,7 +130,7 @@ Untuk bagian Android, integrasi, UI, atau emulator, jalankan pengujian melalui G
 
 Jangan menyatakan PASS hanya berdasarkan keberhasilan kompilasi jika fitur membutuhkan pengujian runtime.
 
-## 11. Perubahan Repository
+## 12. Perubahan Repository
 
 Sebelum mengubah file yang sudah ada:
 
@@ -118,7 +142,7 @@ Sebelum mengubah file yang sudah ada:
 
 Jangan melakukan refactor besar yang tidak berhubungan langsung dengan tugas aktif.
 
-## 12. Dokumentasi Keputusan
+## 13. Dokumentasi Keputusan
 
 Keputusan arsitektur penting harus terdokumentasi agar agen berikutnya tidak mengulang analisis dari awal.
 
@@ -126,7 +150,7 @@ Jika repository kemudian memiliki `ARCHITECTURE.md`, `DECISIONS.md`, `PROJECT.md
 
 Jika terdapat konflik, instruksi pengguna terbaru memiliki prioritas tertinggi, kemudian `AGENTS.md`, lalu dokumentasi proyek lainnya.
 
-## 13. Larangan Asumsi
+## 14. Larangan Asumsi
 
 Jangan menganggap fitur sudah selesai hanya karena file, interface, atau class sudah ada.
 
@@ -134,7 +158,7 @@ Jangan menebak kondisi build, test, workflow, artifact, atau runtime. Periksa ko
 
 Jangan menyatakan implementasi matang jika masih ada komponen dasar yang diketahui belum tersedia.
 
-## 14. Definisi Selesai
+## 15. Definisi Selesai
 
 Sebuah tugas dapat dianggap selesai jika:
 

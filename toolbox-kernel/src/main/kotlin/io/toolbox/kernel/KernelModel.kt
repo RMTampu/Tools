@@ -56,12 +56,16 @@ public data class ModuleDescriptor(
     public val version: String,
     public val apiVersion: Int = 1,
     public val minAndroidApi: Int = 30,
-    public val supportedArchitectures: Set<String> = setOf("arm64-v8a"),
+    public val maxAndroidApi: Int? = null,
+    public val supportedAbis: Set<String> = setOf("arm64-v8a"),
+    public val requiredCapabilities: Set<String> = emptySet(),
+    public val entryPoint: String = id,
     public val dependencies: Set<ModuleDependency> = emptySet()
 )
 
 internal fun ModuleDescriptor.snapshot(): ModuleDescriptor = copy(
-    supportedArchitectures = supportedArchitectures.toSet(),
+    supportedAbis = supportedAbis.toSet(),
+    requiredCapabilities = requiredCapabilities.toSet(),
     dependencies = dependencies.map { it.copy() }.toSet()
 )
 
@@ -71,7 +75,11 @@ internal fun ModuleDescriptor.validationError(): String? {
     if (version.isBlank()) return "Module version cannot be blank"
     if (apiVersion <= 0) return "Module API version must be positive"
     if (minAndroidApi <= 0) return "Minimum Android API must be positive"
-    if (supportedArchitectures.any { it.isBlank() }) return "Architecture name cannot be blank"
+    if (maxAndroidApi != null && maxAndroidApi < minAndroidApi) return "Maximum Android API cannot be below minimum Android API"
+    if (supportedAbis.isEmpty()) return "Module must declare at least one supported ABI"
+    if (supportedAbis.any { it.isBlank() }) return "ABI name cannot be blank"
+    if (requiredCapabilities.any { it.isBlank() }) return "Required capability id cannot be blank"
+    if (entryPoint.isBlank()) return "Module entry point cannot be blank"
     if (dependencies.any { it.id == id }) return "Module cannot depend on itself: $id"
     return null
 }
@@ -135,6 +143,7 @@ public enum class KernelErrorCode {
     ADMISSION_REJECTED,
     CONFLICT,
     DEPENDENCY_RESOLUTION,
+    CAPABILITY_RESOLUTION,
     LIFECYCLE,
     SOURCE_MISMATCH,
     NOT_FOUND,

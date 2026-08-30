@@ -41,6 +41,12 @@ internal class LifecycleCoordinator(
             failures += ModuleFailure(moduleId, "load", IllegalStateException("Dependency not ready: ${unavailableDependency.id}"))
             return
         }
+        val missingCapability = handle.descriptor.requiredCapabilities.firstOrNull { capabilities.get(it) == null }
+        if (missingCapability != null) {
+            modules.forceState(moduleId, ModuleState.FAILED)
+            failures += ModuleFailure(moduleId, "capability-resolution", IllegalStateException("Required capability not available: $missingCapability"))
+            return
+        }
         if (!modules.transition(moduleId, setOf(ModuleState.REGISTERED), ModuleState.LOADING)) return
 
         val scope = ModuleScope(moduleId, services, capabilities, events, commands, ports.clock)
