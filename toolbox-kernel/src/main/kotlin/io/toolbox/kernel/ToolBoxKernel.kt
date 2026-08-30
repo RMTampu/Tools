@@ -205,7 +205,8 @@ public class ToolBoxKernel(
         val loadedDescriptor = requireNotNull(loadedDescriptorResult.value)
         if (loadedDescriptor != inspectedDescriptor) {
             return@runOperation KernelResult.failure(
-                KernelError(\ernelErrorCode.SOURCE_MISMATCH,
+                KernelError(
+                    KernelErrorCode.SOURCE_MISMATCH,
                     "Loaded module descriptor does not match inspected/verified metadata for ${stableSource.id}"
                 )
             )
