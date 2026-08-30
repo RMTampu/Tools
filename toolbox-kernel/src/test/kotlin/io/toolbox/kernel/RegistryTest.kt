@@ -32,6 +32,41 @@ class RegistryTest {
     }
 
     @Test
+    fun `stopped consumer generation cannot use retained provider route`() {
+        lateinit var consumerContext: KernelContext
+        lateinit var retained: ServiceHandle<String>
+        val kernel = ToolBoxKernel()
+        kernel.install(
+            module(
+                "provider",
+                onLoadBlock = { context -> context.services.register(String::class.java, "service") }
+            )
+        )
+        kernel.install(
+            module(
+                "consumer",
+                dependencies = setOf(ModuleDependency.required("provider")),
+                onLoadBlock = { context ->
+                    consumerContext = context
+                    retained = context.services.reference(String::class.java) ?: error("missing provider route")
+                }
+            )
+        )
+
+        assertTrue(kernel.start().isSuccess)
+        assertEquals("service", retained.use { it })
+        assertTrue(kernel.stopModule("consumer").isSuccess)
+        assertEquals(ModuleState.STARTED, kernel.moduleState("provider"))
+        assertFalse(retained.available)
+        assertFailsWith<IllegalStateException> { retained.use { it } }
+        assertFailsWith<IllegalStateException> { consumerContext.services.reference(String::class.java) }
+        assertFailsWith<IllegalStateException> { consumerContext.capabilities.all() }
+        assertFailsWith<IllegalStateException> { consumerContext.commands.execute(command("missing")) }
+        assertFailsWith<IllegalStateException> { consumerContext.events.publish("consumer.event") }
+        assertFailsWith<IllegalStateException> { consumerContext.events.subscribe("consumer.event") { } }
+    }
+
+    @Test
     fun `stopped module event listener is removed and cannot receive later kernel events`() {
         var eventsSeen = 0
         val kernel = ToolBoxKernel()
