@@ -57,7 +57,9 @@ class RegistryTest {
         assertEquals("value", handle.use { it })
         assertTrue(kernel.stopModule("provider").isSuccess)
         assertFalse(handle.available)
-        assertFailsWith<IllegalStateException> { handle.use { it } }
+        assertFailsWith<IllegalStateException> {
+            handle.use { value -> check(value.isNotEmpty()) }
+        }
         assertNull(kernel.service(String::class.java))
     }
 
