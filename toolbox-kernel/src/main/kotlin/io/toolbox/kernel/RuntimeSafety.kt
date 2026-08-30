@@ -17,7 +17,9 @@ internal data class OwnerToken(
 internal interface ResourceOwner {
     val token: OwnerToken
     fun assertContextOpen(): Unit
+    fun isContextUsable(): Boolean
     fun isAcceptingInvocations(): Boolean
+    fun tryAcquireContextUse(): InvocationPermit?
     fun tryAcquireInvocation(): InvocationPermit?
     fun trackTimedOut(completion: CallbackCompletion): Unit
     fun hasOutstandingCallbacks(): Boolean
@@ -32,6 +34,16 @@ internal class InvocationPermit(private val release: () -> Unit) : AutoCloseable
 
     internal companion object {
         internal fun noOp(): InvocationPermit = InvocationPermit { }
+    }
+}
+
+internal inline fun <T> ResourceOwner.withContextUse(block: () -> T): T {
+    val permit = tryAcquireContextUse()
+        ?: throw IllegalStateException("Module context ${token.id}#${token.generation} is no longer usable")
+    return try {
+        block()
+    } finally {
+        permit.close()
     }
 }
 
@@ -58,6 +70,7 @@ internal class ModuleLease(
 ) : ResourceOwner {
     private val lock = Object()
     private var contextOpen = true
+    private var contextUsesOpen = true
     private var acceptingInvocations = false
     private var activeInvocations = 0
     private val outstandingCallbacks = LinkedHashSet<CallbackCompletion>()
@@ -66,23 +79,36 @@ internal class ModuleLease(
         check(contextOpen) { "Module context ${token.id}#${token.generation} is no longer valid" }
     }
 
+    override fun isContextUsable(): Boolean = synchronized(lock) {
+        contextOpen && contextUsesOpen
+    }
+
     override fun isAcceptingInvocations(): Boolean = synchronized(lock) {
         contextOpen && acceptingInvocations
     }
 
     internal fun activateInvocations(): Unit = synchronized(lock) {
-        check(contextOpen) { "Cannot activate a closed module context" }
+        check(contextOpen && contextUsesOpen) { "Cannot activate a closed or quiescing module context" }
         acceptingInvocations = true
+    }
+
+    override fun tryAcquireContextUse(): InvocationPermit? = synchronized(lock) {
+        if (!contextOpen || !contextUsesOpen) return@synchronized null
+        activeInvocations++
+        permit()
     }
 
     override fun tryAcquireInvocation(): InvocationPermit? = synchronized(lock) {
         if (!contextOpen || !acceptingInvocations) return@synchronized null
         activeInvocations++
-        InvocationPermit {
-            synchronized(lock) {
-                activeInvocations--
-                lock.notifyAll()
-            }
+        permit()
+    }
+
+    private fun permit(): InvocationPermit = InvocationPermit {
+        synchronized(lock) {
+            activeInvocations--
+            check(activeInvocations >= 0) { "Invocation permit underflow for ${token.id}#${token.generation}" }
+            lock.notifyAll()
         }
     }
 
@@ -102,6 +128,7 @@ internal class ModuleLease(
         val deadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis.coerceAtLeast(0))
         synchronized(lock) {
             acceptingInvocations = false
+            contextUsesOpen = false
             while (activeInvocations > 0) {
                 val remainingNanos = deadlineNanos - System.nanoTime()
                 if (remainingNanos <= 0) return false
@@ -119,6 +146,7 @@ internal class ModuleLease(
 
     internal fun closeContext(): Unit = synchronized(lock) {
         contextOpen = false
+        contextUsesOpen = false
         acceptingInvocations = false
         lock.notifyAll()
     }
@@ -131,7 +159,9 @@ internal class ModuleLease(
 internal object KernelResourceOwner : ResourceOwner {
     override val token: OwnerToken = OwnerToken("kernel", 0)
     override fun assertContextOpen(): Unit = Unit
+    override fun isContextUsable(): Boolean = true
     override fun isAcceptingInvocations(): Boolean = true
+    override fun tryAcquireContextUse(): InvocationPermit = InvocationPermit.noOp()
     override fun tryAcquireInvocation(): InvocationPermit = InvocationPermit.noOp()
     override fun trackTimedOut(completion: CallbackCompletion): Unit = Unit
     override fun hasOutstandingCallbacks(): Boolean = false
