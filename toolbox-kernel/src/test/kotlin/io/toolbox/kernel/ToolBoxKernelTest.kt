@@ -158,15 +158,17 @@ class ToolBoxKernelTest {
     }
 
     @Test
-    fun `completed stop failure leaves module safely stopped and observable`() {
+    fun `completed stop failure is failed and cannot masquerade as clean stop`() {
         val kernel = ToolBoxKernel()
         kernel.install(module("fragile", onStopBlock = { error("stop failed") }))
         assertTrue(kernel.start().isSuccess)
         val stop = kernel.stop()
         assertFalse(stop.isSuccess)
         assertEquals(KernelState.STOPPED_WITH_ERRORS, kernel.state)
-        assertEquals(ModuleState.STOPPED, kernel.moduleState("fragile"))
+        assertEquals(ModuleState.FAILED, kernel.moduleState("fragile"))
         assertEquals(LifecyclePhase.STOP, kernel.snapshot().modules.single().lastFailure?.phase)
+        assertFalse(kernel.retryModule("fragile").isSuccess)
+        assertTrue(kernel.uninstall("fragile").isSuccess)
     }
 
     @Test
