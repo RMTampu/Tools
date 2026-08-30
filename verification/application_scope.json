@@ -11,6 +11,20 @@
     "jdk": "17",
     "kotlin": "1.9.24"
   },
+  "runtimeEnvironmentBoundary": {
+    "included": [
+      "Android 11 / API 30 compatible implementation",
+      "primary ABI arm64-v8a",
+      "AOSP-compatible framework behavior covered by Android compatibility requirements"
+    ],
+    "notClaimedUntilScopeExpands": [
+      "OEM-specific private behavior",
+      "hardware-feature behavior not used by the bootstrap shell",
+      "WebView behavior because WebView is not used",
+      "network behavior because INTERNET permission and network code are not used",
+      "native/JNI behavior because no native payload is loaded"
+    ]
+  },
   "domainScope": {
     "R1": {
       "status": "REQUIRED",
@@ -74,7 +88,9 @@
     "runtimePssGrowthKb": 16384,
     "runtimePssCeilingKb": 196608,
     "lifecycleIterations": 20,
-    "runtimeCycles": 12
+    "runtimeCycles": 12,
+    "apkBytes": 67108864,
+    "apkUncompressedBytes": 134217728
   },
   "requiredDocuments": [
     "AGENTS.md",
@@ -92,6 +108,7 @@
     "ASSET_SAFE_100_RULES.md",
     "ASSET_SAFE_100_METHODS.md",
     "ASSET_SAFE_100_PROCESS.md",
-    "PREBUILD_ASSET_GATE.md"
+    "PREBUILD_ASSET_GATE.md",
+    "verification/signing_contract.json"
   ]
 }
