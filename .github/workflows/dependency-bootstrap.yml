@@ -8,12 +8,14 @@ on:
       - 'settings.gradle.kts'
       - 'build.gradle.kts'
       - 'gradle.properties'
+      - 'gradle/**'
       - 'toolbox-kernel/build.gradle.kts'
       - 'toolbox-app/build.gradle.kts'
+      - 'verification/application_scope.json'
       - '.github/workflows/dependency-bootstrap.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   resolve-trusted-materials:
@@ -57,16 +59,85 @@ jobs:
           test -s toolbox-kernel/gradle.lockfile
           test -s toolbox-app/gradle.lockfile
           test -s gradle/verification-metadata.xml
+          grep -q '<verify-metadata>true</verify-metadata>' gradle/verification-metadata.xml
           grep -q '<sha256' gradle/verification-metadata.xml
+          ! grep -Eiq 'SNAPSHOT|latest[.]|:[+]|[[][0-9]' toolbox-kernel/gradle.lockfile toolbox-app/gradle.lockfile
+
+      - name: Create unreviewed dependency trust candidate
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          import pathlib
+          import subprocess
+
+          root = pathlib.Path('.')
+          tracked = subprocess.check_output(['git', 'ls-files'], text=True).splitlines()
+
+          def dependency_input(path: str) -> bool:
+              name = pathlib.PurePosixPath(path).name
+              return (
+                  name in {
+                      'build.gradle', 'build.gradle.kts',
+                      'settings.gradle', 'settings.gradle.kts',
+                      'gradle.properties', 'gradle-wrapper.properties',
+                      'libs.versions.toml'
+                  }
+                  or path == '.github/workflows/dependency-bootstrap.yml'
+                  or path == 'verification/application_scope.json'
+              )
+
+          def sha256(path: pathlib.Path) -> str:
+              h = hashlib.sha256()
+              with path.open('rb') as f:
+                  for block in iter(lambda: f.read(1024 * 1024), b''):
+                      h.update(block)
+              return h.hexdigest()
+
+          inputs = {
+              path: sha256(root / path)
+              for path in sorted(tracked)
+              if dependency_input(path)
+          }
+          outputs = {
+              'toolbox-kernel/gradle.lockfile': sha256(root / 'toolbox-kernel/gradle.lockfile'),
+              'toolbox-app/gradle.lockfile': sha256(root / 'toolbox-app/gradle.lockfile'),
+              'gradle/verification-metadata.xml': sha256(root / 'gradle/verification-metadata.xml'),
+          }
+          candidate = {
+              'schemaVersion': 1,
+              'status': 'CANDIDATE_UNREVIEWED',
+              'generatedFromGitSha': os.environ['GITHUB_SHA'],
+              'workflowRunId': os.environ['GITHUB_RUN_ID'],
+              'workflowRunAttempt': os.environ['GITHUB_RUN_ATTEMPT'],
+              'generator': {
+                  'gradle': '8.7',
+                  'jdk': '17',
+                  'dependencyVerification': 'sha256',
+              },
+              'dependencyInputsSha256': inputs,
+              'outputsSha256': outputs,
+          }
+          path = root / 'verification/dependency_trust_candidate.json'
+          path.write_text(json.dumps(candidate, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          PY
 
       - name: Package dependency trust evidence
         shell: bash
         run: |
+          rm -rf verification/bootstrap
           mkdir -p verification/bootstrap
           cp toolbox-kernel/gradle.lockfile verification/bootstrap/toolbox-kernel.gradle.lockfile
           cp toolbox-app/gradle.lockfile verification/bootstrap/toolbox-app.gradle.lockfile
           cp gradle/verification-metadata.xml verification/bootstrap/verification-metadata.xml
-          shasum -a 256 verification/bootstrap/* > verification/bootstrap/SHA256SUMS
+          cp verification/dependency_trust_candidate.json verification/bootstrap/dependency_trust_candidate.json
+          (
+            cd verification/bootstrap
+            sha256sum toolbox-kernel.gradle.lockfile toolbox-app.gradle.lockfile verification-metadata.xml dependency_trust_candidate.json > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
 
       - name: Upload dependency trust evidence
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
@@ -75,3 +146,27 @@ jobs:
           path: verification/bootstrap
           if-no-files-found: error
           retention-days: 14
+
+      - name: Commit candidate trust state
+        shell: bash
+        run: |
+          git add \
+            toolbox-kernel/gradle.lockfile \
+            toolbox-app/gradle.lockfile \
+            gradle/verification-metadata.xml \
+            verification/dependency_trust_candidate.json
+
+          mapfile -t staged < <(git diff --cached --name-only)
+          allowed='^(toolbox-kernel/gradle[.]lockfile|toolbox-app/gradle[.]lockfile|gradle/verification-metadata[.]xml|verification/dependency_trust_candidate[.]json)$'
+          for path in "${staged[@]}"; do
+            if [[ ! "$path" =~ $allowed ]]; then
+              echo "Unexpected staged path: $path" >&2
+              exit 1
+            fi
+          done
+
+          test "${#staged[@]}" -gt 0
+          git config user.name 'toolbox-trust-bootstrap[bot]'
+          git config user.email 'toolbox-trust-bootstrap[bot]@users.noreply.github.com'
+          git commit -m 'Record dependency trust candidate'
+          git push origin HEAD:main
