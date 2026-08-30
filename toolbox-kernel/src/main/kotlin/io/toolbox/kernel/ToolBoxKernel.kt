@@ -28,7 +28,11 @@ public class ToolBoxKernel(
 
     public fun install(module: ToolBoxModule): KernelResult<ModuleDescriptor> = runOperation("install") {
         invalidInstallState()?.let { return@runOperation KernelResult.failure(it) }
-        val descriptor = module.descriptor.snapshot()
+        val descriptor = runCatching { module.descriptor.snapshot() }.getOrElse { error ->
+            return@runOperation KernelResult.failure(
+                KernelError(KernelErrorCode.INVALID_DESCRIPTOR, "Failed to read module descriptor", error)
+            )
+        }
         val preflight = preflightDescriptor(descriptor, null)
         if (!preflight.isSuccess) return@runOperation preflight
         registerPreflighted(module, descriptor)
@@ -62,7 +66,11 @@ public class ToolBoxKernel(
                 KernelError(KernelErrorCode.SOURCE_LOAD, "Failed to load module source ${stableSource.id}", error)
             )
         }
-        val loadedDescriptor = loaded.descriptor.snapshot()
+        val loadedDescriptor = runCatching { loaded.descriptor.snapshot() }.getOrElse { error ->
+            return@runOperation KernelResult.failure(
+                KernelError(KernelErrorCode.INVALID_DESCRIPTOR, "Failed to read loaded module descriptor", error)
+            )
+        }
         if (loadedDescriptor != inspectedDescriptor) {
             return@runOperation KernelResult.failure(
                 KernelError(
@@ -149,11 +157,13 @@ public class ToolBoxKernel(
 
     public fun moduleDescriptors(): List<ModuleDescriptor> = modules.descriptors()
     public fun moduleState(moduleId: String): ModuleState? = modules.stateOf(moduleId)
-    public fun <T : Any> service(type: Class<T>): T? = services.get(type)
-    public fun capabilities(): List<Capability> = capabilities.all()
-    public fun execute(command: KernelCommand): CommandResult = commands.execute(command)
+    public fun <T : Any> service(type: Class<T>): T? = services.getIfOwner(type, ::isActiveModule)
+    public fun capabilities(): List<Capability> = capabilities.allIfOwner(::isActiveModule)
+    public fun execute(command: KernelCommand): CommandResult = commands.executeIfOwner(command, ::isActiveModule)
     public fun subscribe(topic: String, listener: (KernelEvent) -> Unit): Subscription = events.subscribe(KERNEL_OWNER, topic, listener)
     public fun isOperational(): Boolean = state in setOf(KernelState.RUNNING, KernelState.DEGRADED)
+
+    private fun isActiveModule(moduleId: String): Boolean = modules.stateOf(moduleId) == ModuleState.STARTED
 
     private fun invalidInstallState(): KernelError? =
         if (state in setOf(KernelState.STARTING, KernelState.STOPPING, KernelState.FAILED)) {
@@ -166,12 +176,20 @@ public class ToolBoxKernel(
         descriptor.validationError()?.let { message ->
             return KernelResult.failure(KernelError(KernelErrorCode.INVALID_DESCRIPTOR, message))
         }
-        val compatibility = ports.compatibilityPolicy.check(config, ports.runtimeEnvironment, descriptor)
+        val compatibility = runCatching {
+            ports.compatibilityPolicy.check(config, ports.runtimeEnvironment, descriptor)
+        }.getOrElse { error ->
+            ports.logger.error("Compatibility policy failed for ${descriptor.id}", error)
+            return KernelResult.failure(KernelError(KernelErrorCode.POLICY_FAILURE, "Compatibility policy failed for ${descriptor.id}", error))
+        }
         if (!compatibility.compatible) {
             publish("kernel.module.rejected", descriptor)
             return KernelResult.failure(KernelError(KernelErrorCode.INCOMPATIBLE_MODULE, compatibility.reason))
         }
-        val admission = ports.admissionPolicy.evaluate(descriptor, source)
+        val admission = runCatching { ports.admissionPolicy.evaluate(descriptor, source) }.getOrElse { error ->
+            ports.logger.error("Admission policy failed for ${descriptor.id}", error)
+            return KernelResult.failure(KernelError(KernelErrorCode.POLICY_FAILURE, "Admission policy failed for ${descriptor.id}", error))
+        }
         if (!admission.allowed) {
             publish("kernel.module.rejected", descriptor)
             return KernelResult.failure(KernelError(KernelErrorCode.ADMISSION_REJECTED, admission.reason))
@@ -192,7 +210,7 @@ public class ToolBoxKernel(
                 lifecycle.discardFailedRegistration(descriptor.id)
                 refreshOperationalState()
                 publish("kernel.module.activation_failed", descriptor)
-                return KernelResult(value = null, errors = activation.errors, failures = activation.failures)
+                return KernelResult(value = null, errors = activation.errors, failures = activation.failures.toList())
             }
             lifecycle.probeHealth()
             refreshOperationalState()

@@ -1,5 +1,9 @@
 package io.toolbox.kernel
 
+import java.util.Collections
+import java.util.LinkedHashMap
+import java.util.LinkedHashSet
+
 public enum class KernelState {
     NEW,
     STARTING,
@@ -34,7 +38,15 @@ public data class KernelConfig(
     public val moduleApiVersion: Int = 1,
     public val androidApiBaseline: Int = 30,
     public val architectureBaseline: String = "arm64-v8a"
-)
+) {
+    init {
+        require(name.isNotBlank()) { "Kernel name cannot be blank" }
+        require(version.isNotBlank()) { "Kernel version cannot be blank" }
+        require(moduleApiVersion > 0) { "Kernel module API version must be positive" }
+        require(androidApiBaseline > 0) { "Kernel Android API baseline must be positive" }
+        require(architectureBaseline.isNotBlank()) { "Kernel architecture baseline cannot be blank" }
+    }
+}
 
 public data class KernelRuntimeEnvironment(
     public val androidApi: Int = 30,
@@ -74,9 +86,9 @@ public data class ModuleDescriptor(
 )
 
 internal fun ModuleDescriptor.snapshot(): ModuleDescriptor = copy(
-    supportedAbis = supportedAbis.toSet(),
-    requiredCapabilities = requiredCapabilities.toSet(),
-    dependencies = dependencies.map { it.copy() }.toSet()
+    supportedAbis = immutableSet(supportedAbis),
+    requiredCapabilities = immutableSet(requiredCapabilities),
+    dependencies = immutableSet(dependencies.map { it.copy() }.toSet())
 )
 
 internal fun ModuleDescriptor.validationError(): String? {
@@ -110,13 +122,16 @@ public data class ModuleSource(
     public val metadata: Map<String, String> = emptyMap()
 )
 
-internal fun ModuleSource.snapshot(): ModuleSource = copy(metadata = metadata.toMap())
+internal fun ModuleSource.snapshot(): ModuleSource = copy(metadata = immutableMap(metadata))
 
 internal fun ModuleSource.validationError(): String? {
     if (id.isBlank()) return "Module source id cannot be blank"
     if (location.isBlank()) return "Module source location cannot be blank"
     return null
 }
+
+private fun <T> immutableSet(source: Set<T>): Set<T> = Collections.unmodifiableSet(LinkedHashSet(source))
+private fun <K, V> immutableMap(source: Map<K, V>): Map<K, V> = Collections.unmodifiableMap(LinkedHashMap(source))
 
 public data class HealthStatus(
     public val state: HealthState,
@@ -160,6 +175,7 @@ public enum class KernelErrorCode {
     INVALID_DESCRIPTOR,
     INCOMPATIBLE_MODULE,
     ADMISSION_REJECTED,
+    POLICY_FAILURE,
     CONFLICT,
     OPERATION_IN_PROGRESS,
     DEPENDENCY_RESOLUTION,
@@ -189,12 +205,12 @@ public data class KernelResult<T>(
         public fun <T> failure(
             error: KernelError,
             failures: List<ModuleFailure> = emptyList()
-        ): KernelResult<T> = KernelResult(value = null, errors = listOf(error), failures = failures)
+        ): KernelResult<T> = KernelResult(value = null, errors = listOf(error), failures = failures.toList())
 
         public fun <T> lifecycleFailure(failures: List<ModuleFailure>): KernelResult<T> = KernelResult(
             value = null,
             errors = listOf(KernelError(KernelErrorCode.LIFECYCLE, "Module lifecycle operation failed")),
-            failures = failures
+            failures = failures.toList()
         )
     }
 }

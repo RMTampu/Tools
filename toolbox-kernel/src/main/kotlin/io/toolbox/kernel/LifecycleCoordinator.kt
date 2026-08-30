@@ -152,7 +152,14 @@ internal class LifecycleCoordinator(
         if (handle.state != ModuleState.FAILED) {
             return KernelResult.failure(KernelError(KernelErrorCode.INVALID_STATE, "Module $moduleId is not FAILED"))
         }
-        scopes.remove(moduleId)?.close()
+        if (scopes.containsKey(moduleId)) {
+            return KernelResult.failure(
+                KernelError(
+                    KernelErrorCode.INVALID_STATE,
+                    "Module $moduleId still owns a loaded scope; cleanup/uninstall must succeed before retry"
+                )
+            )
+        }
         modules.forceState(moduleId, ModuleState.REGISTERED)
         modules.setHealth(moduleId, HealthStatus.unknown())
         return if (activateNow) activate(moduleId) else KernelResult.success(Unit)

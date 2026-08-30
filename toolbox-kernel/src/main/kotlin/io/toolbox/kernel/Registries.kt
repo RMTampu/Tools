@@ -22,6 +22,12 @@ internal class ServiceRegistry {
 
     internal fun <T : Any> get(type: Class<T>): T? = services[type]?.value?.let(type::cast)
 
+    internal fun <T : Any> getIfOwner(type: Class<T>, ownerAllowed: (String) -> Boolean): T? {
+        val current = services[type] ?: return null
+        if (!ownerAllowed(current.owner)) return null
+        return type.cast(current.value)
+    }
+
     internal fun unregister(owner: String, type: Class<*>): Boolean {
         val current = services[type] ?: return false
         if (current.owner != owner) return false
@@ -65,6 +71,9 @@ internal class CapabilityRegistry {
     }
 
     internal fun all(): List<Capability> = capabilities.values.map { it.value }.sortedBy { it.id }
+
+    internal fun allIfOwner(ownerAllowed: (String) -> Boolean): List<Capability> =
+        capabilities.values.filter { ownerAllowed(it.owner) }.map { it.value }.sortedBy { it.id }
 
     internal val size: Int get() = capabilities.size
 }
@@ -138,9 +147,14 @@ internal class CommandBus {
         }
     }
 
-    internal fun execute(command: KernelCommand): CommandResult {
+    internal fun execute(command: KernelCommand): CommandResult = executeIfOwner(command) { true }
+
+    internal fun executeIfOwner(command: KernelCommand, ownerAllowed: (String) -> Boolean): CommandResult {
         val handler = handlers[command.name]
             ?: return CommandResult.failure(IllegalArgumentException("No handler for command: ${command.name}"))
+        if (!ownerAllowed(handler.owner)) {
+            return CommandResult.failure(IllegalStateException("Command ${command.name} is not active"))
+        }
         return runCatching { handler.callback(command) }.getOrElse(CommandResult::failure)
     }
 

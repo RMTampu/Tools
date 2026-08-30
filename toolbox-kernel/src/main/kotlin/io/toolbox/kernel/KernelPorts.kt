@@ -25,6 +25,7 @@ public class InMemoryKernelStateStore : KernelStateStore {
     override fun keys(prefix: String): Set<String> = data.keys.filterTo(linkedSetOf()) { it.startsWith(prefix) }
 }
 
+/** Logger implementations must not throw from logging methods. */
 public interface KernelLogger {
     public fun debug(message: String): Unit = Unit
     public fun info(message: String): Unit = Unit
