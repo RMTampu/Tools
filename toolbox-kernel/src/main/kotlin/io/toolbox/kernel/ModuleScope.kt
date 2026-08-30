@@ -42,7 +42,7 @@ public class ModuleServices internal constructor(
         return ServiceHandle(registration.owner, registration.value)
     }
 
-    public fun unregister(type: Class<*>, qualifier: String = "default"): Boolean =
+    public fun <T : Any> unregister(type: Class<T>, qualifier: String = "default"): Boolean =
         registry.unregister(owner, ServiceKey(type, qualifier))
 }
 
@@ -55,6 +55,7 @@ public class ModuleCapabilities internal constructor(
     private val declared = providedCapabilities.associateBy { it.id }
 
     public fun register(capability: Capability, replace: Boolean = false): Unit {
+        check(!owner.isAcceptingInvocations()) { "Capabilities are activation-stable and cannot change while module is STARTED" }
         val declaration = declared[capability.id]
             ?: throw IllegalArgumentException("Capability ${capability.id} was not declared by ${owner.token.id}")
         require(declaration.version == capability.version) {
@@ -77,7 +78,10 @@ public class ModuleCapabilities internal constructor(
         }
     }.distinctBy { Triple(it.id, it.version, it.providerModuleId) }
 
-    public fun unregister(id: String): Boolean = registry.unregister(owner, id)
+    public fun unregister(id: String): Boolean {
+        check(!owner.isAcceptingInvocations()) { "Capabilities are activation-stable and cannot change while module is STARTED" }
+        return registry.unregister(owner, id)
+    }
 }
 
 public class ModuleCommands internal constructor(

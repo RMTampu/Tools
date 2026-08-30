@@ -18,6 +18,7 @@ kotlin {
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    kotlinOptions.jvmTarget = "11"
     kotlinOptions.freeCompilerArgs += listOf("-Xjdk-release=11")
     kotlinOptions.allWarningsAsErrors = true
 }

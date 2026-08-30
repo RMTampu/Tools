@@ -128,9 +128,9 @@ internal class ModuleRegistry(
         val hardDependencies = records.keys.associateWith { linkedSetOf<String>() }.toMutableMap()
         val capabilityBindings = linkedMapOf<CapabilityBindingKey, String>()
 
-        records.values.sortedBy { it.descriptor.id }.forEach { record ->
+        records.values.sortedBy { it.descriptor.id }.forEach recordLoop@{ record ->
             val descriptor = record.descriptor
-            descriptor.dependencies.sortedBy { it.id }.forEach { dependency ->
+            descriptor.dependencies.sortedBy { it.id }.forEach dependencyLoop@{ dependency ->
                 val provider = records[dependency.id]
                 if (provider == null) {
                     if (dependency.kind == DependencyKind.REQUIRED) {
@@ -138,7 +138,7 @@ internal class ModuleRegistry(
                             KernelError(KernelErrorCode.DEPENDENCY_RESOLUTION, "Missing required module dependency ${dependency.id} for ${descriptor.id}")
                         )
                     }
-                    return@forEach
+                    return@dependencyLoop
                 }
                 if (!dependency.versionRange.contains(provider.descriptor.version)) {
                     if (dependency.kind == DependencyKind.REQUIRED) {
@@ -149,15 +149,16 @@ internal class ModuleRegistry(
                             )
                         )
                     }
-                    return@forEach
+                    return@dependencyLoop
                 }
                 if (dependency.kind == DependencyKind.REQUIRED) hardDependencies.getValue(descriptor.id) += dependency.id
             }
 
-            descriptor.requiredCapabilities.sortedBy { it.id }.forEach { requirement ->
+            descriptor.requiredCapabilities.sortedBy { it.id }.forEach capabilityLoop@{ requirement ->
                 val candidates = records.values
                     .asSequence()
                     .filter { it.descriptor.id != descriptor.id }
+                    .filter { it.state !in setOf(ModuleState.FAILED, ModuleState.QUARANTINED) }
                     .flatMap { candidate ->
                         candidate.descriptor.providedCapabilities.asSequence()
                             .filter { it.id == requirement.id && requirement.versionRange.contains(it.version) }
@@ -179,7 +180,7 @@ internal class ModuleRegistry(
                             )
                         )
                     }
-                    return@forEach
+                    return@capabilityLoop
                 }
                 capabilityBindings[CapabilityBindingKey(descriptor.id, requirement.id)] = selected.first.descriptor.id
                 if (requirement.kind == DependencyKind.REQUIRED) {
@@ -198,7 +199,7 @@ internal class ModuleRegistry(
                 return KernelError(KernelErrorCode.DEPENDENCY_RESOLUTION, "Required dependency cycle detected at $moduleId")
             }
             visiting += moduleId
-            hardDependencies.getValue(moduleId).sorted().forEach { dependencyId ->
+            hardDependencies.getValue(moduleId).sorted().forEach dependencyLoop@{ dependencyId ->
                 val error = visit(dependencyId)
                 if (error != null) return error
             }
@@ -208,7 +209,7 @@ internal class ModuleRegistry(
             return null
         }
 
-        records.keys.sorted().forEach { moduleId ->
+        records.keys.sorted().forEach moduleLoop@{ moduleId ->
             val error = visit(moduleId)
             if (error != null) return@synchronized KernelResult.failure(error)
         }

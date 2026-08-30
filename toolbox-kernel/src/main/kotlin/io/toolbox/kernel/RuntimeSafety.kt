@@ -3,6 +3,7 @@ package io.toolbox.kernel
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 internal data class OwnerToken(
@@ -18,13 +19,10 @@ internal interface ResourceOwner {
 }
 
 internal class InvocationPermit(private val release: () -> Unit) : AutoCloseable {
-    private var closed = false
+    private val closed = AtomicBoolean(false)
 
     override fun close(): Unit {
-        if (!closed) {
-            closed = true
-            release()
-        }
+        if (closed.compareAndSet(false, true)) release()
     }
 
     internal companion object {
@@ -72,7 +70,12 @@ internal class ModuleLease(
                 val remainingNanos = deadlineNanos - System.nanoTime()
                 if (remainingNanos <= 0) return false
                 val millis = TimeUnit.NANOSECONDS.toMillis(remainingNanos).coerceAtLeast(1)
-                lock.wait(millis)
+                try {
+                    lock.wait(millis)
+                } catch (interrupted: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    return false
+                }
             }
             return true
         }
@@ -132,7 +135,12 @@ internal class CallbackSupervisor(
             "toolbox-$taskName"
         ).apply { isDaemon = true }
 
-        worker.start()
+        try {
+            worker.start()
+        } catch (error: Throwable) {
+            return CallbackOutcome.Failure(error)
+        }
+
         val completed = try {
             done.await(timeoutMillis, TimeUnit.MILLISECONDS)
         } catch (interrupted: InterruptedException) {
