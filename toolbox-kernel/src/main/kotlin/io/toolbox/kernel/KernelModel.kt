@@ -335,14 +335,18 @@ public data class ModuleDescriptor(
     )
 }
 
-internal fun ModuleDescriptor.snapshot(): ModuleDescriptor = copy(
-    supportedAbis = immutableSet(supportedAbis),
-    providedCapabilities = immutableSet(providedCapabilities.map { it.copy() }.toSet()),
-    requiredCapabilities = immutableSet(requiredCapabilities.map { it.copy() }.toSet()),
-    dependencies = immutableSet(dependencies.map { it.copy() }.toSet())
-)
+internal fun ModuleDescriptor.snapshot(): ModuleDescriptor {
+    resourceLimitError()?.let { throw IllegalArgumentException(it) }
+    return copy(
+        supportedAbis = immutableSet(supportedAbis),
+        providedCapabilities = immutableSet(providedCapabilities.map { it.copy() }.toSet()),
+        requiredCapabilities = immutableSet(requiredCapabilities.map { it.copy() }.toSet()),
+        dependencies = immutableSet(dependencies.map { it.copy() }.toSet())
+    )
+}
 
 internal fun ModuleDescriptor.validationError(): String? {
+    resourceLimitError()?.let { return it }
     if (!KernelIdentifiers.isValid(id)) return "Module id is invalid: $id"
     if (name.isBlank()) return "Module name cannot be blank"
     if (apiVersion <= 0) return "Module API version must be positive"
@@ -581,7 +585,8 @@ public class CommandResult private constructor(
 
 internal object KernelIdentifiers {
     private val IDENTIFIER = Regex("^[a-z0-9]+(?:[._:-][a-z0-9]+)*$")
-    internal fun isValid(value: String): Boolean = IDENTIFIER.matches(value)
+    internal fun isValid(value: String): Boolean =
+        value.length <= KernelResourceBounds.MAX_IDENTIFIER_LENGTH && IDENTIFIER.matches(value)
     internal fun requireValid(value: String, label: String): Unit = require(isValid(value)) { "$label is invalid: $value" }
 }
 
