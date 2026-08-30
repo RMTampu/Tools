@@ -85,9 +85,9 @@ class ResourceBudgetTest {
             waitIgnoringInterrupts(release)
         }
 
-        bus.publish(KernelEvent("test.event", "kernel"))
+        bus.publish(KernelEvent("test.event", "kernel", timestampMillis = 0L))
         assertTrue(entered.await(1, TimeUnit.SECONDS))
-        bus.publish(KernelEvent("test.event", "kernel"))
+        bus.publish(KernelEvent("test.event", "kernel", timestampMillis = 0L))
         assertTrue(invocations.get() == 1)
 
         release.countDown()
@@ -142,7 +142,7 @@ class ResourceBudgetTest {
         val owner = startedOwner("blocked")
         bus.subscribe(owner, "blocked.event") { callbackInvocations.incrementAndGet() }
 
-        bus.publish(KernelEvent("blocked.event", "kernel"))
+        bus.publish(KernelEvent("blocked.event", "kernel", timestampMillis = 0L))
         assertTrue(executorEntered.await(1, TimeUnit.SECONDS))
         assertTrue(owner.quiesce(100))
         assertTrue(callbackInvocations.get() == 0)
