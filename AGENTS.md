@@ -185,3 +185,15 @@ Sebelum melakukan build yang melibatkan asset/resource aplikasi, agen WAJIB memb
 **Build APK / production build / final resource packaging DILARANG DIMULAI sebelum seluruh gate pre-build yang diwajibkan dalam `PREBUILD_ASSET_GATE.md` selesai dan berstatus PASS.**
 
 Gate tidak boleh dilompati, dianggap PASS tanpa bukti, atau dilewati hanya untuk melihat apakah build berhasil. Jika perubahan asset atau input terkait membatalkan proof yang sudah ada, agen wajib kembali ke gate paling awal yang terdampak sebelum build dapat dibuka kembali.
+
+## 18. Aturan Kapasitas Agen dan Eksekusi Bertahap
+
+Untuk setiap pekerjaan yang dikendalikan oleh prosedur, gate, audit, validasi, build, atau test, agen WAJIB membaca dan mematuhi `AGENT_PROCEDURE_EXECUTION_RULES.md`.
+
+Agen tidak diwajibkan menyimpan seluruh aturan repository di memory sekaligus. Namun seluruh aturan yang berlaku untuk langkah aktif WAJIB tersedia, dibaca, dipahami, dan dijalankan lengkap pada saat langkah tersebut dieksekusi.
+
+Jika context, memory, tool output, atau kapasitas pemrosesan tidak memadai untuk menjalankan seluruh prosedur secara lengkap sekaligus, agen WAJIB memecah eksekusi menjadi gate, sub-gate, rule group, individual rule, atau individual check yang lebih kecil.
+
+**Keterbatasan kapasitas hanya boleh mengubah ukuran unit eksekusi. Keterbatasan tersebut DILARANG digunakan untuk mengurangi aturan, coverage, invariant, proof, evidence, atau syarat PASS.**
+
+Jika detail aturan aktif tidak tersedia, state prosedur tidak diketahui, evidence hilang, atau agen tidak dapat memastikan bahwa langkah telah dijalankan lengkap, status default adalah `NOT_PROVEN`, bukan PASS. Agen wajib membaca kembali sumber dan merekonstruksi state sebelum melanjutkan.
