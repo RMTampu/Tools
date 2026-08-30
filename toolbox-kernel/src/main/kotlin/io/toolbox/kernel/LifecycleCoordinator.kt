@@ -16,10 +16,12 @@ internal class LifecycleCoordinator(
 ) {
     private val scopes = ConcurrentHashMap<String, ModuleScope>()
     private val generation = AtomicLong(0)
+    private val activeWiring = linkedMapOf<String, ResolutionPlan>()
     @Volatile private var activePlan: ResolutionPlan? = null
 
     internal fun startAll(): KernelResult<Unit> {
-        var mergedPlan = ResolutionPlan.empty()
+        activeWiring.clear()
+        activePlan = ResolutionPlan.empty()
         val failures = mutableListOf<ModuleFailure>()
         val errors = mutableListOf<KernelError>()
 
@@ -42,11 +44,9 @@ internal class LifecycleCoordinator(
             }
 
             val plan = resolved.value ?: return@forEach
-            mergedPlan = mergedPlan.merge(plan)
             plan.order.forEach { moduleId -> activateOne(moduleId, plan, failures) }
         }
 
-        activePlan = mergedPlan
         return if (errors.isEmpty() && failures.isEmpty()) {
             KernelResult.success(Unit)
         } else {
@@ -55,15 +55,15 @@ internal class LifecycleCoordinator(
     }
 
     internal fun startModule(moduleId: String): KernelResult<Unit> {
-        if (!modules.contains(moduleId)) {
-            return KernelResult.failure(KernelError(KernelErrorCode.NOT_FOUND, "Unknown module: $moduleId"))
-        }
+        val target = modules.handle(moduleId)
+            ?: return KernelResult.failure(KernelError(KernelErrorCode.NOT_FOUND, "Unknown module: $moduleId"))
+        if (target.state == ModuleState.STARTED) return KernelResult.success(Unit)
+
         val resolved = modules.resolvePlanFor(moduleId)
         if (!resolved.isSuccess) return KernelResult.failure(resolved.errors, resolved.failures)
         val plan = resolved.value ?: return KernelResult.failure(
             KernelError(KernelErrorCode.DEPENDENCY_RESOLUTION, "Resolution returned no plan")
         )
-        activePlan = (activePlan ?: ResolutionPlan.empty()).merge(plan)
         val failures = mutableListOf<ModuleFailure>()
         plan.order.forEach { id -> activateOne(id, plan, failures) }
         return resultFromFailures(failures)
@@ -105,6 +105,7 @@ internal class LifecycleCoordinator(
         ids.forEach { moduleId ->
             if (modules.stateOf(moduleId) == ModuleState.STARTED) stopOne(moduleId, failures)
         }
+        activeWiring.clear()
         activePlan = null
         if (!plan.isSuccess && failures.isEmpty()) return KernelResult.failure(plan.errors, plan.failures)
         return resultFromFailures(failures)
@@ -142,7 +143,7 @@ internal class LifecycleCoordinator(
             )
         }
         modules.remove(moduleId, setOf(ModuleState.REGISTERED, ModuleState.STOPPED, ModuleState.FAILED))
-        activePlan = activePlan?.without(moduleId)
+        removeActiveWiring(moduleId)
         return KernelResult.success(true)
     }
 
@@ -179,7 +180,7 @@ internal class LifecycleCoordinator(
             scopes.remove(moduleId, scope)
         }
         modules.forceRemove(moduleId)
-        activePlan = activePlan?.without(moduleId)
+        removeActiveWiring(moduleId)
         return KernelResult.success(true)
     }
 
@@ -208,7 +209,7 @@ internal class LifecycleCoordinator(
         if (modules.stateOf(moduleId) == ModuleState.QUARANTINED) return
         scopes.remove(moduleId)?.close()
         modules.forceRemove(moduleId)
-        activePlan = activePlan?.without(moduleId)
+        removeActiveWiring(moduleId)
     }
 
     internal fun probeHealth(): List<ModuleHealth> {
@@ -271,7 +272,7 @@ internal class LifecycleCoordinator(
             load(moduleId, plan, failures)
         }
         if (modules.stateOf(moduleId) == ModuleState.LOADED) {
-            start(moduleId, failures)
+            start(moduleId, plan, failures)
         }
     }
 
@@ -334,7 +335,7 @@ internal class LifecycleCoordinator(
         }
     }
 
-    private fun start(moduleId: String, failures: MutableList<ModuleFailure>): Unit {
+    private fun start(moduleId: String, plan: ResolutionPlan, failures: MutableList<ModuleFailure>): Unit {
         val handle = modules.handle(moduleId) ?: return
         val scope = scopes[moduleId] ?: return
         if (!modules.transition(moduleId, setOf(ModuleState.LOADED), ModuleState.STARTING)) return
@@ -342,6 +343,7 @@ internal class LifecycleCoordinator(
             is CallbackOutcome.Success -> {
                 if (!modules.transition(moduleId, setOf(ModuleState.STARTING), ModuleState.STARTED)) return
                 scope.lease.activateInvocations()
+                recordActiveWiring(moduleId, plan)
                 modules.clearFailure(moduleId)
                 modules.setHealth(moduleId, HealthStatus.unknown("Started; not yet probed"))
             }
@@ -362,6 +364,7 @@ internal class LifecycleCoordinator(
         val handle = modules.handle(moduleId) ?: return
         val scope = scopes[moduleId] ?: return
         if (!modules.transition(moduleId, setOf(ModuleState.STARTED), ModuleState.QUIESCING)) return
+        removeActiveWiring(moduleId)
 
         if (!scope.lease.quiesce(config.invocationDrainTimeoutMillis)) {
             val error = java.util.concurrent.TimeoutException("Active invocations did not drain for $moduleId")
@@ -472,7 +475,23 @@ internal class LifecycleCoordinator(
             scope.lease.trackTimedOut(completion)
             scope.close()
         }
+        removeActiveWiring(moduleId)
         modules.markFailure(moduleId, expected, failure, quarantine = true)
+    }
+
+    private fun recordActiveWiring(moduleId: String, plan: ResolutionPlan): Unit {
+        activeWiring[moduleId] = plan.wiringFor(moduleId)
+        activePlan = mergeActiveWiring()
+    }
+
+    private fun removeActiveWiring(moduleId: String): Unit {
+        if (activeWiring.remove(moduleId) != null) activePlan = mergeActiveWiring()
+    }
+
+    private fun mergeActiveWiring(): ResolutionPlan {
+        var merged = ResolutionPlan.empty()
+        activeWiring.values.forEach { wiring -> merged = merged.merge(wiring) }
+        return merged
     }
 
     private fun activeDependentsOf(moduleId: String): List<String> {
@@ -495,12 +514,14 @@ internal class LifecycleCoordinator(
         if (failures.isEmpty()) KernelResult.success(Unit) else KernelResult.lifecycleFailure(failures)
 }
 
-private fun ResolutionPlan.without(moduleId: String): ResolutionPlan = ResolutionPlan(
-    order = order.filterNot { it == moduleId },
-    hardDependencies = hardDependencies
-        .filterKeys { it != moduleId }
-        .mapValues { (_, providers) -> providers - moduleId },
-    capabilityBindings = capabilityBindings.filter { (key, provider) ->
-        key.consumerModuleId != moduleId && provider != moduleId
-    }
-)
+private fun ResolutionPlan.wiringFor(moduleId: String): ResolutionPlan {
+    val directDependencies = dependenciesOf(moduleId)
+    return ResolutionPlan(
+        order = listOf(moduleId),
+        hardDependencies = buildMap {
+            put(moduleId, directDependencies)
+            directDependencies.forEach { providerId -> putIfAbsent(providerId, emptySet()) }
+        },
+        capabilityBindings = capabilityBindings.filterKeys { it.consumerModuleId == moduleId }
+    )
+}
