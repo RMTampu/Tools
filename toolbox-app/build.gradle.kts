@@ -100,6 +100,16 @@ android {
     }
 }
 
+// Conflict failure is intentionally scoped to the final APK product graph.
+// AGP internal UTP/tool configurations may legitimately converge multiple tool versions;
+// all resolved artifacts remain locked and checksum-verified independently.
+val releaseProductConfigurations = setOf("releaseCompileClasspath", "releaseRuntimeClasspath")
+configurations.configureEach {
+    if (name in releaseProductConfigurations) {
+        resolutionStrategy.failOnVersionConflict()
+    }
+}
+
 dependencies {
     implementation(project(":toolbox-kernel"))
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.24")
