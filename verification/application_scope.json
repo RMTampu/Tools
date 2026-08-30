@@ -6,6 +6,7 @@
     "androidApi": 30,
     "abi": "arm64-v8a",
     "compileSdk": 35,
+    "buildTools": "34.0.0",
     "agp": "8.6.1",
     "gradle": "8.7",
     "jdk": "17",

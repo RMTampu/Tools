@@ -19,8 +19,8 @@ permissions:
 
 jobs:
   resolve-trusted-materials:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
 
     steps:
       - name: Checkout
@@ -32,36 +32,158 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Gradle 8.7
+      - name: Setup Gradle 8.7 without shared dependency cache
         uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
         with:
           gradle-version: '8.7'
+          cache-disabled: true
 
-      - name: Setup Android SDK
+      - name: Setup Android SDK command line tools
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699
+        with:
+          cmdline-tools-version: '14742923'
 
-      - name: Install compile SDK
+      - name: Install pinned Android build inputs
         shell: bash
-        run: sdkmanager 'platforms;android-35' 'build-tools;34.0.0' 'platform-tools'
+        run: sdkmanager 'platforms;android-35' 'build-tools;34.0.0'
 
-      - name: Resolve and record exact dependency state
-        shell: bash
-        run: >-
-          gradle --no-daemon
-          --write-locks
-          --write-verification-metadata sha256
-          :toolbox-kernel:dependencies
-          :toolbox-app:dependencies
-
-      - name: Validate generated trust state
+      - name: Create two clean source replicas
         shell: bash
         run: |
-          test -s toolbox-kernel/gradle.lockfile
-          test -s toolbox-app/gradle.lockfile
-          test -s gradle/verification-metadata.xml
-          grep -q '<verify-metadata>true</verify-metadata>' gradle/verification-metadata.xml
-          grep -q '<sha256' gradle/verification-metadata.xml
-          ! grep -Eiq 'SNAPSHOT|latest[.]|:[+]|[[][0-9]' toolbox-kernel/gradle.lockfile toolbox-app/gradle.lockfile
+          set -euo pipefail
+          for replica in a b; do
+            dir="$RUNNER_TEMP/source-$replica"
+            rm -rf "$dir" "$RUNNER_TEMP/gradle-home-$replica"
+            mkdir -p "$dir"
+            git archive HEAD | tar -x -C "$dir"
+            rm -f \
+              "$dir/toolbox-kernel/gradle.lockfile" \
+              "$dir/toolbox-app/gradle.lockfile" \
+              "$dir/gradle/verification-metadata.xml" \
+              "$dir/verification/dependency_trust_candidate.json" \
+              "$dir/verification/dependency_trust_review.json"
+          done
+
+      - name: Resolve replica A from clean Gradle home
+        shell: bash
+        env:
+          GRADLE_USER_HOME: ${{ runner.temp }}/gradle-home-a
+        run: >-
+          gradle -p "$RUNNER_TEMP/source-a"
+          --no-daemon
+          --refresh-dependencies
+          --write-locks
+          --write-verification-metadata sha256
+          :toolbox-kernel:resolveAndLockAll
+          :toolbox-app:resolveAndLockAll
+
+      - name: Resolve replica B from clean Gradle home
+        shell: bash
+        env:
+          GRADLE_USER_HOME: ${{ runner.temp }}/gradle-home-b
+        run: >-
+          gradle -p "$RUNNER_TEMP/source-b"
+          --no-daemon
+          --refresh-dependencies
+          --write-locks
+          --write-verification-metadata sha256
+          :toolbox-kernel:resolveAndLockAll
+          :toolbox-app:resolveAndLockAll
+
+      - name: Validate both generated trust states
+        shell: bash
+        run: |
+          set -euo pipefail
+          for replica in a b; do
+            dir="$RUNNER_TEMP/source-$replica"
+            test -s "$dir/toolbox-kernel/gradle.lockfile"
+            test -s "$dir/toolbox-app/gradle.lockfile"
+            test -s "$dir/gradle/verification-metadata.xml"
+            grep -q '<verify-metadata>true</verify-metadata>' "$dir/gradle/verification-metadata.xml"
+            grep -q '<sha256' "$dir/gradle/verification-metadata.xml"
+            ! grep -Eiq 'SNAPSHOT|latest[.]|:[+]|[[][0-9]' \
+              "$dir/toolbox-kernel/gradle.lockfile" \
+              "$dir/toolbox-app/gradle.lockfile"
+          done
+
+      - name: Require independent clean resolution convergence
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmp "$RUNNER_TEMP/source-a/toolbox-kernel/gradle.lockfile" "$RUNNER_TEMP/source-b/toolbox-kernel/gradle.lockfile"
+          cmp "$RUNNER_TEMP/source-a/toolbox-app/gradle.lockfile" "$RUNNER_TEMP/source-b/toolbox-app/gradle.lockfile"
+
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          import pathlib
+          import xml.etree.ElementTree as ET
+
+          ns = {'v': 'https://schema.gradle.org/dependency-verification'}
+
+          def canonical(path: pathlib.Path):
+              root = ET.parse(path).getroot()
+              config = root.find('v:configuration', ns)
+              verify_metadata = config.findtext('v:verify-metadata', default='', namespaces=ns) if config is not None else ''
+              verify_signatures = config.findtext('v:verify-signatures', default='', namespaces=ns) if config is not None else ''
+              rows = []
+              missing = []
+              components = root.find('v:components', ns)
+              if components is None:
+                  raise SystemExit(f'components missing in {path}')
+              for component in components.findall('v:component', ns):
+                  coord = (
+                      component.attrib.get('group', ''),
+                      component.attrib.get('name', ''),
+                      component.attrib.get('version', ''),
+                  )
+                  for artifact in component.findall('v:artifact', ns):
+                      hashes = sorted({node.attrib.get('value', '') for node in artifact.findall('v:sha256', ns) if node.attrib.get('value')})
+                      if not hashes:
+                          missing.append((*coord, artifact.attrib.get('name', '')))
+                      rows.append({
+                          'group': coord[0],
+                          'name': coord[1],
+                          'version': coord[2],
+                          'artifact': artifact.attrib.get('name', ''),
+                          'sha256': hashes,
+                      })
+              if missing:
+                  raise SystemExit(f'artifacts without SHA-256 in {path}: {missing}')
+              rows.sort(key=lambda item: (item['group'], item['name'], item['version'], item['artifact'], item['sha256']))
+              return {
+                  'verifyMetadata': verify_metadata,
+                  'verifySignatures': verify_signatures,
+                  'artifacts': rows,
+              }
+
+          base = pathlib.Path(os.environ['RUNNER_TEMP'])
+          results = {}
+          for replica in ('a', 'b'):
+              data = canonical(base / f'source-{replica}' / 'gradle' / 'verification-metadata.xml')
+              raw = json.dumps(data, sort_keys=True, separators=(',', ':')).encode()
+              digest = hashlib.sha256(raw).hexdigest()
+              results[replica] = (data, digest)
+              (base / f'source-{replica}' / 'verification-metadata.canonical.json').write_bytes(raw + b'\n')
+          if results['a'][0] != results['b'][0]:
+              a_rows = {(x['group'],x['name'],x['version'],x['artifact'],tuple(x['sha256'])) for x in results['a'][0]['artifacts']}
+              b_rows = {(x['group'],x['name'],x['version'],x['artifact'],tuple(x['sha256'])) for x in results['b'][0]['artifacts']}
+              raise SystemExit(
+                  'clean verification metadata did not converge; '
+                  f'onlyA={sorted(a_rows-b_rows)[:20]} onlyB={sorted(b_rows-a_rows)[:20]}'
+              )
+          print(f"canonical verification metadata converged: {results['a'][1]}")
+          print(f"verified artifacts: {len(results['a'][0]['artifacts'])}")
+          PY
+
+      - name: Promote converged state to candidate working tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp "$RUNNER_TEMP/source-a/toolbox-kernel/gradle.lockfile" toolbox-kernel/gradle.lockfile
+          cp "$RUNNER_TEMP/source-a/toolbox-app/gradle.lockfile" toolbox-app/gradle.lockfile
+          cp "$RUNNER_TEMP/source-a/gradle/verification-metadata.xml" gradle/verification-metadata.xml
 
       - name: Create unreviewed dependency trust candidate
         shell: bash
@@ -96,6 +218,7 @@ jobs:
                       h.update(block)
               return h.hexdigest()
 
+          canonical_path = pathlib.Path(os.environ['RUNNER_TEMP']) / 'source-a' / 'verification-metadata.canonical.json'
           inputs = {
               path: sha256(root / path)
               for path in sorted(tracked)
@@ -107,7 +230,7 @@ jobs:
               'gradle/verification-metadata.xml': sha256(root / 'gradle/verification-metadata.xml'),
           }
           candidate = {
-              'schemaVersion': 1,
+              'schemaVersion': 2,
               'status': 'CANDIDATE_UNREVIEWED',
               'generatedFromGitSha': os.environ['GITHUB_SHA'],
               'workflowRunId': os.environ['GITHUB_RUN_ID'],
@@ -115,7 +238,18 @@ jobs:
               'generator': {
                   'gradle': '8.7',
                   'jdk': '17',
+                  'compileSdk': '35',
+                  'buildTools': '34.0.0',
+                  'androidCommandLineTools': '14742923',
                   'dependencyVerification': 'sha256',
+                  'refreshDependencies': True,
+              },
+              'convergence': {
+                  'independentCleanReplicas': 2,
+                  'sharedGradleDependencyCache': False,
+                  'lockfilesByteIdentical': True,
+                  'verificationMetadataCanonicalIdentical': True,
+                  'canonicalVerificationSha256': sha256(canonical_path),
               },
               'dependencyInputsSha256': inputs,
               'outputsSha256': outputs,
@@ -127,15 +261,22 @@ jobs:
       - name: Package dependency trust evidence
         shell: bash
         run: |
+          set -euo pipefail
           rm -rf verification/bootstrap
           mkdir -p verification/bootstrap
           cp toolbox-kernel/gradle.lockfile verification/bootstrap/toolbox-kernel.gradle.lockfile
           cp toolbox-app/gradle.lockfile verification/bootstrap/toolbox-app.gradle.lockfile
           cp gradle/verification-metadata.xml verification/bootstrap/verification-metadata.xml
           cp verification/dependency_trust_candidate.json verification/bootstrap/dependency_trust_candidate.json
+          cp "$RUNNER_TEMP/source-a/verification-metadata.canonical.json" verification/bootstrap/verification-metadata.canonical.json
           (
             cd verification/bootstrap
-            sha256sum toolbox-kernel.gradle.lockfile toolbox-app.gradle.lockfile verification-metadata.xml dependency_trust_candidate.json > SHA256SUMS
+            sha256sum \
+              toolbox-kernel.gradle.lockfile \
+              toolbox-app.gradle.lockfile \
+              verification-metadata.xml \
+              verification-metadata.canonical.json \
+              dependency_trust_candidate.json > SHA256SUMS
             sha256sum -c SHA256SUMS
           )
 
@@ -150,6 +291,7 @@ jobs:
       - name: Commit candidate trust state
         shell: bash
         run: |
+          set -euo pipefail
           git add \
             toolbox-kernel/gradle.lockfile \
             toolbox-app/gradle.lockfile \
@@ -168,5 +310,5 @@ jobs:
           test "${#staged[@]}" -gt 0
           git config user.name 'toolbox-trust-bootstrap[bot]'
           git config user.email 'toolbox-trust-bootstrap[bot]@users.noreply.github.com'
-          git commit -m 'Record dependency trust candidate'
+          git commit -m 'Record converged dependency trust candidate'
           git push origin HEAD:main

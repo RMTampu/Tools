@@ -13,6 +13,7 @@ val releaseKeyPassword = providers.environmentVariable("TOOLBOX_KEY_PASSWORD")
 android {
     namespace = "io.toolbox.app"
     compileSdk = 35
+    buildToolsVersion = "34.0.0"
 
     defaultConfig {
         applicationId = "io.toolbox.app"
@@ -114,8 +115,10 @@ dependencies {
     implementation(project(":toolbox-kernel"))
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.24")
 
+    testImplementation(platform("org.junit:junit-bom:5.10.2"))
     testImplementation(kotlin("test-junit5"))
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.2")
 
     androidTestImplementation("androidx.test:core:1.7.0")
     androidTestImplementation("androidx.test:runner:1.7.0")
