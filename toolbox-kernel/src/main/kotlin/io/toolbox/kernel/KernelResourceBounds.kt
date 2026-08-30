@@ -6,6 +6,10 @@ package io.toolbox.kernel
  * limits for one kernel instance and accidentally invalidate the foundation's resource guarantees.
  */
 internal object KernelResourceBounds {
+    internal const val MAX_IDENTIFIER_LENGTH: Int = 128
+    internal const val MAX_MODULE_NAME_LENGTH: Int = 256
+    internal const val MAX_ENTRY_POINT_LENGTH: Int = 512
+    internal const val MAX_ABI_NAME_LENGTH: Int = 64
     internal const val MAX_INSTALLED_MODULES: Int = 512
     internal const val MAX_DEPENDENCIES_PER_MODULE: Int = 128
     internal const val MAX_PROVIDED_CAPABILITIES_PER_MODULE: Int = 128
@@ -16,8 +20,16 @@ internal object KernelResourceBounds {
 }
 
 internal fun ModuleDescriptor.resourceLimitError(): String? = when {
+    id.length > KernelResourceBounds.MAX_IDENTIFIER_LENGTH ->
+        "Module id is too long: ${id.length} > ${KernelResourceBounds.MAX_IDENTIFIER_LENGTH}"
+    name.length > KernelResourceBounds.MAX_MODULE_NAME_LENGTH ->
+        "Module name is too long: ${name.length} > ${KernelResourceBounds.MAX_MODULE_NAME_LENGTH}"
+    entryPoint.length > KernelResourceBounds.MAX_ENTRY_POINT_LENGTH ->
+        "Module entry point is too long: ${entryPoint.length} > ${KernelResourceBounds.MAX_ENTRY_POINT_LENGTH}"
     supportedAbis.size > KernelResourceBounds.MAX_SUPPORTED_ABIS_PER_MODULE ->
         "Module declares too many ABIs: ${supportedAbis.size} > ${KernelResourceBounds.MAX_SUPPORTED_ABIS_PER_MODULE}"
+    supportedAbis.any { it.length > KernelResourceBounds.MAX_ABI_NAME_LENGTH } ->
+        "Module ABI name exceeds ${KernelResourceBounds.MAX_ABI_NAME_LENGTH} characters"
     dependencies.size > KernelResourceBounds.MAX_DEPENDENCIES_PER_MODULE ->
         "Module declares too many dependencies: ${dependencies.size} > ${KernelResourceBounds.MAX_DEPENDENCIES_PER_MODULE}"
     providedCapabilities.size > KernelResourceBounds.MAX_PROVIDED_CAPABILITIES_PER_MODULE ->
