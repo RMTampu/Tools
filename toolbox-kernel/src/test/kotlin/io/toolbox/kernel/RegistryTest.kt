@@ -64,6 +64,21 @@ class RegistryTest {
     }
 
     @Test
+    fun `multiple providers for same service key coexist deterministically`() {
+        val kernel = ToolBoxKernel()
+        kernel.install(module("z-provider", onLoadBlock = { it.services.register(String::class.java, "z") }))
+        kernel.install(module("a-provider", onLoadBlock = { it.services.register(String::class.java, "a") }))
+
+        assertTrue(kernel.start().isSuccess)
+        assertEquals("a", kernel.service(String::class.java)?.use { it })
+        assertEquals(2, kernel.snapshot().registeredServices)
+
+        assertTrue(kernel.stopModule("a-provider").isSuccess)
+        assertEquals("z", kernel.service(String::class.java)?.use { it })
+        assertEquals(1, kernel.snapshot().registeredServices)
+    }
+
+    @Test
     fun `module cannot consume undeclared provider service`() {
         var observed: String? = "unset"
         val kernel = ToolBoxKernel()
