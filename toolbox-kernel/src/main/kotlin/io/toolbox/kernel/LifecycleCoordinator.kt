@@ -77,8 +77,7 @@ internal class LifecycleCoordinator(
         if (handle.state != ModuleState.STARTED) {
             return KernelResult.failure(KernelError(KernelErrorCode.INVALID_STATE, "Module $moduleId is not STARTED"))
         }
-        val dependents = currentPlan().value?.dependentsOf(moduleId).orEmpty()
-            .filter { modules.stateOf(it) == ModuleState.STARTED }
+        val dependents = activeDependentsOf(moduleId)
         if (dependents.isNotEmpty()) {
             return KernelResult.failure(
                 KernelError(KernelErrorCode.CONFLICT, "Cannot stop $moduleId; active required dependents: ${dependents.joinToString()}")
@@ -122,8 +121,7 @@ internal class LifecycleCoordinator(
                 )
             )
         }
-        val plan = currentPlan()
-        val dependents = plan.value?.dependentsOf(moduleId).orEmpty()
+        val dependents = modules.removalBlockers(moduleId, activePlan)
         if (dependents.isNotEmpty()) {
             return KernelResult.failure(
                 KernelError(KernelErrorCode.CONFLICT, "Cannot uninstall $moduleId; required by ${dependents.joinToString()}")
@@ -160,7 +158,7 @@ internal class LifecycleCoordinator(
             )
         }
 
-        val dependents = activePlan?.dependentsOf(moduleId).orEmpty()
+        val dependents = activeDependentsOf(moduleId)
         if (dependents.isNotEmpty()) {
             return KernelResult.failure(
                 KernelError(KernelErrorCode.CONFLICT, "Cannot purge $moduleId; required by ${dependents.joinToString()}")
@@ -475,6 +473,15 @@ internal class LifecycleCoordinator(
             scope.close()
         }
         modules.markFailure(moduleId, expected, failure, quarantine = true)
+    }
+
+    private fun activeDependentsOf(moduleId: String): List<String> {
+        val plan = activePlan
+        return if (plan != null) {
+            plan.dependentsOf(moduleId).filter { modules.stateOf(it) == ModuleState.STARTED }
+        } else {
+            modules.potentialRequiredDependentsOf(moduleId, startedOnly = true)
+        }
     }
 
     private fun currentPlan(): KernelResult<ResolutionPlan> {
