@@ -139,7 +139,8 @@ public class ToolBoxKernel(
             verification.policyId.isBlank()
         ) {
             return@runOperation KernelResult.failure(
-                KernelError(\ernelErrorCode.SOURCE_VERIFICATION,
+                KernelError(
+                    KernelErrorCode.SOURCE_VERIFICATION,
                     verification.reason.ifBlank { "Source verification rejected ${stableSource.id}" }
                 )
             )
