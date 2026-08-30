@@ -4,7 +4,6 @@
     <application
         android:name=".ToolBoxApplication"
         android:allowBackup="false"
-        android:debuggable="false"
         android:extractNativeLibs="false"
         android:label="ToolBox"
         android:supportsRtl="true"
