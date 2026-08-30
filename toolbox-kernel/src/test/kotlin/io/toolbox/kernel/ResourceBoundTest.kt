@@ -34,9 +34,10 @@ class ResourceBoundTest {
         val result = kernel.install(candidate)
 
         assertFalse(result.isSuccess)
-        assertEquals(KernelErrorCode.INVALID_DESCRIPTOR, result.errors.single().code)
+        val error = result.errors.single()
+        assertEquals(KernelErrorCode.INVALID_DESCRIPTOR, error.code)
         assertNull(kernel.moduleState("precopy"))
-        assertTrue(result.errors.single().message.contains("too many dependencies"))
+        assertTrue(error.cause?.message?.contains("too many dependencies") == true)
     }
 
     @Test
@@ -54,9 +55,10 @@ class ResourceBoundTest {
         val result = kernel.install(candidate)
 
         assertFalse(result.isSuccess)
-        assertEquals(KernelErrorCode.INVALID_DESCRIPTOR, result.errors.single().code)
+        val error = result.errors.single()
+        assertEquals(KernelErrorCode.INVALID_DESCRIPTOR, error.code)
         assertNull(kernel.moduleState("bounded"))
-        assertTrue(result.errors.single().message.contains("name is too long"))
+        assertTrue(error.cause?.message?.contains("name is too long") == true)
     }
 
     @Test
