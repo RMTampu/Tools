@@ -7,18 +7,17 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   kernel-check:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.head_ref || github.ref_name }}
           persist-credentials: false
 
       - name: Setup Java 17
@@ -30,25 +29,34 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
         with:
-          gradle-version: '8.7'
+          gradle-version: '8.1.1'
 
-      - name: Generate kernel ABI baseline
-        run: gradle --no-daemon --warning-mode=all :toolbox-kernel:apiDump
-
-      - name: Commit ABI baseline once
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if git cat-file -e HEAD:toolbox-kernel/api/toolbox-kernel.api 2>/dev/null; then
-            echo "ABI baseline is already committed"
-            exit 0
-          fi
-          git add toolbox-kernel/api/toolbox-kernel.api
-          git -c user.name='github-actions[bot]' \
-              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
-              commit -m 'Lock kernel ABI baseline'
-          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${GITHUB_HEAD_REF}"
-
-      - name: Verify kernel
+      - name: Verify kernel and locked ABI
         run: gradle --no-daemon --warning-mode=all :toolbox-kernel:clean :toolbox-kernel:check
+
+      - name: Install Android API 30 toolchain
+        run: sdkmanager "platforms;android-30" "build-tools;35.0.0"
+
+      - name: Verify Android API 30 DEX compatibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle --no-daemon --warning-mode=all :toolbox-kernel:jar
+          KERNEL_JAR="$(find toolbox-kernel/build/libs -maxdepth 1 -type f -name 'toolbox-kernel-*.jar' | sort | head -n 1)"
+          test -n "$KERNEL_JAR"
+          if jar tf "$KERNEL_JAR" | grep -Eq '\.so$'; then
+            echo "Pure kernel artifact unexpectedly contains native libraries"
+            exit 1
+          fi
+          KOTLIN_STDLIB="$(find "$HOME/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-stdlib/1.9.24" -type f -name '*.jar' | sort | head -n 1)"
+          test -n "$KOTLIN_STDLIB"
+          DEX_OUT="$RUNNER_TEMP/toolbox-kernel-dex"
+          mkdir -p "$DEX_OUT"
+          "$ANDROID_HOME/build-tools/35.0.0/d8" \
+            --release \
+            --min-api 30 \
+            --lib "$ANDROID_HOME/platforms/android-30/android.jar" \
+            --classpath "$KOTLIN_STDLIB" \
+            --output "$DEX_OUT" \
+            "$KERNEL_JAR"
+          test -s "$DEX_OUT/classes.dex"
