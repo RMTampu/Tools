@@ -67,6 +67,35 @@ class RobustnessTest {
         assertTrue(store.get("kernel.first.session") != store.get("kernel.second.session"))
         assertEquals("none", store.get("kernel.first.operation"))
         assertEquals("none", store.get("kernel.second.operation"))
+        assertEquals(
+            KernelState.RUNNING,
+            PersistedKernelStateCodec.decode(store.get("kernel.first.record") ?: error("missing record"))?.state
+        )
+    }
+
+    @Test
+    fun `canonical state record outranks torn legacy mirrors`() {
+        val store = InMemoryKernelStateStore()
+        val first = ToolBoxKernel(KernelConfig(kernelId = "stable"), KernelPorts(stateStore = store))
+        assertTrue(first.start().isSuccess)
+        assertTrue(first.stop().isSuccess)
+        assertEquals(KernelState.STOPPED.name, store.get("kernel.stable.state"))
+
+        store.put("kernel.stable.state", KernelState.FAILED.name)
+        store.put("kernel.stable.operation", "stale-operation")
+
+        val recovered = ToolBoxKernel(KernelConfig(kernelId = "stable"), KernelPorts(stateStore = store))
+        assertEquals(KernelState.STOPPED, recovered.previousPersistedState)
+    }
+
+    @Test
+    fun `invalid canonical state record never falls back to stale legacy state`() {
+        val store = InMemoryKernelStateStore()
+        store.put("kernel.corrupt.record", "not-a-valid-record")
+        store.put("kernel.corrupt.state", KernelState.RUNNING.name)
+
+        val recovered = ToolBoxKernel(KernelConfig(kernelId = "corrupt"), KernelPorts(stateStore = store))
+        assertNull(recovered.previousPersistedState)
     }
 
     @Test
