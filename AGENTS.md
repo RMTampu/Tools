@@ -169,3 +169,11 @@ Sebuah tugas dapat dianggap selesai jika:
 - lulus pengujian yang relevan;
 - dokumentasi penting diperbarui jika keputusan arsitektur berubah;
 - tidak menutup kemampuan ekspansi ToolBox yang sudah menjadi bagian dari tujuan dasarnya.
+
+## 16. Aturan Asset — ASSET_SAFE_100
+
+Untuk setiap pekerjaan yang membaca, menambah, mengubah, menghapus, memindahkan, menghasilkan, mengemas, memvalidasi, menguji, atau mengaudit asset/resource aplikasi, agen WAJIB membaca dan mematuhi `ASSET_SAFE_100_RULES.md` sebelum melakukan pekerjaan tersebut.
+
+`ASSET_SAFE_100_RULES.md` adalah sumber aturan khusus asset untuk repository ini. Agen tidak boleh menyederhanakan, mengurangi, mengganti, atau melewati gate wajib di dalamnya hanya agar build/test menjadi PASS.
+
+Kesalahan alat seperti emulator, CI runner, compiler, toolchain, atau validator tidak boleh diklasifikasikan sebagai kegagalan asset tanpa bukti bahwa asset itu sendiri adalah penyebabnya. Status asset hanya boleh dinyatakan `ASSET_SAFE_100` apabila seluruh invariant wajib dalam `ASSET_SAFE_100_RULES.md` telah terpenuhi.
