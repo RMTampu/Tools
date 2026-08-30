@@ -15,7 +15,6 @@ allprojects {
     configurations.configureEach {
         resolutionStrategy {
             failOnVersionConflict()
-            failOnNonReproducibleResolution()
         }
     }
 }
