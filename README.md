@@ -1,24 +1,23 @@
 # ToolBox
 
-ToolBox is a small, UI-independent, extensible kernel foundation targeting Android 11 / API 30 / `arm64-v8a`-compatible JVM bytecode.
+ToolBox is an extensible Android 11 / API 30 / `arm64-v8a` workbench built around a small UI-independent kernel and an Android host application.
 
-## Kernel guarantees
+## Foundation guarantees
 
-- The kernel is the only authority that mutates module lifecycle state.
-- Module descriptors are validated and snapshotted at installation time.
-- External module sources are inspected before executable module code is loaded.
-- Android API range, actual runtime API/ABI, required capabilities, module API, and entry-point metadata are explicit compatibility contracts.
-- Required dependencies are resolved deterministically before lifecycle execution.
-- Module callbacks run outside registry locks.
-- Services, capabilities, commands, and subscriptions are owned by a module scope and are cleaned automatically.
-- Runtime installation is atomic: activation failure removes the failed registration and owned resources.
-- Lifecycle failures are isolated and returned as structured `KernelResult` values.
-- Health probing is explicit; `snapshot()` is passive and never invokes module code.
-- Public API exposure is checked with Kotlin explicit API mode.
-- Platform-specific loaders and storage implementations remain outside the pure Kotlin kernel.
+- The kernel is the authority for module lifecycle state.
+- Module descriptors are validated and snapshotted at admission time.
+- Required dependencies and capability routes are resolved before activation.
+- Module callbacks execute outside registry locks with timeout and ownership tracking.
+- Services, capabilities, commands, and subscriptions are owned by module scope and cleaned automatically.
+- Failed runtime activation is removed only when rollback cleanup is proven complete; dirty cleanup remains observable as failure/quarantine.
+- Health probing is explicit; passive snapshots never invoke module code.
+- Public kernel ABI is checked against a committed baseline.
+- Kernel JVM output is verified for Android API 30 DEX compatibility in CI.
+- Platform-specific storage, loaders, UI, and application behavior remain above the pure Kotlin kernel boundary.
 
-## Module
+## Modules
 
-- `toolbox-kernel`: public API/SPI plus the internal runtime.
+- `toolbox-kernel`: pure Kotlin core contracts and runtime.
+- `toolbox-app`: Android 11 host/application integration.
 
-See `ARCHITECTURE.md` and `ACCEPTANCE-TESTS.md` for the current foundation contract.
+See `ARCHITECTURE.md`, `ACCEPTANCE-TESTS.md`, `AGENTS.md`, and the active safety-process documents for the current contracts and verification rules.

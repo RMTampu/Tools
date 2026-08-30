@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 1,
+  "applicationId": "io.toolbox.app",
+  "debugApplicationId": "io.toolbox.app.debug",
+  "platform": {
+    "androidApi": 30,
+    "abi": "arm64-v8a",
+    "compileSdk": 35,
+    "buildTools": "34.0.0",
+    "androidCommandLineTools": "14742923",
+    "agp": "8.6.1",
+    "gradle": "8.7",
+    "jdk": "17.0.20+1",
+    "jdkRuntime": "17.0.20.1+1",
+    "kotlin": "1.9.24"
+  },
+  "runtimeEnvironmentBoundary": {
+    "included": [
+      "Android 11 / API 30 compatible implementation",
+      "primary ABI arm64-v8a",
+      "AOSP-compatible framework behavior covered by Android compatibility requirements"
+    ],
+    "notClaimedUntilScopeExpands": [
+      "OEM-specific private behavior",
+      "hardware-feature behavior not used by the bootstrap shell",
+      "WebView behavior because WebView is not used",
+      "network behavior because INTERNET permission and network code are not used",
+      "native/JNI behavior because no native payload is loaded"
+    ]
+  },
+  "domainScope": {
+    "R1": {
+      "status": "REQUIRED",
+      "reason": "Kernel bootstrap, compatibility decisions, exception and external input semantics are executable."
+    },
+    "R2": {
+      "status": "REQUIRED",
+      "reason": "Main-thread, StrictMode, memory growth, responsiveness and resource budgets apply to every process."
+    },
+    "R3": {
+      "status": "REQUIRED",
+      "reason": "Activity lifecycle, recreation, background/resume and process restart are executable."
+    },
+    "R4": {
+      "status": "CLOSED_EMPTY",
+      "reason": "Bootstrap shell contains no durable database, file, DataStore, preferences, cache source-of-truth, backup or migration path. Introduction of any persistent store invalidates this closure."
+    },
+    "R5": {
+      "status": "REQUIRED",
+      "reason": "Launcher Activity is exported and therefore an external boundary; network and dangerous permission universes are closed empty."
+    },
+    "R6": {
+      "status": "REQUIRED",
+      "reason": "All APK build, dependency, manifest, shrink, signing, install and provenance rules apply."
+    },
+    "R7": {
+      "status": "CLOSED_EMPTY",
+      "reason": "Bootstrap APK loads no native library, external plugin, dynamic code or reflection-generated entry point. Introduction of any such path invalidates this closure."
+    },
+    "R8": {
+      "status": "REQUIRED",
+      "reason": "Bootstrap UI, configuration, accessibility, startup and Android 11 ARM64 device behavior apply. WebView and hardware feature universes are closed empty."
+    },
+    "R9": {
+      "status": "REQUIRED",
+      "reason": "Final evidence, fault ownership, stale-proof and unknown closure are mandatory."
+    },
+    "ASSET": {
+      "status": "REQUIRED",
+      "reason": "Manifest/package and generated Android resources remain subject to asset/package proof even though custom app assets are intentionally minimized."
+    }
+  },
+  "forbiddenUntilScopeUpdated": [
+    "android.permission.INTERNET",
+    "android.permission.CAMERA",
+    "android.permission.RECORD_AUDIO",
+    "android.permission.ACCESS_FINE_LOCATION",
+    "android.permission.BLUETOOTH",
+    "android.permission.BLUETOOTH_ADMIN",
+    "android.webkit.WebView",
+    "android.database.sqlite.SQLiteDatabase",
+    "androidx.room",
+    "System.loadLibrary",
+    "System.load",
+    "Class.forName",
+    "DexClassLoader",
+    "PathClassLoader"
+  ],
+  "budgets": {
+    "coldStartupMs": 3500,
+    "runtimePssGrowthKb": 16384,
+    "runtimePssCeilingKb": 196608,
+    "lifecycleIterations": 20,
+    "runtimeCycles": 12,
+    "apkBytes": 67108864,
+    "apkUncompressedBytes": 134217728
+  },
+  "requiredDocuments": [
+    "AGENTS.md",
+    "AGENT_PROCEDURE_EXECUTION_RULES.md",
+    "APPLICATION_SAFE_100_PROCESS.md",
+    "APP_SAFE_R1_LOGIC_INPUT.md",
+    "APP_SAFE_R2_CONCURRENCY_RESOURCE.md",
+    "APP_SAFE_R3_LIFECYCLE_STATE_RECOVERY.md",
+    "APP_SAFE_R4_PERSISTENCE_STORAGE_VERSION.md",
+    "APP_SAFE_R5_SECURITY_NETWORK_BOUNDARY.md",
+    "APP_SAFE_R6_BUILD_DEPENDENCY_INSTALL.md",
+    "APP_SAFE_R7_NATIVE_PLUGIN_RUNTIME.md",
+    "APP_SAFE_R8_UI_DEVICE_POWER.md",
+    "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md",
+    "ASSET_SAFE_100_RULES.md",
+    "ASSET_SAFE_100_METHODS.md",
+    "ASSET_SAFE_100_PROCESS.md",
+    "PREBUILD_ASSET_GATE.md",
+    "verification/signing_contract.json"
+  ]
+}

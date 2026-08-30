@@ -216,3 +216,84 @@ ROUTE_PROOF_PASS
 ```
 
 Build tetap tertutup sampai `ROUTE_PROOF_PASS` terintegrasi dengan seluruh syarat Gate 5 dan `PREBUILD_ASSET_GATE = PASS`.
+
+## 20. Aturan Hasil Riset ASSET_SAFE_100 Terintegrasi
+
+Untuk setiap pekerjaan asset/resource yang akan masuk ke rantai build/test atau akan dinilai dengan status `ASSET_SAFE_100`, agen WAJIB membaca dan mematuhi:
+
+- `ASSET_SAFE_100_METHODS.md`;
+- `ASSET_SAFE_100_PROCESS.md`.
+
+`ASSET_SAFE_100_METHODS.md` hanya memuat metode hasil riset yang sudah diterima setelah penyaringan, penggabungan metode yang tumpang tindih, dominance filtering, dan audit kontra terhadap aturan aktif. Metode yang ditolak, lebih lemah, redundant, atau tidak menambah jaminan tidak boleh dipakai untuk menggantikan metode aktif.
+
+`ASSET_SAFE_100_PROCESS.md` memetakan seluruh metode tersebut ke Gate 0–9 pada `PREBUILD_ASSET_GATE.md`. Dokumen tersebut tidak boleh digunakan untuk membuat urutan paralel atau melewati build boundary yang sudah ditetapkan.
+
+Final status `ASSET_SAFE_100` hanya boleh diberikan jika seluruh syarat dari:
+
+```text
+ASSET_SAFE_100_RULES.md
+AND ASSET_SAFE_100_METHODS.md
+AND ASSET_SAFE_100_PROCESS.md
+```
+
+terpenuhi untuk scope yang berlaku.
+
+Jika route/reference/resolution termasuk scope, final status juga memerlukan `ROUTE_PROOF_PASS` sesuai `ASSET_ROUTE_PROOF_PROCESS.md`.
+
+Build tetap dilarang sampai seluruh bagian prebuild pada `ASSET_SAFE_100_PROCESS.md` dan seluruh Gate 0–5 pada `PREBUILD_ASSET_GATE.md` selesai serta PASS.
+
+## 21. Rantai Wajib APPLICATION_SAFE_100 — R1 sampai R9
+
+Untuk setiap pekerjaan aplikasi yang akan dibangun, diuji, diaudit, atau dinilai bebas dari kelas crash/hang/bug/error yang termasuk closed application scope, agen WAJIB membaca dan menjalankan `APPLICATION_SAFE_100_PROCESS.md`.
+
+Domain metode yang menjadi sumber wajib adalah:
+
+1. `APP_SAFE_R1_LOGIC_INPUT.md`
+2. `APP_SAFE_R2_CONCURRENCY_RESOURCE.md`
+3. `APP_SAFE_R3_LIFECYCLE_STATE_RECOVERY.md`
+4. `APP_SAFE_R4_PERSISTENCE_STORAGE_VERSION.md`
+5. `APP_SAFE_R5_SECURITY_NETWORK_BOUNDARY.md`
+6. `APP_SAFE_R6_BUILD_DEPENDENCY_INSTALL.md`
+7. `APP_SAFE_R7_NATIVE_PLUGIN_RUNTIME.md`
+8. `APP_SAFE_R8_UI_DEVICE_POWER.md`
+9. `APP_SAFE_R9_VERIFICATION_COMPLETENESS.md`
+
+Urutan ownership dan final closure adalah:
+
+```text
+R1 -> R2 -> R3 -> R4 -> R5 -> R6 -> R7 -> R8 -> R9
+```
+
+Urutan operasional lengkap, termasuk pembagian proof prebuild, build boundary, runtime proof, cross-domain challenge, dan final acceptance, hanya boleh mengikuti `APPLICATION_SAFE_100_PROCESS.md`.
+
+**APK / production build / final resource packaging DILARANG DIMULAI sebelum `APPLICATION_PREBUILD_PASS`.**
+
+`APPLICATION_PREBUILD_PASS` tidak boleh diberikan sebelum seluruh prebuild closure R1–R8 selesai dan PASS. Bila asset/resource termasuk scope, `PREBUILD_ASSET_GATE = PASS` juga wajib sebelum application build boundary dibuka.
+
+Build aplikasi tetap hanya melalui GitHub Actions.
+
+Final status `APPLICATION_SAFE_100` hanya boleh diberikan jika:
+
+```text
+APP_SAFE_R1_PASS
+AND APP_SAFE_R2_PASS
+AND APP_SAFE_R3_PASS
+AND APP_SAFE_R4_PASS
+AND APP_SAFE_R5_PASS
+AND APP_SAFE_R6_PASS
+AND APP_SAFE_R7_PASS
+AND APP_SAFE_R8_PASS
+AND APP_SAFE_R9_PASS
+AND REQUIRED_ASSET_SAFE_100_IF_APPLICABLE
+AND UNKNOWN = 0
+AND MISSING = 0
+AND UNPROVEN = 0
+AND SKIPPED = 0
+AND INDETERMINATE = 0
+AND STALE_EVIDENCE = 0
+AND FAULT_ESCAPE = 0
+```
+
+Agen DILARANG mengurangi salah satu domain R1–R9, mengubah urutan final closure, menggunakan keberhasilan build sebagai pengganti proof, atau menganggap R9 PASS bila salah satu domain R1–R8 masih tidak lengkap.
+
+Jika kapasitas context/memory tidak cukup untuk memuat seluruh R1–R9 sekaligus, agen wajib menjalankan domain/sub-gate secara bertahap sesuai `AGENT_PROCEDURE_EXECUTION_RULES.md`; ukuran unit kerja boleh diperkecil tetapi aturan, coverage, fault model, proof, dan evidence tidak boleh dikurangi.

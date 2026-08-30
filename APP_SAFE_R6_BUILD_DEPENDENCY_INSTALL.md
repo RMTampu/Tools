@@ -1,0 +1,149 @@
+# APP_SAFE_R6_BUILD_DEPENDENCY_INSTALL.md
+
+## 1. Status
+
+Korpus metode aktif untuk **R6 — Build, Dependency, Manifest, Shrinking & Installation Safety** dalam framework `APPLICATION_SAFE_100`.
+
+Status riset: `PRACTICAL_SATURATION` terhadap ruang metode yang telah disapu.
+
+---
+
+## 2. Scope
+
+R6 menutup:
+
+- build-input and toolchain integrity;
+- dependency resolution and compatibility;
+- manifest merging and final manifest semantics;
+- code/resource shrinking interaction;
+- reflection/dynamic reachability handoff to R7;
+- signing identity and APK verification;
+- package/variant/ABI/sdk contract;
+- installation/update compatibility;
+- reproducibility/provenance;
+- CI artifact-to-source binding.
+
+Asset package proof tetap mengikuti `ASSET_SAFE_100`; native runtime semantics dimiliki R7.
+
+---
+
+## 3. Metode Aktif
+
+### R6-M01 — Closed Build-Input Universe
+Inventaris seluruh source, generated source, asset/resource, Gradle file, plugin, compiler, JDK, Android Gradle Plugin, SDK/Build Tools, NDK bila ada, environment variable yang memengaruhi output, dependency repository, signing config, keep rule, manifest fragment, and CI input.
+
+### R6-M02 — Toolchain / Version Pinning
+Build final harus memakai toolchain versions yang eksplisit dan kompatibel. Floating toolchain/dynamic version yang dapat mengubah artifact tanpa perubahan source dilarang untuk jalur final.
+
+### R6-M03 — Dependency Locking & Transitive Closure
+Seluruh resolved direct + transitive dependency harus mempunyai exact version/identity. Lock state mismatch, extra unexpected dependency, or missing locked dependency = fail-closed.
+
+### R6-M04 — Dependency Integrity Verification
+Gunakan checksum/signature/verification metadata atau mekanisme setara untuk membuktikan binary/source dependency yang diambil sama dengan yang diharapkan.
+
+### R6-M05 — Dependency Compatibility Contract
+Setiap dependency wajib kompatibel dengan Android 11/API30, JVM/bytecode, min/target SDK, arm64/native needs, public API contract, R8 behavior, and required runtime. Upgrade dependency invalidates affected proof.
+
+### R6-M06 — Hermeticity / External Influence Closure
+Final build harus mengurangi atau menutup undeclared network/time/user-home/global cache/input influence. Bila hermetic full tidak feasible, seluruh external influence yang dapat mengubah output harus dideklarasikan dan diverifikasi.
+
+### R6-M07 — Reproducible / Deterministic Build Comparison
+Untuk build yang diklaim reproducible, rebuild dari input identik dan bandingkan bitwise output. Jika format/signing memasukkan expected nondeterminism, normalize only fields yang contract membuktikan non-semantic lalu compare semantic artifact model.
+
+### R6-M08 — Build Provenance / Artifact Attestation
+Simpan source revision, builder/workflow identity, resolved materials, toolchain, parameters, timestamps, and artifact digests sehingga final APK dapat ditelusuri ke build invocation yang sah.
+
+### R6-M09 — Clean-Build / Cache-Contamination Challenge
+Bandingkan clean environment dengan cached/incremental build. Output semantic tidak boleh bergantung pada stale generated file, local untracked artifact, atau cache yang tidak menjadi declared input.
+
+### R6-M10 — Variant / Flavor / Build-Type Matrix Closure
+Inventaris seluruh variant yang didukung. Manifest, resources, dependencies, BuildConfig, proguard rules, native libs, signing, and application ID untuk variant final harus sesuai contract.
+
+### R6-M11 — Manifest Merge Semantic Oracle
+Periksa **final merged manifest**, bukan hanya source fragments. Validate component/exported status, permission, uses-feature, provider authority, intent filter, application flags, min/target SDK, network config, metadata, service/receiver attributes, and unintended override/merge marker.
+
+### R6-M12 — Static Build/Manifest Lint & Policy Gate
+Lint/build analysis wajib fail pada class finding yang ditetapkan critical oleh contract. Suppression harus spesifik, terdokumentasi, dan tidak boleh menjadi blanket bypass.
+
+### R6-M13 — R8/Code-Shrinking Reachability Closure
+Untuk release shrink/minify, buktikan code yang dipanggil secara direct, reflection, serialization, JNI, manifest, XML/onClick-like reference, dependency injection, plugin entry, and generated adapter tidak terhapus/diubah secara salah.
+
+### R6-M14 — Keep-Rule Minimality & Mutation Verification
+Keep rule harus cukup untuk preserve required behavior tetapi tidak sekadar `-keep **` untuk menyembunyikan reachability problem. Mutation remove/narrow keep rules and release runtime tests harus menangkap missing code.
+
+### R6-M15 — Obfuscation Mapping / Retrace Evidence
+Simpan mapping/retrace metadata yang tepat untuk artifact final. Crash evidence final harus dapat dikembalikan ke source revision yang sesuai.
+
+### R6-M16 — Final APK Structural / Semantic Verification
+Periksa APK final: package/applicationId, manifest, sdk levels, classes/dex, native ABI set, resource/asset presence, compression/alignment where relevant, versionCode/versionName, signing certificates, and forbidden unexpected payload.
+
+### R6-M17 — Signing Identity / Signature Verification
+Final artifact harus diverifikasi dengan `apksigner` atau equivalent terhadap supported platform range. Certificate identity/lineage harus sesuai release contract. Modifikasi APK setelah signing dilarang.
+
+### R6-M18 — Install / Upgrade / Reinstall Matrix
+Uji install clean, upgrade dari seluruh supported installed versions, reinstall same version where relevant, data preservation, signature continuity, versionCode rules, failure behavior, and package manager acceptance pada Android 11 ARM64.
+
+### R6-M19 — Failed / Interrupted Update Semantics
+Jika aplikasi memiliki self-update/package update workflow, uji download/package corruption, insufficient storage, signature mismatch, interrupted staging, install rejection, and rollback/fallback. R3/R4 own internal state recovery; R6 owns package/install transaction.
+
+### R6-M20 — Supply-Chain Inventory / SBOM
+Buat machine-readable dependency/material inventory yang mengikat direct/transitive components ke final build. Vulnerability status adalah security maintenance evidence, tetapi presence/identity closure tetap wajib walau tidak ada known CVE.
+
+### R6-M21 — CI Workflow Integrity & Required Gate Binding
+Final artifact hanya sah jika berasal dari workflow/revision yang diwajibkan, seluruh mandatory gate dijalankan, no continue-on-error bypass, and artifact upload occurs only after validation.
+
+### R6-M22 — Build Mutation / Defeater Testing
+Inject wrong dependency, unlocked version, modified artifact checksum, manifest exported override, missing keep rule, wrong signing cert, extra ABI, wrong minSdk/target, stale generated file, and post-sign modification. Gate harus mendeteksi semua meaningful mutation.
+
+### R6-M23 — Change-Impact Invalidation
+Perubahan build script, dependency lock, repository, toolchain, plugin, manifest, keep rule, signing, CI workflow, variant, or package policy invalidates corresponding evidence and downstream artifact proof.
+
+---
+
+## 4. Fault Model Minimum
+
+```text
+UNDECLARED_BUILD_INPUT
+TOOLCHAIN_DRIFT
+DEPENDENCY_VERSION_DRIFT
+DEPENDENCY_INTEGRITY_MISMATCH
+TRANSITIVE_DEPENDENCY_UNKNOWN
+DEPENDENCY_PLATFORM_INCOMPATIBILITY
+NON_HERMETIC_OUTPUT_DRIFT
+STALE_CACHE_GENERATED_OUTPUT
+WRONG_VARIANT_CONFIGURATION
+MANIFEST_MERGE_OVERRIDE_ERROR
+UNINTENDED_EXPORTED_COMPONENT
+R8_REQUIRED_CODE_REMOVED
+R8_REFLECTION_BREAKAGE
+MISSING_MAPPING_RETRACE
+WRONG_APK_PACKAGE_METADATA
+WRONG_ABI_PACKAGING
+SIGNATURE_INVALID
+SIGNING_IDENTITY_MISMATCH
+UPGRADE_INSTALL_REJECTED
+UPDATE_DATA_COMPATIBILITY_BREAK
+INTERRUPTED_UPDATE_INVALID_STATE
+CI_GATE_BYPASS
+ARTIFACT_SOURCE_PROVENANCE_MISMATCH
+```
+
+---
+
+## 5. PASS Formula
+
+`APP_SAFE_R6_PASS` hanya jika:
+
+```text
+UNDECLARED_BUILD_INPUT = 0
+UNPINNED_REQUIRED_TOOLCHAIN = 0
+UNLOCKED_REQUIRED_DEPENDENCY = 0
+UNVERIFIED_DEPENDENCY_IDENTITY = 0
+FINAL_MANIFEST_UNKNOWN = 0
+UNPROVEN_SHRINK_REACHABILITY = 0
+SIGNING_IDENTITY_UNKNOWN = 0
+SUPPORTED_INSTALL_PATH_UNPROVEN = 0
+ARTIFACT_PROVENANCE_UNKNOWN = 0
+BUILD_FAULT_ESCAPE = 0
+STALE_EVIDENCE = 0
+```

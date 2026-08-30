@@ -1,0 +1,26 @@
+{
+  "dependencyInputsSha256": {
+    ".github/workflows/dependency-bootstrap.yml": "fd94e196145166b0bea58860b071e0eff6c30a6d3ade81b7afd13fd473df2a49",
+    "build.gradle.kts": "2e1a6184be5d2b5e406322b461dc7d1c776d4fb3fbc1db9f215f085aeda84c57",
+    "gradle.properties": "6874547b8a17f26b34852aeaca97d35f22e71188b1e576c91428ffc20efc1be9",
+    "settings.gradle.kts": "b01c7668c47966f1dff519d96353e6f2692a0b51c5abb6275beab4d02a12344a",
+    "toolbox-app/build.gradle.kts": "9f077cf1395aeab5f45f7ddbac614a484504a2e47f01e5f6383b6ea50360c200",
+    "toolbox-kernel/build.gradle.kts": "5495798436eea1b0768f287042566cf5b81cd113bc77e4b07c088bb527a641a2",
+    "verification/application_scope.json": "5ffc167f8d5dee78da6371e6daafcda90473fc007049fe7badb2af0b6969a5ef"
+  },
+  "generatedFromGitSha": "13928eb3e57ef2e40fb711af5afbb69193113b17",
+  "generator": {
+    "dependencyVerification": "sha256",
+    "gradle": "8.7",
+    "jdk": "17"
+  },
+  "outputsSha256": {
+    "gradle/verification-metadata.xml": "7d1ebd3d53d1b3715783f022a238c8d97ab52f63919ebfd9b80cd6c8329a88a3",
+    "toolbox-app/gradle.lockfile": "325e1a544d865f35fb05a3fa048ea0740559868f6ff57a283e6d1a2353501ea9",
+    "toolbox-kernel/gradle.lockfile": "1086872557691f340196c827c192694167809ca65cc92eb00300b45f943d1f81"
+  },
+  "schemaVersion": 1,
+  "status": "CANDIDATE_UNREVIEWED",
+  "workflowRunAttempt": "1",
+  "workflowRunId": "33334994542"
+}

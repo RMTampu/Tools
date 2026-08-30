@@ -29,10 +29,10 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
         with:
-          gradle-version: '8.1.1'
+          gradle-version: '8.7'
 
       - name: Verify kernel and locked ABI
-        run: gradle --no-daemon --warning-mode=all :toolbox-kernel:clean :toolbox-kernel:check
+        run: gradle --no-daemon --warning-mode=all --dependency-verification strict :toolbox-kernel:clean :toolbox-kernel:check
 
       - name: Install Android API 30 toolchain
         shell: bash
@@ -50,7 +50,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gradle --no-daemon --warning-mode=all :toolbox-kernel:jar
+          gradle --no-daemon --warning-mode=all --dependency-verification strict :toolbox-kernel:jar
           KERNEL_JAR="$(find toolbox-kernel/build/libs -maxdepth 1 -type f -name 'toolbox-kernel-*.jar' | sort | head -n 1)"
           test -n "$KERNEL_JAR"
           if jar tf "$KERNEL_JAR" | grep -Eq '\.so$'; then
