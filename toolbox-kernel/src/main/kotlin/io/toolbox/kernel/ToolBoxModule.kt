@@ -17,5 +17,6 @@ data class KernelContext(
     val services: ServiceRegistry,
     val capabilities: CapabilityRegistry,
     val events: EventBus,
-    val commands: CommandBus
+    val commands: CommandBus,
+    val ports: KernelPorts
 )
