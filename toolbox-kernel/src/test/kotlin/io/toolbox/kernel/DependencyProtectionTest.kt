@@ -85,4 +85,74 @@ class DependencyProtectionTest {
         assertEquals(ModuleState.REGISTERED, kernel.moduleState("provider-b"))
         assertEquals(ModuleState.REGISTERED, kernel.moduleState("consumer"))
     }
+
+    @Test
+    fun `inactive capability consumer blocks removal when only alternative provider is unresolved`() {
+        val storage = CapabilityDeclaration("storage", ModuleVersion.parse("1.0.0"))
+        val kernel = ToolBoxKernel()
+        assertTrue(kernel.install(module("provider-good", providedCapabilities = setOf(storage))).isSuccess)
+        assertTrue(
+            kernel.install(
+                module(
+                    "provider-broken",
+                    dependencies = setOf(ModuleDependency.required("missing")),
+                    providedCapabilities = setOf(storage)
+                )
+            ).isSuccess
+        )
+        assertTrue(
+            kernel.install(
+                module(
+                    "consumer",
+                    requiredCapabilities = setOf(CapabilityRequirement.required("storage"))
+                )
+            ).isSuccess
+        )
+
+        val result = kernel.uninstall("provider-good")
+
+        assertFalse(result.isSuccess)
+        assertEquals(KernelErrorCode.CONFLICT, result.errors.first().code)
+        assertEquals(ModuleState.REGISTERED, kernel.moduleState("provider-good"))
+    }
+
+    @Test
+    fun `active capability consumer keeps its bound provider even when alternative exists`() {
+        val storage = CapabilityDeclaration("storage", ModuleVersion.parse("1.0.0"))
+        val kernel = ToolBoxKernel()
+        assertTrue(
+            kernel.install(
+                module(
+                    "provider-a",
+                    providedCapabilities = setOf(storage),
+                    onLoadBlock = { it.capabilities.register(capability("storage", "1.0.0", "provider-a")) }
+                )
+            ).isSuccess
+        )
+        assertTrue(
+            kernel.install(
+                module(
+                    "provider-b",
+                    providedCapabilities = setOf(storage),
+                    onLoadBlock = { it.capabilities.register(capability("storage", "1.0.0", "provider-b")) }
+                )
+            ).isSuccess
+        )
+        assertTrue(
+            kernel.install(
+                module(
+                    "consumer",
+                    requiredCapabilities = setOf(CapabilityRequirement.required("storage"))
+                )
+            ).isSuccess
+        )
+        assertTrue(kernel.start().isSuccess)
+
+        val result = kernel.uninstall("provider-a")
+
+        assertFalse(result.isSuccess)
+        assertEquals(KernelErrorCode.CONFLICT, result.errors.first().code)
+        assertEquals(ModuleState.STARTED, kernel.moduleState("provider-a"))
+        assertEquals(ModuleState.STARTED, kernel.moduleState("consumer"))
+    }
 }
