@@ -247,10 +247,12 @@ internal class ModuleRegistry(
                 .toList()
 
             var selected: Pair<Record, ResolutionPlan>? = null
-            candidates.forEach { candidate ->
-                if (selected != null) return@forEach
+            for (candidate in candidates) {
                 when (val attempt = resolveModule(candidate.first.descriptor.id, nextPath)) {
-                    is ResolveAttempt.Success -> selected = candidate.first to attempt.plan
+                    is ResolveAttempt.Success -> {
+                        selected = candidate.first to attempt.plan
+                        break
+                    }
                     is ResolveAttempt.Failure -> Unit
                 }
             }
@@ -267,8 +269,8 @@ internal class ModuleRegistry(
                 return@forEach
             }
 
-            val provider = selected!!.first.descriptor.id
-            plan = plan.merge(selected!!.second)
+            val provider = selected.first.descriptor.id
+            plan = plan.merge(selected.second)
             plan = plan.withCapabilityBinding(moduleId, requirement.id, provider)
             if (requirement.kind == DependencyKind.REQUIRED) {
                 plan = plan.withHardDependency(moduleId, provider)
