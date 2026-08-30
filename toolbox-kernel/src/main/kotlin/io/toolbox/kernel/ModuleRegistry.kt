@@ -100,6 +100,10 @@ internal class ModuleRegistry(
     internal fun transition(moduleId: String, expected: Set<ModuleState>, next: ModuleState): Boolean = synchronized(lock) {
         val record = records[moduleId] ?: return@synchronized false
         if (record.state !in expected) return@synchronized false
+        if (!ModuleStateMachine.canTransition(record.state, next)) return@synchronized false
+        if (record.state == ModuleState.FAILED && next == ModuleState.REGISTERED && !ModuleStateMachine.canRetry(record.lastFailure)) {
+            return@synchronized false
+        }
         record.state = next
         onMutation()
         true
@@ -113,15 +117,24 @@ internal class ModuleRegistry(
     ): Boolean = synchronized(lock) {
         val record = records[moduleId] ?: return@synchronized false
         if (record.state !in expected) return@synchronized false
+        val next = if (quarantine) ModuleState.QUARANTINED else ModuleState.FAILED
+        if (!ModuleStateMachine.canTransition(record.state, next)) return@synchronized false
         record.lastFailure = failure
-        record.state = if (quarantine) ModuleState.QUARANTINED else ModuleState.FAILED
+        record.state = next
         onMutation()
         true
     }
 
     internal fun recordFailure(moduleId: String, failure: ModuleFailure): Unit = synchronized(lock) {
-        records[moduleId]?.let {
-            it.lastFailure = failure
+        records[moduleId]?.let { record ->
+            record.lastFailure = failure
+            if (
+                record.state == ModuleState.STOPPED &&
+                failure.phase in setOf(LifecyclePhase.STOP, LifecyclePhase.UNLOAD) &&
+                ModuleStateMachine.canTransition(ModuleState.STOPPED, ModuleState.FAILED)
+            ) {
+                record.state = ModuleState.FAILED
+            }
             onMutation()
         }
     }
