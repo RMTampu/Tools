@@ -2,6 +2,7 @@ package io.toolbox.kernel
 
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicBoolean
 
 internal data class OwnedValue<T>(
     val owner: ResourceOwner,
@@ -180,7 +181,11 @@ internal class EventBus(
     private val mutationGuard: KernelMutationGuard,
     private val onMutation: () -> Unit
 ) {
-    private data class Listener(val owner: ResourceOwner, val callback: (KernelEvent) -> Unit)
+    private data class Listener(
+        val owner: ResourceOwner,
+        val callback: (KernelEvent) -> Unit,
+        val inFlight: AtomicBoolean = AtomicBoolean(false)
+    )
 
     private val listeners = ConcurrentHashMap<String, CopyOnWriteArrayList<Listener>>()
 
@@ -189,6 +194,18 @@ internal class EventBus(
         val record = Listener(owner, listener)
         val bucket = owner.withContextUse {
             mutationGuard.mutate {
+                val limits = supervisor.limits
+                val totalSubscriptions = listeners.values.sumOf { it.size }
+                check(totalSubscriptions < limits.maxEventSubscriptions) {
+                    "Event subscription capacity exhausted (${limits.maxEventSubscriptions})"
+                }
+                val ownerSubscriptions = listeners.values.sumOf { bucket ->
+                    bucket.count { it.owner.token == owner.token }
+                }
+                check(ownerSubscriptions < limits.maxEventSubscriptionsPerOwner) {
+                    "Event subscription quota exhausted for ${owner.token.id}#${owner.token.generation} " +
+                        "(${limits.maxEventSubscriptionsPerOwner})"
+                }
                 val current = listeners.computeIfAbsent(topic) { CopyOnWriteArrayList() }
                 current += record
                 onMutation()
@@ -206,31 +223,56 @@ internal class EventBus(
 
     internal fun publish(event: KernelEvent): Unit {
         requireValidTopic(event.topic)
-        deliver(listeners[event.topic], event)
-        if (event.topic != WILDCARD) deliver(listeners[WILDCARD], event)
+        val startedAtNanos = System.nanoTime()
+        deliver(listeners[event.topic], event, startedAtNanos)
+        if (event.topic != WILDCARD) deliver(listeners[WILDCARD], event, startedAtNanos)
     }
 
-    private fun deliver(bucket: List<Listener>?, event: KernelEvent): Unit {
-        bucket?.forEach { record ->
-            val permit = record.owner.tryAcquireInvocation() ?: return@forEach
-            val outcome = supervisor.execute(
-                "event:${record.owner.token.id}:${event.topic}",
-                listenerTimeoutMillis
+    private fun deliver(bucket: List<Listener>?, event: KernelEvent, startedAtNanos: Long): Unit {
+        val records = bucket ?: return
+        for (record in records) {
+            val remaining = remainingMillis(startedAtNanos, supervisor.limits.eventDispatchTimeoutMillis)
+            if (remaining <= 0) {
+                logger.warn("Event dispatch deadline exhausted for ${event.topic}")
+                return
+            }
+            if (!record.inFlight.compareAndSet(false, true)) {
+                logger.warn(
+                    "Event listener owned by ${record.owner.token.id} is still running; skipped reentry for ${event.topic}"
+                )
+                continue
+            }
+            val permit = record.owner.tryAcquireInvocation()
+            if (permit == null) {
+                record.inFlight.set(false)
+                continue
+            }
+            val outcome = supervisor.executeExtension(
+                owner = record.owner.token,
+                taskName = "event:${record.owner.token.id}:${event.topic}",
+                timeoutMillis = minOf(listenerTimeoutMillis, remaining)
             ) {
                 try {
                     record.callback(event)
                 } finally {
                     permit.close()
+                    record.inFlight.set(false)
                 }
             }
             when (outcome) {
                 is CallbackOutcome.Success -> Unit
                 is CallbackOutcome.Failure -> {
                     permit.close()
+                    record.inFlight.set(false)
                     logger.warn("Event listener owned by ${record.owner.token.id} failed for ${event.topic}", outcome.error)
                 }
                 is CallbackOutcome.TimedOut -> {
-                    record.owner.trackTimedOut(outcome.completion)
+                    if (outcome.completion.isComplete) {
+                        permit.close()
+                        record.inFlight.set(false)
+                    } else {
+                        record.owner.trackTimedOut(outcome.completion)
+                    }
                     logger.warn(
                         "Event listener owned by ${record.owner.token.id} timed out for ${event.topic}",
                         outcome.error
@@ -266,7 +308,11 @@ internal class CommandBus(
     private val mutationGuard: KernelMutationGuard,
     private val onMutation: () -> Unit
 ) {
-    private data class Handler(val owner: ResourceOwner, val callback: (KernelCommand) -> CommandResult)
+    private data class Handler(
+        val owner: ResourceOwner,
+        val callback: (KernelCommand) -> CommandResult,
+        val inFlight: AtomicBoolean = AtomicBoolean(false)
+    )
 
     private val handlers = ConcurrentHashMap<String, Handler>()
 
@@ -307,23 +353,40 @@ internal class CommandBus(
             if (!ownerAllowed(handler.owner.token)) {
                 return CommandResult.failure(IllegalStateException("Command $commandName is not visible to this caller"))
             }
+            if (!handler.inFlight.compareAndSet(false, true)) {
+                return CommandResult.failure(IllegalStateException("Command $commandName already has an invocation in flight"))
+            }
             val permit = handler.owner.tryAcquireInvocation()
-                ?: return CommandResult.failure(IllegalStateException("Command $commandName is not active"))
-            val outcome = supervisor.execute("command:${handler.owner.token.id}:$commandName", timeoutMillis) {
+            if (permit == null) {
+                handler.inFlight.set(false)
+                return CommandResult.failure(IllegalStateException("Command $commandName is not active"))
+            }
+            val outcome = supervisor.executeExtension(
+                owner = handler.owner.token,
+                taskName = "command:${handler.owner.token.id}:$commandName",
+                timeoutMillis = timeoutMillis
+            ) {
                 try {
                     handler.callback(command)
                 } finally {
                     permit.close()
+                    handler.inFlight.set(false)
                 }
             }
             when (outcome) {
                 is CallbackOutcome.Success -> outcome.value
                 is CallbackOutcome.Failure -> {
                     permit.close()
+                    handler.inFlight.set(false)
                     CommandResult.failure(outcome.error)
                 }
                 is CallbackOutcome.TimedOut -> {
-                    handler.owner.trackTimedOut(outcome.completion)
+                    if (outcome.completion.isComplete) {
+                        permit.close()
+                        handler.inFlight.set(false)
+                    } else {
+                        handler.owner.trackTimedOut(outcome.completion)
+                    }
                     CommandResult.failure(outcome.error)
                 }
             }
