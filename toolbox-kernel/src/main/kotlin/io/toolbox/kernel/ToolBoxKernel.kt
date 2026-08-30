@@ -492,7 +492,18 @@ public class ToolBoxKernel(
     )
 
     private fun readPersistedState(): KernelState? = try {
-        ports.stateStore.get(statePrefix + "state")?.let(KernelState::valueOf)
+        val canonical = ports.stateStore.get(statePrefix + "record")
+        if (canonical != null) {
+            val decoded = PersistedKernelStateCodec.decode(canonical)
+            if (decoded == null) {
+                safeLogger.warn("Canonical kernel state record is invalid for ${config.kernelId}")
+                null
+            } else {
+                decoded.state
+            }
+        } else {
+            ports.stateStore.get(statePrefix + "state")?.let(KernelState::valueOf)
+        }
     } catch (error: Throwable) {
         safeLogger.warn("Unable to read previous kernel state", error)
         null
@@ -500,10 +511,19 @@ public class ToolBoxKernel(
 
     private fun persistState(newState: KernelState): Unit {
         try {
+            val updatedAt = safeClock.nowMillis()
+            val operation = currentOperation.get()
+            val record = PersistedKernelStateRecord(
+                state = newState,
+                sessionId = sessionId,
+                updatedAtMillis = updatedAt,
+                operation = operation
+            )
+            ports.stateStore.put(statePrefix + "record", PersistedKernelStateCodec.encode(record))
             ports.stateStore.put(statePrefix + "state", newState.name)
             ports.stateStore.put(statePrefix + "session", sessionId)
-            ports.stateStore.put(statePrefix + "updatedAt", safeClock.nowMillis().toString())
-            ports.stateStore.put(statePrefix + "operation", currentOperation.get() ?: "none")
+            ports.stateStore.put(statePrefix + "updatedAt", updatedAt.toString())
+            ports.stateStore.put(statePrefix + "operation", operation ?: "none")
         } catch (error: Throwable) {
             safeLogger.warn("Unable to persist kernel state", error)
         }
@@ -520,6 +540,7 @@ public class ToolBoxKernel(
             )
         }
         currentOperation.set(name)
+        persistState(state)
         return try {
             block()
         } catch (error: Throwable) {
