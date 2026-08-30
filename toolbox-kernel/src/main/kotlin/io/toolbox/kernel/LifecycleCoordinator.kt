@@ -220,12 +220,27 @@ internal class LifecycleCoordinator(
                 return@forEach
             }
             val scope = scopes[descriptor.id]
-            val permit = scope?.lease?.tryAcquireInvocation()
+            if (scope == null) {
+                modules.setHealth(descriptor.id, HealthStatus.failed("Module scope is unavailable", clock.nowMillis()))
+                return@forEach
+            }
+            if (scope.lease.hasOutstandingCallbacks()) {
+                modules.setHealth(
+                    descriptor.id,
+                    HealthStatus.failed("Timed-out callback is still running", clock.nowMillis())
+                )
+                return@forEach
+            }
+            val permit = scope.lease.tryAcquireInvocation()
             if (permit == null) {
                 modules.setHealth(descriptor.id, HealthStatus.failed("Module invocation lease is unavailable", clock.nowMillis()))
                 return@forEach
             }
-            val outcome = supervisor.execute("module:${descriptor.id}:health", config.healthTimeoutMillis) {
+            val outcome = supervisor.executeExtension(
+                owner = scope.lease.token,
+                taskName = "module:${descriptor.id}:health",
+                timeoutMillis = config.healthTimeoutMillis
+            ) {
                 try {
                     handle.module.healthCheck()
                 } finally {
@@ -241,7 +256,11 @@ internal class LifecycleCoordinator(
                     HealthStatus.failed(outcome.error.message ?: outcome.error::class.java.simpleName, clock.nowMillis(), outcome.error)
                 }
                 is CallbackOutcome.TimedOut -> {
-                    scope.lease.trackTimedOut(outcome.completion)
+                    if (outcome.completion.isComplete) {
+                        permit.close()
+                    } else {
+                        scope.lease.trackTimedOut(outcome.completion)
+                    }
                     val failure = ModuleFailure(descriptor.id, LifecyclePhase.HEALTH, outcome.error, ModuleState.STARTED)
                     modules.recordFailure(descriptor.id, failure)
                     HealthStatus.failed(outcome.error.message ?: "Health probe timed out", clock.nowMillis(), outcome.error)
