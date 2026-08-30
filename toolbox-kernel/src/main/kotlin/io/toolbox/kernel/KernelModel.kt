@@ -21,6 +21,7 @@ enum class ModuleState {
 data class KernelConfig(
     val name: String = "ToolBox",
     val version: String = "0.1.0",
+    val moduleApiVersion: Int = 1,
     val androidApiBaseline: Int = 30,
     val architectureBaseline: String = "arm64-v8a"
 )
@@ -30,7 +31,25 @@ data class ModuleDescriptor(
     val name: String,
     val version: String,
     val apiVersion: Int = 1,
+    val minAndroidApi: Int = 30,
+    val supportedArchitectures: Set<String> = setOf("arm64-v8a"),
     val dependencies: Set<String> = emptySet()
+)
+
+data class CompatibilityResult(
+    val compatible: Boolean,
+    val reason: String = if (compatible) "Compatible" else "Incompatible"
+)
+
+data class AdmissionDecision(
+    val allowed: Boolean,
+    val reason: String = if (allowed) "Allowed" else "Rejected"
+)
+
+data class ModuleSource(
+    val id: String,
+    val location: String,
+    val metadata: Map<String, String> = emptyMap()
 )
 
 data class HealthStatus(
