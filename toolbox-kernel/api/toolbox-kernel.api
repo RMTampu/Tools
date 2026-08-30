@@ -1,0 +1,833 @@
+public final class io/toolbox/kernel/AdmissionDecision {
+	public fun <init> (ZLjava/lang/String;)V
+	public synthetic fun <init> (ZLjava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Z
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (ZLjava/lang/String;)Lio/toolbox/kernel/AdmissionDecision;
+	public static synthetic fun copy$default (Lio/toolbox/kernel/AdmissionDecision;ZLjava/lang/String;ILjava/lang/Object;)Lio/toolbox/kernel/AdmissionDecision;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAllowed ()Z
+	public final fun getReason ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/toolbox/kernel/AllowAllModuleAdmissionPolicy : io/toolbox/kernel/ModuleAdmissionPolicy {
+	public static final field INSTANCE Lio/toolbox/kernel/AllowAllModuleAdmissionPolicy;
+	public fun evaluate (Lio/toolbox/kernel/ModuleDescriptor;Lio/toolbox/kernel/ModuleSource;Lio/toolbox/kernel/VerifiedModuleSource;)Lio/toolbox/kernel/AdmissionDecision;
+}
+
+public abstract interface class io/toolbox/kernel/Capability {
+	public abstract fun getId ()Ljava/lang/String;
+	public abstract fun getProviderModuleId ()Ljava/lang/String;
+	public abstract fun getVersion ()Lio/toolbox/kernel/ModuleVersion;
+}
+
+public final class io/toolbox/kernel/CapabilityDeclaration {
+	public fun <init> (Ljava/lang/String;Lio/toolbox/kernel/ModuleVersion;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lio/toolbox/kernel/ModuleVersion;
+	public final fun copy (Ljava/lang/String;Lio/toolbox/kernel/ModuleVersion;)Lio/toolbox/kernel/CapabilityDeclaration;
+	public static synthetic fun copy$default (Lio/toolbox/kernel/CapabilityDeclaration;Ljava/lang/String;Lio/toolbox/kernel/ModuleVersion;ILjava/lang/Object;)Lio/toolbox/kernel/CapabilityDeclaration;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getId ()Ljava/lang/String;
+	public final fun getVersion ()Lio/toolbox/kernel/ModuleVersion;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/toolbox/kernel/CapabilityRequirement {
+	public static final field Companion Lio/toolbox/kernel/CapabilityRequirement$Companion;
+	public fun <init> (Ljava/lang/String;Lio/toolbox/kernel/VersionRange;Lio/toolbox/kernel/DependencyKind;)V
+	public synthetic fun <init> (Ljava/lang/String;Lio/toolbox/kernel/VersionRange;Lio/toolbox/kernel/DependencyKind;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lio/toolbox/kernel/VersionRange;
+	public final fun component3 ()Lio/toolbox/kernel/DependencyKind;
+	public final fun copy (Ljava/lang/String;Lio/toolbox/kernel/VersionRange;Lio/toolbox/kernel/DependencyKind;)Lio/toolbox/kernel/CapabilityRequirement;
+	public static synthetic fun copy$default (Lio/toolbox/kernel/CapabilityRequirement;Ljava/lang/String;Lio/toolbox/kernel/VersionRange;Lio/toolbox/kernel/DependencyKind;ILjava/lang/Object;)Lio/toolbox/kernel/CapabilityRequirement;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getId ()Ljava/lang/String;
+	public final fun getKind ()Lio/toolbox/kernel/DependencyKind;
+	public final fun getVersionRange ()Lio/toolbox/kernel/VersionRange;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/toolbox/kernel/CapabilityRequirement$Companion {
+	public final fun optional (Ljava/lang/String;Lio/toolbox/kernel/VersionRange;)Lio/toolbox/kernel/CapabilityRequirement;
+	public static synthetic fun optional$default (Lio/toolbox/kernel/CapabilityRequirement$Companion;Ljava/lang/String;Lio/toolbox/kernel/VersionRange;ILjava/lang/Object;)Lio/toolbox/kernel/CapabilityRequirement;
+	public final fun required (Ljava/lang/String;Lio/toolbox/kernel/VersionRange;)Lio/toolbox/kernel/CapabilityRequirement;
+	public static synthetic fun required$default (Lio/toolbox/kernel/CapabilityRequirement$Companion;Ljava/lang/String;Lio/toolbox/kernel/VersionRange;ILjava/lang/Object;)Lio/toolbox/kernel/CapabilityRequirement;
+}
+
+public final class io/toolbox/kernel/CommandResult {
+	public static final field Companion Lio/toolbox/kernel/CommandResult$Companion;
+	public synthetic fun <init> (ZLjava/lang/Object;Ljava/lang/Throwable;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getError ()Ljava/lang/Throwable;
+	public final fun getSuccess ()Z
+	public final fun getValue ()Ljava/lang/Object;
+}
+
+public final class io/toolbox/kernel/CommandResult$Companion {
+	public final fun failure (Ljava/lang/Throwable;)Lio/toolbox/kernel/CommandResult;
+	public final fun success (Ljava/lang/Object;)Lio/toolbox/kernel/CommandResult;
+	public static synthetic fun success$default (Lio/toolbox/kernel/CommandResult$Companion;Ljava/lang/Object;ILjava/lang/Object;)Lio/toolbox/kernel/CommandResult;
+}
+
+public abstract interface class io/toolbox/kernel/CompatibilityPolicy {
+	public abstract fun check (Lio/toolbox/kernel/KernelConfig;Lio/toolbox/kernel/KernelRuntimeEnvironment;Lio/toolbox/kernel/ModuleDescriptor;)Lio/toolbox/kernel/CompatibilityResult;
+}
+
+public final class io/toolbox/kernel/CompatibilityResult {
+	public fun <init> (ZLjava/lang/String;)V
+	public synthetic fun <init> (ZLjava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Z
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (ZLjava/lang/String;)Lio/toolbox/kernel/CompatibilityResult;
+	public static synthetic fun copy$default (Lio/toolbox/kernel/CompatibilityResult;ZLjava/lang/String;ILjava/lang/Object;)Lio/toolbox/kernel/CompatibilityResult;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCompatible ()Z
+	public final fun getReason ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/toolbox/kernel/DefaultCompatibilityPolicy : io/toolbox/kernel/CompatibilityPolicy {
+	public static final field INSTANCE Lio/toolbox/kernel/DefaultCompatibilityPolicy;
+	public fun check (Lio/toolbox/kernel/KernelConfig;Lio/toolbox/kernel/KernelRuntimeEnvironment;Lio/toolbox/kernel/ModuleDescriptor;)Lio/toolbox/kernel/CompatibilityResult;
+}
+
+public final class io/toolbox/kernel/DependencyKind : java/lang/Enum {
+	public static final field OPTIONAL Lio/toolbox/kernel/DependencyKind;
+	public static final field REQUIRED Lio/toolbox/kernel/DependencyKind;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/toolbox/kernel/DependencyKind;
+	public static fun values ()[Lio/toolbox/kernel/DependencyKind;
+}
+
+public final class io/toolbox/kernel/DirectKernelExecutor : io/toolbox/kernel/KernelExecutor {
+	public static final field INSTANCE Lio/toolbox/kernel/DirectKernelExecutor;
+	public fun execute (Ljava/lang/String;Lkotlin/jvm/functions/Function0;)V
+}
+
+public final class io/toolbox/kernel/HealthState : java/lang/Enum {
+	public static final field HEALTHY Lio/toolbox/kernel/HealthState;
+	public static final field UNHEALTHY Lio/toolbox/kernel/HealthState;
+	public static final field UNKNOWN Lio/toolbox/kernel/HealthState;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/toolbox/kernel/HealthState;
+	public static fun values ()[Lio/toolbox/kernel/HealthState;
+}
+
+public final class io/toolbox/kernel/HealthStatus {
+	public static final field Companion Lio/toolbox/kernel/HealthStatus$Companion;
+	public fun <init> (Lio/toolbox/kernel/HealthState;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Throwable;)V
+	public synthetic fun <init> (Lio/toolbox/kernel/HealthState;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lio/toolbox/kernel/HealthState;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/Long;
+	public final fun component4 ()Ljava/lang/Throwable;
+	public final fun copy (Lio/toolbox/kernel/HealthState;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Throwable;)Lio/toolbox/kernel/HealthStatus;
+	public static synthetic fun copy$default (Lio/toolbox/kernel/HealthStatus;Lio/toolbox/kernel/HealthState;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Throwable;ILjava/lang/Object;)Lio/toolbox/kernel/HealthStatus;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCause ()Ljava/lang/Throwable;
+	public final fun getCheckedAtMillis ()Ljava/lang/Long;
+	public final fun getHealthy ()Z
+	public final fun getMessage ()Ljava/lang/String;
+	public final fun getState ()Lio/toolbox/kernel/HealthState;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/toolbox/kernel/HealthStatus$Companion {
+	public final fun failed (Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Throwable;)Lio/toolbox/kernel/HealthStatus;
+	public static synthetic fun failed$default (Lio/toolbox/kernel/HealthStatus$Companion;Ljava/lang/String;Ljava/lang/Long;Ljava/lang/Throwable;ILjava/lang/Object;)Lio/toolbox/kernel/HealthStatus;
+	public final fun ok (Ljava/lang/String;Ljava/lang/Long;)Lio/toolbox/kernel/HealthStatus;
+	public static synthetic fun ok$default (Lio/toolbox/kernel/HealthStatus$Companion;Ljava/lang/String;Ljava/lang/Long;ILjava/lang/Object;)Lio/toolbox/kernel/HealthStatus;
+	public final fun unknown (Ljava/lang/String;)Lio/toolbox/kernel/HealthStatus;
+	public static synthetic fun unknown$default (Lio/toolbox/kernel/HealthStatus$Companion;Ljava/lang/String;ILjava/lang/Object;)Lio/toolbox/kernel/HealthStatus;
+}
+
+public final class io/toolbox/kernel/InMemoryKernelStateStore : io/toolbox/kernel/KernelStateStore {
+	public fun <init> ()V
+	public fun get (Ljava/lang/String;)Ljava/lang/String;
+	public fun keys (Ljava/lang/String;)Ljava/util/Set;
+	public fun put (Ljava/lang/String;Ljava/lang/String;)V
+	public fun remove (Ljava/lang/String;)V
+}
+
+public abstract interface class io/toolbox/kernel/KernelClock {
+	public abstract fun nowMillis ()J
+}
+
+public abstract interface class io/toolbox/kernel/KernelCommand {
+	public abstract fun getName ()Ljava/lang/String;
+}
+
+public final class io/toolbox/kernel/KernelConfig {
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IIILjava/lang/String;JJJJJ)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IIILjava/lang/String;JJJJJILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component10 ()J
+	public final fun component11 ()J
+	public final fun component12 ()J
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()I
+	public final fun component5 ()I
+	public final fun component6 ()I
+	public final fun component7 ()Ljava/lang/String;
+	public final fun component8 ()J
+	public final fun component9 ()J
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IIILjava/lang/String;JJJJJ)Lio/toolbox/kernel/KernelConfig;
+	public static synthetic fun copy$default (Lio/toolbox/kernel/KernelConfig;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IIILjava/lang/String;JJJJJILjava/lang/Object;)Lio/toolbox/kernel/KernelConfig;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAndroidApiBaseline ()I
+	public final fun getArchitectureBaseline ()Ljava/lang/String;
+	public final fun getCommandTimeoutMillis ()J
+	public final fun getEventListenerTimeoutMillis ()J
+	public final fun getHealthTimeoutMillis ()J
+	public final fun getInvocationDrainTimeoutMillis ()J
+	public final fun getKernelId ()Ljava/lang/String;
+	public final fun getLifecycleTimeoutMillis ()J
+	public final fun getMinimumSupportedModuleApiVersion ()I
+	public final fun getModuleApiVersion ()I
+	public final fun getName ()Ljava/lang/String;
+	public final fun getVersion ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/toolbox/kernel/KernelContext {
+	public final fun getCapabilities ()Lio/toolbox/kernel/ModuleCapabilities;
+	public final fun getCommands ()Lio/toolbox/kernel/ModuleCommands;
+	public final fun getConfig ()Lio/toolbox/kernel/KernelConfig;
+	public final fun getEvents ()Lio/toolbox/kernel/ModuleEvents;
+	public final fun getLogger ()Lio/toolbox/kernel/KernelLogger;
+	public final fun getModuleId ()Ljava/lang/String;
+	public final fun getServices ()Lio/toolbox/kernel/ModuleServices;
+}
+
+public final class io/toolbox/kernel/KernelError {
+	public fun <init> (Lio/toolbox/kernel/KernelErrorCode;Ljava/lang/String;Ljava/lang/Throwable;)V
+	public synthetic fun <init> (Lio/toolbox/kernel/KernelErrorCode;Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lio/toolbox/kernel/KernelErrorCode;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/Throwable;
+	public final fun copy (Lio/toolbox/kernel/KernelErrorCode;Ljava/lang/String;Ljava/lang/Throwable;)Lio/toolbox/kernel/KernelError;
+	public static synthetic fun copy$default (Lio/toolbox/kernel/KernelError;Lio/toolbox/kernel/KernelErrorCode;Ljava/lang/String;Ljava/lang/Throwable;ILjava/lang/Object;)Lio/toolbox/kernel/KernelError;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCause ()Ljava/lang/Throwable;
+	public final fun getCode ()Lio/toolbox/kernel/KernelErrorCode;
+	public final fun getMessage ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/toolbox/kernel/KernelErrorCode : java/lang/Enum {
+	public static final field ADMISSION_REJECTED Lio/toolbox/kernel/KernelErrorCode;
+	public static final field CAPABILITY_RESOLUTION Lio/toolbox/kernel/KernelErrorCode;
+	public static final field CONFLICT Lio/toolbox/kernel/KernelErrorCode;
+	public static final field DEPENDENCY_RESOLUTION Lio/toolbox/kernel/KernelErrorCode;
+	public static final field INCOMPATIBLE_MODULE Lio/toolbox/kernel/KernelErrorCode;
+	public static final field INVALID_DESCRIPTOR Lio/toolbox/kernel/KernelErrorCode;
+	public static final field INVALID_STATE Lio/toolbox/kernel/KernelErrorCode;
+	public static final field LIFECYCLE Lio/toolbox/kernel/KernelErrorCode;
+	public static final field NOT_FOUND Lio/toolbox/kernel/KernelErrorCode;
+	public static final field OPERATION_IN_PROGRESS Lio/toolbox/kernel/KernelErrorCode;
+	public static final field POLICY_FAILURE Lio/toolbox/kernel/KernelErrorCode;
+	public static final field QUARANTINED Lio/toolbox/kernel/KernelErrorCode;
+	public static final field RUNTIME_ENVIRONMENT_REQUIRED Lio/toolbox/kernel/KernelErrorCode;
+	public static final field SOURCE_INSPECTION Lio/toolbox/kernel/KernelErrorCode;
+	public static final field SOURCE_LOAD Lio/toolbox/kernel/KernelErrorCode;
+	public static final field SOURCE_MISMATCH Lio/toolbox/kernel/KernelErrorCode;
+	public static final field SOURCE_STAGING Lio/toolbox/kernel/KernelErrorCode;
+	public static final field SOURCE_VERIFICATION Lio/toolbox/kernel/KernelErrorCode;
+	public static final field TIMEOUT Lio/toolbox/kernel/KernelErrorCode;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/toolbox/kernel/KernelErrorCode;
+	public static fun values ()[Lio/toolbox/kernel/KernelErrorCode;
+}
+
+public final class io/toolbox/kernel/KernelEvent {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Object;J)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Object;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/Object;
+	public final fun component4 ()J
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Object;J)Lio/toolbox/kernel/KernelEvent;
+	public static synthetic fun copy$default (Lio/toolbox/kernel/KernelEvent;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Object;JILjava/lang/Object;)Lio/toolbox/kernel/KernelEvent;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getPayload ()Ljava/lang/Object;
+	public final fun getSource ()Ljava/lang/String;
+	public final fun getTimestampMillis ()J
+	public final fun getTopic ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class io/toolbox/kernel/KernelExecutor {
+	public abstract fun execute (Ljava/lang/String;Lkotlin/jvm/functions/Function0;)V
+}
+
+public abstract interface class io/toolbox/kernel/KernelLogger {
+	public abstract fun debug (Ljava/lang/String;)V
+	public abstract fun error (Ljava/lang/String;Ljava/lang/Throwable;)V
+	public abstract fun info (Ljava/lang/String;)V
+	public abstract fun warn (Ljava/lang/String;Ljava/lang/Throwable;)V
+}
+
+public final class io/toolbox/kernel/KernelLogger$DefaultImpls {
+	public static fun debug (Lio/toolbox/kernel/KernelLogger;Ljava/lang/String;)V
+	public static fun error (Lio/toolbox/kernel/KernelLogger;Ljava/lang/String;Ljava/lang/Throwable;)V
+	public static synthetic fun error$default (Lio/toolbox/kernel/KernelLogger;Ljava/lang/String;Ljava/lang/Throwable;ILjava/lang/Object;)V
+	public static fun info (Lio/toolbox/kernel/KernelLogger;Ljava/lang/String;)V
+	public static fun warn (Lio/toolbox/kernel/KernelLogger;Ljava/lang/String;Ljava/lang/Throwable;)V
+	public static synthetic fun warn$default (Lio/toolbox/kernel/KernelLogger;Ljava/lang/String;Ljava/lang/Throwable;ILjava/lang/Object;)V
+}
+
+public final class io/toolbox/kernel/KernelPorts {
+	public fun <init> ()V
+	public fun <init> (Lio/toolbox/kernel/KernelStateStore;Lio/toolbox/kernel/KernelLogger;Lio/toolbox/kernel/KernelExecutor;Lio/toolbox/kernel/KernelClock;Lio/toolbox/kernel/KernelRuntimeEnvironment;Lio/toolbox/kernel/CompatibilityPolicy;Lio/toolbox/kernel/ModuleAdmissionPolicy;Lio/toolbox/kernel/ModuleSourceStager;Lio/toolbox/kernel/ModuleSourceVerifier;)V
+	public synthetic fun <init> (Lio/toolbox/kernel/KernelStateStore;Lio/toolbox/kernel/KernelLogger;Lio/toolbox/kernel/KernelExecutor;Lio/toolbox/kernel/KernelClock;Lio/toolbox/kernel/KernelRuntimeEnvironment;Lio/toolbox/kernel/CompatibilityPolicy;Lio/toolbox/kernel/ModuleAdmissionPolicy;Lio/toolbox/kernel/ModuleSourceStager;Lio/toolbox/kernel/ModuleSourceVerifier;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lio/toolbox/kernel/KernelStateStore;
+	public final fun component2 ()Lio/toolbox/kernel/KernelLogger;
+	public final fun component3 ()Lio/toolbox/kernel/KernelExecutor;
+	public final fun component4 ()Lio/toolbox/kernel/KernelClock;
+	public final fun component5 ()Lio/toolbox/kernel/KernelRuntimeEnvironment;
+	public final fun component6 ()Lio/toolbox/kernel/CompatibilityPolicy;
+	public final fun component7 ()Lio/toolbox/kernel/ModuleAdmissionPolicy;
+	public final fun component8 ()Lio/toolbox/kernel/ModuleSourceStager;
+	public final fun component9 ()Lio/toolbox/kernel/ModuleSourceVerifier;
+	public final fun copy (Lio/toolbox/kernel/KernelStateStore;Lio/toolbox/kernel/KernelLogger;Lio/toolbox/kernel/KernelExecutor;Lio/toolbox/kernel/KernelClock;Lio/toolbox/kernel/KernelRuntimeEnvironment;Lio/toolbox/kernel/CompatibilityPolicy;Lio/toolbox/kernel/ModuleAdmissionPolicy;Lio/toolbox/kernel/ModuleSourceStager;Lio/toolbox/kernel/ModuleSourceVerifier;)Lio/toolbox/kernel/KernelPorts;
+	public static synthetic fun copy$default (Lio/toolbox/kernel/KernelPorts;Lio/toolbox/kernel/KernelStateStore;Lio/toolbox/kernel/KernelLogger;Lio/toolbox/kernel/KernelExecutor;Lio/toolbox/kernel/KernelClock;Lio/toolbox/kernel/KernelRuntimeEnvironment;Lio/toolbox/kernel/CompatibilityPolicy;Lio/toolbox/kernel/ModuleAdmissionPolicy;Lio/toolbox/kernel/ModuleSourceStager;Lio/toolbox/kernel/ModuleSourceVerifier;ILjava/lang/Object;)Lio/toolbox/kernel/KernelPorts;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAdmissionPolicy ()Lio/toolbox/kernel/ModuleAdmissionPolicy;
+	public final fun getClock ()Lio/toolbox/kernel/KernelClock;
+	public final fun getCompatibilityPolicy ()Lio/toolbox/kernel/CompatibilityPolicy;
+	public final fun getExecutor ()Lio/toolbox/kernel/KernelExecutor;
+	public final fun getLogger ()Lio/toolbox/kernel/KernelLogger;
+	public final fun getRuntimeEnvironment ()Lio/toolbox/kernel/KernelRuntimeEnvironment;
+	public final fun getSourceStager ()Lio/toolbox/kernel/ModuleSourceStager;
+	public final fun getSourceVerifier ()Lio/toolbox/kernel/ModuleSourceVerifier;
+	public final fun getStateStore ()Lio/toolbox/kernel/KernelStateStore;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/toolbox/kernel/KernelResult {
+	public static final field Companion Lio/toolbox/kernel/KernelResult$Companion;
+	public synthetic fun <init> (Ljava/lang/Object;Ljava/util/List;Ljava/util/List;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getErrors ()Ljava/util/List;
+	public final fun getFailures ()Ljava/util/List;
+	public final fun getValue ()Ljava/lang/Object;
+	public final fun isSuccess ()Z
+}
+
+public final class io/toolbox/kernel/KernelResult$Companion {
+	public final fun failure (Lio/toolbox/kernel/KernelError;Ljava/util/List;)Lio/toolbox/kernel/KernelResult;
+	public final fun failure (Ljava/util/List;Ljava/util/List;)Lio/toolbox/kernel/KernelResult;
+	public static synthetic fun failure$default (Lio/toolbox/kernel/KernelResult$Companion;Lio/toolbox/kernel/KernelError;Ljava/util/List;ILjava/lang/Object;)Lio/toolbox/kernel/KernelResult;
+	public static synthetic fun failure$default (Lio/toolbox/kernel/KernelResult$Companion;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lio/toolbox/kernel/KernelResult;
+	public final fun lifecycleFailure (Ljava/util/List;)Lio/toolbox/kernel/KernelResult;
+	public final fun success (Ljava/lang/Object;)Lio/toolbox/kernel/KernelResult;
+}
+
+public final class io/toolbox/kernel/KernelRuntimeEnvironment {
+	public static final field Companion Lio/toolbox/kernel/KernelRuntimeEnvironment$Companion;
+	public fun <init> (ILjava/lang/String;Z)V
+	public final fun component1 ()I
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Z
+	public final fun copy (ILjava/lang/String;Z)Lio/toolbox/kernel/KernelRuntimeEnvironment;
+	public static synthetic fun copy$default (Lio/toolbox/kernel/KernelRuntimeEnvironment;ILjava/lang/String;ZILjava/lang/Object;)Lio/toolbox/kernel/KernelRuntimeEnvironment;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAbi ()Ljava/lang/String;
+	public final fun getAndroidApi ()I
+	public final fun getAuthoritative ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/toolbox/kernel/KernelRuntimeEnvironment$Companion {
+	public final fun authoritative (ILjava/lang/String;)Lio/toolbox/kernel/KernelRuntimeEnvironment;
+	public final fun unknownForTarget (Lio/toolbox/kernel/KernelConfig;)Lio/toolbox/kernel/KernelRuntimeEnvironment;
+}
+
+public final class io/toolbox/kernel/KernelSnapshot {
+	public fun <init> (Lio/toolbox/kernel/KernelConfig;Lio/toolbox/kernel/KernelRuntimeEnvironment;Lio/toolbox/kernel/KernelState;Lio/toolbox/kernel/KernelState;Ljava/lang/String;JZLjava/util/List;IIII)V
+	public final fun component1 ()Lio/toolbox/kernel/KernelConfig;
+	public final fun component10 ()I
+	public final fun component11 ()I
+	public final fun component12 ()I
+	public final fun component2 ()Lio/toolbox/kernel/KernelRuntimeEnvironment;
+	public final fun component3 ()Lio/toolbox/kernel/KernelState;
+	public final fun component4 ()Lio/toolbox/kernel/KernelState;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()J
+	public final fun component7 ()Z
+	public final fun component8 ()Ljava/util/List;
+	public final fun component9 ()I
+	public final fun copy (Lio/toolbox/kernel/KernelConfig;Lio/toolbox/kernel/KernelRuntimeEnvironment;Lio/toolbox/kernel/KernelState;Lio/toolbox/kernel/KernelState;Ljava/lang/String;JZLjava/util/List;IIII)Lio/toolbox/kernel/KernelSnapshot;
+	public static synthetic fun copy$default (Lio/toolbox/kernel/KernelSnapshot;Lio/toolbox/kernel/KernelConfig;Lio/toolbox/kernel/KernelRuntimeEnvironment;Lio/toolbox/kernel/KernelState;Lio/toolbox/kernel/KernelState;Ljava/lang/String;JZLjava/util/List;IIIIILjava/lang/Object;)Lio/toolbox/kernel/KernelSnapshot;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getConfig ()Lio/toolbox/kernel/KernelConfig;
+	public final fun getConsistent ()Z
+	public final fun getEventSubscriptions ()I
+	public final fun getModules ()Ljava/util/List;
+	public final fun getPreviousPersistedState ()Lio/toolbox/kernel/KernelState;
+	public final fun getRegisteredCapabilities ()I
+	public final fun getRegisteredCommands ()I
+	public final fun getRegisteredServices ()I
+	public final fun getRevision ()J
+	public final fun getRuntimeEnvironment ()Lio/toolbox/kernel/KernelRuntimeEnvironment;
+	public final fun getSessionId ()Ljava/lang/String;
+	public final fun getState ()Lio/toolbox/kernel/KernelState;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/toolbox/kernel/KernelState : java/lang/Enum {
+	public static final field DEGRADED Lio/toolbox/kernel/KernelState;
+	public static final field FAILED Lio/toolbox/kernel/KernelState;
+	public static final field NEW Lio/toolbox/kernel/KernelState;
+	public static final field RUNNING Lio/toolbox/kernel/KernelState;
+	public static final field STARTING Lio/toolbox/kernel/KernelState;
+	public static final field STOPPED Lio/toolbox/kernel/KernelState;
+	public static final field STOPPED_WITH_ERRORS Lio/toolbox/kernel/KernelState;
+	public static final field STOPPING Lio/toolbox/kernel/KernelState;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/toolbox/kernel/KernelState;
+	public static fun values ()[Lio/toolbox/kernel/KernelState;
+}
+
+public abstract interface class io/toolbox/kernel/KernelStateStore {
+	public abstract fun get (Ljava/lang/String;)Ljava/lang/String;
+	public abstract fun keys (Ljava/lang/String;)Ljava/util/Set;
+	public abstract fun put (Ljava/lang/String;Ljava/lang/String;)V
+	public abstract fun remove (Ljava/lang/String;)V
+}
+
+public final class io/toolbox/kernel/KernelStateStore$DefaultImpls {
+	public static synthetic fun keys$default (Lio/toolbox/kernel/KernelStateStore;Ljava/lang/String;ILjava/lang/Object;)Ljava/util/Set;
+}
+
+public final class io/toolbox/kernel/KernelTopics {
+	public static final field INSTANCE Lio/toolbox/kernel/KernelTopics;
+	public static final field MODULE_ACTIVATION_FAILED Ljava/lang/String;
+	public static final field MODULE_INSTALLED Ljava/lang/String;
+	public static final field MODULE_REJECTED Ljava/lang/String;
+	public static final field MODULE_UNINSTALLED Ljava/lang/String;
+	public static final field STARTING Ljava/lang/String;
+	public static final field START_COMPLETED Ljava/lang/String;
+	public static final field START_FAILED Ljava/lang/String;
+	public static final field STOPPING Ljava/lang/String;
+	public static final field STOP_COMPLETED Ljava/lang/String;
+	public static final field STOP_FAILED Ljava/lang/String;
+}
+
+public final class io/toolbox/kernel/LifecyclePhase : java/lang/Enum {
+	public static final field HEALTH Lio/toolbox/kernel/LifecyclePhase;
+	public static final field LOAD Lio/toolbox/kernel/LifecyclePhase;
+	public static final field QUIESCE Lio/toolbox/kernel/LifecyclePhase;
+	public static final field RESOLUTION Lio/toolbox/kernel/LifecyclePhase;
+	public static final field SOURCE_INSPECTION Lio/toolbox/kernel/LifecyclePhase;
+	public static final field SOURCE_LOAD Lio/toolbox/kernel/LifecyclePhase;
+	public static final field SOURCE_STAGING Lio/toolbox/kernel/LifecyclePhase;
+	public static final field SOURCE_VERIFICATION Lio/toolbox/kernel/LifecyclePhase;
+	public static final field START Lio/toolbox/kernel/LifecyclePhase;
+	public static final field STOP Lio/toolbox/kernel/LifecyclePhase;
+	public static final field UNLOAD Lio/toolbox/kernel/LifecyclePhase;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/toolbox/kernel/LifecyclePhase;
+	public static fun values ()[Lio/toolbox/kernel/LifecyclePhase;
+}
+
+public abstract interface class io/toolbox/kernel/ModuleAdmissionPolicy {
+	public abstract fun evaluate (Lio/toolbox/kernel/ModuleDescriptor;Lio/toolbox/kernel/ModuleSource;Lio/toolbox/kernel/VerifiedModuleSource;)Lio/toolbox/kernel/AdmissionDecision;
+}
+
+public final class io/toolbox/kernel/ModuleCapabilities {
+	public final fun all ()Ljava/util/List;
+	public final fun get (Ljava/lang/String;)Lio/toolbox/kernel/Capability;
+	public final fun register (Lio/toolbox/kernel/Capability;Z)V
+	public static synthetic fun register$default (Lio/toolbox/kernel/ModuleCapabilities;Lio/toolbox/kernel/Capability;ZILjava/lang/Object;)V
+	public final fun unregister (Ljava/lang/String;)Z
+}
+
+public final class io/toolbox/kernel/ModuleCommands {
+	public final fun execute (Lio/toolbox/kernel/KernelCommand;)Lio/toolbox/kernel/CommandResult;
+	public final fun register (Ljava/lang/String;ZLkotlin/jvm/functions/Function1;)V
+	public static synthetic fun register$default (Lio/toolbox/kernel/ModuleCommands;Ljava/lang/String;ZLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public final fun unregister (Ljava/lang/String;)Z
+}
+
+public final class io/toolbox/kernel/ModuleDependency {
+	public static final field Companion Lio/toolbox/kernel/ModuleDependency$Companion;
+	public fun <init> (Ljava/lang/String;Lio/toolbox/kernel/VersionRange;Lio/toolbox/kernel/DependencyKind;)V
+	public synthetic fun <init> (Ljava/lang/String;Lio/toolbox/kernel/VersionRange;Lio/toolbox/kernel/DependencyKind;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lio/toolbox/kernel/VersionRange;
+	public final fun component3 ()Lio/toolbox/kernel/DependencyKind;
+	public final fun copy (Ljava/lang/String;Lio/toolbox/kernel/VersionRange;Lio/toolbox/kernel/DependencyKind;)Lio/toolbox/kernel/ModuleDependency;
+	public static synthetic fun copy$default (Lio/toolbox/kernel/ModuleDependency;Ljava/lang/String;Lio/toolbox/kernel/VersionRange;Lio/toolbox/kernel/DependencyKind;ILjava/lang/Object;)Lio/toolbox/kernel/ModuleDependency;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getId ()Ljava/lang/String;
+	public final fun getKind ()Lio/toolbox/kernel/DependencyKind;
+	public final fun getVersionRange ()Lio/toolbox/kernel/VersionRange;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/toolbox/kernel/ModuleDependency$Companion {
+	public final fun optional (Ljava/lang/String;Lio/toolbox/kernel/VersionRange;)Lio/toolbox/kernel/ModuleDependency;
+	public static synthetic fun optional$default (Lio/toolbox/kernel/ModuleDependency$Companion;Ljava/lang/String;Lio/toolbox/kernel/VersionRange;ILjava/lang/Object;)Lio/toolbox/kernel/ModuleDependency;
+	public final fun required (Ljava/lang/String;Lio/toolbox/kernel/VersionRange;)Lio/toolbox/kernel/ModuleDependency;
+	public static synthetic fun required$default (Lio/toolbox/kernel/ModuleDependency$Companion;Ljava/lang/String;Lio/toolbox/kernel/VersionRange;ILjava/lang/Object;)Lio/toolbox/kernel/ModuleDependency;
+}
+
+public final class io/toolbox/kernel/ModuleDescriptor {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Lio/toolbox/kernel/ModuleVersion;IILjava/lang/Integer;Ljava/util/Set;Ljava/util/Set;Ljava/util/Set;Ljava/lang/String;Ljava/util/Set;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Lio/toolbox/kernel/ModuleVersion;IILjava/lang/Integer;Ljava/util/Set;Ljava/util/Set;Ljava/util/Set;Ljava/lang/String;Ljava/util/Set;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IILjava/lang/Integer;Ljava/util/Set;Ljava/util/Set;Ljava/util/Set;Ljava/lang/String;Ljava/util/Set;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IILjava/lang/Integer;Ljava/util/Set;Ljava/util/Set;Ljava/util/Set;Ljava/lang/String;Ljava/util/Set;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component10 ()Ljava/lang/String;
+	public final fun component11 ()Ljava/util/Set;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Lio/toolbox/kernel/ModuleVersion;
+	public final fun component4 ()I
+	public final fun component5 ()I
+	public final fun component6 ()Ljava/lang/Integer;
+	public final fun component7 ()Ljava/util/Set;
+	public final fun component8 ()Ljava/util/Set;
+	public final fun component9 ()Ljava/util/Set;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Lio/toolbox/kernel/ModuleVersion;IILjava/lang/Integer;Ljava/util/Set;Ljava/util/Set;Ljava/util/Set;Ljava/lang/String;Ljava/util/Set;)Lio/toolbox/kernel/ModuleDescriptor;
+	public static synthetic fun copy$default (Lio/toolbox/kernel/ModuleDescriptor;Ljava/lang/String;Ljava/lang/String;Lio/toolbox/kernel/ModuleVersion;IILjava/lang/Integer;Ljava/util/Set;Ljava/util/Set;Ljava/util/Set;Ljava/lang/String;Ljava/util/Set;ILjava/lang/Object;)Lio/toolbox/kernel/ModuleDescriptor;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getApiVersion ()I
+	public final fun getDependencies ()Ljava/util/Set;
+	public final fun getEntryPoint ()Ljava/lang/String;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getMaxAndroidApi ()Ljava/lang/Integer;
+	public final fun getMinAndroidApi ()I
+	public final fun getName ()Ljava/lang/String;
+	public final fun getProvidedCapabilities ()Ljava/util/Set;
+	public final fun getRequiredCapabilities ()Ljava/util/Set;
+	public final fun getSupportedAbis ()Ljava/util/Set;
+	public final fun getVersion ()Lio/toolbox/kernel/ModuleVersion;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/toolbox/kernel/ModuleEvents {
+	public final fun publish (Ljava/lang/String;Ljava/lang/Object;)V
+	public static synthetic fun publish$default (Lio/toolbox/kernel/ModuleEvents;Ljava/lang/String;Ljava/lang/Object;ILjava/lang/Object;)V
+	public final fun subscribe (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lio/toolbox/kernel/Subscription;
+}
+
+public final class io/toolbox/kernel/ModuleFailure {
+	public fun <init> (Ljava/lang/String;Lio/toolbox/kernel/LifecyclePhase;Ljava/lang/Throwable;Lio/toolbox/kernel/ModuleState;)V
+	public synthetic fun <init> (Ljava/lang/String;Lio/toolbox/kernel/LifecyclePhase;Ljava/lang/Throwable;Lio/toolbox/kernel/ModuleState;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lio/toolbox/kernel/LifecyclePhase;
+	public final fun component3 ()Ljava/lang/Throwable;
+	public final fun component4 ()Lio/toolbox/kernel/ModuleState;
+	public final fun copy (Ljava/lang/String;Lio/toolbox/kernel/LifecyclePhase;Ljava/lang/Throwable;Lio/toolbox/kernel/ModuleState;)Lio/toolbox/kernel/ModuleFailure;
+	public static synthetic fun copy$default (Lio/toolbox/kernel/ModuleFailure;Ljava/lang/String;Lio/toolbox/kernel/LifecyclePhase;Ljava/lang/Throwable;Lio/toolbox/kernel/ModuleState;ILjava/lang/Object;)Lio/toolbox/kernel/ModuleFailure;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCause ()Ljava/lang/Throwable;
+	public final fun getFromState ()Lio/toolbox/kernel/ModuleState;
+	public final fun getModuleId ()Ljava/lang/String;
+	public final fun getPhase ()Lio/toolbox/kernel/LifecyclePhase;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/toolbox/kernel/ModuleHealth {
+	public fun <init> (Lio/toolbox/kernel/ModuleDescriptor;Lio/toolbox/kernel/ModuleState;Lio/toolbox/kernel/HealthStatus;Lio/toolbox/kernel/ModuleFailure;)V
+	public synthetic fun <init> (Lio/toolbox/kernel/ModuleDescriptor;Lio/toolbox/kernel/ModuleState;Lio/toolbox/kernel/HealthStatus;Lio/toolbox/kernel/ModuleFailure;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lio/toolbox/kernel/ModuleDescriptor;
+	public final fun component2 ()Lio/toolbox/kernel/ModuleState;
+	public final fun component3 ()Lio/toolbox/kernel/HealthStatus;
+	public final fun component4 ()Lio/toolbox/kernel/ModuleFailure;
+	public final fun copy (Lio/toolbox/kernel/ModuleDescriptor;Lio/toolbox/kernel/ModuleState;Lio/toolbox/kernel/HealthStatus;Lio/toolbox/kernel/ModuleFailure;)Lio/toolbox/kernel/ModuleHealth;
+	public static synthetic fun copy$default (Lio/toolbox/kernel/ModuleHealth;Lio/toolbox/kernel/ModuleDescriptor;Lio/toolbox/kernel/ModuleState;Lio/toolbox/kernel/HealthStatus;Lio/toolbox/kernel/ModuleFailure;ILjava/lang/Object;)Lio/toolbox/kernel/ModuleHealth;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDescriptor ()Lio/toolbox/kernel/ModuleDescriptor;
+	public final fun getHealth ()Lio/toolbox/kernel/HealthStatus;
+	public final fun getLastFailure ()Lio/toolbox/kernel/ModuleFailure;
+	public final fun getState ()Lio/toolbox/kernel/ModuleState;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class io/toolbox/kernel/ModuleLoader {
+	public abstract fun inspect (Lio/toolbox/kernel/StagedModuleSource;)Lio/toolbox/kernel/ModuleDescriptor;
+	public abstract fun load (Lio/toolbox/kernel/VerifiedModuleSource;Lio/toolbox/kernel/ModuleDescriptor;)Lio/toolbox/kernel/ToolBoxModule;
+}
+
+public final class io/toolbox/kernel/ModuleServices {
+	public final fun reference (Ljava/lang/Class;Ljava/lang/String;)Lio/toolbox/kernel/ServiceHandle;
+	public static synthetic fun reference$default (Lio/toolbox/kernel/ModuleServices;Ljava/lang/Class;Ljava/lang/String;ILjava/lang/Object;)Lio/toolbox/kernel/ServiceHandle;
+	public final fun register (Ljava/lang/Class;Ljava/lang/Object;Ljava/lang/String;Z)V
+	public static synthetic fun register$default (Lio/toolbox/kernel/ModuleServices;Ljava/lang/Class;Ljava/lang/Object;Ljava/lang/String;ZILjava/lang/Object;)V
+	public final fun unregister (Ljava/lang/Class;Ljava/lang/String;)Z
+	public static synthetic fun unregister$default (Lio/toolbox/kernel/ModuleServices;Ljava/lang/Class;Ljava/lang/String;ILjava/lang/Object;)Z
+}
+
+public final class io/toolbox/kernel/ModuleSource {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/util/Map;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lio/toolbox/kernel/ModuleSource;
+	public static synthetic fun copy$default (Lio/toolbox/kernel/ModuleSource;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lio/toolbox/kernel/ModuleSource;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getId ()Ljava/lang/String;
+	public final fun getLocation ()Ljava/lang/String;
+	public final fun getMetadata ()Ljava/util/Map;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class io/toolbox/kernel/ModuleSourceStager {
+	public abstract fun stage (Lio/toolbox/kernel/ModuleSource;)Lio/toolbox/kernel/StagedModuleSource;
+}
+
+public abstract interface class io/toolbox/kernel/ModuleSourceVerifier {
+	public abstract fun verify (Lio/toolbox/kernel/StagedModuleSource;Lio/toolbox/kernel/ModuleDescriptor;)Lio/toolbox/kernel/SourceVerificationResult;
+}
+
+public final class io/toolbox/kernel/ModuleState : java/lang/Enum {
+	public static final field FAILED Lio/toolbox/kernel/ModuleState;
+	public static final field LOADED Lio/toolbox/kernel/ModuleState;
+	public static final field LOADING Lio/toolbox/kernel/ModuleState;
+	public static final field QUARANTINED Lio/toolbox/kernel/ModuleState;
+	public static final field QUIESCING Lio/toolbox/kernel/ModuleState;
+	public static final field REGISTERED Lio/toolbox/kernel/ModuleState;
+	public static final field STARTED Lio/toolbox/kernel/ModuleState;
+	public static final field STARTING Lio/toolbox/kernel/ModuleState;
+	public static final field STOPPED Lio/toolbox/kernel/ModuleState;
+	public static final field STOPPING Lio/toolbox/kernel/ModuleState;
+	public static final field UNLOADING Lio/toolbox/kernel/ModuleState;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/toolbox/kernel/ModuleState;
+	public static fun values ()[Lio/toolbox/kernel/ModuleState;
+}
+
+public final class io/toolbox/kernel/ModuleVersion : java/lang/Comparable {
+	public static final field Companion Lio/toolbox/kernel/ModuleVersion$Companion;
+	public fun <init> (IIILjava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (IIILjava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun compareTo (Lio/toolbox/kernel/ModuleVersion;)I
+	public synthetic fun compareTo (Ljava/lang/Object;)I
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun component3 ()I
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun copy (IIILjava/lang/String;Ljava/lang/String;)Lio/toolbox/kernel/ModuleVersion;
+	public static synthetic fun copy$default (Lio/toolbox/kernel/ModuleVersion;IIILjava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lio/toolbox/kernel/ModuleVersion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBuildMetadata ()Ljava/lang/String;
+	public final fun getMajor ()I
+	public final fun getMinor ()I
+	public final fun getPatch ()I
+	public final fun getQualifier ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/toolbox/kernel/ModuleVersion$Companion {
+	public final fun parse (Ljava/lang/String;)Lio/toolbox/kernel/ModuleVersion;
+}
+
+public final class io/toolbox/kernel/NoopKernelLogger : io/toolbox/kernel/KernelLogger {
+	public static final field INSTANCE Lio/toolbox/kernel/NoopKernelLogger;
+	public fun debug (Ljava/lang/String;)V
+	public fun error (Ljava/lang/String;Ljava/lang/Throwable;)V
+	public fun info (Ljava/lang/String;)V
+	public fun warn (Ljava/lang/String;Ljava/lang/Throwable;)V
+}
+
+public final class io/toolbox/kernel/RejectUnstagedModuleSourceStager : io/toolbox/kernel/ModuleSourceStager {
+	public static final field INSTANCE Lio/toolbox/kernel/RejectUnstagedModuleSourceStager;
+	public fun stage (Lio/toolbox/kernel/ModuleSource;)Lio/toolbox/kernel/StagedModuleSource;
+}
+
+public final class io/toolbox/kernel/RejectUnverifiedModuleSourceVerifier : io/toolbox/kernel/ModuleSourceVerifier {
+	public static final field INSTANCE Lio/toolbox/kernel/RejectUnverifiedModuleSourceVerifier;
+	public fun verify (Lio/toolbox/kernel/StagedModuleSource;Lio/toolbox/kernel/ModuleDescriptor;)Lio/toolbox/kernel/SourceVerificationResult;
+}
+
+public final class io/toolbox/kernel/ServiceHandle {
+	public final fun getAvailable ()Z
+	public final fun use (Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
+}
+
+public final class io/toolbox/kernel/ServiceKey {
+	public fun <init> (Ljava/lang/Class;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/Class;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/Class;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/Class;Ljava/lang/String;)Lio/toolbox/kernel/ServiceKey;
+	public static synthetic fun copy$default (Lio/toolbox/kernel/ServiceKey;Ljava/lang/Class;Ljava/lang/String;ILjava/lang/Object;)Lio/toolbox/kernel/ServiceKey;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getQualifier ()Ljava/lang/String;
+	public final fun getType ()Ljava/lang/Class;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/toolbox/kernel/SourceVerificationResult {
+	public fun <init> (ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Z
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun copy (ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lio/toolbox/kernel/SourceVerificationResult;
+	public static synthetic fun copy$default (Lio/toolbox/kernel/SourceVerificationResult;ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lio/toolbox/kernel/SourceVerificationResult;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAlgorithm ()Ljava/lang/String;
+	public final fun getFingerprint ()Ljava/lang/String;
+	public final fun getPolicyId ()Ljava/lang/String;
+	public final fun getReason ()Ljava/lang/String;
+	public final fun getSignerId ()Ljava/lang/String;
+	public final fun getVerified ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/toolbox/kernel/StagedModuleSource {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Z)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/util/Map;
+	public final fun component5 ()Z
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Z)Lio/toolbox/kernel/StagedModuleSource;
+	public static synthetic fun copy$default (Lio/toolbox/kernel/StagedModuleSource;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ZILjava/lang/Object;)Lio/toolbox/kernel/StagedModuleSource;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getArtifactId ()Ljava/lang/String;
+	public final fun getImmutable ()Z
+	public final fun getLocation ()Ljava/lang/String;
+	public final fun getMetadata ()Ljava/util/Map;
+	public final fun getSourceId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class io/toolbox/kernel/Subscription : java/lang/AutoCloseable {
+	public abstract fun close ()V
+}
+
+public final class io/toolbox/kernel/SystemKernelClock : io/toolbox/kernel/KernelClock {
+	public static final field INSTANCE Lio/toolbox/kernel/SystemKernelClock;
+	public fun nowMillis ()J
+}
+
+public final class io/toolbox/kernel/ToolBoxKernel {
+	public fun <init> ()V
+	public fun <init> (Lio/toolbox/kernel/KernelConfig;Lio/toolbox/kernel/KernelPorts;)V
+	public synthetic fun <init> (Lio/toolbox/kernel/KernelConfig;Lio/toolbox/kernel/KernelPorts;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun capabilities ()Ljava/util/List;
+	public final fun execute (Lio/toolbox/kernel/KernelCommand;)Lio/toolbox/kernel/CommandResult;
+	public final fun forceUninstall (Ljava/lang/String;)Lio/toolbox/kernel/KernelResult;
+	public final fun getConfig ()Lio/toolbox/kernel/KernelConfig;
+	public final fun getPorts ()Lio/toolbox/kernel/KernelPorts;
+	public final fun getPreviousPersistedState ()Lio/toolbox/kernel/KernelState;
+	public final fun getSessionId ()Ljava/lang/String;
+	public final fun getState ()Lio/toolbox/kernel/KernelState;
+	public final fun install (Lio/toolbox/kernel/ModuleSource;Lio/toolbox/kernel/ModuleLoader;)Lio/toolbox/kernel/KernelResult;
+	public final fun install (Lio/toolbox/kernel/ToolBoxModule;)Lio/toolbox/kernel/KernelResult;
+	public final fun isOperational ()Z
+	public final fun moduleDescriptors ()Ljava/util/List;
+	public final fun moduleState (Ljava/lang/String;)Lio/toolbox/kernel/ModuleState;
+	public final fun probeHealth ()Lio/toolbox/kernel/KernelResult;
+	public final fun restartModule (Ljava/lang/String;)Lio/toolbox/kernel/KernelResult;
+	public final fun retryModule (Ljava/lang/String;)Lio/toolbox/kernel/KernelResult;
+	public final fun service (Ljava/lang/Class;Ljava/lang/String;)Lio/toolbox/kernel/ServiceHandle;
+	public static synthetic fun service$default (Lio/toolbox/kernel/ToolBoxKernel;Ljava/lang/Class;Ljava/lang/String;ILjava/lang/Object;)Lio/toolbox/kernel/ServiceHandle;
+	public final fun snapshot ()Lio/toolbox/kernel/KernelSnapshot;
+	public final fun start ()Lio/toolbox/kernel/KernelResult;
+	public final fun startModule (Ljava/lang/String;)Lio/toolbox/kernel/KernelResult;
+	public final fun stop ()Lio/toolbox/kernel/KernelResult;
+	public final fun stopModule (Ljava/lang/String;)Lio/toolbox/kernel/KernelResult;
+	public final fun subscribe (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lio/toolbox/kernel/Subscription;
+	public final fun uninstall (Ljava/lang/String;)Lio/toolbox/kernel/KernelResult;
+}
+
+public abstract interface class io/toolbox/kernel/ToolBoxModule {
+	public abstract fun getDescriptor ()Lio/toolbox/kernel/ModuleDescriptor;
+	public abstract fun healthCheck ()Lio/toolbox/kernel/HealthStatus;
+	public abstract fun onLoad (Lio/toolbox/kernel/KernelContext;)V
+	public abstract fun onStart ()V
+	public abstract fun onStop ()V
+	public abstract fun onUnload ()V
+}
+
+public final class io/toolbox/kernel/ToolBoxModule$DefaultImpls {
+	public static fun healthCheck (Lio/toolbox/kernel/ToolBoxModule;)Lio/toolbox/kernel/HealthStatus;
+	public static fun onLoad (Lio/toolbox/kernel/ToolBoxModule;Lio/toolbox/kernel/KernelContext;)V
+	public static fun onStart (Lio/toolbox/kernel/ToolBoxModule;)V
+	public static fun onStop (Lio/toolbox/kernel/ToolBoxModule;)V
+	public static fun onUnload (Lio/toolbox/kernel/ToolBoxModule;)V
+}
+
+public final class io/toolbox/kernel/VerifiedModuleSource {
+	public final fun component1 ()Lio/toolbox/kernel/StagedModuleSource;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()J
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun copy (Lio/toolbox/kernel/StagedModuleSource;Ljava/lang/String;JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lio/toolbox/kernel/VerifiedModuleSource;
+	public static synthetic fun copy$default (Lio/toolbox/kernel/VerifiedModuleSource;Lio/toolbox/kernel/StagedModuleSource;Ljava/lang/String;JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lio/toolbox/kernel/VerifiedModuleSource;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAlgorithm ()Ljava/lang/String;
+	public final fun getFingerprint ()Ljava/lang/String;
+	public final fun getPolicyId ()Ljava/lang/String;
+	public final fun getSignerId ()Ljava/lang/String;
+	public final fun getStagedSource ()Lio/toolbox/kernel/StagedModuleSource;
+	public final fun getVerifiedAtMillis ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/toolbox/kernel/VersionRange {
+	public static final field Companion Lio/toolbox/kernel/VersionRange$Companion;
+	public fun <init> ()V
+	public fun <init> (Lio/toolbox/kernel/ModuleVersion;Lio/toolbox/kernel/ModuleVersion;ZZ)V
+	public synthetic fun <init> (Lio/toolbox/kernel/ModuleVersion;Lio/toolbox/kernel/ModuleVersion;ZZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lio/toolbox/kernel/ModuleVersion;
+	public final fun component2 ()Lio/toolbox/kernel/ModuleVersion;
+	public final fun component3 ()Z
+	public final fun component4 ()Z
+	public final fun contains (Lio/toolbox/kernel/ModuleVersion;)Z
+	public final fun copy (Lio/toolbox/kernel/ModuleVersion;Lio/toolbox/kernel/ModuleVersion;ZZ)Lio/toolbox/kernel/VersionRange;
+	public static synthetic fun copy$default (Lio/toolbox/kernel/VersionRange;Lio/toolbox/kernel/ModuleVersion;Lio/toolbox/kernel/ModuleVersion;ZZILjava/lang/Object;)Lio/toolbox/kernel/VersionRange;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getIncludeMaximum ()Z
+	public final fun getIncludeMinimum ()Z
+	public final fun getMaximum ()Lio/toolbox/kernel/ModuleVersion;
+	public final fun getMinimum ()Lio/toolbox/kernel/ModuleVersion;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/toolbox/kernel/VersionRange$Companion {
+	public final fun any ()Lio/toolbox/kernel/VersionRange;
+	public final fun atLeast (Lio/toolbox/kernel/ModuleVersion;)Lio/toolbox/kernel/VersionRange;
+	public final fun between (Lio/toolbox/kernel/ModuleVersion;Lio/toolbox/kernel/ModuleVersion;ZZ)Lio/toolbox/kernel/VersionRange;
+	public static synthetic fun between$default (Lio/toolbox/kernel/VersionRange$Companion;Lio/toolbox/kernel/ModuleVersion;Lio/toolbox/kernel/ModuleVersion;ZZILjava/lang/Object;)Lio/toolbox/kernel/VersionRange;
+	public final fun exact (Lio/toolbox/kernel/ModuleVersion;)Lio/toolbox/kernel/VersionRange;
+}
+
