@@ -54,14 +54,28 @@ public class ModuleCapabilities internal constructor(
 ) {
     private val declared = providedCapabilities.associateBy { it.id }
 
+    /**
+     * Compatibility bridge for modules that explicitly publish descriptor-declared capabilities.
+     * Descriptor declarations are already registered by the kernel; an identical registration is idempotent.
+     */
     public fun register(capability: Capability, replace: Boolean = false): Unit {
         check(!owner.isAcceptingInvocations()) { "Capabilities are activation-stable and cannot change while module is STARTED" }
-        val declaration = declared[capability.id]
-            ?: throw IllegalArgumentException("Capability ${capability.id} was not declared by ${owner.token.id}")
-        require(declaration.version == capability.version) {
-            "Capability ${capability.id} version ${capability.version} does not match declared version ${declaration.version}"
+        val capabilityId = capability.id
+        val capabilityVersion = capability.version
+        val providerId = capability.providerModuleId
+        val declaration = declared[capabilityId]
+            ?: throw IllegalArgumentException("Capability $capabilityId was not declared by ${owner.token.id}")
+        require(providerId == owner.token.id) {
+            "Capability provider $providerId does not match ${owner.token.id}"
         }
-        registry.register(owner, capability, replace)
+        require(declaration.version == capabilityVersion) {
+            "Capability $capabilityId version $capabilityVersion does not match declared version ${declaration.version}"
+        }
+        registry.register(
+            owner,
+            CapabilitySnapshot(capabilityId, capabilityVersion, providerId),
+            replace
+        )
     }
 
     public fun get(id: String): Capability? {
@@ -78,8 +92,12 @@ public class ModuleCapabilities internal constructor(
         }
     }.distinctBy { Triple(it.id, it.version, it.providerModuleId) }
 
+    /** Descriptor-declared capabilities are immutable for the life of this module generation. */
     public fun unregister(id: String): Boolean {
         check(!owner.isAcceptingInvocations()) { "Capabilities are activation-stable and cannot change while module is STARTED" }
+        if (id in declared) {
+            throw IllegalStateException("Descriptor-declared capability $id cannot be unregistered from an active module scope")
+        }
         return registry.unregister(owner, id)
     }
 }
@@ -137,6 +155,12 @@ internal class ModuleScope(
     private val capabilityRegistryRef = capabilityRegistry
     private val eventBusRef = eventBus
     private val commandBusRef = commandBus
+
+    init {
+        descriptor.providedCapabilities
+            .sortedBy { it.id }
+            .forEach { declaration -> capabilityRegistry.registerDeclared(lease, declaration) }
+    }
 
     override fun close(): Unit {
         if (!closed.compareAndSet(false, true)) return
