@@ -25,6 +25,52 @@ class ResourceBoundTest {
     }
 
     @Test
+    fun `oversized descriptor is rejected before kernel snapshot retention`() {
+        val dependencies = (0..KernelResourceBounds.MAX_DEPENDENCIES_PER_MODULE)
+            .mapTo(linkedSetOf()) { index -> ModuleDependency.required("precopy$index") }
+        val candidate = module("precopy", dependencies = dependencies)
+        val kernel = ToolBoxKernel()
+
+        val result = kernel.install(candidate)
+
+        assertFalse(result.isSuccess)
+        assertEquals(KernelErrorCode.INVALID_DESCRIPTOR, result.errors.single().code)
+        assertNull(kernel.moduleState("precopy"))
+        assertTrue(result.errors.single().message.contains("too many dependencies"))
+    }
+
+    @Test
+    fun `oversized descriptor strings are rejected before snapshot retention`() {
+        val descriptor = ModuleDescriptor(
+            id = "bounded",
+            name = "n".repeat(KernelResourceBounds.MAX_MODULE_NAME_LENGTH + 1),
+            version = "1.0.0"
+        )
+        val candidate = object : ToolBoxModule {
+            override val descriptor: ModuleDescriptor = descriptor
+        }
+        val kernel = ToolBoxKernel()
+
+        val result = kernel.install(candidate)
+
+        assertFalse(result.isSuccess)
+        assertEquals(KernelErrorCode.INVALID_DESCRIPTOR, result.errors.single().code)
+        assertNull(kernel.moduleState("bounded"))
+        assertTrue(result.errors.single().message.contains("name is too long"))
+    }
+
+    @Test
+    fun `identifier length is bounded before identifier regex`() {
+        val oversized = "a".repeat(KernelResourceBounds.MAX_IDENTIFIER_LENGTH + 1)
+
+        val error = assertFailsWith<IllegalArgumentException> {
+            ModuleDependency.required(oversized)
+        }
+
+        assertTrue(error.message?.contains("Dependency id is invalid") == true)
+    }
+
+    @Test
     fun `registry installed module capacity is finite`() {
         val registry = ModuleRegistry { }
         repeat(KernelResourceBounds.MAX_INSTALLED_MODULES) { index ->
