@@ -193,25 +193,33 @@ internal object MandatoryCompatibilityPolicy {
         api >= minAndroidApi && (maxAndroidApi == null || api <= maxAndroidApi)
 }
 
-internal class SafeKernelLogger(private val delegate: KernelLogger) : KernelLogger {
-    override fun debug(message: String): Unit = safe { delegate.debug(message) }
-    override fun info(message: String): Unit = safe { delegate.info(message) }
-    override fun warn(message: String, error: Throwable?): Unit = safe { delegate.warn(message, error) }
-    override fun error(message: String, error: Throwable?): Unit = safe { delegate.error(message, error) }
+internal class SafeKernelLogger(
+    private val delegate: KernelLogger,
+    private val supervisor: HostCallSupervisor = HostCallSupervisor(HostSafetyDefaults.MAX_LOG_CALLS)
+) : KernelLogger {
+    override fun debug(message: String): Unit = safe("logger:debug") { delegate.debug(message) }
+    override fun info(message: String): Unit = safe("logger:info") { delegate.info(message) }
+    override fun warn(message: String, error: Throwable?): Unit = safe("logger:warn") { delegate.warn(message, error) }
+    override fun error(message: String, error: Throwable?): Unit = safe("logger:error") { delegate.error(message, error) }
 
-    private inline fun safe(block: () -> Unit): Unit {
-        try {
-            block()
-        } catch (_: Throwable) {
-            // Logging must never become a kernel transaction dependency.
-        }
+    private fun safe(taskName: String, block: () -> Unit): Unit {
+        supervisor.execute(taskName, HostSafetyDefaults.OBSERVABILITY_TIMEOUT_MILLIS, block)
     }
 }
 
-internal class SafeKernelClock(private val delegate: KernelClock) : KernelClock {
-    override fun nowMillis(): Long = try {
-        delegate.nowMillis()
-    } catch (_: Throwable) {
-        System.currentTimeMillis()
+internal class SafeKernelClock(
+    private val delegate: KernelClock,
+    private val supervisor: HostCallSupervisor = HostCallSupervisor(HostSafetyDefaults.MAX_CLOCK_CALLS)
+) : KernelClock {
+    override fun nowMillis(): Long = when (
+        val outcome = supervisor.execute(
+            taskName = "clock:now",
+            timeoutMillis = HostSafetyDefaults.OBSERVABILITY_TIMEOUT_MILLIS,
+            task = delegate::nowMillis
+        )
+    ) {
+        is CallbackOutcome.Success -> outcome.value
+        is CallbackOutcome.Failure,
+        is CallbackOutcome.TimedOut -> System.currentTimeMillis()
     }
 }
