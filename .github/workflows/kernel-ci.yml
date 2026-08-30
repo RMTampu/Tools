@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   kernel-check:
@@ -18,6 +18,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.head_ref || github.ref_name }}
           persist-credentials: false
 
       - name: Setup Java 17
@@ -31,14 +32,23 @@ jobs:
         with:
           gradle-version: '8.7'
 
-      - name: Bootstrap and verify kernel API
-        run: |
-          gradle --no-daemon --warning-mode=all :toolbox-kernel:apiDump
-          gradle --no-daemon --warning-mode=all :toolbox-kernel:clean :toolbox-kernel:check
+      - name: Generate kernel ABI baseline
+        run: gradle --no-daemon --warning-mode=all :toolbox-kernel:apiDump
 
-      - name: Export ABI baseline
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: toolbox-kernel-api-baseline
-          path: toolbox-kernel/api/toolbox-kernel.api
-          if-no-files-found: error
+      - name: Commit ABI baseline once
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git cat-file -e HEAD:toolbox-kernel/api/toolbox-kernel.api 2>/dev/null; then
+            echo "ABI baseline is already committed"
+            exit 0
+          fi
+          git add toolbox-kernel/api/toolbox-kernel.api
+          git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -m 'Lock kernel ABI baseline'
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${GITHUB_HEAD_REF}"
+
+      - name: Verify kernel
+        run: gradle --no-daemon --warning-mode=all :toolbox-kernel:clean :toolbox-kernel:check
