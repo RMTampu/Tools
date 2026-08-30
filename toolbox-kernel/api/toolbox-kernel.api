@@ -17,6 +17,14 @@ public final class io/toolbox/kernel/AllowAllModuleAdmissionPolicy : io/toolbox/
 	public fun evaluate (Lio/toolbox/kernel/ModuleDescriptor;Lio/toolbox/kernel/ModuleSource;Lio/toolbox/kernel/VerifiedModuleSource;)Lio/toolbox/kernel/AdmissionDecision;
 }
 
+public final class io/toolbox/kernel/BudgetedKernelExecutor : io/toolbox/kernel/KernelExecutor, io/toolbox/kernel/KernelRuntimeLimitsProvider {
+	public fun <init> ()V
+	public fun <init> (Lio/toolbox/kernel/KernelExecutor;Lio/toolbox/kernel/KernelRuntimeLimits;)V
+	public synthetic fun <init> (Lio/toolbox/kernel/KernelExecutor;Lio/toolbox/kernel/KernelRuntimeLimits;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun execute (Ljava/lang/String;Lkotlin/jvm/functions/Function0;)V
+	public fun getRuntimeLimits ()Lio/toolbox/kernel/KernelRuntimeLimits;
+}
+
 public abstract interface class io/toolbox/kernel/Capability {
 	public abstract fun getId ()Ljava/lang/String;
 	public abstract fun getProviderModuleId ()Ljava/lang/String;
@@ -354,6 +362,22 @@ public final class io/toolbox/kernel/KernelRuntimeEnvironment {
 public final class io/toolbox/kernel/KernelRuntimeEnvironment$Companion {
 	public final fun authoritative (ILjava/lang/String;)Lio/toolbox/kernel/KernelRuntimeEnvironment;
 	public final fun unknownForTarget (Lio/toolbox/kernel/KernelConfig;)Lio/toolbox/kernel/KernelRuntimeEnvironment;
+}
+
+public final class io/toolbox/kernel/KernelRuntimeLimits {
+	public fun <init> ()V
+	public fun <init> (IIIIIJ)V
+	public synthetic fun <init> (IIIIIJILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getEventDispatchTimeoutMillis ()J
+	public final fun getMaxEventSubscriptions ()I
+	public final fun getMaxEventSubscriptionsPerOwner ()I
+	public final fun getMaxExtensionCallbacks ()I
+	public final fun getMaxExtensionCallbacksPerOwner ()I
+	public final fun getMaxLifecycleCallbacks ()I
+}
+
+public abstract interface class io/toolbox/kernel/KernelRuntimeLimitsProvider {
+	public abstract fun getRuntimeLimits ()Lio/toolbox/kernel/KernelRuntimeLimits;
 }
 
 public final class io/toolbox/kernel/KernelSnapshot {
