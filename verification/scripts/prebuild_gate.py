@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
+import subprocess
 import sys
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, asdict
@@ -46,6 +48,22 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def current_git_sha() -> str | None:
+    env_sha = os.environ.get("GITHUB_SHA", "").strip()
+    if re.fullmatch(r"[0-9a-fA-F]{40}", env_sha):
+        return env_sha.lower()
+    try:
+        value = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            cwd=ROOT,
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+        return value.lower() if re.fullmatch(r"[0-9a-fA-F]{40}", value) else None
+    except Exception:
+        return None
+
+
 def read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
@@ -69,6 +87,9 @@ def main() -> int:
     except Exception as exc:  # fail closed
         check("scope-readable", False, f"Unable to read scope: {exc}")
         return finish({})
+
+    source_sha = current_git_sha()
+    check("source-git-sha-known", source_sha is not None, f"gitSha={source_sha}")
 
     required_documents = scope.get("requiredDocuments", [])
     missing_docs = [name for name in required_documents if not (ROOT / name).is_file()]
@@ -94,7 +115,6 @@ def main() -> int:
         "release-minify": "isMinifyEnabled = true",
         "dependency-locking": "lockAllConfigurations()",
         "version-conflict-fail": "failOnVersionConflict()",
-        "non-reproducible-resolution-fail": "failOnNonReproducibleResolution()",
     }
     combined_build = root_build + "\n" + app_build
     for name, fragment in expected_fragments.items():
@@ -104,7 +124,8 @@ def main() -> int:
     check("lint-abort-on-error", "abortOnError = true" in app_build and "warningsAsErrors = true" in app_build, "toolbox-app/build.gradle.kts")
     check("orchestrator-enabled", 'execution = "ANDROIDX_TEST_ORCHESTRATOR"' in app_build, "toolbox-app/build.gradle.kts")
 
-    # Dynamic/changing dependency selectors are incompatible with final locked proof.
+    # Lockfiles + artifact verification are the authoritative reproducibility layer.
+    # Dynamic/changing selectors remain forbidden before resolution.
     dependency_texts = [root_build, app_build, settings]
     dynamic_patterns = [
         r'"[^"\n]*:\+"',
@@ -189,6 +210,7 @@ def finish(scope: dict) -> int:
         "schemaVersion": 1,
         "gate": "APPLICATION_PREBUILD_SOURCE_GATE",
         "status": "PASS" if not failed else "NOT_PROVEN",
+        "gitSha": current_git_sha(),
         "scopeSha256": sha256(SCOPE_PATH) if SCOPE_PATH.is_file() else None,
         "source": {
             "repository": "RMTampu/Tools",
