@@ -104,46 +104,106 @@ public data class KernelRuntimeEnvironment(
     }
 }
 
+/** Semantic Versioning 2.0.0 value. Build metadata is identity metadata and does not affect precedence. */
 public data class ModuleVersion(
     public val major: Int,
-    public val minor: Int = 0,
-    public val patch: Int = 0,
-    public val qualifier: String? = null
+    public val minor: Int,
+    public val patch: Int,
+    public val qualifier: String? = null,
+    public val buildMetadata: String? = null
 ) : Comparable<ModuleVersion> {
     init {
         require(major >= 0 && minor >= 0 && patch >= 0) { "Version numbers cannot be negative" }
-        require(qualifier == null || QUALIFIER.matches(qualifier)) { "Invalid version qualifier: $qualifier" }
+        qualifier?.let(::validatePreRelease)
+        buildMetadata?.let(::validateBuildMetadata)
     }
 
     override fun compareTo(other: ModuleVersion): Int {
         major.compareTo(other.major).takeIf { it != 0 }?.let { return it }
         minor.compareTo(other.minor).takeIf { it != 0 }?.let { return it }
         patch.compareTo(other.patch).takeIf { it != 0 }?.let { return it }
-        return when {
-            qualifier == other.qualifier -> 0
-            qualifier == null -> 1
-            other.qualifier == null -> -1
-            else -> qualifier.compareTo(other.qualifier)
+
+        val left = qualifier
+        val right = other.qualifier
+        if (left == right) return 0
+        if (left == null) return 1
+        if (right == null) return -1
+
+        val leftParts = left.split('.')
+        val rightParts = right.split('.')
+        val common = minOf(leftParts.size, rightParts.size)
+        for (index in 0 until common) {
+            val comparison = comparePreReleaseIdentifier(leftParts[index], rightParts[index])
+            if (comparison != 0) return comparison
         }
+        return leftParts.size.compareTo(rightParts.size)
     }
 
     override fun toString(): String = buildString {
         append(major).append('.').append(minor).append('.').append(patch)
         qualifier?.let { append('-').append(it) }
+        buildMetadata?.let { append('+').append(it) }
     }
 
     public companion object {
-        private val VERSION = Regex("^(0|[1-9][0-9]*)(?:\\.(0|[1-9][0-9]*))?(?:\\.(0|[1-9][0-9]*))?(?:-([0-9A-Za-z][0-9A-Za-z.-]*))?$")
-        private val QUALIFIER = Regex("^[0-9A-Za-z][0-9A-Za-z.-]*$")
+        private val VERSION = Regex(
+            "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)" +
+                "(?:-([0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*))?" +
+                "(?:\\+([0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*))?$"
+        )
+        private val IDENTIFIER = Regex("^[0-9A-Za-z-]+$")
+        private val NUMERIC = Regex("^[0-9]+$")
 
         public fun parse(value: String): ModuleVersion {
-            val match = VERSION.matchEntire(value.trim()) ?: throw IllegalArgumentException("Invalid module version: $value")
+            val match = VERSION.matchEntire(value.trim())
+                ?: throw IllegalArgumentException("Invalid Semantic Versioning 2.0 version: $value")
             return ModuleVersion(
                 major = match.groupValues[1].toInt(),
-                minor = match.groupValues[2].takeIf { it.isNotEmpty() }?.toInt() ?: 0,
-                patch = match.groupValues[3].takeIf { it.isNotEmpty() }?.toInt() ?: 0,
-                qualifier = match.groupValues[4].takeIf { it.isNotEmpty() }
+                minor = match.groupValues[2].toInt(),
+                patch = match.groupValues[3].toInt(),
+                qualifier = match.groupValues[4].takeIf { it.isNotEmpty() },
+                buildMetadata = match.groupValues[5].takeIf { it.isNotEmpty() }
             )
+        }
+
+        private fun validatePreRelease(value: String): Unit {
+            require(value.isNotEmpty()) { "Pre-release cannot be empty" }
+            value.split('.').forEach { identifier ->
+                require(identifier.isNotEmpty() && IDENTIFIER.matches(identifier)) {
+                    "Invalid pre-release identifier: $identifier"
+                }
+                if (NUMERIC.matches(identifier)) {
+                    require(identifier == "0" || !identifier.startsWith('0')) {
+                        "Numeric pre-release identifiers cannot contain leading zeroes: $identifier"
+                    }
+                }
+            }
+        }
+
+        private fun validateBuildMetadata(value: String): Unit {
+            require(value.isNotEmpty()) { "Build metadata cannot be empty" }
+            value.split('.').forEach { identifier ->
+                require(identifier.isNotEmpty() && IDENTIFIER.matches(identifier)) {
+                    "Invalid build metadata identifier: $identifier"
+                }
+            }
+        }
+
+        private fun comparePreReleaseIdentifier(left: String, right: String): Int {
+            if (left == right) return 0
+            val leftNumeric = NUMERIC.matches(left)
+            val rightNumeric = NUMERIC.matches(right)
+            return when {
+                leftNumeric && rightNumeric -> compareNumericIdentifier(left, right)
+                leftNumeric -> -1
+                rightNumeric -> 1
+                else -> left.compareTo(right)
+            }
+        }
+
+        private fun compareNumericIdentifier(left: String, right: String): Int {
+            val lengthComparison = left.length.compareTo(right.length)
+            return if (lengthComparison != 0) lengthComparison else left.compareTo(right)
         }
     }
 }
@@ -156,8 +216,11 @@ public data class VersionRange(
 ) {
     init {
         if (minimum != null && maximum != null) {
-            require(minimum <= maximum) { "Version range minimum cannot exceed maximum" }
-            require(minimum != maximum || (includeMinimum && includeMaximum)) { "Empty exact version range is not allowed" }
+            val comparison = minimum.compareTo(maximum)
+            require(comparison <= 0) { "Version range minimum cannot exceed maximum" }
+            require(comparison != 0 || (includeMinimum && includeMaximum)) {
+                "Empty exact version range is not allowed"
+            }
         }
     }
 
@@ -176,7 +239,8 @@ public data class VersionRange(
     public companion object {
         public fun any(): VersionRange = VersionRange()
         public fun atLeast(minimum: ModuleVersion): VersionRange = VersionRange(minimum = minimum)
-        public fun exact(version: ModuleVersion): VersionRange = VersionRange(version, version, includeMinimum = true, includeMaximum = true)
+        public fun exact(version: ModuleVersion): VersionRange =
+            VersionRange(version, version, includeMinimum = true, includeMaximum = true)
         public fun between(
             minimum: ModuleVersion,
             maximum: ModuleVersion,
