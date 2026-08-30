@@ -18,6 +18,16 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
     kotlinOptions.jvmTarget = "11"
 }
 
+// Version conflicts are fatal for production code classpaths owned by ToolBox.
+// Test/build-tool graphs remain exact through dependency locking + artifact verification
+// without treating legitimate tool-internal convergence as an application defect.
+val productionConfigurations = setOf("compileClasspath", "runtimeClasspath")
+configurations.configureEach {
+    if (name in productionConfigurations) {
+        resolutionStrategy.failOnVersionConflict()
+    }
+}
+
 tasks.test {
     useJUnitPlatform()
 }
