@@ -3,7 +3,6 @@ package io.toolbox.kernel
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.test.Test
-import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -40,8 +39,8 @@ class HostSafetyTest {
         release.countDown()
         assertTrue(exited.await(1, TimeUnit.SECONDS))
         val recovered = supervisor.execute("third", 200) { "ok" }
-        assertIs<CallbackOutcome.Success<String>>(recovered)
-        assertTrue(recovered.value == "ok")
+        val success = assertIs<CallbackOutcome.Success<*>>(recovered)
+        assertTrue(success.value == "ok")
     }
 
     @Test
