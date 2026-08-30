@@ -71,7 +71,13 @@ public class ToolBoxKernel(
 
     public fun install(source: ModuleSource, loader: ModuleLoader): KernelResult<ModuleDescriptor> = runOperation("source-install") {
         invalidInstallState()?.let { return@runOperation KernelResult.failure(it) }
-        val stableSource = source.snapshot()
+        val stableSource = try {
+            source.snapshot()
+        } catch (error: Throwable) {
+            return@runOperation KernelResult.failure(
+                KernelError(KernelErrorCode.INVALID_DESCRIPTOR, "Failed to read module source", error)
+            )
+        }
         stableSource.validationError()?.let { message ->
             return@runOperation KernelResult.failure(KernelError(KernelErrorCode.INVALID_DESCRIPTOR, message))
         }
