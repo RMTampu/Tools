@@ -22,5 +22,7 @@ The kernel foundation is accepted when CI verifies all of the following:
 18. Explicit health probing updates cached health and can degrade kernel state.
 19. Previous persisted kernel state is read before the new runtime writes `NEW`.
 20. Failed modules can be retried from a clean managed-resource scope.
-21. Kotlin explicit API mode and all unit tests pass under GitHub Actions.
-22. CI actions are pinned to reviewed commit SHAs and checkout does not persist credentials.
+21. Lifecycle callbacks run without a kernel monitor/registry lock that can deadlock a callback-owned worker thread.
+22. Competing lifecycle mutations fail deterministically with `OPERATION_IN_PROGRESS` rather than block indefinitely.
+23. Kotlin explicit API mode and all unit tests pass under GitHub Actions.
+24. CI actions are pinned to reviewed commit SHAs and checkout does not persist credentials.

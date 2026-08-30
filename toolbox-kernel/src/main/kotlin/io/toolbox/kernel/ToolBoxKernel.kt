@@ -1,5 +1,6 @@
 package io.toolbox.kernel
 
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 public class ToolBoxKernel(
@@ -13,6 +14,7 @@ public class ToolBoxKernel(
     private val modules = ModuleRegistry()
     private val lifecycle = LifecycleCoordinator(config, ports, modules, services, capabilities, events, commands)
     private val stateRef = AtomicReference(KernelState.NEW)
+    private val operationInProgress = AtomicBoolean(false)
 
     public val state: KernelState get() = stateRef.get()
     public val previousPersistedState: KernelState? = readPersistedState()
@@ -24,49 +26,134 @@ public class ToolBoxKernel(
         persistState(KernelState.NEW)
     }
 
-    @Synchronized
-    public fun install(module: ToolBoxModule): KernelResult<ModuleDescriptor> {
-        invalidInstallState()?.let { return KernelResult.failure(it) }
+    public fun install(module: ToolBoxModule): KernelResult<ModuleDescriptor> = runOperation("install") {
+        invalidInstallState()?.let { return@runOperation KernelResult.failure(it) }
         val descriptor = module.descriptor.snapshot()
         val preflight = preflightDescriptor(descriptor, null)
-        if (!preflight.isSuccess) return preflight
-        return registerPreflighted(module, descriptor)
+        if (!preflight.isSuccess) return@runOperation preflight
+        registerPreflighted(module, descriptor)
     }
 
-    @Synchronized
-    public fun install(source: ModuleSource, loader: ModuleLoader): KernelResult<ModuleDescriptor> {
-        invalidInstallState()?.let { return KernelResult.failure(it) }
+    public fun install(source: ModuleSource, loader: ModuleLoader): KernelResult<ModuleDescriptor> = runOperation("source-install") {
+        invalidInstallState()?.let { return@runOperation KernelResult.failure(it) }
         val stableSource = source.snapshot()
         stableSource.validationError()?.let { message ->
-            return KernelResult.failure(KernelError(KernelErrorCode.INVALID_DESCRIPTOR, message))
+            return@runOperation KernelResult.failure(KernelError(KernelErrorCode.INVALID_DESCRIPTOR, message))
         }
 
         val inspectedDescriptor = runCatching { loader.inspect(stableSource).snapshot() }.getOrElse { error ->
             ports.logger.error("Failed to inspect module source ${stableSource.id}", error)
-            return KernelResult.failure(KernelError(KernelErrorCode.SOURCE_INSPECTION, "Failed to inspect module source ${stableSource.id}", error))
+            return@runOperation KernelResult.failure(
+                KernelError(KernelErrorCode.SOURCE_INSPECTION, "Failed to inspect module source ${stableSource.id}", error)
+            )
         }
         if (stableSource.id != inspectedDescriptor.id) {
-            return KernelResult.failure(KernelError(KernelErrorCode.SOURCE_MISMATCH, "Source id ${stableSource.id} does not match inspected descriptor id ${inspectedDescriptor.id}"))
+            return@runOperation KernelResult.failure(
+                KernelError(KernelErrorCode.SOURCE_MISMATCH, "Source id ${stableSource.id} does not match inspected descriptor id ${inspectedDescriptor.id}")
+            )
         }
 
         val preflight = preflightDescriptor(inspectedDescriptor, stableSource)
-        if (!preflight.isSuccess) return preflight
+        if (!preflight.isSuccess) return@runOperation preflight
 
         val loaded = runCatching { loader.load(stableSource, inspectedDescriptor) }.getOrElse { error ->
             ports.logger.error("Failed to load module source ${stableSource.id}", error)
-            return KernelResult.failure(KernelError(KernelErrorCode.SOURCE_LOAD, "Failed to load module source ${stableSource.id}", error))
+            return@runOperation KernelResult.failure(
+                KernelError(KernelErrorCode.SOURCE_LOAD, "Failed to load module source ${stableSource.id}", error)
+            )
         }
         val loadedDescriptor = loaded.descriptor.snapshot()
         if (loadedDescriptor != inspectedDescriptor) {
-            return KernelResult.failure(
+            return@runOperation KernelResult.failure(
                 KernelError(
                     KernelErrorCode.SOURCE_MISMATCH,
                     "Loaded module descriptor does not match the descriptor that passed preflight for ${stableSource.id}"
                 )
             )
         }
-        return registerPreflighted(loaded, inspectedDescriptor)
+        registerPreflighted(loaded, inspectedDescriptor)
     }
+
+    public fun uninstall(moduleId: String): KernelResult<Boolean> = runOperation("uninstall") {
+        if (state in setOf(KernelState.STARTING, KernelState.STOPPING)) {
+            return@runOperation KernelResult.failure(
+                KernelError(KernelErrorCode.INVALID_STATE, "Cannot uninstall module while kernel state is $state")
+            )
+        }
+        val result = lifecycle.uninstall(moduleId)
+        if (result.isSuccess && result.value == true) {
+            publish("kernel.module.uninstalled", moduleId)
+            ports.logger.info("Uninstalled module $moduleId")
+            refreshOperationalState()
+        }
+        result
+    }
+
+    public fun retryModule(moduleId: String): KernelResult<Unit> = runOperation("retry") {
+        val result = lifecycle.retry(moduleId, activateNow = isOperational())
+        if (result.isSuccess && isOperational()) lifecycle.probeHealth()
+        refreshOperationalState()
+        result
+    }
+
+    public fun start(): KernelResult<Unit> = runOperation("start") {
+        if (state !in setOf(KernelState.NEW, KernelState.STOPPED)) {
+            return@runOperation KernelResult.failure(KernelError(KernelErrorCode.INVALID_STATE, "Kernel cannot start from state $state"))
+        }
+        setState(KernelState.STARTING)
+        publish("kernel.starting")
+        ports.logger.info("Starting ${config.name} kernel ${config.version}")
+
+        val result = lifecycle.startAll()
+        lifecycle.probeHealth()
+        updateStateAfterStart(result)
+        result.failures.forEach { ports.logger.error("Module ${it.moduleId} failed during ${it.phase}", it.cause) }
+        publish("kernel.started", result.failures)
+        result
+    }
+
+    public fun stop(): KernelResult<Unit> = runOperation("stop") {
+        if (state in setOf(KernelState.NEW, KernelState.STOPPED)) {
+            setState(KernelState.STOPPED)
+            return@runOperation KernelResult.success(Unit)
+        }
+        if (state !in setOf(KernelState.RUNNING, KernelState.DEGRADED, KernelState.FAILED)) {
+            return@runOperation KernelResult.failure(KernelError(KernelErrorCode.INVALID_STATE, "Kernel cannot stop from state $state"))
+        }
+        setState(KernelState.STOPPING)
+        publish("kernel.stopping")
+        val result = lifecycle.stopAll()
+        setState(if (result.isSuccess) KernelState.STOPPED else KernelState.FAILED)
+        result.failures.forEach { ports.logger.error("Module ${it.moduleId} failed during ${it.phase}", it.cause) }
+        publish("kernel.stopped", result.failures)
+        result
+    }
+
+    public fun probeHealth(): KernelResult<List<ModuleHealth>> = runOperation("health-probe") {
+        val health = lifecycle.probeHealth()
+        refreshOperationalState()
+        KernelResult.success(health)
+    }
+
+    public fun snapshot(): KernelSnapshot = KernelSnapshot(
+        config = config,
+        runtimeEnvironment = ports.runtimeEnvironment,
+        state = state,
+        previousPersistedState = previousPersistedState,
+        modules = modules.healthSnapshot(),
+        registeredServices = services.size,
+        registeredCapabilities = capabilities.size,
+        registeredCommands = commands.size,
+        eventSubscriptions = events.size
+    )
+
+    public fun moduleDescriptors(): List<ModuleDescriptor> = modules.descriptors()
+    public fun moduleState(moduleId: String): ModuleState? = modules.stateOf(moduleId)
+    public fun <T : Any> service(type: Class<T>): T? = services.get(type)
+    public fun capabilities(): List<Capability> = capabilities.all()
+    public fun execute(command: KernelCommand): CommandResult = commands.execute(command)
+    public fun subscribe(topic: String, listener: (KernelEvent) -> Unit): Subscription = events.subscribe(KERNEL_OWNER, topic, listener)
+    public fun isOperational(): Boolean = state in setOf(KernelState.RUNNING, KernelState.DEGRADED)
 
     private fun invalidInstallState(): KernelError? =
         if (state in setOf(KernelState.STARTING, KernelState.STOPPING, KernelState.FAILED)) {
@@ -115,90 +202,6 @@ public class ToolBoxKernel(
         return KernelResult.success(descriptor)
     }
 
-    @Synchronized
-    public fun uninstall(moduleId: String): KernelResult<Boolean> {
-        if (state in setOf(KernelState.STARTING, KernelState.STOPPING)) {
-            return KernelResult.failure(KernelError(KernelErrorCode.INVALID_STATE, "Cannot uninstall module while kernel state is $state"))
-        }
-        val result = lifecycle.uninstall(moduleId)
-        if (result.isSuccess && result.value == true) {
-            publish("kernel.module.uninstalled", moduleId)
-            ports.logger.info("Uninstalled module $moduleId")
-            refreshOperationalState()
-        }
-        return result
-    }
-
-    @Synchronized
-    public fun retryModule(moduleId: String): KernelResult<Unit> {
-        val result = lifecycle.retry(moduleId, activateNow = isOperational())
-        if (result.isSuccess && isOperational()) lifecycle.probeHealth()
-        refreshOperationalState()
-        return result
-    }
-
-    @Synchronized
-    public fun start(): KernelResult<Unit> {
-        if (state !in setOf(KernelState.NEW, KernelState.STOPPED)) {
-            return KernelResult.failure(KernelError(KernelErrorCode.INVALID_STATE, "Kernel cannot start from state $state"))
-        }
-        setState(KernelState.STARTING)
-        publish("kernel.starting")
-        ports.logger.info("Starting ${config.name} kernel ${config.version}")
-
-        val result = lifecycle.startAll()
-        lifecycle.probeHealth()
-        updateStateAfterStart(result)
-        result.failures.forEach { ports.logger.error("Module ${it.moduleId} failed during ${it.phase}", it.cause) }
-        publish("kernel.started", result.failures)
-        return result
-    }
-
-    @Synchronized
-    public fun stop(): KernelResult<Unit> {
-        if (state in setOf(KernelState.NEW, KernelState.STOPPED)) {
-            setState(KernelState.STOPPED)
-            return KernelResult.success(Unit)
-        }
-        if (state !in setOf(KernelState.RUNNING, KernelState.DEGRADED, KernelState.FAILED)) {
-            return KernelResult.failure(KernelError(KernelErrorCode.INVALID_STATE, "Kernel cannot stop from state $state"))
-        }
-        setState(KernelState.STOPPING)
-        publish("kernel.stopping")
-        val result = lifecycle.stopAll()
-        setState(if (result.isSuccess) KernelState.STOPPED else KernelState.FAILED)
-        result.failures.forEach { ports.logger.error("Module ${it.moduleId} failed during ${it.phase}", it.cause) }
-        publish("kernel.stopped", result.failures)
-        return result
-    }
-
-    @Synchronized
-    public fun probeHealth(): List<ModuleHealth> {
-        val health = lifecycle.probeHealth()
-        refreshOperationalState()
-        return health
-    }
-
-    public fun snapshot(): KernelSnapshot = KernelSnapshot(
-        config = config,
-        runtimeEnvironment = ports.runtimeEnvironment,
-        state = state,
-        previousPersistedState = previousPersistedState,
-        modules = modules.healthSnapshot(),
-        registeredServices = services.size,
-        registeredCapabilities = capabilities.size,
-        registeredCommands = commands.size,
-        eventSubscriptions = events.size
-    )
-
-    public fun moduleDescriptors(): List<ModuleDescriptor> = modules.descriptors()
-    public fun moduleState(moduleId: String): ModuleState? = modules.stateOf(moduleId)
-    public fun <T : Any> service(type: Class<T>): T? = services.get(type)
-    public fun capabilities(): List<Capability> = capabilities.all()
-    public fun execute(command: KernelCommand): CommandResult = commands.execute(command)
-    public fun subscribe(topic: String, listener: (KernelEvent) -> Unit): Subscription = events.subscribe(KERNEL_OWNER, topic, listener)
-    public fun isOperational(): Boolean = state in setOf(KernelState.RUNNING, KernelState.DEGRADED)
-
     private fun updateStateAfterStart(result: KernelResult<Unit>): Unit {
         val health = modules.healthSnapshot()
         val startedCount = health.count { it.state == ModuleState.STARTED }
@@ -234,6 +237,19 @@ public class ToolBoxKernel(
     private fun persistState(newState: KernelState): Unit {
         runCatching { ports.stateStore.put(STATE_KEY, newState.name) }
             .onFailure { ports.logger.warn("Unable to persist kernel state", it) }
+    }
+
+    private fun <T> runOperation(name: String, block: () -> KernelResult<T>): KernelResult<T> {
+        if (!operationInProgress.compareAndSet(false, true)) {
+            return KernelResult.failure(
+                KernelError(KernelErrorCode.OPERATION_IN_PROGRESS, "Kernel operation already in progress; rejected $name")
+            )
+        }
+        return try {
+            block()
+        } finally {
+            operationInProgress.set(false)
+        }
     }
 
     private companion object {

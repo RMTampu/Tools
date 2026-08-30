@@ -35,6 +35,7 @@ public interface KernelLogger {
 public object NoopKernelLogger : KernelLogger
 
 public fun interface KernelExecutor {
+    /** Executes [task] synchronously and returns only after it completed or threw. */
     public fun execute(taskName: String, task: () -> Unit): Unit
 }
 

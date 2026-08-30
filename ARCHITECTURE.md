@@ -8,6 +8,14 @@ This document describes only the kernel foundation implemented in this repositor
 
 `ToolBoxKernel` is the lifecycle authority. Internal registries are not exposed for direct mutation. Consumers can query module state, read services/capabilities, execute commands, and subscribe to events only through controlled public methods.
 
+## Operation serialization and callback safety
+
+Kernel lifecycle mutations use a non-blocking operation gate. Only one install/start/stop/uninstall/retry/health-probe operation may mutate lifecycle state at a time. A competing operation receives `OPERATION_IN_PROGRESS` rather than waiting on a monitor.
+
+The gate serializes state mutation without holding a Java/Kotlin monitor while module callbacks execute. This prevents a module callback that delegates work to another thread from deadlocking merely because that thread calls back into the kernel. Registry structural locks are also released before module code is invoked.
+
+`KernelExecutor.execute` is a synchronous boundary: implementations must return only after the task has completed or thrown. A host may implement deadlines internally, but asynchronous fire-and-forget execution violates the SPI contract.
+
 ## Module lifecycle
 
 A registered module can move through:
@@ -15,8 +23,6 @@ A registered module can move through:
 `REGISTERED -> LOADING -> LOADED -> STARTING -> STARTED -> STOPPING -> STOPPED -> STARTING`
 
 Uninstall adds `UNLOADING`. Any lifecycle callback failure moves the module to `FAILED`. Failed load/start attempts release the module scope so retry starts from a clean managed-resource state.
-
-Module callbacks are always executed outside registry structural locks.
 
 ## Module identity and compatibility metadata
 

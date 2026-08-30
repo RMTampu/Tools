@@ -192,7 +192,8 @@ class ToolBoxKernelTest {
         assertEquals(1, checks)
         kernel.snapshot()
         assertEquals(1, checks)
-        kernel.probeHealth()
+        val probe = kernel.probeHealth()
+        assertTrue(probe.isSuccess)
         assertEquals(2, checks)
         assertEquals(KernelState.DEGRADED, kernel.state)
     }
