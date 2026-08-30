@@ -58,7 +58,9 @@ class RegistryTest {
         assertTrue(kernel.stopModule("consumer").isSuccess)
         assertEquals(ModuleState.STARTED, kernel.moduleState("provider"))
         assertFalse(retained.available)
-        assertFailsWith<IllegalStateException> { retained.use { it } }
+        assertFailsWith<IllegalStateException> {
+            retained.use { value -> check(value.isNotEmpty()) }
+        }
         assertFailsWith<IllegalStateException> { consumerContext.services.reference(String::class.java) }
         assertFailsWith<IllegalStateException> { consumerContext.capabilities.all() }
         assertFailsWith<IllegalStateException> { consumerContext.commands.execute(command("missing")) }
