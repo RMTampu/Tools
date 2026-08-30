@@ -2,8 +2,8 @@
 """Fail-closed source/build-input gate for APPLICATION_SAFE_100.
 
 This script intentionally performs no APK assembly. It validates the closed scope,
-build policy, source boundaries, manifest semantics, dependency lock/verification
-state, and CI policy before the build boundary may open.
+build policy, source boundaries, manifest semantics, accepted dependency trust,
+release signing identity readiness, and CI policy before the build boundary may open.
 """
 
 from __future__ import annotations
@@ -15,15 +15,18 @@ import re
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable
 
 ROOT = Path(__file__).resolve().parents[2]
 SCOPE_PATH = ROOT / "verification" / "application_scope.json"
+SIGNING_CONTRACT_PATH = ROOT / "verification" / "signing_contract.json"
+DEPENDENCY_TRUST_GATE_PATH = ROOT / "verification" / "scripts" / "dependency_trust_gate.py"
 EVIDENCE_DIR = ROOT / "verification" / "evidence"
 EVIDENCE_PATH = EVIDENCE_DIR / "prebuild.json"
 ANDROID_NS = "{http://schemas.android.com/apk/res/android}"
+HEX64 = re.compile(r"^[0-9a-fA-F]{64}$")
 
 
 @dataclass
@@ -109,6 +112,7 @@ def main() -> int:
         "agp-version": f'id("com.android.application") version "{platform["agp"]}"',
         "kotlin-version": f'id("org.jetbrains.kotlin.android") version "{platform["kotlin"]}"',
         "compile-sdk": f'compileSdk = {platform["compileSdk"]}',
+        "build-tools": f'buildToolsVersion = "{platform["buildTools"]}"',
         "min-sdk": f'minSdk = {platform["androidApi"]}',
         "target-sdk": f'targetSdk = {platform["androidApi"]}',
         "application-id": f'applicationId = "{scope["applicationId"]}"',
@@ -124,8 +128,6 @@ def main() -> int:
     check("lint-abort-on-error", "abortOnError = true" in app_build and "warningsAsErrors = true" in app_build, "toolbox-app/build.gradle.kts")
     check("orchestrator-enabled", 'execution = "ANDROIDX_TEST_ORCHESTRATOR"' in app_build, "toolbox-app/build.gradle.kts")
 
-    # Lockfiles + artifact verification are the authoritative reproducibility layer.
-    # Dynamic/changing selectors remain forbidden before resolution.
     dependency_texts = [root_build, app_build, settings]
     dynamic_patterns = [
         r'"[^"\n]*:\+"',
@@ -146,6 +148,34 @@ def main() -> int:
     if verification_metadata.is_file():
         metadata_text = read(verification_metadata)
         check("dependency-verification-sha256-present", "<sha256" in metadata_text, "verification-metadata.xml contains SHA-256 entries")
+
+    check("dependency-trust-gate-present", DEPENDENCY_TRUST_GATE_PATH.is_file(), str(DEPENDENCY_TRUST_GATE_PATH.relative_to(ROOT)))
+    if DEPENDENCY_TRUST_GATE_PATH.is_file():
+        dep_result = subprocess.run(
+            [sys.executable, str(DEPENDENCY_TRUST_GATE_PATH)],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        dep_detail = " | ".join(part.strip() for part in (dep_result.stdout, dep_result.stderr) if part.strip())
+        check("dependency-trust-accepted", dep_result.returncode == 0, dep_detail or f"returncode={dep_result.returncode}")
+
+    try:
+        signing = json.loads(read(SIGNING_CONTRACT_PATH))
+        release_signing = signing.get("release", {})
+        release_fingerprint = str(release_signing.get("expectedCertificateSha256") or "")
+        check("release-signing-contract-readable", True, str(SIGNING_CONTRACT_PATH.relative_to(ROOT)))
+        check("release-signing-v2-required", release_signing.get("requireV2") is True, str(release_signing.get("requireV2")))
+        check("release-signing-v3-required", release_signing.get("requireV3") is True, str(release_signing.get("requireV3")))
+        check("release-signing-certificate-pinned", bool(HEX64.fullmatch(release_fingerprint)), f"expectedCertificateSha256={release_fingerprint or None}")
+        check(
+            "release-signing-status-proven",
+            release_signing.get("statusUntilFingerprintIsPinned") != "NOT_PROVEN",
+            f"status={release_signing.get('statusUntilFingerprintIsPinned')}",
+        )
+    except Exception as exc:
+        check("release-signing-contract-readable", False, str(exc))
 
     manifest_path = ROOT / "toolbox-app" / "src" / "main" / "AndroidManifest.xml"
     try:
@@ -207,7 +237,7 @@ def main() -> int:
 def finish(scope: dict) -> int:
     failed = [item for item in checks if not item.passed]
     payload = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "gate": "APPLICATION_PREBUILD_SOURCE_GATE",
         "status": "PASS" if not failed else "NOT_PROVEN",
         "gitSha": current_git_sha(),

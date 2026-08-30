@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "status": "DEPENDENCY_TRUST_ACCEPTED",
+  "candidateGitCommit": "e05059e6ab2d5aa1ffb25c2a7fcbf98aca02da62",
+  "candidateSourceGitSha": "fdc05ee35e08f020abb7f821a2602807ec69d481",
+  "candidateSha256": "5f76ce1bb47202d5f067edf04f5060930ab4418fe58e9994ce5cf2c66b439738",
+  "workflowRunId": "33335925159",
+  "workflowArtifact": {
+    "id": 9739054667,
+    "digest": "sha256:4496c0b3755ba281abf99029d6e2e52bad12a83cadd9ffc316b0fc508f2a6dfa"
+  },
+  "identityMechanism": "Exact Gradle lock state plus SHA-256 dependency verification metadata",
+  "canonicalVerificationSha256": "683636f36db8ea5317c321e99c05cd846add7f40e7c0b73775f9278ca2c83f56",
+  "outputsSha256": {
+    "gradle/verification-metadata.xml": "e599514382d0b727fd72c73fdc5c11beca90f226ca864468df64c3c47c74bef4",
+    "toolbox-app/gradle.lockfile": "4f36ef766ea026745b6abe9e88d1d68a2560f9267b6647d37fea354bcd50fca4",
+    "toolbox-kernel/gradle.lockfile": "b507a953bdd6727e93133b7600ac7880d64e0e3f34062db0e40056aff674b832"
+  },
+  "audit": {
+    "sha256SumsFailures": 0,
+    "kernelLockRows": 31,
+    "appLockRows": 135,
+    "dynamicLockSelectors": 0,
+    "duplicateLockedCoordinates": 0,
+    "legacyJunitBom563Rows": 0,
+    "junitBom5102Present": true,
+    "junitPlatformLauncher1102Present": true,
+    "verificationArtifacts": 501,
+    "verificationArtifactsWithoutSha256": 0,
+    "verificationArtifactsWithMultipleDistinctSha256": 0,
+    "verifyMetadata": true,
+    "verifySignatures": false,
+    "independentCleanReplicas": 2,
+    "lockfilesByteIdentical": true,
+    "verificationMetadataCanonicalIdentical": true,
+    "candidateCommitChangedFileCount": 4,
+    "candidateCommitOnlyAllowedOutputs": true,
+    "repositoryPolicyReviewed": true
+  },
+  "declaredLimitations": [
+    "PGP signature verification is not used for this dependency state; accepted dependency identity is pinned by SHA-256 checksums and exact lock state.",
+    "The bot candidate commit is unsigned and is not used as the authenticity oracle; acceptance is bound to content digests, workflow run identity, clean-resolution convergence, repository policy, and the independent review record."
+  ],
+  "unresolvedFindings": []
+}
