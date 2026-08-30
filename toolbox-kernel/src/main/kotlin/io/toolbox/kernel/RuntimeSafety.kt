@@ -146,6 +146,109 @@ internal sealed class CallbackOutcome<out T> {
     ) : CallbackOutcome<Nothing>()
 }
 
+private enum class CallbackExecutionState {
+    PENDING,
+    RUNNING,
+    COMPLETED,
+    CANCELLED
+}
+
+/**
+ * Guards the KernelExecutor SPI. A task can start exactly once, cannot start after cancellation,
+ * and actual callback completion remains observable even if an executor violates the synchronous contract.
+ */
+private class GuardedCallback<T>(
+    private val taskName: String,
+    private val task: () -> T,
+    private val completion: CallbackCompletion,
+    private val releaseCapacity: () -> Unit
+) {
+    private val state = AtomicReference(CallbackExecutionState.PENDING)
+    private val result = AtomicReference<CallbackOutcome<T>?>(null)
+    private val protocolFailure = AtomicReference<Throwable?>(null)
+    private val runningThread = AtomicReference<Thread?>(null)
+    private val workerReturned = AtomicBoolean(false)
+    private val capacityReleased = AtomicBoolean(false)
+
+    internal fun run(): Unit {
+        if (!state.compareAndSet(CallbackExecutionState.PENDING, CallbackExecutionState.RUNNING)) return
+        runningThread.set(Thread.currentThread())
+        try {
+            result.compareAndSet(null, CallbackOutcome.Success(task()))
+        } catch (error: Throwable) {
+            result.compareAndSet(null, CallbackOutcome.Failure(error))
+        } finally {
+            runningThread.set(null)
+            state.set(CallbackExecutionState.COMPLETED)
+            completion.complete()
+            releaseCapacityIfTerminal()
+        }
+    }
+
+    internal fun executorReturned(): Unit {
+        workerReturned.set(true)
+        when (state.get()) {
+            CallbackExecutionState.PENDING -> {
+                if (state.compareAndSet(CallbackExecutionState.PENDING, CallbackExecutionState.CANCELLED)) {
+                    result.compareAndSet(
+                        null,
+                        CallbackOutcome.Failure(
+                            IllegalStateException("KernelExecutor returned without executing task $taskName")
+                        )
+                    )
+                    completion.complete()
+                }
+            }
+            CallbackExecutionState.RUNNING -> protocolFailure.compareAndSet(
+                null,
+                IllegalStateException("KernelExecutor returned before task $taskName completed")
+            )
+            CallbackExecutionState.COMPLETED,
+            CallbackExecutionState.CANCELLED -> Unit
+        }
+        releaseCapacityIfTerminal()
+    }
+
+    internal fun executorFailed(error: Throwable): Unit {
+        when (state.get()) {
+            CallbackExecutionState.PENDING -> {
+                if (state.compareAndSet(CallbackExecutionState.PENDING, CallbackExecutionState.CANCELLED)) {
+                    result.compareAndSet(null, CallbackOutcome.Failure(error))
+                    completion.complete()
+                }
+            }
+            CallbackExecutionState.RUNNING,
+            CallbackExecutionState.COMPLETED -> protocolFailure.compareAndSet(null, error)
+            CallbackExecutionState.CANCELLED -> Unit
+        }
+    }
+
+    internal fun cancelBeforeStart(): Unit {
+        if (state.compareAndSet(CallbackExecutionState.PENDING, CallbackExecutionState.CANCELLED)) {
+            completion.complete()
+            releaseCapacityIfTerminal()
+        }
+    }
+
+    internal fun interruptRunning(): Unit {
+        runningThread.get()?.interrupt()
+    }
+
+    internal fun outcome(): CallbackOutcome<T> {
+        protocolFailure.get()?.let { return CallbackOutcome.Failure(it) }
+        return result.get() ?: CallbackOutcome.Failure(
+            IllegalStateException("Kernel callback produced no outcome: $taskName")
+        )
+    }
+
+    private fun releaseCapacityIfTerminal(): Unit {
+        val terminal = state.get() in setOf(CallbackExecutionState.COMPLETED, CallbackExecutionState.CANCELLED)
+        if (workerReturned.get() && terminal && capacityReleased.compareAndSet(false, true)) {
+            releaseCapacity()
+        }
+    }
+}
+
 /**
  * Executes untrusted callbacks outside kernel monitors with bounded concurrency.
  * A timeout requests interruption but keeps an actual-completion token because Java interruption
@@ -170,32 +273,15 @@ internal class CallbackSupervisor(
         }
 
         val completion = CallbackCompletion(taskName)
-        val outcome = AtomicReference<CallbackOutcome<T>?>(null)
+        val guarded = GuardedCallback(taskName, task, completion, capacity::release)
         val worker = Thread(
             {
                 try {
-                    var called = false
-                    executor.execute(taskName) {
-                        called = true
-                        try {
-                            outcome.compareAndSet(null, CallbackOutcome.Success(task()))
-                        } catch (error: Throwable) {
-                            outcome.compareAndSet(null, CallbackOutcome.Failure(error))
-                        }
-                    }
-                    if (!called) {
-                        outcome.compareAndSet(
-                            null,
-                            CallbackOutcome.Failure(
-                                IllegalStateException("KernelExecutor returned without executing task $taskName")
-                            )
-                        )
-                    }
+                    executor.execute(taskName, guarded::run)
                 } catch (error: Throwable) {
-                    outcome.compareAndSet(null, CallbackOutcome.Failure(error))
+                    guarded.executorFailed(error)
                 } finally {
-                    completion.complete()
-                    capacity.release()
+                    guarded.executorReturned()
                 }
             },
             "toolbox-$taskName"
@@ -204,21 +290,21 @@ internal class CallbackSupervisor(
         try {
             worker.start()
         } catch (error: Throwable) {
-            completion.complete()
-            capacity.release()
+            guarded.executorFailed(error)
+            guarded.executorReturned()
             return CallbackOutcome.Failure(error)
         }
 
         val completed = completion.await(timeoutMillis)
         if (!completed) {
+            guarded.cancelBeforeStart()
             worker.interrupt()
+            guarded.interruptRunning()
             val timeout = TimeoutException("Kernel callback timed out after ${timeoutMillis}ms: $taskName")
             logger.error(timeout.message ?: "Kernel callback timeout", timeout)
             return CallbackOutcome.TimedOut(timeout, completion)
         }
-        return outcome.get() ?: CallbackOutcome.Failure(
-            IllegalStateException("Kernel callback produced no outcome: $taskName")
-        )
+        return guarded.outcome()
     }
 
     private companion object {
