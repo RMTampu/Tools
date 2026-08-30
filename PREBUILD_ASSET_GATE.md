@@ -77,6 +77,8 @@ Sebelum asset disentuh:
 - tentukan scope asset dan perubahan yang sedang dikerjakan;
 - jangan memulai gate berikutnya bila scope atau aturan aktif belum diketahui lengkap.
 
+Jika scope mencakup jalur/reference/resolution/consumer binding asset, agen juga WAJIB membaca `ASSET_ROUTE_PROOF_METHODS.md` dan `ASSET_ROUTE_PROOF_PROCESS.md` sebelum memasuki Gate 4.
+
 Jika semua aturan tidak dapat dipertahankan secara lengkap sekaligus, Gate 0 WAJIB menetapkan eksekusi bertahap sesuai `AGENT_PROCEDURE_EXECUTION_RULES.md` sebelum pekerjaan dilanjutkan.
 
 ---
@@ -109,9 +111,49 @@ Gate ini harus PASS sebelum pembuktian jalur komunikasi dianggap final.
 
 # 8. Gate 4 — Asset Reference / Route / Communication Proof
 
-Seluruh jalur consumer → asset, asset → asset, alias, dependency, configuration → variant, fallback, dan jalur dinamis yang termasuk scope wajib dibuktikan sesuai metode aktif yang telah diterima.
+Gate 4 WAJIB menjalankan seluruh metode aktif yang diterima dalam `ASSET_ROUTE_PROOF_METHODS.md` melalui urutan operasional `ASSET_ROUTE_PROOF_PROCESS.md`.
 
-Tidak boleh ada jalur putus, salah alamat, ambigu, tidak diketahui, atau bypass yang belum diselesaikan.
+Seluruh jalur consumer → asset, asset → asset, alias, dependency, configuration → variant, fallback, dynamic lookup, authority/capability, contextual route, dan jalur transitive yang termasuk scope wajib dibuktikan.
+
+Tidak boleh ada jalur putus, salah alamat, ambigu, tidak diketahui, tidak terbukti, unauthorized, atau bypass yang belum diselesaikan.
+
+Urutan internal Gate 4 adalah:
+
+```text
+4.0  ROUTE SCOPE & DOMAIN LOCK
+ ↓
+4.1  SEMANTIC INTENT & ORACLE CONVERGENCE
+ ↓
+4.2  OBSERVATION & EQUIVALENCE CLOSURE
+ ↓
+4.3  ASSUMPTION / DEFEATER / EPISTEMIC CLOSURE
+ ↓
+4.4  UNIQUE GLOBAL ROUTE MODEL
+ ↓
+4.5  CAUSAL DEPENDENCY & INFLUENCE VALIDATION
+ ↓
+4.6  CLOSED ROUTE REPRESENTATION / DSL
+ ↓
+4.7  ROUTE SYNTHESIS & TRANSLATION VALIDATION
+ ↓
+4.8  CONSUMER BINDING / GRAPH / AUTHORITY CLOSURE
+ ↓
+4.9  CONTEXTUAL / COMPOSITIONAL / HYPERPROPERTY PROOF
+ ↓
+4.10 ANDROID 11 RESOLUTION REFINEMENT
+ ↓
+4.11 PROOF CERTIFICATE / FOUNDATIONAL CHECK
+ ↓
+4.12 COUNTERMODEL / MUTATION / COMPLETE FAULT-DOMAIN CHALLENGE
+ ↓
+4.13 FINAL ROUTE CLOSURE
+```
+
+Gate 4 hanya PASS jika `ASSET_ROUTE_PROOF_PROCESS.md` menghasilkan:
+
+```text
+ROUTE_PROOF_PASS
+```
 
 ---
 
@@ -120,6 +162,8 @@ Tidak boleh ada jalur putus, salah alamat, ambigu, tidak diketahui, atau bypass 
 Gate ini adalah keputusan terakhir sebelum build.
 
 BUILD hanya boleh dibuka bila seluruh gate 0 sampai 4 telah PASS dan tidak ada proof wajib yang masih UNKNOWN, SKIPPED, INCOMPLETE, INDETERMINATE, NOT_LOADED, NOT_READ, atau NOT_PROVEN.
+
+Untuk scope yang mempunyai asset route/reference/resolution, `ROUTE_PROOF_PASS` wajib masih valid pada saat Gate 5 diperiksa.
 
 Status:
 
@@ -168,6 +212,7 @@ Tidak boleh menyatakan asset/build selesai hanya karena APK berhasil dikompilasi
 Dilarang:
 
 - melompati gate;
+- melompati sub-gate Gate 4;
 - menjalankan BUILD untuk mencari tahu apakah asset benar;
 - mengubah UNKNOWN menjadi PASS;
 - menjadikan keberhasilan compiler sebagai pengganti proof pre-build;
@@ -176,7 +221,8 @@ Dilarang:
 - mengurangi prosedur karena context/memory agen tidak cukup;
 - menggunakan ringkasan sebagai pengganti aturan sumber;
 - melanjutkan dari state prosedur yang tidak diketahui;
-- menganggap rule yang belum dibaca atau evidence yang hilang sebagai PASS.
+- menganggap rule yang belum dibaca atau evidence yang hilang sebagai PASS;
+- mengganti metode hasil riset aktif dengan metode yang lebih lemah/redundan/ditolak.
 
 ---
 
