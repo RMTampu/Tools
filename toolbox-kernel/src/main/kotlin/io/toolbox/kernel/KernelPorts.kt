@@ -25,7 +25,7 @@ public class InMemoryKernelStateStore : KernelStateStore {
     override fun keys(prefix: String): Set<String> = data.keys.filterTo(linkedSetOf()) { it.startsWith(prefix) }
 }
 
-/** Logger implementations must not throw from logging methods. */
+/** Logging is observational. Kernel correctness never depends on logger implementations behaving correctly. */
 public interface KernelLogger {
     public fun debug(message: String): Unit = Unit
     public fun info(message: String): Unit = Unit
@@ -52,6 +52,7 @@ public object SystemKernelClock : KernelClock {
     override fun nowMillis(): Long = System.currentTimeMillis()
 }
 
+/** Additional compatibility policy. Mandatory kernel compatibility is always evaluated first and cannot be bypassed. */
 public fun interface CompatibilityPolicy {
     public fun check(
         config: KernelConfig,
@@ -65,33 +66,7 @@ public object DefaultCompatibilityPolicy : CompatibilityPolicy {
         config: KernelConfig,
         runtimeEnvironment: KernelRuntimeEnvironment,
         descriptor: ModuleDescriptor
-    ): CompatibilityResult {
-        if (descriptor.apiVersion > config.moduleApiVersion) {
-            return CompatibilityResult(false, "Module API ${descriptor.apiVersion} exceeds kernel API ${config.moduleApiVersion}")
-        }
-        if (runtimeEnvironment.androidApi != config.androidApiBaseline) {
-            return CompatibilityResult(false, "Runtime Android API ${runtimeEnvironment.androidApi} does not match kernel target API ${config.androidApiBaseline}")
-        }
-        if (runtimeEnvironment.abi != config.architectureBaseline) {
-            return CompatibilityResult(false, "Runtime ABI ${runtimeEnvironment.abi} does not match kernel target ABI ${config.architectureBaseline}")
-        }
-        if (!descriptor.supportsAndroidApi(config.androidApiBaseline)) {
-            return CompatibilityResult(false, "Module does not support kernel target Android API ${config.androidApiBaseline}")
-        }
-        if (config.architectureBaseline !in descriptor.supportedAbis) {
-            return CompatibilityResult(false, "Module does not support kernel target ABI ${config.architectureBaseline}")
-        }
-        if (!descriptor.supportsAndroidApi(runtimeEnvironment.androidApi)) {
-            return CompatibilityResult(false, "Module does not support runtime Android API ${runtimeEnvironment.androidApi}")
-        }
-        if (runtimeEnvironment.abi !in descriptor.supportedAbis) {
-            return CompatibilityResult(false, "Module does not support runtime ABI ${runtimeEnvironment.abi}")
-        }
-        return CompatibilityResult(true)
-    }
-
-    private fun ModuleDescriptor.supportsAndroidApi(api: Int): Boolean =
-        api >= minAndroidApi && (maxAndroidApi == null || api <= maxAndroidApi)
+    ): CompatibilityResult = CompatibilityResult(true)
 }
 
 public fun interface ModuleAdmissionPolicy {
@@ -102,12 +77,23 @@ public object AllowAllModuleAdmissionPolicy : ModuleAdmissionPolicy {
     override fun evaluate(descriptor: ModuleDescriptor, source: ModuleSource?): AdmissionDecision = AdmissionDecision(true)
 }
 
+public fun interface ModuleSourceVerifier {
+    /** Verifies content/integrity before executable loading. */
+    public fun verify(source: ModuleSource, descriptor: ModuleDescriptor): SourceVerificationResult
+}
+
+/** External executable loading is fail-closed until the host supplies an integrity verifier. */
+public object RejectUnverifiedModuleSourceVerifier : ModuleSourceVerifier {
+    override fun verify(source: ModuleSource, descriptor: ModuleDescriptor): SourceVerificationResult =
+        SourceVerificationResult(false, reason = "No ModuleSourceVerifier configured")
+}
+
 public interface ModuleLoader {
-    /** Reads source metadata without executing module code. */
+    /** Reads source metadata without intentionally executing module code. This reader is part of the trusted host boundary. */
     public fun inspect(source: ModuleSource): ModuleDescriptor
 
-    /** Loads executable module code only after kernel preflight has succeeded. */
-    public fun load(source: ModuleSource, descriptor: ModuleDescriptor): ToolBoxModule
+    /** Loads executable module code only from a kernel-issued verified source after preflight succeeds. */
+    public fun load(source: VerifiedModuleSource, descriptor: ModuleDescriptor): ToolBoxModule
 }
 
 public data class KernelPorts(
@@ -115,7 +101,80 @@ public data class KernelPorts(
     public val logger: KernelLogger = NoopKernelLogger,
     public val executor: KernelExecutor = DirectKernelExecutor,
     public val clock: KernelClock = SystemKernelClock,
-    public val runtimeEnvironment: KernelRuntimeEnvironment = KernelRuntimeEnvironment(),
+    public val runtimeEnvironment: KernelRuntimeEnvironment = KernelRuntimeEnvironment(30, "arm64-v8a", authoritative = false),
     public val compatibilityPolicy: CompatibilityPolicy = DefaultCompatibilityPolicy,
-    public val admissionPolicy: ModuleAdmissionPolicy = AllowAllModuleAdmissionPolicy
+    public val admissionPolicy: ModuleAdmissionPolicy = AllowAllModuleAdmissionPolicy,
+    public val sourceVerifier: ModuleSourceVerifier = RejectUnverifiedModuleSourceVerifier
 )
+
+internal object MandatoryCompatibilityPolicy {
+    internal fun check(
+        config: KernelConfig,
+        runtimeEnvironment: KernelRuntimeEnvironment,
+        descriptor: ModuleDescriptor,
+        requireAuthoritativeRuntime: Boolean
+    ): CompatibilityResult {
+        if (descriptor.apiVersion < config.minimumSupportedModuleApiVersion || descriptor.apiVersion > config.moduleApiVersion) {
+            return CompatibilityResult(
+                false,
+                "Module API ${descriptor.apiVersion} is outside supported range ${config.minimumSupportedModuleApiVersion}..${config.moduleApiVersion}"
+            )
+        }
+        if (!descriptor.supportsAndroidApi(config.androidApiBaseline)) {
+            return CompatibilityResult(false, "Module does not support kernel target Android API ${config.androidApiBaseline}")
+        }
+        if (config.architectureBaseline !in descriptor.supportedAbis) {
+            return CompatibilityResult(false, "Module does not support kernel target ABI ${config.architectureBaseline}")
+        }
+        if (requireAuthoritativeRuntime && !runtimeEnvironment.authoritative) {
+            return CompatibilityResult(false, "Authoritative runtime environment is required before external executable loading")
+        }
+        if (runtimeEnvironment.authoritative) {
+            if (runtimeEnvironment.androidApi != config.androidApiBaseline) {
+                return CompatibilityResult(
+                    false,
+                    "Runtime Android API ${runtimeEnvironment.androidApi} does not match kernel target API ${config.androidApiBaseline}"
+                )
+            }
+            if (runtimeEnvironment.abi != config.architectureBaseline) {
+                return CompatibilityResult(
+                    false,
+                    "Runtime ABI ${runtimeEnvironment.abi} does not match kernel target ABI ${config.architectureBaseline}"
+                )
+            }
+            if (!descriptor.supportsAndroidApi(runtimeEnvironment.androidApi)) {
+                return CompatibilityResult(false, "Module does not support runtime Android API ${runtimeEnvironment.androidApi}")
+            }
+            if (runtimeEnvironment.abi !in descriptor.supportedAbis) {
+                return CompatibilityResult(false, "Module does not support runtime ABI ${runtimeEnvironment.abi}")
+            }
+        }
+        return CompatibilityResult(true)
+    }
+
+    private fun ModuleDescriptor.supportsAndroidApi(api: Int): Boolean =
+        api >= minAndroidApi && (maxAndroidApi == null || api <= maxAndroidApi)
+}
+
+internal class SafeKernelLogger(private val delegate: KernelLogger) : KernelLogger {
+    override fun debug(message: String): Unit = safe { delegate.debug(message) }
+    override fun info(message: String): Unit = safe { delegate.info(message) }
+    override fun warn(message: String, error: Throwable?): Unit = safe { delegate.warn(message, error) }
+    override fun error(message: String, error: Throwable?): Unit = safe { delegate.error(message, error) }
+
+    private inline fun safe(block: () -> Unit): Unit {
+        try {
+            block()
+        } catch (_: Throwable) {
+            // Logging must never become a kernel transaction dependency.
+        }
+    }
+}
+
+internal class SafeKernelClock(private val delegate: KernelClock) : KernelClock {
+    override fun nowMillis(): Long = try {
+        delegate.nowMillis()
+    } catch (_: Throwable) {
+        System.currentTimeMillis()
+    }
+}

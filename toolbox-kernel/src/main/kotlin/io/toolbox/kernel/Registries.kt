@@ -3,169 +3,273 @@ package io.toolbox.kernel
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
-internal data class OwnedValue<T>(val owner: String, val value: T)
+internal data class OwnedValue<T>(
+    val owner: ResourceOwner,
+    val value: T
+)
 
-internal class ServiceRegistry {
-    private val services = ConcurrentHashMap<Class<*>, OwnedValue<Any>>()
+internal class ServiceRegistry(
+    private val onMutation: () -> Unit
+) {
+    private val services = ConcurrentHashMap<ServiceKey<*>, OwnedValue<Any>>()
 
-    internal fun <T : Any> register(owner: String, type: Class<T>, service: T, replace: Boolean): Unit {
+    internal fun <T : Any> register(owner: ResourceOwner, key: ServiceKey<T>, service: T, replace: Boolean): Unit {
+        owner.assertContextOpen()
         val replacement = OwnedValue(owner, service as Any)
         if (!replace) {
-            check(services.putIfAbsent(type, replacement) == null) { "Service already registered: ${type.name}" }
+            check(services.putIfAbsent(key, replacement) == null) {
+                "Service already registered: ${key.type.name}:${key.qualifier}"
+            }
+            onMutation()
             return
         }
-        services.compute(type) { _, current ->
-            check(current == null || current.owner == owner) { "Service ${type.name} is owned by ${current?.owner}" }
+        services.compute(key) { _, current ->
+            check(current == null || current.owner.token == owner.token) {
+                "Service ${key.type.name}:${key.qualifier} is owned by ${current?.owner?.token?.id}"
+            }
             replacement
         }
+        onMutation()
     }
 
-    internal fun <T : Any> get(type: Class<T>): T? = services[type]?.value?.let(type::cast)
-
-    internal fun <T : Any> getIfOwner(type: Class<T>, ownerAllowed: (String) -> Boolean): T? {
-        val current = services[type] ?: return null
-        if (!ownerAllowed(current.owner)) return null
-        return type.cast(current.value)
+    internal fun unregister(owner: ResourceOwner, key: ServiceKey<*>): Boolean {
+        owner.assertContextOpen()
+        val current = services[key] ?: return false
+        if (current.owner.token != owner.token) return false
+        val removed = services.remove(key, current)
+        if (removed) onMutation()
+        return removed
     }
 
-    internal fun unregister(owner: String, type: Class<*>): Boolean {
-        val current = services[type] ?: return false
-        if (current.owner != owner) return false
-        return services.remove(type, current)
+    internal fun <T : Any> reference(
+        key: ServiceKey<T>,
+        providerAllowed: (OwnerToken) -> Boolean
+    ): OwnedValue<T>? {
+        val current = services[key] ?: return null
+        if (!current.owner.isAcceptingInvocations() || !providerAllowed(current.owner.token)) return null
+        @Suppress("UNCHECKED_CAST")
+        return OwnedValue(current.owner, key.type.cast(current.value))
     }
 
-    internal fun removeOwner(owner: String): Unit {
-        services.entries.removeIf { it.value.owner == owner }
+    internal fun removeOwner(owner: OwnerToken): Unit {
+        val changed = services.entries.removeIf { it.value.owner.token == owner }
+        if (changed) onMutation()
     }
 
     internal val size: Int get() = services.size
 }
 
-internal class CapabilityRegistry {
-    private val capabilities = ConcurrentHashMap<String, OwnedValue<Capability>>()
+internal class CapabilityRegistry(
+    private val onMutation: () -> Unit
+) {
+    private val capabilities = ConcurrentHashMap<String, ConcurrentHashMap<OwnerToken, OwnedValue<Capability>>>()
 
-    internal fun register(owner: String, capability: Capability, replace: Boolean): Unit {
-        require(capability.id.isNotBlank()) { "Capability id cannot be blank" }
-        require(capability.providerModuleId == owner) { "Capability provider must match owner $owner" }
+    internal fun register(owner: ResourceOwner, capability: Capability, replace: Boolean): Unit {
+        owner.assertContextOpen()
+        KernelIdentifiers.requireValid(capability.id, "Capability id")
+        require(capability.providerModuleId == owner.token.id) { "Capability provider must match owner ${owner.token.id}" }
+        val bucket = capabilities.computeIfAbsent(capability.id) { ConcurrentHashMap() }
         val replacement = OwnedValue(owner, capability)
         if (!replace) {
-            check(capabilities.putIfAbsent(capability.id, replacement) == null) { "Capability already registered: ${capability.id}" }
+            check(bucket.putIfAbsent(owner.token, replacement) == null) {
+                "Capability ${capability.id} already registered by ${owner.token.id}"
+            }
+            onMutation()
             return
         }
-        capabilities.compute(capability.id) { _, current ->
-            check(current == null || current.owner == owner) { "Capability ${capability.id} is owned by ${current?.owner}" }
-            replacement
+        bucket[owner.token] = replacement
+        onMutation()
+    }
+
+    internal fun unregister(owner: ResourceOwner, id: String): Boolean {
+        owner.assertContextOpen()
+        val bucket = capabilities[id] ?: return false
+        val removed = bucket.remove(owner.token) != null
+        if (bucket.isEmpty()) capabilities.remove(id, bucket)
+        if (removed) onMutation()
+        return removed
+    }
+
+    internal fun findActive(requirement: CapabilityRequirement, providerId: String? = null): Capability? =
+        capabilities[requirement.id]
+            ?.values
+            ?.asSequence()
+            ?.filter { it.owner.isAcceptingInvocations() }
+            ?.filter { providerId == null || it.owner.token.id == providerId }
+            ?.map { it.value }
+            ?.filter { requirement.versionRange.contains(it.version) }
+            ?.sortedWith(compareByDescending<Capability> { it.version }.thenBy { it.providerModuleId })
+            ?.firstOrNull()
+
+    internal fun allActive(): List<Capability> = capabilities.values
+        .flatMap { it.values }
+        .filter { it.owner.isAcceptingInvocations() }
+        .map { it.value }
+        .sortedWith(compareBy<Capability> { it.id }.thenByDescending { it.version }.thenBy { it.providerModuleId })
+
+    internal fun removeOwner(owner: OwnerToken): Unit {
+        var changed = false
+        capabilities.forEach { (id, bucket) ->
+            if (bucket.remove(owner) != null) changed = true
+            if (bucket.isEmpty()) capabilities.remove(id, bucket)
         }
+        if (changed) onMutation()
     }
 
-    internal fun get(id: String): Capability? = capabilities[id]?.value
-
-    internal fun unregister(owner: String, id: String): Boolean {
-        val current = capabilities[id] ?: return false
-        if (current.owner != owner) return false
-        return capabilities.remove(id, current)
-    }
-
-    internal fun removeOwner(owner: String): Unit {
-        capabilities.entries.removeIf { it.value.owner == owner }
-    }
-
-    internal fun all(): List<Capability> = capabilities.values.map { it.value }.sortedBy { it.id }
-
-    internal fun allIfOwner(ownerAllowed: (String) -> Boolean): List<Capability> =
-        capabilities.values.filter { ownerAllowed(it.owner) }.map { it.value }.sortedBy { it.id }
-
-    internal val size: Int get() = capabilities.size
+    internal val size: Int get() = capabilities.values.sumOf { it.size }
 }
 
 public fun interface Subscription : AutoCloseable {
     override fun close(): Unit
 }
 
-internal class EventBus(private val logger: KernelLogger) {
-    private data class Listener(val owner: String, val callback: (KernelEvent) -> Unit)
+internal class EventBus(
+    private val logger: KernelLogger,
+    private val supervisor: CallbackSupervisor,
+    private val listenerTimeoutMillis: Long,
+    private val onMutation: () -> Unit
+) {
+    private data class Listener(val owner: ResourceOwner, val callback: (KernelEvent) -> Unit)
 
     private val listeners = ConcurrentHashMap<String, CopyOnWriteArrayList<Listener>>()
 
-    internal fun subscribe(owner: String, topic: String, listener: (KernelEvent) -> Unit): Subscription {
-        require(topic.isNotBlank()) { "Event topic cannot be blank" }
+    internal fun subscribe(owner: ResourceOwner, topic: String, listener: (KernelEvent) -> Unit): Subscription {
+        owner.assertContextOpen()
+        requireValidTopic(topic)
         val record = Listener(owner, listener)
         val bucket = listeners.computeIfAbsent(topic) { CopyOnWriteArrayList() }
         bucket += record
+        onMutation()
         return Subscription {
-            bucket.remove(record)
+            val removed = bucket.remove(record)
             if (bucket.isEmpty()) listeners.remove(topic, bucket)
+            if (removed) onMutation()
         }
     }
 
     internal fun publish(event: KernelEvent): Unit {
+        requireValidTopic(event.topic)
         deliver(listeners[event.topic], event)
         if (event.topic != WILDCARD) deliver(listeners[WILDCARD], event)
     }
 
     private fun deliver(bucket: List<Listener>?, event: KernelEvent): Unit {
         bucket?.forEach { record ->
-            runCatching { record.callback(event) }
-                .onFailure { logger.warn("Event listener owned by ${record.owner} failed for ${event.topic}", it) }
+            val permit = record.owner.tryAcquireInvocation() ?: return@forEach
+            val outcome = supervisor.execute(
+                "event:${record.owner.token.id}:${event.topic}",
+                listenerTimeoutMillis
+            ) {
+                try {
+                    record.callback(event)
+                } finally {
+                    permit.close()
+                }
+            }
+            when (outcome) {
+                is CallbackOutcome.Success -> Unit
+                is CallbackOutcome.Failure -> {
+                    permit.close()
+                    logger.warn("Event listener owned by ${record.owner.token.id} failed for ${event.topic}", outcome.error)
+                }
+                is CallbackOutcome.TimedOut -> logger.warn(
+                    "Event listener owned by ${record.owner.token.id} timed out for ${event.topic}",
+                    outcome.error
+                )
+            }
         }
     }
 
-    internal fun removeOwner(owner: String): Unit {
+    internal fun removeOwner(owner: OwnerToken): Unit {
+        var changed = false
         listeners.forEach { (topic, bucket) ->
-            bucket.removeIf { it.owner == owner }
+            if (bucket.removeIf { it.owner.token == owner }) changed = true
             if (bucket.isEmpty()) listeners.remove(topic, bucket)
         }
+        if (changed) onMutation()
     }
 
     internal val size: Int get() = listeners.values.sumOf { it.size }
+
+    private fun requireValidTopic(topic: String): Unit {
+        require(topic == WILDCARD || KernelIdentifiers.isValid(topic)) { "Event topic is invalid: $topic" }
+    }
 
     internal companion object {
         const val WILDCARD: String = "*"
     }
 }
 
-internal class CommandBus {
-    private data class Handler(val owner: String, val callback: (KernelCommand) -> CommandResult)
+internal class CommandBus(
+    private val supervisor: CallbackSupervisor,
+    private val timeoutMillis: Long,
+    private val onMutation: () -> Unit
+) {
+    private data class Handler(val owner: ResourceOwner, val callback: (KernelCommand) -> CommandResult)
 
     private val handlers = ConcurrentHashMap<String, Handler>()
 
     internal fun register(
-        owner: String,
+        owner: ResourceOwner,
         commandName: String,
         replace: Boolean,
         handler: (KernelCommand) -> CommandResult
     ): Unit {
-        require(commandName.isNotBlank()) { "Command name cannot be blank" }
+        owner.assertContextOpen()
+        KernelIdentifiers.requireValid(commandName, "Command name")
         val replacement = Handler(owner, handler)
         if (!replace) {
             check(handlers.putIfAbsent(commandName, replacement) == null) { "Command already registered: $commandName" }
+            onMutation()
             return
         }
         handlers.compute(commandName) { _, current ->
-            check(current == null || current.owner == owner) { "Command $commandName is owned by ${current?.owner}" }
+            check(current == null || current.owner.token == owner.token) {
+                "Command $commandName is owned by ${current?.owner?.token?.id}"
+            }
             replacement
         }
+        onMutation()
     }
 
-    internal fun execute(command: KernelCommand): CommandResult = executeIfOwner(command) { true }
-
-    internal fun executeIfOwner(command: KernelCommand, ownerAllowed: (String) -> Boolean): CommandResult {
+    internal fun execute(command: KernelCommand, ownerAllowed: (OwnerToken) -> Boolean = { true }): CommandResult {
+        KernelIdentifiers.requireValid(command.name, "Command name")
         val handler = handlers[command.name]
             ?: return CommandResult.failure(IllegalArgumentException("No handler for command: ${command.name}"))
-        if (!ownerAllowed(handler.owner)) {
-            return CommandResult.failure(IllegalStateException("Command ${command.name} is not active"))
+        if (!ownerAllowed(handler.owner.token)) {
+            return CommandResult.failure(IllegalStateException("Command ${command.name} is not visible to this caller"))
         }
-        return runCatching { handler.callback(command) }.getOrElse(CommandResult::failure)
+        val permit = handler.owner.tryAcquireInvocation()
+            ?: return CommandResult.failure(IllegalStateException("Command ${command.name} is not active"))
+        val outcome = supervisor.execute("command:${handler.owner.token.id}:${command.name}", timeoutMillis) {
+            try {
+                handler.callback(command)
+            } finally {
+                permit.close()
+            }
+        }
+        return when (outcome) {
+            is CallbackOutcome.Success -> outcome.value
+            is CallbackOutcome.Failure -> {
+                permit.close()
+                CommandResult.failure(outcome.error)
+            }
+            is CallbackOutcome.TimedOut -> CommandResult.failure(outcome.error)
+        }
     }
 
-    internal fun unregister(owner: String, commandName: String): Boolean {
+    internal fun unregister(owner: ResourceOwner, commandName: String): Boolean {
+        owner.assertContextOpen()
         val current = handlers[commandName] ?: return false
-        if (current.owner != owner) return false
-        return handlers.remove(commandName, current)
+        if (current.owner.token != owner.token) return false
+        val removed = handlers.remove(commandName, current)
+        if (removed) onMutation()
+        return removed
     }
 
-    internal fun removeOwner(owner: String): Unit {
-        handlers.entries.removeIf { it.value.owner == owner }
+    internal fun removeOwner(owner: OwnerToken): Unit {
+        val changed = handlers.entries.removeIf { it.value.owner.token == owner }
+        if (changed) onMutation()
     }
 
     internal val size: Int get() = handlers.size

@@ -4,117 +4,119 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
-import kotlin.test.assertNull
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class RobustnessTest {
     @Test
-    fun `descriptor getter failure becomes structured result`() {
-        val module = object : ToolBoxModule {
-            override val descriptor: ModuleDescriptor get() = error("descriptor getter")
+    fun `throwing logger cannot corrupt kernel transaction`() {
+        val logger = object : KernelLogger {
+            override fun debug(message: String): Unit = error("logger")
+            override fun info(message: String): Unit = error("logger")
+            override fun warn(message: String, error: Throwable?): Unit = kotlin.error("logger")
+            override fun error(message: String, error: Throwable?): Unit = kotlin.error("logger")
         }
-        val result = ToolBoxKernel().install(module)
-        assertFalse(result.isSuccess)
-        assertEquals(KernelErrorCode.INVALID_DESCRIPTOR, result.errors.first().code)
-    }
-
-    @Test
-    fun `compatibility policy failure becomes structured result`() {
-        val ports = KernelPorts(
-            compatibilityPolicy = CompatibilityPolicy { _, _, _ -> error("policy") }
-        )
-        val result = ToolBoxKernel(ports = ports).install(module("policy"))
-        assertFalse(result.isSuccess)
-        assertEquals(KernelErrorCode.POLICY_FAILURE, result.errors.first().code)
-    }
-
-    @Test
-    fun `admission policy failure becomes structured result`() {
-        val ports = KernelPorts(
-            admissionPolicy = ModuleAdmissionPolicy { _, _ -> error("policy") }
-        )
-        val result = ToolBoxKernel(ports = ports).install(module("admission"))
-        assertFalse(result.isSuccess)
-        assertEquals(KernelErrorCode.POLICY_FAILURE, result.errors.first().code)
-    }
-
-    @Test
-    fun `installed descriptor collections cannot be mutated through cast`() {
-        val abis = mutableSetOf("arm64-v8a")
-        val required = mutableSetOf("cap")
-        val descriptor = ModuleDescriptor("immutable", "immutable", "1.0", supportedAbis = abis, requiredCapabilities = required)
-        val kernel = ToolBoxKernel()
-        assertTrue(kernel.install(module(descriptor)).isSuccess)
-        abis += "x86_64"
-        required.clear()
-        val installed = kernel.moduleDescriptors().single()
-        assertEquals(setOf("arm64-v8a"), installed.supportedAbis)
-        assertEquals(setOf("cap"), installed.requiredCapabilities)
-        assertFailsWith<UnsupportedOperationException> {
-            @Suppress("UNCHECKED_CAST")
-            (installed.supportedAbis as MutableSet<String>).add("x86_64")
-        }
-    }
-
-    @Test
-    fun `public module extensions are inactive after stop and active after restart`() {
-        val kernel = ToolBoxKernel()
-        val module = object : ToolBoxModule {
-            override val descriptor = ModuleDescriptor("extensions", "extensions", "1.0")
-            override fun onLoad(context: KernelContext) {
-                context.services.register(String::class.java, "service")
-                context.capabilities.register(object : Capability {
-                    override val id = "cap"
-                    override val version = 1
-                    override val providerModuleId = "extensions"
-                })
-                context.commands.register("ping") { CommandResult.success("pong") }
-            }
-        }
-        kernel.install(module)
+        val kernel = ToolBoxKernel(ports = KernelPorts(logger = logger))
+        assertTrue(kernel.install(module("safe")).isSuccess)
         assertTrue(kernel.start().isSuccess)
-        assertEquals("service", kernel.service(String::class.java))
-        assertEquals(listOf("cap"), kernel.capabilities().map { it.id })
-        assertTrue(kernel.execute(command("ping")).success)
-
-        assertTrue(kernel.stop().isSuccess)
-        assertNull(kernel.service(String::class.java))
-        assertTrue(kernel.capabilities().isEmpty())
-        assertFalse(kernel.execute(command("ping")).success)
-
-        assertTrue(kernel.start().isSuccess)
-        assertEquals("service", kernel.service(String::class.java))
-        assertTrue(kernel.execute(command("ping")).success)
+        assertEquals(KernelState.RUNNING, kernel.state)
     }
 
     @Test
-    fun `retry refuses failed module that still owns loaded scope`() {
-        var failStop = true
+    fun `throwing clock falls back without stranding lifecycle`() {
+        val kernel = ToolBoxKernel(ports = KernelPorts(clock = KernelClock { error("clock") }))
+        assertTrue(kernel.install(module("safe")).isSuccess)
+        assertTrue(kernel.start().isSuccess)
+        assertEquals(KernelState.RUNNING, kernel.state)
+    }
+
+    @Test
+    fun `unknown health after explicit probe degrades kernel`() {
         val kernel = ToolBoxKernel()
-        val module = object : ToolBoxModule {
-            override val descriptor = ModuleDescriptor("scope", "scope", "1.0")
-            override fun onStop() {
-                if (failStop) error("stop failed")
-            }
+        kernel.install(module("unknown", healthBlock = { HealthStatus.unknown("cannot determine") }))
+        assertTrue(kernel.start().isSuccess)
+        assertEquals(KernelState.DEGRADED, kernel.state)
+        val health = kernel.snapshot().modules.single().health
+        assertEquals(HealthState.UNKNOWN, health.state)
+        assertNotNull(health.checkedAtMillis)
+    }
+
+    @Test
+    fun `health exception retains cause for diagnostics`() {
+        val kernel = ToolBoxKernel()
+        kernel.install(module("health", healthBlock = { error("probe failed") }))
+        assertTrue(kernel.start().isSuccess)
+        val status = kernel.snapshot().modules.single().health
+        assertEquals(HealthState.UNHEALTHY, status.state)
+        assertEquals("probe failed", status.cause?.message)
+        assertEquals(LifecyclePhase.HEALTH, kernel.snapshot().modules.single().lastFailure?.phase)
+    }
+
+    @Test
+    fun `kernel state store is namespaced by kernel id`() {
+        val store = InMemoryKernelStateStore()
+        val first = ToolBoxKernel(KernelConfig(kernelId = "first"), KernelPorts(stateStore = store))
+        val second = ToolBoxKernel(KernelConfig(kernelId = "second"), KernelPorts(stateStore = store))
+        assertTrue(first.start().isSuccess)
+        assertTrue(second.start().isSuccess)
+        assertEquals(KernelState.RUNNING.name, store.get("kernel.first.state"))
+        assertEquals(KernelState.RUNNING.name, store.get("kernel.second.state"))
+        assertTrue(store.get("kernel.first.session") != store.get("kernel.second.session"))
+    }
+
+    @Test
+    fun `lifecycle timeout quarantines module and force uninstall can remove it`() {
+        val config = KernelConfig(lifecycleTimeoutMillis = 50)
+        val kernel = ToolBoxKernel(config)
+        kernel.install(
+            module(
+                "hung",
+                onLoadBlock = {
+                    while (true) {
+                        try {
+                            Thread.sleep(10_000)
+                        } catch (_: InterruptedException) {
+                            // Deliberately ignore interruption to simulate hostile/stuck module code.
+                        }
+                    }
+                }
+            )
+        )
+        val result = kernel.start()
+        assertFalse(result.isSuccess)
+        assertEquals(ModuleState.QUARANTINED, kernel.moduleState("hung"))
+        assertEquals(LifecyclePhase.LOAD, result.failures.first().phase)
+        assertTrue(kernel.forceUninstall("hung").isSuccess)
+        assertEquals(null, kernel.moduleState("hung"))
+    }
+
+    @Test
+    fun `executor returning without running task becomes lifecycle failure`() {
+        val executor = KernelExecutor { _, _ -> Unit }
+        val kernel = ToolBoxKernel(ports = KernelPorts(executor = executor))
+        kernel.install(module("brokenexecutor"))
+        val result = kernel.start()
+        assertFalse(result.isSuccess)
+        assertEquals(ModuleState.FAILED, kernel.moduleState("brokenexecutor"))
+    }
+
+    @Test
+    fun `snapshot carries coherent revision when kernel is idle`() {
+        val kernel = ToolBoxKernel()
+        kernel.install(module("snapshot"))
+        val snapshot = kernel.snapshot()
+        assertTrue(snapshot.consistent)
+        assertTrue(snapshot.revision > 0)
+        assertTrue(snapshot.sessionId.isNotBlank())
+    }
+
+    @Test
+    fun `identifier grammar rejects unstable identifiers`() {
+        assertFailsWith<IllegalArgumentException> { ModuleDependency.required("Bad Id") }
+        val kernel = ToolBoxKernel()
+        val bad = object : ToolBoxModule {
+            override val descriptor = ModuleDescriptor("Bad", "Bad", "1.0.0")
         }
-        kernel.install(module)
-        kernel.start()
-        assertFalse(kernel.uninstall("scope").isSuccess)
-        val retry = kernel.retryModule("scope")
-        assertFalse(retry.isSuccess)
-        assertEquals(KernelErrorCode.INVALID_STATE, retry.errors.first().code)
-        failStop = false
-        assertTrue(kernel.uninstall("scope").isSuccess)
-        assertNull(kernel.moduleState("scope"))
-    }
-
-    private fun module(id: String): ToolBoxModule = module(ModuleDescriptor(id, id, "1.0"))
-
-    private fun module(descriptorValue: ModuleDescriptor): ToolBoxModule = object : ToolBoxModule {
-        override val descriptor = descriptorValue
-    }
-
-    private fun command(nameValue: String): KernelCommand = object : KernelCommand {
-        override val name = nameValue
+        assertEquals(KernelErrorCode.INVALID_DESCRIPTOR, kernel.install(bad).errors.first().code)
     }
 }
