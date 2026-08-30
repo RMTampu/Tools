@@ -3,6 +3,10 @@ package io.toolbox.kernel
 import java.util.concurrent.ConcurrentHashMap
 
 public interface KernelStateStore {
+    /**
+     * Replaces one key atomically. Durable implementations must never expose a torn value for a
+     * single key because kernel recovery commits its canonical state record through one [put].
+     */
     public fun put(key: String, value: String): Unit
     public fun get(key: String): String?
     public fun remove(key: String): Unit
