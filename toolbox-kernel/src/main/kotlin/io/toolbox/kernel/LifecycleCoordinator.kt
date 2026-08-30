@@ -19,30 +19,53 @@ internal class LifecycleCoordinator(
     @Volatile private var activePlan: ResolutionPlan? = null
 
     internal fun startAll(): KernelResult<Unit> {
-        val resolved = modules.resolvePlan()
-        if (!resolved.isSuccess) return KernelResult.failure(resolved.errors, resolved.failures)
-        val plan = resolved.value ?: return KernelResult.failure(
-            KernelError(KernelErrorCode.DEPENDENCY_RESOLUTION, "Resolution returned no plan")
-        )
-        activePlan = plan
+        var mergedPlan = ResolutionPlan.empty()
         val failures = mutableListOf<ModuleFailure>()
-        plan.order.forEach { moduleId -> activateOne(moduleId, plan, failures) }
-        return resultFromFailures(failures)
+        val errors = mutableListOf<KernelError>()
+
+        modules.descriptors().sortedBy { it.id }.forEach { descriptor ->
+            val state = modules.stateOf(descriptor.id) ?: return@forEach
+            if (state in setOf(ModuleState.FAILED, ModuleState.QUARANTINED)) return@forEach
+
+            val resolved = modules.resolvePlanFor(descriptor.id)
+            if (!resolved.isSuccess) {
+                errors += resolved.errors
+                val failure = ModuleFailure(
+                    descriptor.id,
+                    LifecyclePhase.RESOLUTION,
+                    IllegalStateException(resolved.errors.joinToString("; ") { it.message }),
+                    state
+                )
+                modules.recordFailure(descriptor.id, failure)
+                failures += failure
+                return@forEach
+            }
+
+            val plan = resolved.value ?: return@forEach
+            mergedPlan = mergedPlan.merge(plan)
+            plan.order.forEach { moduleId -> activateOne(moduleId, plan, failures) }
+        }
+
+        activePlan = mergedPlan
+        return if (errors.isEmpty() && failures.isEmpty()) {
+            KernelResult.success(Unit)
+        } else {
+            KernelResult.failure(errors.distinctBy { it.code to it.message }, failures)
+        }
     }
 
     internal fun startModule(moduleId: String): KernelResult<Unit> {
         if (!modules.contains(moduleId)) {
             return KernelResult.failure(KernelError(KernelErrorCode.NOT_FOUND, "Unknown module: $moduleId"))
         }
-        val resolved = modules.resolvePlan()
+        val resolved = modules.resolvePlanFor(moduleId)
         if (!resolved.isSuccess) return KernelResult.failure(resolved.errors, resolved.failures)
         val plan = resolved.value ?: return KernelResult.failure(
             KernelError(KernelErrorCode.DEPENDENCY_RESOLUTION, "Resolution returned no plan")
         )
-        activePlan = plan
-        val required = dependencyClosure(moduleId, plan)
+        activePlan = (activePlan ?: ResolutionPlan.empty()).merge(plan)
         val failures = mutableListOf<ModuleFailure>()
-        plan.order.filter { it in required }.forEach { id -> activateOne(id, plan, failures) }
+        plan.order.forEach { id -> activateOne(id, plan, failures) }
         return resultFromFailures(failures)
     }
 
@@ -121,14 +144,10 @@ internal class LifecycleCoordinator(
             )
         }
         modules.remove(moduleId, setOf(ModuleState.REGISTERED, ModuleState.STOPPED, ModuleState.FAILED))
-        activePlan = null
+        activePlan = activePlan?.without(moduleId)
         return KernelResult.success(true)
     }
 
-    /**
-     * Emergency purge skips module callbacks but never skips dependency or execution-safety invariants.
-     * It is intentionally limited to already-failed/quarantined modules.
-     */
     internal fun forceUninstall(moduleId: String): KernelResult<Boolean> {
         val handle = modules.handle(moduleId)
             ?: return KernelResult.failure(KernelError(KernelErrorCode.NOT_FOUND, "Unknown module: $moduleId"))
@@ -141,9 +160,7 @@ internal class LifecycleCoordinator(
             )
         }
 
-        val plan = currentPlan()
-        if (!plan.isSuccess) return KernelResult.failure(plan.errors, plan.failures)
-        val dependents = plan.value?.dependentsOf(moduleId).orEmpty()
+        val dependents = activePlan?.dependentsOf(moduleId).orEmpty()
         if (dependents.isNotEmpty()) {
             return KernelResult.failure(
                 KernelError(KernelErrorCode.CONFLICT, "Cannot purge $moduleId; required by ${dependents.joinToString()}")
@@ -164,7 +181,7 @@ internal class LifecycleCoordinator(
             scopes.remove(moduleId, scope)
         }
         modules.forceRemove(moduleId)
-        activePlan = null
+        activePlan = activePlan?.without(moduleId)
         return KernelResult.success(true)
     }
 
@@ -193,7 +210,7 @@ internal class LifecycleCoordinator(
         if (modules.stateOf(moduleId) == ModuleState.QUARANTINED) return
         scopes.remove(moduleId)?.close()
         modules.forceRemove(moduleId)
-        activePlan = null
+        activePlan = activePlan?.without(moduleId)
     }
 
     internal fun probeHealth(): List<ModuleHealth> {
@@ -450,16 +467,6 @@ internal class LifecycleCoordinator(
         modules.markFailure(moduleId, expected, failure, quarantine = true)
     }
 
-    private fun dependencyClosure(moduleId: String, plan: ResolutionPlan): Set<String> {
-        val result = linkedSetOf<String>()
-        fun visit(id: String) {
-            if (!result.add(id)) return
-            plan.dependenciesOf(id).forEach(::visit)
-        }
-        visit(moduleId)
-        return result
-    }
-
     private fun currentPlan(): KernelResult<ResolutionPlan> {
         activePlan?.let { return KernelResult.success(it) }
         val resolved = modules.resolvePlan()
@@ -470,3 +477,13 @@ internal class LifecycleCoordinator(
     private fun resultFromFailures(failures: List<ModuleFailure>): KernelResult<Unit> =
         if (failures.isEmpty()) KernelResult.success(Unit) else KernelResult.lifecycleFailure(failures)
 }
+
+private fun ResolutionPlan.without(moduleId: String): ResolutionPlan = ResolutionPlan(
+    order = order.filterNot { it == moduleId },
+    hardDependencies = hardDependencies
+        .filterKeys { it != moduleId }
+        .mapValues { (_, providers) -> providers - moduleId },
+    capabilityBindings = capabilityBindings.filter { (key, provider) ->
+        key.consumerModuleId != moduleId && provider != moduleId
+    }
+)

@@ -78,6 +78,35 @@ class ToolBoxKernelTest {
     }
 
     @Test
+    fun `broken dependency closure does not block independent module startup`() {
+        val kernel = ToolBoxKernel()
+        kernel.install(module("broken", dependencies = setOf(ModuleDependency.required("missing"))))
+        kernel.install(module("healthy"))
+
+        val result = kernel.start()
+
+        assertFalse(result.isSuccess)
+        assertEquals(ModuleState.REGISTERED, kernel.moduleState("broken"))
+        assertEquals(ModuleState.STARTED, kernel.moduleState("healthy"))
+        assertEquals(KernelState.DEGRADED, kernel.state)
+        assertEquals(LifecyclePhase.RESOLUTION, kernel.snapshot().modules.first { it.descriptor.id == "broken" }.lastFailure?.phase)
+    }
+
+    @Test
+    fun `individual module restart ignores unrelated unresolved module`() {
+        val kernel = ToolBoxKernel()
+        kernel.install(module("broken", dependencies = setOf(ModuleDependency.required("missing"))))
+        kernel.install(module("healthy"))
+        assertFalse(kernel.start().isSuccess)
+        assertEquals(KernelState.DEGRADED, kernel.state)
+
+        assertTrue(kernel.stopModule("healthy").isSuccess)
+        assertTrue(kernel.startModule("healthy").isSuccess)
+        assertEquals(ModuleState.STARTED, kernel.moduleState("healthy"))
+        assertEquals(ModuleState.REGISTERED, kernel.moduleState("broken"))
+    }
+
+    @Test
     fun `optional dependency failure does not fail consumer`() {
         val kernel = ToolBoxKernel()
         kernel.install(module("optional-provider", onStartBlock = { error("optional failed") }))

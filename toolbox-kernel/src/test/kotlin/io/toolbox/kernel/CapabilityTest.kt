@@ -42,6 +42,47 @@ class CapabilityTest {
     }
 
     @Test
+    fun `resolver falls back to lower compatible capability provider when higher provider is unresolved`() {
+        var selected: Capability? = null
+        val kernel = ToolBoxKernel()
+        kernel.install(
+            module(
+                "provider-low",
+                providedCapabilities = setOf(CapabilityDeclaration("storage", ModuleVersion.parse("1.0.0"))),
+                onLoadBlock = { it.capabilities.register(capability("storage", "1.0.0", "provider-low")) }
+            )
+        )
+        kernel.install(
+            module(
+                "provider-high",
+                dependencies = setOf(ModuleDependency.required("missing-high-dependency")),
+                providedCapabilities = setOf(CapabilityDeclaration("storage", ModuleVersion.parse("2.0.0"))),
+                onLoadBlock = { it.capabilities.register(capability("storage", "2.0.0", "provider-high")) }
+            )
+        )
+        kernel.install(
+            module(
+                "consumer",
+                requiredCapabilities = setOf(
+                    CapabilityRequirement.required(
+                        "storage",
+                        VersionRange.between(ModuleVersion.parse("1.0.0"), ModuleVersion.parse("3.0.0"))
+                    )
+                ),
+                onLoadBlock = { selected = it.capabilities.get("storage") }
+            )
+        )
+
+        val result = kernel.start()
+
+        assertFalse(result.isSuccess)
+        assertEquals("provider-low", selected?.providerModuleId)
+        assertEquals(ModuleState.STARTED, kernel.moduleState("consumer"))
+        assertEquals(ModuleState.REGISTERED, kernel.moduleState("provider-high"))
+        assertEquals(KernelState.DEGRADED, kernel.state)
+    }
+
+    @Test
     fun `capability provider cannot uninstall while required consumer exists`() {
         val kernel = ToolBoxKernel()
         kernel.install(
