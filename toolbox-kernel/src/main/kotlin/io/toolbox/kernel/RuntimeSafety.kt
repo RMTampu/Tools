@@ -168,6 +168,7 @@ private class GuardedCallback<T>(
     private val protocolFailure = AtomicReference<Throwable?>(null)
     private val runningThread = AtomicReference<Thread?>(null)
     private val workerReturned = AtomicBoolean(false)
+    private val executorReturnedSignal = CountDownLatch(1)
     private val capacityReleased = AtomicBoolean(false)
 
     internal fun run(): Unit {
@@ -187,26 +188,30 @@ private class GuardedCallback<T>(
 
     internal fun executorReturned(): Unit {
         workerReturned.set(true)
-        when (state.get() ?: CallbackExecutionState.CANCELLED) {
-            CallbackExecutionState.PENDING -> {
-                if (state.compareAndSet(CallbackExecutionState.PENDING, CallbackExecutionState.CANCELLED)) {
-                    result.compareAndSet(
-                        null,
-                        CallbackOutcome.Failure(
-                            IllegalStateException("KernelExecutor returned without executing task $taskName")
+        try {
+            when (state.get() ?: CallbackExecutionState.CANCELLED) {
+                CallbackExecutionState.PENDING -> {
+                    if (state.compareAndSet(CallbackExecutionState.PENDING, CallbackExecutionState.CANCELLED)) {
+                        result.compareAndSet(
+                            null,
+                            CallbackOutcome.Failure(
+                                IllegalStateException("KernelExecutor returned without executing task $taskName")
+                            )
                         )
-                    )
-                    completion.complete()
+                        completion.complete()
+                    }
                 }
+                CallbackExecutionState.RUNNING -> protocolFailure.compareAndSet(
+                    null,
+                    IllegalStateException("KernelExecutor returned before task $taskName completed")
+                )
+                CallbackExecutionState.COMPLETED,
+                CallbackExecutionState.CANCELLED -> Unit
             }
-            CallbackExecutionState.RUNNING -> protocolFailure.compareAndSet(
-                null,
-                IllegalStateException("KernelExecutor returned before task $taskName completed")
-            )
-            CallbackExecutionState.COMPLETED,
-            CallbackExecutionState.CANCELLED -> Unit
+        } finally {
+            executorReturnedSignal.countDown()
+            releaseCapacityIfTerminal()
         }
-        releaseCapacityIfTerminal()
     }
 
     internal fun executorFailed(error: Throwable): Unit {
@@ -232,6 +237,13 @@ private class GuardedCallback<T>(
 
     internal fun interruptRunning(): Unit {
         runningThread.get()?.interrupt()
+    }
+
+    internal fun awaitExecutorReturn(timeoutMillis: Long): Boolean = try {
+        executorReturnedSignal.await(timeoutMillis.coerceAtLeast(0), TimeUnit.MILLISECONDS)
+    } catch (interrupted: InterruptedException) {
+        Thread.currentThread().interrupt()
+        false
     }
 
     internal fun outcome(): CallbackOutcome<T> {
@@ -273,6 +285,7 @@ internal class CallbackSupervisor(
             )
         }
 
+        val deadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis)
         val completion = CallbackCompletion(taskName)
         val guarded = GuardedCallback(taskName, task, completion, capacity::release)
         val worker = Thread(
@@ -296,16 +309,34 @@ internal class CallbackSupervisor(
             return CallbackOutcome.Failure(error)
         }
 
-        val completed = completion.await(timeoutMillis)
-        if (!completed) {
-            guarded.cancelBeforeStart()
-            worker.interrupt()
-            guarded.interruptRunning()
-            val timeout = TimeoutException("Kernel callback timed out after ${timeoutMillis}ms: $taskName")
-            logger.error(timeout.message ?: "Kernel callback timeout", timeout)
-            return CallbackOutcome.TimedOut(timeout, completion)
+        if (!completion.await(remainingMillis(deadlineNanos))) {
+            return timeout(taskName, timeoutMillis, completion, guarded, worker)
+        }
+        if (!guarded.awaitExecutorReturn(remainingMillis(deadlineNanos))) {
+            return timeout(taskName, timeoutMillis, completion, guarded, worker)
         }
         return guarded.outcome()
+    }
+
+    private fun <T> timeout(
+        taskName: String,
+        timeoutMillis: Long,
+        completion: CallbackCompletion,
+        guarded: GuardedCallback<T>,
+        worker: Thread
+    ): CallbackOutcome<T> {
+        guarded.cancelBeforeStart()
+        worker.interrupt()
+        guarded.interruptRunning()
+        val timeout = TimeoutException("Kernel callback timed out after ${timeoutMillis}ms: $taskName")
+        logger.error(timeout.message ?: "Kernel callback timeout", timeout)
+        return CallbackOutcome.TimedOut(timeout, completion)
+    }
+
+    private fun remainingMillis(deadlineNanos: Long): Long {
+        val remaining = deadlineNanos - System.nanoTime()
+        if (remaining <= 0) return 0
+        return TimeUnit.NANOSECONDS.toMillis(remaining).coerceAtLeast(1)
     }
 
     private companion object {
