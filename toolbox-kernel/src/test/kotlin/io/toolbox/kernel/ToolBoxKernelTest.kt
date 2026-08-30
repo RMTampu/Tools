@@ -218,6 +218,12 @@ class ToolBoxKernelTest {
         assertEquals(ModuleState.FAILED, kernel.moduleState("fragile"))
         assertEquals(LifecyclePhase.STOP, kernel.snapshot().modules.single().lastFailure?.phase)
         assertFalse(kernel.retryModule("fragile").isSuccess)
+
+        val repeatedStop = kernel.stop()
+        assertFalse(repeatedStop.isSuccess)
+        assertEquals(KernelState.STOPPED_WITH_ERRORS, kernel.state)
+        assertEquals(LifecyclePhase.STOP, kernel.snapshot().modules.single().lastFailure?.phase)
+
         assertTrue(kernel.uninstall("fragile").isSuccess)
     }
 
