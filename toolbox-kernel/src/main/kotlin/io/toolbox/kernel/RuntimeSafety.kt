@@ -187,7 +187,7 @@ private class GuardedCallback<T>(
 
     internal fun executorReturned(): Unit {
         workerReturned.set(true)
-        when (state.get()) {
+        when (state.get() ?: CallbackExecutionState.CANCELLED) {
             CallbackExecutionState.PENDING -> {
                 if (state.compareAndSet(CallbackExecutionState.PENDING, CallbackExecutionState.CANCELLED)) {
                     result.compareAndSet(
@@ -210,7 +210,7 @@ private class GuardedCallback<T>(
     }
 
     internal fun executorFailed(error: Throwable): Unit {
-        when (state.get()) {
+        when (state.get() ?: CallbackExecutionState.CANCELLED) {
             CallbackExecutionState.PENDING -> {
                 if (state.compareAndSet(CallbackExecutionState.PENDING, CallbackExecutionState.CANCELLED)) {
                     result.compareAndSet(null, CallbackOutcome.Failure(error))
@@ -242,7 +242,8 @@ private class GuardedCallback<T>(
     }
 
     private fun releaseCapacityIfTerminal(): Unit {
-        val terminal = state.get() in setOf(CallbackExecutionState.COMPLETED, CallbackExecutionState.CANCELLED)
+        val current = state.get() ?: CallbackExecutionState.CANCELLED
+        val terminal = current == CallbackExecutionState.COMPLETED || current == CallbackExecutionState.CANCELLED
         if (workerReturned.get() && terminal && capacityReleased.compareAndSet(false, true)) {
             releaseCapacity()
         }
