@@ -14,6 +14,7 @@ public class ToolBoxKernel(
     private val safeLogger: KernelLogger = SafeKernelLogger(ports.logger)
     private val safeClock: KernelClock = SafeKernelClock(ports.clock)
     private val supervisor = CallbackSupervisor(ports.executor, safeLogger)
+    private val hostCalls = HostCallSupervisor(HostSafetyDefaults.MAX_CONTROL_CALLS)
     private val services = ServiceRegistry(mutationGuard, ::mutated)
     private val capabilities = CapabilityRegistry(mutationGuard, ::mutated)
     private val events = EventBus(safeLogger, supervisor, config.eventListenerTimeoutMillis, mutationGuard, ::mutated)
@@ -55,13 +56,17 @@ public class ToolBoxKernel(
 
     public fun install(module: ToolBoxModule): KernelResult<ModuleDescriptor> = runOperation("install") {
         invalidInstallState()?.let { return@runOperation KernelResult.failure(it) }
-        val descriptor = try {
+        val descriptorRead = boundedHostCall(
+            taskName = "module:descriptor",
+            errorCode = KernelErrorCode.INVALID_DESCRIPTOR,
+            failureMessage = "Failed to read module descriptor"
+        ) {
             module.descriptor.snapshot()
-        } catch (error: Throwable) {
-            return@runOperation KernelResult.failure(
-                KernelError(KernelErrorCode.INVALID_DESCRIPTOR, "Failed to read module descriptor", error)
-            )
         }
+        if (!descriptorRead.isSuccess) {
+            return@runOperation KernelResult.failure(descriptorRead.errors, descriptorRead.failures)
+        }
+        val descriptor = requireNotNull(descriptorRead.value)
         val compatibility = preflightCompatibility(descriptor, requireAuthoritativeRuntime = false)
         if (!compatibility.isSuccess) return@runOperation compatibility
         val admission = evaluateAdmission(descriptor, source = null, verifiedSource = null)
@@ -71,13 +76,17 @@ public class ToolBoxKernel(
 
     public fun install(source: ModuleSource, loader: ModuleLoader): KernelResult<ModuleDescriptor> = runOperation("source-install") {
         invalidInstallState()?.let { return@runOperation KernelResult.failure(it) }
-        val stableSource = try {
+        val sourceRead = boundedHostCall(
+            taskName = "source:snapshot",
+            errorCode = KernelErrorCode.INVALID_DESCRIPTOR,
+            failureMessage = "Failed to read module source"
+        ) {
             source.snapshot()
-        } catch (error: Throwable) {
-            return@runOperation KernelResult.failure(
-                KernelError(KernelErrorCode.INVALID_DESCRIPTOR, "Failed to read module source", error)
-            )
         }
+        if (!sourceRead.isSuccess) {
+            return@runOperation KernelResult.failure(sourceRead.errors, sourceRead.failures)
+        }
+        val stableSource = requireNotNull(sourceRead.value)
         stableSource.validationError()?.let { message ->
             return@runOperation KernelResult.failure(KernelError(KernelErrorCode.INVALID_DESCRIPTOR, message))
         }
@@ -90,14 +99,17 @@ public class ToolBoxKernel(
             )
         }
 
-        val staged = try {
+        val stagedResult = boundedHostCall(
+            taskName = "source:${stableSource.id}:stage",
+            errorCode = KernelErrorCode.SOURCE_STAGING,
+            failureMessage = "Failed to stage module source ${stableSource.id}"
+        ) {
             ports.sourceStager.stage(stableSource).snapshot()
-        } catch (error: Throwable) {
-            safeLogger.error("Failed to stage module source ${stableSource.id}", error)
-            return@runOperation KernelResult.failure(
-                KernelError(KernelErrorCode.SOURCE_STAGING, "Failed to stage module source ${stableSource.id}", error)
-            )
         }
+        if (!stagedResult.isSuccess) {
+            return@runOperation KernelResult.failure(stagedResult.errors, stagedResult.failures)
+        }
+        val staged = requireNotNull(stagedResult.value)
         staged.validationError()?.let { message ->
             return@runOperation KernelResult.failure(KernelError(KernelErrorCode.SOURCE_STAGING, message))
         }
@@ -110,14 +122,17 @@ public class ToolBoxKernel(
             )
         }
 
-        val inspectedDescriptor = try {
+        val inspection = boundedHostCall(
+            taskName = "source:${stableSource.id}:inspect",
+            errorCode = KernelErrorCode.SOURCE_INSPECTION,
+            failureMessage = "Failed to inspect staged module source ${stableSource.id}"
+        ) {
             loader.inspect(staged).snapshot()
-        } catch (error: Throwable) {
-            safeLogger.error("Failed to inspect staged module source ${stableSource.id}", error)
-            return@runOperation KernelResult.failure(
-                KernelError(KernelErrorCode.SOURCE_INSPECTION, "Failed to inspect staged module source ${stableSource.id}", error)
-            )
         }
+        if (!inspection.isSuccess) {
+            return@runOperation KernelResult.failure(inspection.errors, inspection.failures)
+        }
+        val inspectedDescriptor = requireNotNull(inspection.value)
         if (staged.sourceId != inspectedDescriptor.id) {
             return@runOperation KernelResult.failure(
                 KernelError(
@@ -130,14 +145,17 @@ public class ToolBoxKernel(
         val compatibility = preflightCompatibility(inspectedDescriptor, requireAuthoritativeRuntime = true)
         if (!compatibility.isSuccess) return@runOperation compatibility
 
-        val verification = try {
+        val verificationResult = boundedHostCall(
+            taskName = "source:${stableSource.id}:verify",
+            errorCode = KernelErrorCode.SOURCE_VERIFICATION,
+            failureMessage = "Source verifier failed for ${stableSource.id}"
+        ) {
             ports.sourceVerifier.verify(staged, inspectedDescriptor)
-        } catch (error: Throwable) {
-            safeLogger.error("Source verifier failed for ${stableSource.id}", error)
-            return@runOperation KernelResult.failure(
-                KernelError(KernelErrorCode.SOURCE_VERIFICATION, "Source verifier failed for ${stableSource.id}", error)
-            )
         }
+        if (!verificationResult.isSuccess) {
+            return@runOperation KernelResult.failure(verificationResult.errors, verificationResult.failures)
+        }
+        val verification = requireNotNull(verificationResult.value)
         if (
             !verification.verified ||
             verification.fingerprint.isBlank() ||
@@ -163,25 +181,31 @@ public class ToolBoxKernel(
         val admission = evaluateAdmission(inspectedDescriptor, stableSource, verifiedSource)
         if (!admission.isSuccess) return@runOperation admission
 
-        val loaded = try {
+        val loadResult = boundedHostCall(
+            taskName = "source:${stableSource.id}:load",
+            errorCode = KernelErrorCode.SOURCE_LOAD,
+            failureMessage = "Failed to load verified module source ${stableSource.id}"
+        ) {
             loader.load(verifiedSource, inspectedDescriptor)
-        } catch (error: Throwable) {
-            safeLogger.error("Failed to load verified module source ${stableSource.id}", error)
-            return@runOperation KernelResult.failure(
-                KernelError(KernelErrorCode.SOURCE_LOAD, "Failed to load verified module source ${stableSource.id}", error)
-            )
         }
-        val loadedDescriptor = try {
+        if (!loadResult.isSuccess) {
+            return@runOperation KernelResult.failure(loadResult.errors, loadResult.failures)
+        }
+        val loaded = requireNotNull(loadResult.value)
+        val loadedDescriptorResult = boundedHostCall(
+            taskName = "source:${stableSource.id}:loaded-descriptor",
+            errorCode = KernelErrorCode.INVALID_DESCRIPTOR,
+            failureMessage = "Failed to read loaded module descriptor"
+        ) {
             loaded.descriptor.snapshot()
-        } catch (error: Throwable) {
-            return@runOperation KernelResult.failure(
-                KernelError(KernelErrorCode.INVALID_DESCRIPTOR, "Failed to read loaded module descriptor", error)
-            )
         }
+        if (!loadedDescriptorResult.isSuccess) {
+            return@runOperation KernelResult.failure(loadedDescriptorResult.errors, loadedDescriptorResult.failures)
+        }
+        val loadedDescriptor = requireNotNull(loadedDescriptorResult.value)
         if (loadedDescriptor != inspectedDescriptor) {
             return@runOperation KernelResult.failure(
-                KernelError(
-                    KernelErrorCode.SOURCE_MISMATCH,
+                KernelError(\ernelErrorCode.SOURCE_MISMATCH,
                     "Loaded module descriptor does not match inspected/verified metadata for ${stableSource.id}"
                 )
             )
@@ -369,14 +393,17 @@ public class ToolBoxKernel(
             return KernelResult.failure(KernelError(code, mandatory.reason))
         }
 
-        val additional = try {
+        val additionalResult = boundedHostCall(
+            taskName = "policy:${descriptor.id}:compatibility",
+            errorCode = KernelErrorCode.POLICY_FAILURE,
+            failureMessage = "Compatibility policy failed for ${descriptor.id}"
+        ) {
             ports.compatibilityPolicy.check(config, ports.runtimeEnvironment, descriptor)
-        } catch (error: Throwable) {
-            safeLogger.error("Compatibility policy failed for ${descriptor.id}", error)
-            return KernelResult.failure(
-                KernelError(KernelErrorCode.POLICY_FAILURE, "Compatibility policy failed for ${descriptor.id}", error)
-            )
         }
+        if (!additionalResult.isSuccess) {
+            return KernelResult.failure(additionalResult.errors, additionalResult.failures)
+        }
+        val additional = requireNotNull(additionalResult.value)
         if (!additional.compatible) {
             publish(KernelTopics.MODULE_REJECTED, descriptor)
             return KernelResult.failure(KernelError(KernelErrorCode.INCOMPATIBLE_MODULE, additional.reason))
@@ -389,19 +416,43 @@ public class ToolBoxKernel(
         source: ModuleSource?,
         verifiedSource: VerifiedModuleSource?
     ): KernelResult<ModuleDescriptor> {
-        val admission = try {
+        val admissionResult = boundedHostCall(
+            taskName = "policy:${descriptor.id}:admission",
+            errorCode = KernelErrorCode.POLICY_FAILURE,
+            failureMessage = "Admission policy failed for ${descriptor.id}"
+        ) {
             ports.admissionPolicy.evaluate(descriptor, source, verifiedSource)
-        } catch (error: Throwable) {
-            safeLogger.error("Admission policy failed for ${descriptor.id}", error)
-            return KernelResult.failure(
-                KernelError(KernelErrorCode.POLICY_FAILURE, "Admission policy failed for ${descriptor.id}", error)
-            )
         }
+        if (!admissionResult.isSuccess) {
+            return KernelResult.failure(admissionResult.errors, admissionResult.failures)
+        }
+        val admission = requireNotNull(admissionResult.value)
         if (!admission.allowed) {
             publish(KernelTopics.MODULE_REJECTED, descriptor)
             return KernelResult.failure(KernelError(KernelErrorCode.ADMISSION_REJECTED, admission.reason))
         }
         return KernelResult.success(descriptor)
+    }
+
+    private fun <T : Any> boundedHostCall(
+        taskName: String,
+        errorCode: KernelErrorCode,
+        failureMessage: String,
+        task: () -> T
+    ): KernelResult<T> = when (
+        val outcome = hostCalls.execute(taskName, config.lifecycleTimeoutMillis, task)
+    ) {
+        is CallbackOutcome.Success -> KernelResult.success(outcome.value)
+        is CallbackOutcome.Failure -> KernelResult.failure(
+            KernelError(errorCode, failureMessage, outcome.error)
+        )
+        is CallbackOutcome.TimedOut -> KernelResult.failure(
+            KernelError(
+                errorCode,
+                "$failureMessage: ${outcome.error.message ?: "timed out"}",
+                outcome.error
+            )
+        )
     }
 
     private fun registerPreflighted(module: ToolBoxModule, descriptor: ModuleDescriptor): KernelResult<ModuleDescriptor> {
