@@ -177,3 +177,11 @@ Untuk setiap pekerjaan yang membaca, menambah, mengubah, menghapus, memindahkan,
 `ASSET_SAFE_100_RULES.md` adalah sumber aturan khusus asset untuk repository ini. Agen tidak boleh menyederhanakan, mengurangi, mengganti, atau melewati gate wajib di dalamnya hanya agar build/test menjadi PASS.
 
 Kesalahan alat seperti emulator, CI runner, compiler, toolchain, atau validator tidak boleh diklasifikasikan sebagai kegagalan asset tanpa bukti bahwa asset itu sendiri adalah penyebabnya. Status asset hanya boleh dinyatakan `ASSET_SAFE_100` apabila seluruh invariant wajib dalam `ASSET_SAFE_100_RULES.md` telah terpenuhi.
+
+## 17. Rantai Wajib Asset → Build → Test
+
+Sebelum melakukan build yang melibatkan asset/resource aplikasi, agen WAJIB membaca dan menjalankan `PREBUILD_ASSET_GATE.md` secara berurutan.
+
+**Build APK / production build / final resource packaging DILARANG DIMULAI sebelum seluruh gate pre-build yang diwajibkan dalam `PREBUILD_ASSET_GATE.md` selesai dan berstatus PASS.**
+
+Gate tidak boleh dilompati, dianggap PASS tanpa bukti, atau dilewati hanya untuk melihat apakah build berhasil. Jika perubahan asset atau input terkait membatalkan proof yang sudah ada, agen wajib kembali ke gate paling awal yang terdampak sebelum build dapat dibuka kembali.
