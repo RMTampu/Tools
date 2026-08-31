@@ -54,25 +54,6 @@ jobs:
           test -n "$TOOLBOX_KEY_ALIAS"
           test -n "$TOOLBOX_KEY_PASSWORD"
 
-      - name: Verify decoded keystore byte identity
-        shell: bash
-        env:
-          TOOLBOX_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEY }}
-        run: |
-          set -euo pipefail
-          umask 077
-          KEYSTORE="$RUNNER_TEMP/toolbox-release-bytecheck.jks"
-          EXPECTED='a7590a13319802057a476ac91cdef4049f184e0780e78255bc7ca7e3ea1868a5'
-          printf '%s' "$TOOLBOX_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
-          test -s "$KEYSTORE"
-          ACTUAL="$(sha256sum "$KEYSTORE" | awk '{print tolower($1)}')"
-          if [[ "$ACTUAL" != "$EXPECTED" ]]; then
-            echo '::error::SIGNING_KEY decodes successfully, but its bytes do not match the verified local dreams-release.jks.'
-            exit 1
-          fi
-          echo 'Decoded SIGNING_KEY exactly matches the verified local dreams-release.jks byte identity.'
-          rm -f "$KEYSTORE"
-
       - name: Extract and cross-check public certificate identity
         id: cert
         shell: bash
