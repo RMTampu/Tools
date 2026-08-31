@@ -8,6 +8,8 @@ R9 tidak menggantikan R1–R8 dan tidak menjadi tempat memindahkan fault domain 
 
 Status riset: `PRACTICAL_SATURATION` terhadap ruang metode assurance/V&V yang telah disapu.
 
+Untuk seluruh keputusan test environment dan Firebase authorization, R9 WAJIB mengikuti `TEST_ROUTING_POLICY.md`. R9 tidak mempunyai kewenangan membuka Firebase sendiri.
+
 ---
 
 ## 2. Scope
@@ -27,6 +29,8 @@ R9 menutup:
 - change-impact invalidation;
 - unknown/omitted/skipped closure;
 - final `APPLICATION_SAFE_100` decision.
+
+Target produk utama tetap Android 11/API30/ARM64. Environment GitHub untuk development/regression boleh fleksibel. Jika final target-specific witness masih diperlukan, R9 harus menandainya sebagai pending Final Gate dan tidak boleh menjalankan Firebase tanpa single-use approval pengguna.
 
 ---
 
@@ -58,6 +62,8 @@ Model interaksi yang dapat menghasilkan failure hanya saat beberapa domain berte
 ### R9-M05 — Combinatorial Interaction Coverage
 Gunakan t-way covering arrays untuk configuration/state/domain factors bila exhaustive Cartesian product tidak feasible. Interaction strength wajib ditetapkan dari fault/risk model dan coverage harus dihitung; t-way tidak boleh diklaim exhaustive di atas strength tersebut.
 
+Development combinations boleh dijalankan pada GitHub environment yang tersedia dan relevan. Environment non-target tidak boleh diperluas menjadi final Android 11 ARM64 claim.
+
 ### R9-M06 — State / Transition / Sequence Coverage
 Gabungkan state machines R1–R8 yang relevan dan ukur required state, transition, transition-pair/sequence, off-nominal transition, restart/recovery sequence, and forbidden-state challenge coverage.
 
@@ -82,8 +88,12 @@ Untuk setiap fault class yang dapat dimutasi secara meaningful, buat mutation/ne
 ### R9-M13 — Fault Injection / Chaos at Controlled Boundaries
 Inject failures pada storage, network, process, dependency, thread/resource, hardware, IPC, startup, update, and recovery boundary sesuai contract. Chaos tanpa invariant/oracle hanya supporting, bukan proof.
 
+GitHub fault-injection environment boleh fleksibel. Jika fault mechanism membutuhkan target-specific Android 11 ARM64 behavior, final witness dipisahkan dan tunduk pada Final Gate approval.
+
 ### R9-M14 — Fuzzing Portfolio Coverage
 Gunakan grammar-aware, stateful, coverage-guided, API/protocol, native, serialization, and external-boundary fuzzing sesuai target. Seed corpus, dictionary/schema, time/resource budget, crash deduplication, and regression corpus harus dipertahankan.
+
+Fuzzing development tidak wajib menunggu Android 11 ARM64 environment jika fault class dapat ditutup secara sah pada environment lain. Scope claim harus sesuai evidence.
 
 ### R9-M15 — Test Oracle / Reference Corpus Qualification
 Critical parser/serializer/format/protocol test harus mempunyai valid/invalid reference corpus yang provenance-nya diketahui. Corpus incompleteness tidak boleh disamakan dengan format proof universal.
@@ -91,14 +101,22 @@ Critical parser/serializer/format/protocol test harus mempunyai valid/invalid re
 ### R9-M16 — Tool Qualification / Trusted-Base Closure
 Daftar compiler, static analyzer, sanitizer, test runner, emulator/device, script, proof checker, parser, diff/oracle tool yang menjadi trusted base. Verifikasi version/configuration, sanity tests, known limitations, and self/mutation checks where feasible.
 
+Environment GitHub dan Firebase harus dicatat terpisah. GitHub non-target bukan Firebase/target witness.
+
 ### R9-M17 — Evidence Provenance & Binding
 Setiap evidence wajib mengikat minimal source revision/input set, tool/version/config, environment/device where material, build/artifact digest, test/proof ID, timestamp/run identity, and result. Evidence dari artifact/revision lain tidak dapat dipakai ulang tanpa equivalence proof.
+
+Untuk Firebase evidence, binding juga wajib mencatat bahwa execution tersebut mempunyai approval pengguna yang berlaku untuk attempt itu sesuai `TEST_ROUTING_POLICY.md`.
 
 ### R9-M18 — Evidence Freshness / Change-Impact Closure
 Setiap change menghasilkan impact set. Evidence affected wajib invalidated. Final acceptance requires `STALE_EVIDENCE = 0` and no unknown dependency between changed item and proof.
 
+Perubahan kandidat juga membatalkan unused Firebase approval yang terikat ke kandidat sebelumnya.
+
 ### R9-M19 — Fail-Closed Unknown / Skipped / Inconclusive Handling
-Status `UNKNOWN`, `SKIPPED`, `NOT_RUN`, `NOT_LOADED`, `INCOMPLETE`, `INDETERMINATE_TOOL`, `ASSUMED`, and `NOT_PROVEN` tidak boleh dihitung PASS. Tool failure wajib diperbaiki/rerun atau claim tetap tertutup.
+Status `UNKNOWN`, `SKIPPED`, `NOT_RUN`, `NOT_LOADED`, `INCOMPLETE`, `INDETERMINATE_TOOL`, `ASSUMED`, and `NOT_PROVEN` tidak boleh dihitung PASS.
+
+Tool failure wajib diperbaiki/rerun atau claim tetap tertutup, **tetapi aturan ini tidak memberi izin auto-retry Firebase**. Setiap Firebase execution attempt baru membutuhkan explicit user approval baru.
 
 ### R9-M20 — Negative Assurance / Defeater Analysis
 Untuk setiap final claim, cari alasan yang dapat membuat claim salah: missing requirement, wrong oracle, common-mode tool bug, unsupported device class, hidden dynamic path, stale evidence, incorrect model abstraction, unexpected environment, unmodeled cross-domain interaction. Semua material defeater wajib resolved atau claim dibatasi.
@@ -116,6 +134,8 @@ TOP CLAIM
 
 No dangling required claim, no evidence without claim, no claim with hidden assumption.
 
+Jika target-specific Android 11 ARM64 witness belum diotorisasi pengguna, graph harus menunjukkan node tersebut sebagai pending/unproven; tidak boleh menyelesaikannya dengan menjalankan Firebase otomatis.
+
 ### R9-M22 — Residual-Assumption / Trusted-Base Register
 Semua assumption yang tidak dibuktikan harus eksplisit, mempunyai owner, scope, justification, and monitoring/revalidation rule. `APPLICATION_SAFE_100` hanya boleh mengklaim 100% terhadap closed domain yang memasukkan assumption boundary tersebut.
 
@@ -123,11 +143,43 @@ Semua assumption yang tidak dibuktikan harus eksplisit, mempunyai owner, scope, 
 Crash/ANR/native tombstone/health telemetry boleh digunakan untuk menemukan unmodeled fault dan regression setelah release. Absence of field failures bukan proof `APPLICATION_SAFE_100`; temuan baru wajib memperluas fault model dan invalidasi claim terdampak.
 
 ### R9-M24 — Independent Final Acceptance Review
-Final decision harus memeriksa seluruh matrices, evidence bindings, mutation escapes, unresolved findings, stale proof, tool failures, and scope boundary. Build success/test count/coverage percentage tunggal tidak boleh menjadi final oracle.
+Final decision harus memeriksa seluruh matrices, evidence bindings, mutation escapes, unresolved findings, stale proof, tool failures, scope boundary, dan bila Firebase dipakai, validitas single-use user approval untuk execution yang menghasilkan evidence tersebut. Build success/test count/coverage percentage tunggal tidak boleh menjadi final oracle.
 
 ---
 
-## 4. Metode yang Tidak Menjadi Proof Mandiri
+## 4. Firebase Authority Boundary
+
+R9 boleh menyimpulkan:
+
+```text
+FINAL_TARGET_WITNESS_REQUIRED = YES
+```
+
+Tetapi R9 DILARANG mengubah kesimpulan tersebut menjadi permission Firebase.
+
+Alur wajib:
+
+```text
+R1-R8/R9 development proof complete enough for DEVELOPMENT_PASS
+-> STOP
+-> ask user
+-> explicit approval?
+   NO  -> Firebase LOCKED
+   YES -> one Firebase execution attempt only
+```
+
+Jika satu attempt selesai atau gagal:
+
+```text
+approval consumed
+-> Firebase LOCKED again
+```
+
+Retry memerlukan approval baru.
+
+---
+
+## 5. Metode yang Tidak Menjadi Proof Mandiri
 
 Tidak cukup sendiri:
 
@@ -149,7 +201,7 @@ Teknik tersebut boleh menjadi supporting evidence sesuai metode aktif.
 
 ---
 
-## 5. Final Fault / Evidence Closure
+## 6. Final Fault / Evidence Closure
 
 R9 wajib menghasilkan:
 
@@ -169,9 +221,11 @@ UNRESOLVED_DEFEATER = 0
 UNDECLARED_MATERIAL_ASSUMPTION = 0
 ```
 
+Jika target-specific evidence wajib belum tersedia karena user belum memberi Final Gate approval, maka final R9 closure belum dapat diberikan; development status tetap boleh dipertahankan sesuai `TEST_ROUTING_POLICY.md`.
+
 ---
 
-## 6. PASS Formula
+## 7. PASS Formula
 
 `APP_SAFE_R9_PASS` hanya jika:
 
@@ -199,3 +253,5 @@ AND FAULT_ESCAPE = 0
 ```
 
 R9 PASS adalah prasyarat final `APPLICATION_SAFE_100`, bukan sinonim otomatis bila scope/platform boundary belum dikunci.
+
+R9 PASS juga bukan alasan untuk menjalankan Firebase tambahan. Setiap Firebase execution tetap memerlukan approval pengguna baru untuk setiap attempt.
