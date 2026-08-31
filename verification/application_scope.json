@@ -1,7 +1,13 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "applicationId": "io.toolbox.app",
   "debugApplicationId": "io.toolbox.app.debug",
+  "toolchainProfile": {
+    "id": "toolbox-android11-api30-arm64-v1",
+    "lockFile": "verification/toolchains/android11-arm64.lock.json",
+    "humanContract": "TOOLCHAIN_ANDROID11_ARM64.md",
+    "policy": "Exact locked profile is mandatory. Version drift, host-architecture drift, and dependency drift fail before build."
+  },
   "platform": {
     "androidApi": 30,
     "abi": "arm64-v8a",
@@ -12,6 +18,9 @@
     "gradle": "8.7",
     "jdk": "17.0.20+1",
     "jdkRuntime": "17.0.20.1+1",
+    "buildHostJdk": "17.0.20+1",
+    "buildHostJdkRuntime": "17.0.20.1+1",
+    "runtimeHostArm64Jdk": "17.0.20+8",
     "kotlin": "1.9.24"
   },
   "runtimeEnvironmentBoundary": {
@@ -29,46 +38,16 @@
     ]
   },
   "domainScope": {
-    "R1": {
-      "status": "REQUIRED",
-      "reason": "Kernel bootstrap, compatibility decisions, exception and external input semantics are executable."
-    },
-    "R2": {
-      "status": "REQUIRED",
-      "reason": "Main-thread, shared-state synchronization, StrictMode, memory growth, responsiveness and resource budgets apply to every process."
-    },
-    "R3": {
-      "status": "REQUIRED",
-      "reason": "Activity lifecycle, recreation, background/resume and process restart are executable."
-    },
-    "R4": {
-      "status": "CLOSED_EMPTY",
-      "reason": "Bootstrap shell contains no durable database, file, DataStore, preferences, cache source-of-truth, backup or migration path. Introduction of any persistent store invalidates this closure."
-    },
-    "R5": {
-      "status": "REQUIRED",
-      "reason": "Launcher Activity is exported and therefore an external boundary; network and dangerous permission universes are closed empty."
-    },
-    "R6": {
-      "status": "REQUIRED",
-      "reason": "All APK build, dependency, manifest, shrink, signing, install and provenance rules apply."
-    },
-    "R7": {
-      "status": "CLOSED_EMPTY",
-      "reason": "Bootstrap APK loads no native library, external plugin, dynamic code or reflection-generated entry point. Introduction of any such path invalidates this closure."
-    },
-    "R8": {
-      "status": "REQUIRED",
-      "reason": "Bootstrap UI, configuration, accessibility, startup, frame rendering and Android 11 ARM64 device behavior apply. WebView and hardware feature universes are closed empty."
-    },
-    "R9": {
-      "status": "REQUIRED",
-      "reason": "Final evidence, fault ownership, stale-proof and unknown closure are mandatory."
-    },
-    "ASSET": {
-      "status": "REQUIRED",
-      "reason": "Manifest/package and generated Android resources remain subject to asset/package proof even though custom app assets are intentionally minimized."
-    }
+    "R1": {"status": "REQUIRED", "reason": "Kernel bootstrap, compatibility decisions, exception and external input semantics are executable."},
+    "R2": {"status": "REQUIRED", "reason": "Main-thread, shared-state synchronization, StrictMode, memory growth, responsiveness and resource budgets apply to every process."},
+    "R3": {"status": "REQUIRED", "reason": "Activity lifecycle, recreation, background/resume and process restart are executable."},
+    "R4": {"status": "CLOSED_EMPTY", "reason": "Bootstrap shell contains no durable database, file, DataStore, preferences, cache source-of-truth, backup or migration path. Introduction of any persistent store invalidates this closure."},
+    "R5": {"status": "REQUIRED", "reason": "Launcher Activity is exported and therefore an external boundary; network and dangerous permission universes are closed empty."},
+    "R6": {"status": "REQUIRED", "reason": "All APK build, dependency, manifest, shrink, signing, install and provenance rules apply."},
+    "R7": {"status": "CLOSED_EMPTY", "reason": "Bootstrap APK loads no native library, external plugin, dynamic code or reflection-generated entry point. Introduction of any such path invalidates this closure."},
+    "R8": {"status": "REQUIRED", "reason": "Bootstrap UI, configuration, accessibility, startup, frame rendering and Android 11 ARM64 device behavior apply. WebView and hardware feature universes are closed empty."},
+    "R9": {"status": "REQUIRED", "reason": "Final evidence, fault ownership, stale-proof and unknown closure are mandatory."},
+    "ASSET": {"status": "REQUIRED", "reason": "Manifest/package and generated Android resources remain subject to asset/package proof even though custom app assets are intentionally minimized."}
   },
   "forbiddenUntilScopeUpdated": [
     "android.permission.INTERNET",
@@ -117,6 +96,8 @@
     "ASSET_ROUTE_PROOF_PROCESS.md",
     "ARCHITECTURE.md",
     "ACCEPTANCE-TESTS.md",
+    "TOOLCHAIN_ANDROID11_ARM64.md",
+    "verification/toolchains/android11-arm64.lock.json",
     "verification/application_contracts.json",
     "verification/asset_contracts.json",
     "verification/signing_contract.json"

@@ -1,0 +1,185 @@
+name: Android 11 ARM64 Toolchain Probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-toolchain:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+
+      - name: Setup exact Temurin JDK
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '17.0.20+1'
+          java-package: jdk
+          architecture: x64
+          check-latest: false
+
+      - name: Setup exact Gradle
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
+        with:
+          gradle-version: '8.7'
+          cache-disabled: true
+
+      - name: Setup exact Android command line tools
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699
+        with:
+          cmdline-tools-version: '14742923'
+          packages: ''
+          log-accepted-android-sdk-licenses: 'false'
+
+      - name: Install build SDK inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager 'platforms;android-30' 'platforms;android-35' 'build-tools;34.0.0' 'platform-tools'
+
+      - name: Record and verify build environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p toolchain-evidence/build
+          uname -a | tee toolchain-evidence/build/uname.txt
+          java -version 2>&1 | tee toolchain-evidence/build/java.txt
+          gradle --version | tee toolchain-evidence/build/gradle.txt
+          sdkmanager --version | tee toolchain-evidence/build/sdkmanager.txt
+          cat "$ANDROID_SDK_ROOT/platform-tools/source.properties" | tee toolchain-evidence/build/platform-tools.properties
+          cat "$ANDROID_SDK_ROOT/platforms/android-30/source.properties" | tee toolchain-evidence/build/platform-30.properties
+          cat "$ANDROID_SDK_ROOT/platforms/android-35/source.properties" | tee toolchain-evidence/build/platform-35.properties
+          cat "$ANDROID_SDK_ROOT/build-tools/34.0.0/source.properties" | tee toolchain-evidence/build/build-tools-34.properties
+          test "$(uname -m)" = x86_64
+          grep -F 'openjdk version "17.0.20.1"' toolchain-evidence/build/java.txt
+          grep -F 'Gradle 8.7' toolchain-evidence/build/gradle.txt
+          grep -F 'Pkg.Revision=37.0.1' toolchain-evidence/build/platform-tools.properties
+          grep -F 'Pkg.Revision=3' toolchain-evidence/build/platform-30.properties
+          grep -F 'Pkg.Revision=2' toolchain-evidence/build/platform-35.properties
+          grep -F 'Pkg.Revision=34.0.0' toolchain-evidence/build/build-tools-34.properties
+          grep -F 'compileSdk = 35' toolbox-app/build.gradle.kts
+          grep -F 'minSdk = 30' toolbox-app/build.gradle.kts
+          grep -F 'targetSdk = 30' toolbox-app/build.gradle.kts
+          grep -F 'id("com.android.application") version "8.6.1"' build.gradle.kts
+          grep -F 'id("org.jetbrains.kotlin.android") version "1.9.24"' build.gradle.kts
+          printf '%s\n' BUILD_TOOLCHAIN_PROBE_PASS | tee toolchain-evidence/build/status.txt
+
+      - name: Upload build toolchain evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: android11-arm64-build-toolchain-probe
+          path: toolchain-evidence/build/
+          if-no-files-found: error
+          retention-days: 30
+
+  runtime-toolchain:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+
+      - name: Setup exact Temurin JDK for ARM64 host
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '17.0.20+8'
+          java-package: jdk
+          architecture: arm64
+          check-latest: false
+
+      - name: Setup exact Android command line tools
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699
+        with:
+          cmdline-tools-version: '14742923'
+          packages: ''
+          log-accepted-android-sdk-licenses: 'false'
+
+      - name: Install Android 11 ARM64 runtime inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = arm64
+          java -version 2>&1 | tee "$RUNNER_TEMP/runtime-java.txt"
+          grep -F '17.0.20' "$RUNNER_TEMP/runtime-java.txt"
+          grep -F '+8' "$RUNNER_TEMP/runtime-java.txt"
+          sdkmanager 'platform-tools' 'emulator' 'system-images;android-30;google_apis;arm64-v8a'
+
+      - name: Record runtime package revisions
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p toolchain-evidence/runtime
+          uname -a | tee toolchain-evidence/runtime/uname.txt
+          java -version 2>&1 | tee toolchain-evidence/runtime/java.txt
+          "$ANDROID_SDK_ROOT/platform-tools/adb" version | tee toolchain-evidence/runtime/adb.txt
+          "$ANDROID_SDK_ROOT/emulator/emulator" -version 2>&1 | tee toolchain-evidence/runtime/emulator.txt
+          cat "$ANDROID_SDK_ROOT/platform-tools/source.properties" | tee toolchain-evidence/runtime/platform-tools.properties
+          cat "$ANDROID_SDK_ROOT/emulator/source.properties" | tee toolchain-evidence/runtime/emulator.properties
+          cat "$ANDROID_SDK_ROOT/system-images/android-30/google_apis/arm64-v8a/source.properties" | tee toolchain-evidence/runtime/system-image.properties
+          grep -F 'Pkg.Revision=37.0.1' toolchain-evidence/runtime/platform-tools.properties
+          grep -F 'Pkg.Revision=37.1.11' toolchain-evidence/runtime/emulator.properties
+          grep -F 'Pkg.Revision=16' toolchain-evidence/runtime/system-image.properties
+          grep -F 'AndroidVersion.ApiLevel=30' toolchain-evidence/runtime/system-image.properties
+          grep -F 'SystemImage.Abi=arm64-v8a' toolchain-evidence/runtime/system-image.properties
+
+      - name: Boot exact Android 11 ARM64 AVD without host virtualization
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p toolchain-evidence/runtime
+          printf 'no\n' | avdmanager create avd --force --name toolbox-api30-arm64-probe --package 'system-images;android-30;google_apis;arm64-v8a'
+          nohup "$ANDROID_SDK_ROOT/emulator/emulator" \
+            -avd toolbox-api30-arm64-probe \
+            -accel off \
+            -no-window \
+            -no-audio \
+            -no-boot-anim \
+            -no-snapshot \
+            -wipe-data \
+            -no-metrics \
+            -memory 2048 \
+            -gpu swiftshader_indirect \
+            > toolchain-evidence/runtime/emulator-boot.log 2>&1 &
+          EMU_PID="$!"
+          BOOTED=0
+          for i in $(seq 1 240); do
+            if ! kill -0 "$EMU_PID" 2>/dev/null; then
+              cat toolchain-evidence/runtime/emulator-boot.log
+              exit 1
+            fi
+            if "$ANDROID_SDK_ROOT/platform-tools/adb" get-state >/dev/null 2>&1; then
+              BOOT="$("$ANDROID_SDK_ROOT/platform-tools/adb" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')"
+              API="$("$ANDROID_SDK_ROOT/platform-tools/adb" shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r')"
+              ABI="$("$ANDROID_SDK_ROOT/platform-tools/adb" shell getprop ro.product.cpu.abi 2>/dev/null | tr -d '\r')"
+              if [ "$BOOT" = 1 ] && [ "$API" = 30 ] && [ "$ABI" = arm64-v8a ]; then
+                BOOTED=1
+                break
+              fi
+            fi
+            sleep 5
+          done
+          test "$BOOTED" = 1
+          "$ANDROID_SDK_ROOT/platform-tools/adb" shell getprop > toolchain-evidence/runtime/device-getprop.txt
+          test "$("$ANDROID_SDK_ROOT/platform-tools/adb" shell getprop ro.build.version.release | tr -d '\r')" = 11
+          test "$("$ANDROID_SDK_ROOT/platform-tools/adb" shell getprop ro.build.version.sdk | tr -d '\r')" = 30
+          test "$("$ANDROID_SDK_ROOT/platform-tools/adb" shell getprop ro.product.cpu.abi | tr -d '\r')" = arm64-v8a
+          printf '%s\n' RUNTIME_TOOLCHAIN_PROBE_PASS | tee toolchain-evidence/runtime/status.txt
+
+      - name: Upload runtime toolchain evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: android11-arm64-runtime-toolchain-probe
+          path: toolchain-evidence/runtime/
+          if-no-files-found: warn
+          retention-days: 30

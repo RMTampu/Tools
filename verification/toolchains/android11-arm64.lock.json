@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 2,
+  "profileId": "toolbox-android11-api30-arm64-v1",
+  "deviceTarget": {
+    "androidRelease": "11",
+    "apiLevel": 30,
+    "abi": "arm64-v8a",
+    "minSdk": 30,
+    "targetSdk": 30,
+    "compileSdk": 35,
+    "javaBytecodeTarget": "11",
+    "kotlinJvmTarget": "11"
+  },
+  "buildHost": {
+    "runner": "ubuntu-24.04",
+    "os": "linux",
+    "arch": "x86_64",
+    "jdk": {
+      "distribution": "temurin",
+      "setupVersion": "17.0.20+1",
+      "runtimeVersion": "17.0.20.1+1"
+    },
+    "gradle": {
+      "version": "8.7",
+      "distributionSha256": "544c35d6bd849ae8a5ed0bcea39ba677dc40f49df7d1835561582da2009b961d"
+    },
+    "androidCommandLineTools": {
+      "setupBuild": "14742923",
+      "sdkmanagerVersion": "20.0"
+    },
+    "androidPlatformTools": "37.0.1",
+    "androidPlatforms": {
+      "30": "3",
+      "35": "2"
+    },
+    "androidBuildTools": "34.0.0",
+    "agp": "8.6.1",
+    "kotlin": "1.9.24",
+    "binaryCompatibilityValidator": "0.18.1"
+  },
+  "runtimePackages": {
+    "preferredHost": {
+      "runner": "macos-15",
+      "os": "darwin",
+      "arch": "arm64",
+      "jdk": {
+        "distribution": "temurin",
+        "setupVersion": "17.0.20+8",
+        "runtimeVersion": "17.0.20+8"
+      }
+    },
+    "androidCommandLineTools": {
+      "setupBuild": "14742923",
+      "sdkmanagerVersion": "20.0"
+    },
+    "androidPlatformTools": "37.0.1",
+    "emulator": {
+      "version": "37.1.11",
+      "buildId": "15917651"
+    },
+    "systemImage": {
+      "package": "system-images;android-30;google_apis;arm64-v8a",
+      "revision": "16",
+      "apiLevel": 30,
+      "abi": "arm64-v8a",
+      "tag": "google_apis"
+    },
+    "requiredDeviceProperties": {
+      "ro.build.version.release": "11",
+      "ro.build.version.sdk": "30",
+      "ro.product.cpu.abi": "arm64-v8a"
+    }
+  },
+  "runtimeCapability": {
+    "githubHostedMacosArm64NestedVirtualization": false,
+    "macosArm64PackageSetProven": true,
+    "macosArm64BootProven": false,
+    "classification": "HOST_CAPABILITY_UNAVAILABLE",
+    "policy": "Never substitute x86/x86_64 guest for ARM64 proof. Package/version compatibility and host virtualization/device capability are separate gates."
+  },
+  "directDependencies": {
+    "kotlinStdlib": "1.9.24",
+    "junitBom": "5.10.2",
+    "junitJupiterEngine": "5.10.2",
+    "junitPlatformLauncher": "1.10.2",
+    "androidxTestCore": "1.7.0",
+    "androidxTestRunner": "1.7.0",
+    "androidxTestExtJunit": "1.3.0",
+    "espressoCore": "3.7.0",
+    "uiautomator": "2.3.0",
+    "orchestrator": "1.6.1"
+  },
+  "evidencePolicy": {
+    "volatileWorkflowRunIdsStoredInLock": false,
+    "workflowEvidenceStoredAsArtifacts": true,
+    "validationWorkflow": "Android 11 ARM64 Toolchain Gate Validation"
+  }
+}

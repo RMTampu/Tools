@@ -1,0 +1,132 @@
+name: Android 11 ARM64 Toolchain Gate Validation
+
+on:
+  push:
+    branches: [ci-android11-arm64-toolchain-lock, kernel-foundation-hardening]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-and-build-gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+
+      - name: Source contract gate
+        run: python3 verification/scripts/toolchain_gate.py --mode source
+
+      - name: Setup exact Temurin JDK
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '17.0.20+1'
+          java-package: jdk
+          architecture: x64
+          check-latest: false
+
+      - name: Setup exact Gradle
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
+        with:
+          gradle-version: '8.7'
+          cache-disabled: true
+
+      - name: Setup exact Android command line tools
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699
+        with:
+          cmdline-tools-version: '14742923'
+          packages: ''
+          log-accepted-android-sdk-licenses: 'false'
+
+      - name: Install exact build SDK packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager 'platforms;android-30' 'platforms;android-35' 'build-tools;34.0.0' 'platform-tools'
+
+      - name: Fail-closed build toolchain gate
+        run: python3 verification/scripts/toolchain_gate.py --mode build
+
+      - name: Prove A0 prebuild uses exact toolchain gate
+        run: python3 verification/scripts/prebuild_gate.py
+
+      - name: Upload toolchain evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: android11-arm64-toolchain-gate-build
+          path: |
+            verification/evidence/toolchain-*.json
+            verification/evidence/prebuild.json
+          if-no-files-found: error
+          retention-days: 30
+
+  runtime-package-gate:
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+
+      - name: Setup exact ARM64 Temurin JDK
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '17.0.20+8'
+          java-package: jdk
+          architecture: arm64
+          check-latest: false
+
+      - name: Setup exact Android command line tools
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699
+        with:
+          cmdline-tools-version: '14742923'
+          packages: ''
+          log-accepted-android-sdk-licenses: 'false'
+
+      - name: Install exact Android 11 ARM64 runtime packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager 'platform-tools' 'emulator' 'system-images;android-30;google_apis;arm64-v8a'
+
+      - name: Fail-closed runtime package gate
+        run: python3 verification/scripts/toolchain_gate.py --mode runtime-package
+
+      - name: Record hosted runtime capability boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p verification/evidence
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          payload = {
+              'schemaVersion': 1,
+              'gate': 'GITHUB_HOSTED_ARM64_RUNTIME_CAPABILITY',
+              'status': 'HOST_CAPABILITY_UNAVAILABLE',
+              'gitSha': os.environ.get('GITHUB_SHA'),
+              'runner': 'macos-15-arm64',
+              'nestedVirtualization': False,
+              'packageCompatibility': 'PASS',
+              'deviceBootProof': 'NOT_PROVEN',
+              'classification': 'HOST_CAPABILITY_UNAVAILABLE',
+              'notApplicationFailure': True,
+              'notAssetFailure': True,
+          }
+          Path('verification/evidence/runtime-host-capability.json').write_text(json.dumps(payload, indent=2, sort_keys=True) + '\n')
+          PY
+
+      - name: Upload runtime package evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: android11-arm64-toolchain-gate-runtime-packages
+          path: verification/evidence/*.json
+          if-no-files-found: error
+          retention-days: 30

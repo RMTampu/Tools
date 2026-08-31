@@ -1,0 +1,108 @@
+name: Android 11 ARM64 Linux Runtime Probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  runtime-linux-x64:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+
+      - name: Setup exact Temurin JDK
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '17.0.20+1'
+          java-package: jdk
+          architecture: x64
+          check-latest: false
+
+      - name: Setup exact Android command line tools
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699
+        with:
+          cmdline-tools-version: '14742923'
+          packages: ''
+          log-accepted-android-sdk-licenses: 'false'
+
+      - name: List ARM64 API30 package availability
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p runtime-linux-evidence
+          sdkmanager --list | tee runtime-linux-evidence/sdkmanager-list.txt
+          grep -F 'system-images;android-30;google_apis;arm64-v8a' runtime-linux-evidence/sdkmanager-list.txt
+          grep -E '^  emulator[[:space:]]+\|' runtime-linux-evidence/sdkmanager-list.txt
+
+      - name: Install Android 11 ARM64 guest inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager 'platform-tools' 'emulator' 'system-images;android-30;google_apis;arm64-v8a'
+          test -x "$ANDROID_SDK_ROOT/emulator/emulator"
+          test -s "$ANDROID_SDK_ROOT/system-images/android-30/google_apis/arm64-v8a/system.img"
+          cat "$ANDROID_SDK_ROOT/emulator/source.properties" | tee runtime-linux-evidence/emulator.properties
+          cat "$ANDROID_SDK_ROOT/platform-tools/source.properties" | tee runtime-linux-evidence/platform-tools.properties
+          cat "$ANDROID_SDK_ROOT/system-images/android-30/google_apis/arm64-v8a/source.properties" | tee runtime-linux-evidence/system-image.properties
+          "$ANDROID_SDK_ROOT/emulator/emulator" -version 2>&1 | tee runtime-linux-evidence/emulator-version.txt
+          grep -F 'Pkg.Revision=37.1.11' runtime-linux-evidence/emulator.properties
+          grep -F 'Pkg.Revision=37.0.1' runtime-linux-evidence/platform-tools.properties
+          grep -F 'Pkg.Revision=16' runtime-linux-evidence/system-image.properties
+          grep -F 'AndroidVersion.ApiLevel=30' runtime-linux-evidence/system-image.properties
+          grep -F 'SystemImage.Abi=arm64-v8a' runtime-linux-evidence/system-image.properties
+
+      - name: Boot Android 11 ARM64 guest with software emulation
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf 'no\n' | avdmanager create avd --force --name toolbox-api30-arm64-linux --package 'system-images;android-30;google_apis;arm64-v8a'
+          nohup "$ANDROID_SDK_ROOT/emulator/emulator" \
+            -avd toolbox-api30-arm64-linux \
+            -accel off \
+            -no-window \
+            -no-audio \
+            -no-boot-anim \
+            -no-snapshot \
+            -wipe-data \
+            -no-metrics \
+            -cores 2 \
+            -memory 2048 \
+            -gpu swiftshader_indirect \
+            > runtime-linux-evidence/emulator-boot.log 2>&1 &
+          EMU_PID="$!"
+          BOOTED=0
+          for i in $(seq 1 240); do
+            if ! kill -0 "$EMU_PID" 2>/dev/null; then
+              cat runtime-linux-evidence/emulator-boot.log
+              exit 1
+            fi
+            if "$ANDROID_SDK_ROOT/platform-tools/adb" get-state >/dev/null 2>&1; then
+              BOOT="$("$ANDROID_SDK_ROOT/platform-tools/adb" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')"
+              API="$("$ANDROID_SDK_ROOT/platform-tools/adb" shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r')"
+              ABI="$("$ANDROID_SDK_ROOT/platform-tools/adb" shell getprop ro.product.cpu.abi 2>/dev/null | tr -d '\r')"
+              if [ "$BOOT" = 1 ] && [ "$API" = 30 ] && [ "$ABI" = arm64-v8a ]; then
+                BOOTED=1
+                break
+              fi
+            fi
+            sleep 5
+          done
+          test "$BOOTED" = 1
+          "$ANDROID_SDK_ROOT/platform-tools/adb" shell getprop > runtime-linux-evidence/device-getprop.txt
+          printf '%s\n' LINUX_X64_ARM64_GUEST_RUNTIME_PASS | tee runtime-linux-evidence/status.txt
+
+      - name: Upload probe evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: android11-arm64-linux-runtime-probe
+          path: runtime-linux-evidence/
+          if-no-files-found: warn
+          retention-days: 30

@@ -2,8 +2,8 @@
 """Fail-closed source/build-input gate for APPLICATION_SAFE_100.
 
 This script intentionally performs no APK assembly. It validates the closed scope,
-build policy, source boundaries, manifest semantics, dependency lock/verification
-state, and CI policy before the build boundary may open.
+build policy, exact Android 11/ARM64 toolchain, source boundaries, manifest semantics,
+dependency lock/verification state, and CI policy before the build boundary may open.
 """
 
 from __future__ import annotations
@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SCOPE_PATH = ROOT / "verification" / "application_scope.json"
 EVIDENCE_DIR = ROOT / "verification" / "evidence"
 EVIDENCE_PATH = EVIDENCE_DIR / "prebuild.json"
+TOOLCHAIN_GATE = ROOT / "verification" / "scripts" / "toolchain_gate.py"
 ANDROID_NS = "{http://schemas.android.com/apk/res/android}"
 
 
@@ -90,6 +91,29 @@ def main() -> int:
 
     source_sha = current_git_sha()
     check("source-git-sha-known", source_sha is not None, f"gitSha={source_sha}")
+
+    # R6 fail-closed toolchain preflight. This runs after the workflow has
+    # materialized its declared JDK/Gradle/Android SDK inputs and before any
+    # kernel/app compilation. A version, package revision, host architecture,
+    # direct dependency, or source contract mismatch therefore cannot escape
+    # into a later build failure.
+    try:
+        toolchain = subprocess.run(
+            [sys.executable, str(TOOLCHAIN_GATE), "--mode", "build"],
+            cwd=ROOT,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            check=False,
+        )
+        toolchain_output = toolchain.stdout.strip()
+        check(
+            "android11-arm64-toolchain-preflight",
+            toolchain.returncode == 0,
+            toolchain_output[-4000:] if toolchain_output else f"returncode={toolchain.returncode}",
+        )
+    except Exception as exc:
+        check("android11-arm64-toolchain-preflight", False, f"toolchain gate failure: {exc}")
 
     required_documents = scope.get("requiredDocuments", [])
     missing_docs = [name for name in required_documents if not (ROOT / name).is_file()]
@@ -207,11 +231,12 @@ def main() -> int:
 def finish(scope: dict) -> int:
     failed = [item for item in checks if not item.passed]
     payload = {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "gate": "APPLICATION_PREBUILD_SOURCE_GATE",
         "status": "PASS" if not failed else "NOT_PROVEN",
         "gitSha": current_git_sha(),
         "scopeSha256": sha256(SCOPE_PATH) if SCOPE_PATH.is_file() else None,
+        "toolchainProfile": "verification/toolchains/android11-arm64.lock.json",
         "source": {
             "repository": "RMTampu/Tools",
             "target": "Android 11 / API 30 / arm64-v8a",
