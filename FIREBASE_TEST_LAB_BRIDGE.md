@@ -17,6 +17,8 @@ Workflow:
 
 Workflow dibuat `workflow_dispatch` agar pemasangan bridge tidak otomatis memulai build atau melewati application prebuild boundary.
 
+Pemakaian Firebase untuk eksekusi test WAJIB mengikuti `TEST_ROUTING_POLICY.md`. Firebase bukan route development/debugging; test APK melalui bridge hanya boleh dijalankan setelah kandidat memenuhi `FINAL_CANDIDATE_READY` dan final target evidence memang diwajibkan atau terinvalidasi.
+
 ## Prinsip
 
 ```text
@@ -27,7 +29,7 @@ GITHUB ACTIONS
   -> Firebase Test Lab device catalog
   -> pilih live .arm model yang mendukung API 30 + arm64-v8a
   -> connection check
-  -> optional: ambil APK artifact dari prior gated GitHub Actions run
+  -> final-candidate only: ambil APK artifact dari prior gated GitHub Actions run
   -> Firebase Test Lab Robo smoke test
   -> result/log/evidence kembali ke GitHub Actions
 ```
@@ -61,7 +63,7 @@ Untuk penggunaan bucket hasil default yang dibuat Firebase, dokumentasi Test Lab
 
 ### `connection-only`
 
-Tidak membutuhkan APK.
+Tidak membutuhkan APK dan tidak menjalankan APK test.
 
 Memverifikasi:
 
@@ -73,6 +75,8 @@ Memverifikasi:
 
 Jika tidak dapat dibuktikan, workflow fail-closed.
 
+`connection-only` adalah pemeriksaan bridge/configuration dan bukan pengganti runtime proof atau final qualification.
+
 ### `test-existing-artifact`
 
 Membutuhkan:
@@ -82,9 +86,17 @@ source_run_id
 artifact_name
 ```
 
+Mode ini hanya boleh digunakan ketika `TEST_ROUTING_POLICY.md` telah membuka `FIREBASE_FINAL_ROUTE`, yaitu kandidat telah memenuhi `FINAL_CANDIDATE_READY` dan final Android 11 ARM64 evidence memang diperlukan atau telah terinvalidasi.
+
 Workflow hanya mengambil artifact dari GitHub Actions run yang sudah ada. Ia tidak membangun APK sendiri dan tidak membuka build boundary.
 
-Artifact wajib berisi tepat satu APK. APK diberi SHA-256 sebelum dikirim ke Firebase Test Lab.
+Artifact wajib:
+
+- berasal dari controlled/gated GitHub Actions build yang sah;
+- terikat ke source revision final candidate;
+- telah melewati required GitHub development/regression verification;
+- berisi tepat satu APK;
+- diberi SHA-256 sebelum dikirim ke Firebase Test Lab.
 
 Test default:
 
@@ -96,6 +108,8 @@ portrait
 en
 5 minutes maximum
 ```
+
+Robo smoke test ini hanya merupakan satu witness. Ia tidak dengan sendirinya menutup seluruh runtime, install/upgrade, native/plugin, UI/device/power, cross-domain, atau R1–R9 proof.
 
 ## Fail-Closed Rules
 
@@ -111,12 +125,16 @@ Workflow gagal jika:
 - artifact berisi nol atau lebih dari satu APK;
 - Firebase Test Lab mengembalikan kegagalan.
 
-Tidak ada fallback diam-diam ke x86/x86_64, API lain, atau perangkat non-ARM.
+Tidak ada fallback diam-diam ke x86/x86_64, API lain, atau perangkat non-ARM untuk final target qualification.
+
+Jika mode test dipakai pada artifact yang belum memenuhi `FINAL_CANDIDATE_READY`, hasil tersebut tidak boleh dipakai sebagai final evidence meskipun workflow secara teknis dapat dieksekusi.
 
 ## Hubungan dengan Application Safe Process
 
 Bridge ini bukan pengganti `APPLICATION_SAFE_100_PROCESS.md`.
 
-Build APK tetap hanya boleh dilakukan setelah seluruh prebuild gate yang berlaku PASS. Bridge Firebase kemudian dapat dipakai sebagai salah satu runtime/device witness setelah APK final atau APK test yang sah tersedia dari GitHub Actions.
+Build APK tetap hanya boleh dilakukan setelah seluruh prebuild gate yang berlaku PASS. GitHub Actions tetap menjadi route default untuk development/basic/intermediate/regression verification sesuai `TEST_ROUTING_POLICY.md`.
 
-Firebase Test Lab virtual Arm evidence tidak menggantikan physical-device witness untuk klaim yang memang membutuhkan hardware/vendor/power behavior nyata.
+Bridge Firebase hanya dipakai untuk final target qualification setelah final candidate yang sah tersedia dan target-specific evidence diperlukan. Firebase Test Lab virtual Arm evidence tidak menggantikan physical-device witness untuk klaim yang memang membutuhkan hardware/vendor/power behavior nyata.
+
+Evidence Firebase harus tetap terikat ke revision/artifact/test configuration yang aktif dan tunduk pada change-impact, freshness, dan evidence-reuse rules repository.
