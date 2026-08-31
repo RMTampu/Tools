@@ -158,6 +158,35 @@ jobs:
           test -s toolbox-app/build/outputs/apk/release/toolbox-app-release.apk
           echo 'CONTROLLED_APK_BUILD_PASS=1' >> "$GITHUB_ENV"
 
+      - name: Enforce canonical release v2 and v3 signing
+        env:
+          TOOLBOX_KEYSTORE_PASSWORD: ${{ secrets.TOOLBOX_SIGNING_PASSWORD || secrets.V_SIGNING_PASSWORD || secrets.TOOLBOX_KEYSTORE_PASSWORD || secrets.TOOLBOX_KEY_PASSWORD }}
+          TOOLBOX_KEY_PASSWORD: ${{ secrets.TOOLBOX_SIGNING_PASSWORD || secrets.V_SIGNING_PASSWORD || secrets.TOOLBOX_KEY_PASSWORD || secrets.TOOLBOX_KEYSTORE_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=toolbox-app/build/outputs/apk/release/toolbox-app-release.apk
+          test -s "$APK"
+          test -s "$TOOLBOX_KEYSTORE_PATH"
+          test -n "${TOOLBOX_KEYSTORE_PASSWORD:-}"
+          test -n "${TOOLBOX_KEY_PASSWORD:-}"
+          "$ANDROID_SDK_ROOT/build-tools/34.0.0/zipalign" -c -p -v 4 "$APK"
+          "$ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner" sign \
+            --ks "$TOOLBOX_KEYSTORE_PATH" \
+            --ks-key-alias dreams \
+            --ks-pass env:TOOLBOX_KEYSTORE_PASSWORD \
+            --key-pass env:TOOLBOX_KEY_PASSWORD \
+            --min-sdk-version 30 \
+            --v1-signing-enabled false \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
+            --v4-signing-enabled false \
+            "$APK"
+          rm -f "$APK.idsig"
+          "$ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner" verify --verbose --print-certs "$APK" | tee "$RUNNER_TEMP/release-signature-schemes.txt"
+          grep -E 'Verified using v2 scheme.*:[[:space:]]*true' "$RUNNER_TEMP/release-signature-schemes.txt"
+          grep -E 'Verified using v3 scheme.*:[[:space:]]*true' "$RUNNER_TEMP/release-signature-schemes.txt"
+
       - name: Locate exact merged manifests
         shell: bash
         run: |
