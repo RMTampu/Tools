@@ -83,29 +83,42 @@ Gunakan versi dependency yang stabil dan kompatibel dengan target tersebut. Jang
 
 Perubahan dependency tidak boleh dilakukan hanya karena versi yang lebih baru tersedia.
 
-## 9. Penguncian Pembangunan Android 11 ARM64
+## 9. Penguncian Target Produk Android 11 ARM64 dan Fleksibilitas Test GitHub
 
 Target distribusi utama ToolBox dikunci ke **Android 11 / API 30 / ARM64 (`arm64-v8a`)**.
 
-Penguncian ini berlaku pada hasil build, dependency, native library, engine, runtime compatibility, dan CI. Tujuannya adalah memastikan seluruh hasil pembangunan benar-benar berjalan pada target tersebut tanpa membuat desain kernel menjadi buntu untuk pengembangan di masa depan.
+Penguncian target ini berlaku pada hasil release/build target, dependency compatibility, native library yang dikirim, engine compatibility contract, runtime compatibility contract, dan final target qualification. Tujuannya adalah memastikan produk yang dirilis tetap ditujukan ke Android 11 ARM64 tanpa membuat pengujian development di GitHub menjadi buntu.
 
-Aturan penguncian:
+Aturan target produk:
 
-- ABI utama adalah `arm64-v8a` / AArch64 64-bit.
+- ABI release utama adalah `arm64-v8a` / AArch64 64-bit.
 - Jangan membawa `armeabi-v7a`, `x86`, atau `x86_64` pada release utama kecuali ada kebutuhan yang secara eksplisit disetujui.
-- Modul yang memakai NDK/native code harus membatasi ABI ke `arm64-v8a`.
+- Modul yang memakai NDK/native code harus membatasi ABI release ke `arm64-v8a`.
 - Dependency native wajib menyediakan binary `arm64-v8a` yang kompatibel dengan Android 11.
 - Dependency yang hanya dapat berjalan pada API Android di atas target utama tidak boleh menjadi bagian wajib fungsi inti.
-- Native library `.so` harus diperiksa agar ABI-nya benar dan tidak bergantung pada arsitektur lain.
+- Native library `.so` harus diperiksa agar ABI release-nya benar dan tidak bergantung pada arsitektur lain.
 - Engine baru wajib mendeklarasikan metadata kompatibilitas minimal: `engineId`, `engineVersion`, `minAndroidApi`, `maxAndroidApi` bila diperlukan, `supportedAbi`, `requiredCapabilities`, dan `entryPoint`.
-- Engine yang tidak mendukung `arm64-v8a` atau tidak kompatibel dengan Android 11 harus ditolak sebelum dimuat.
+- Engine yang tidak mendukung `arm64-v8a` atau tidak kompatibel dengan Android 11 harus ditolak untuk target release utama.
 - Runtime harus memeriksa Android API, ABI perangkat, dan kompatibilitas engine sebelum proses load.
-- Tidak boleh ada fallback diam-diam ke ABI atau target platform lain.
+- Tidak boleh ada fallback diam-diam pada **artifact/release target** ke ABI atau target platform lain.
 - Paket engine native harus menempatkan binary ARM64 pada jalur yang jelas seperti `native/arm64-v8a/`.
-- GitHub Actions harus melakukan verifikasi ABI, dependency, isi APK, kompatibilitas Android 11, kompatibilitas ARM64, serta pengujian pemuatan engine bila relevan.
-- Build harus dinyatakan gagal jika dependency/native binary tidak menyediakan ARM64, engine mengklaim ARM64 tetapi binary tidak sesuai, requirement API inti melebihi target yang ditetapkan, atau hasil APK kehilangan kompatibilitas dengan target Android 11 ARM64.
+- GitHub Actions wajib melakukan verifikasi struktural/kontraktual terhadap ABI, dependency, isi APK, sdk compatibility, native package, dan target Android 11 ARM64 bila relevan.
+- Build release harus dinyatakan gagal jika dependency/native binary yang diwajibkan tidak menyediakan ARM64, engine mengklaim ARM64 tetapi binary tidak sesuai, requirement API inti melebihi target yang ditetapkan, atau artifact release kehilangan compatibility dengan Android 11 ARM64.
 
-Penguncian ini tidak berarti desain kernel hanya boleh mengenal satu CPU. **Kernel tetap platform-aware dan extensible**, sedangkan target distribusi utama saat ini dikunci ke **Android 11 / API 30 / ARM64**. Dengan demikian ToolBox fokus dan stabil pada target sekarang, tetapi fondasi tidak perlu dibangun ulang ketika engine baru ditambahkan atau target lain dipertimbangkan di masa depan.
+**Penguncian target produk TIDAK berarti semua emulator/runtime test GitHub wajib Android 11 ARM64.**
+
+Untuk development/basic/intermediate/regression testing di GitHub:
+
+- environment test bersifat fleksibel;
+- API 30 diprioritaskan bila tersedia dan stabil, tetapi bukan hard requirement GitHub;
+- API lain yang relevan boleh digunakan;
+- x86_64 atau ABI emulator lain boleh digunakan untuk behavior yang tidak architecture-specific;
+- environment aktual wajib dicatat;
+- hasil non-API30/non-ARM64 tidak boleh diklaim sebagai final Android 11 ARM64 runtime proof.
+
+Satu-satunya jalur yang **dikunci keras** ke Android 11 / API 30 / ARM64 untuk final target test adalah Firebase Test Lab sesuai `TEST_ROUTING_POLICY.md`, dan Firebase hanya boleh dijalankan setelah persetujuan eksplisit pengguna yang berlaku satu kali.
+
+Kernel tetap platform-aware dan extensible; target release utama tetap Android 11 / API 30 / ARM64, sementara development test environment GitHub boleh fleksibel sesuai aturan routing.
 
 ## 10. Kualitas Implementasi
 
@@ -117,20 +130,53 @@ Sebelum menyatakan pekerjaan selesai, periksa minimal:
 4. tidak ada pekerjaan manual berulang yang sebenarnya dapat diotomatisasi;
 5. error dapat dilokalisasi dan tidak menjatuhkan seluruh kernel jika seharusnya bisa diisolasi;
 6. perubahan dapat diuji;
-7. target Android 11 / arm64 tetap terpenuhi;
+7. target Android 11 / arm64 tetap terpenuhi pada target produk/release;
 8. fondasi tetap dapat menerima engine/tool baru tanpa perubahan besar yang tidak perlu.
 
-## 11. Testing
+## 11. Testing dan Final-Gate Authorization
 
 Setiap fitur baru harus mempunyai cara verifikasi yang jelas.
 
 Untuk perubahan pada core/kernel, prioritaskan unit test yang independen dari Android runtime jika memungkinkan.
 
-Untuk bagian Android, integrasi, UI, atau emulator, jalankan pengujian melalui GitHub Actions.
+Untuk bagian Android, integrasi, UI, emulator, runtime, regression, atau debugging, jalankan pengujian melalui GitHub Actions sesuai `TEST_ROUTING_POLICY.md`.
 
 Jangan menyatakan PASS hanya berdasarkan keberhasilan kompilasi jika fitur membutuhkan pengujian runtime.
 
-Untuk setiap pekerjaan yang melibatkan pemilihan lingkungan test, emulator/runtime verification, final candidate, atau Firebase Test Lab, agen WAJIB membaca dan mematuhi `TEST_ROUTING_POLICY.md` sebelum menjalankan test terkait. GitHub Actions adalah route default untuk development/basic/intermediate/regression verification. Firebase Test Lab hanya boleh digunakan sebagai final target qualification setelah `FINAL_CANDIDATE_READY`, kecuali instruksi pengguna terbaru secara eksplisit mengubah routing tersebut. Environment GitHub non-API30/non-ARM64 boleh digunakan untuk development/basic proof sesuai policy, tetapi tidak boleh diklaim sebagai final Android 11 ARM64 proof.
+Untuk setiap pekerjaan yang melibatkan pemilihan environment test, runtime verification, final candidate, atau Firebase Test Lab, agen WAJIB membaca dan mematuhi `TEST_ROUTING_POLICY.md` sebelum menjalankan test terkait.
+
+Aturan wajib:
+
+```text
+GITHUB TEST ENVIRONMENT = FLEXIBLE
+FIREBASE FINAL TARGET = ANDROID 11 / API 30 / ARM64 ONLY
+FIREBASE DEFAULT STATE = LOCKED
+```
+
+Selama development, GitHub Actions adalah route default. Environment GitHub non-API30/non-ARM64 boleh digunakan untuk development/basic/intermediate/regression proof sesuai scope, tetapi tidak boleh diklaim sebagai final Android 11 ARM64 proof.
+
+Setelah seluruh affected GitHub verification PASS dan pekerjaan executable/runtime mencapai `DEVELOPMENT_PASS`, agen WAJIB berhenti sebelum Firebase dan bertanya secara eksplisit kepada pengguna apakah kandidat tersebut diizinkan masuk Firebase Final Gate.
+
+Tidak ada transisi otomatis dari GitHub PASS ke Firebase.
+
+Persetujuan Firebase dari pengguna mengikuti formula:
+
+```text
+1 EXPLICIT USER APPROVAL = 1 FIREBASE EXECUTION ATTEMPT
+```
+
+Setelah satu Firebase execution attempt dimulai, izin dianggap habis/consumed, terlepas dari PASS, FAIL, timeout, cancellation, atau execution error. Setiap run/retry berikutnya membutuhkan pertanyaan dan persetujuan pengguna baru.
+
+Dilarang:
+
+- auto-run Firebase setelah GitHub PASS;
+- auto-retry Firebase;
+- memakai approval lama untuk run baru;
+- memakai approval satu kandidat untuk kandidat lain;
+- menganggap persetujuan umum/percakapan lama sebagai izin Firebase;
+- fallback Firebase ke API/ABI selain Android 11/API30/ARM64.
+
+Jika pengguna tidak menyetujui atau jawaban ambigu, Firebase tetap `LOCKED` dan development evidence yang sah boleh tetap berstatus `DEVELOPMENT_PASS`.
 
 ## 12. Perubahan Repository
 
@@ -150,27 +196,33 @@ Keputusan arsitektur penting harus terdokumentasi agar agen berikutnya tidak men
 
 Jika repository kemudian memiliki `ARCHITECTURE.md`, `DECISIONS.md`, `PROJECT.md`, `TASK.md`, atau `ACCEPTANCE-TESTS.md`, agen wajib menggunakannya sebagai sumber konteks proyek bersama `AGENTS.md`.
 
-Jika terdapat konflik, instruksi pengguna terbaru memiliki prioritas tertinggi, kemudian `AGENTS.md`, lalu dokumentasi proyek lainnya.
+Untuk keputusan test environment dan Firebase authorization, `TEST_ROUTING_POLICY.md` adalah sumber interpretasi wajib di bawah `AGENTS.md`.
+
+Jika terdapat konflik, instruksi pengguna terbaru memiliki prioritas tertinggi, kemudian `AGENTS.md`, kemudian `TEST_ROUTING_POLICY.md` untuk test routing/authorization, lalu dokumentasi proyek lainnya.
 
 ## 14. Larangan Asumsi
 
 Jangan menganggap fitur sudah selesai hanya karena file, interface, atau class sudah ada.
 
-Jangan menebak kondisi build, test, workflow, artifact, atau runtime. Periksa kondisi aktual sebelum membuat kesimpulan.
+Jangan menebak kondisi build, test, workflow, artifact, runtime, Firebase authorization, atau final-gate status. Periksa kondisi aktual sebelum membuat kesimpulan.
 
 Jangan menyatakan implementasi matang jika masih ada komponen dasar yang diketahui belum tersedia.
 
+Jangan menganggap Firebase diizinkan hanya karena konfigurasi Firebase/GCP sudah tersedia.
+
 ## 15. Definisi Selesai
 
-Sebuah tugas dapat dianggap selesai jika:
+Sebuah tugas development dapat dianggap selesai jika:
 
 - fungsi utama yang diminta tersedia;
 - integrasi dengan fondasi tidak merusak struktur inti;
 - tidak meninggalkan pekerjaan manual berulang yang seharusnya otomatis;
 - memiliki cara pengujian;
-- lulus pengujian yang relevan;
+- lulus pengujian development yang relevan;
 - dokumentasi penting diperbarui jika keputusan arsitektur berubah;
 - tidak menutup kemampuan ekspansi ToolBox yang sudah menjadi bagian dari tujuan dasarnya.
+
+Selesai pada tingkat development tidak otomatis berarti Firebase Final Gate sudah dijalankan atau `APPLICATION_SAFE_100` sudah final.
 
 ## 16. Aturan Asset — ASSET_SAFE_100
 
@@ -266,7 +318,7 @@ Urutan ownership dan final closure adalah:
 R1 -> R2 -> R3 -> R4 -> R5 -> R6 -> R7 -> R8 -> R9
 ```
 
-Urutan operasional lengkap, termasuk pembagian proof prebuild, build boundary, runtime proof, cross-domain challenge, dan final acceptance, hanya boleh mengikuti `APPLICATION_SAFE_100_PROCESS.md`.
+Urutan operasional lengkap, termasuk pembagian proof prebuild, build boundary, runtime proof, cross-domain challenge, dan final acceptance, hanya boleh mengikuti `APPLICATION_SAFE_100_PROCESS.md` **dengan test environment serta Firebase authorization selalu mengikuti `TEST_ROUTING_POLICY.md`**.
 
 **APK / production build / final resource packaging DILARANG DIMULAI sebelum `APPLICATION_PREBUILD_PASS`.**
 
@@ -297,5 +349,7 @@ AND FAULT_ESCAPE = 0
 ```
 
 Agen DILARANG mengurangi salah satu domain R1–R9, mengubah urutan final closure, menggunakan keberhasilan build sebagai pengganti proof, atau menganggap R9 PASS bila salah satu domain R1–R8 masih tidak lengkap.
+
+Jika final acceptance membutuhkan target-specific Android 11 ARM64 runtime evidence, evidence tersebut hanya boleh dibuat melalui Firebase Final Gate setelah approval eksplisit pengguna untuk satu execution attempt. Jika approval belum diberikan, status target-specific proof tetap belum final; agen tidak boleh menjalankan Firebase sendiri.
 
 Jika kapasitas context/memory tidak cukup untuk memuat seluruh R1–R9 sekaligus, agen wajib menjalankan domain/sub-gate secara bertahap sesuai `AGENT_PROCEDURE_EXECUTION_RULES.md`; ukuran unit kerja boleh diperkecil tetapi aturan, coverage, fault model, proof, dan evidence tidak boleh dikurangi.
