@@ -29,8 +29,10 @@ def main()->int:
             m=re.search(r'SHA256:\s*([0-9A-Fa-f:]{64,95})',c.stdout); actual=normalize(m.group(1)) if m else None; check('release-certificate-sha256-observed',actual is not None and len(actual)==64,f'certSha256={actual}')
     expected=policy.get('expectedCertificateSha256'); check('release-signing-identity-pinned',bool(expected),'verification/signing_contract.json')
     if expected and actual:check('release-signing-identity-match',normalize(expected)==actual,f'actual={actual}, expected={normalize(expected)}')
-    check('release-v2-contract',policy.get('requireV2') is True,f"requireV2={policy.get('requireV2')}"); check('release-v3-contract',policy.get('requireV3') is True,f"requireV3={policy.get('requireV3')}")
-    failed=[x for x in checks if not x.passed]; EVIDENCE_DIR.mkdir(parents=True,exist_ok=True); payload={'schemaVersion':2,'gate':'SIGNING_IDENTITY_GATE','status':'PASS' if not failed else 'NOT_PROVEN','gitSha':current_git_sha(),'keystoreSha256':sha256(ks) if ks.is_file() else None,'alias':a.alias,'certificateSha256':actual,'checks':[asdict(x) for x in checks],'failed':[x.name for x in failed]}; (EVIDENCE_DIR/'signing-identity.json').write_text(json.dumps(payload,indent=2,sort_keys=True)+'\n',encoding='utf-8')
+    v2_required=policy.get('requireV2') is True; v3_required=policy.get('requireV3') is True
+    check('release-platform-signature-contract',v2_required or v3_required,f'requireV2={v2_required}, requireV3={v3_required}')
+    check('release-v3-contract',v3_required,f'requireV3={policy.get("requireV3")}')
+    failed=[x for x in checks if not x.passed]; EVIDENCE_DIR.mkdir(parents=True,exist_ok=True); payload={'schemaVersion':3,'gate':'SIGNING_IDENTITY_GATE','status':'PASS' if not failed else 'NOT_PROVEN','gitSha':current_git_sha(),'keystoreSha256':sha256(ks) if ks.is_file() else None,'alias':a.alias,'certificateSha256':actual,'signatureContract':{'requireV2':v2_required,'requireV3':v3_required},'checks':[asdict(x) for x in checks],'failed':[x.name for x in failed]}; (EVIDENCE_DIR/'signing-identity.json').write_text(json.dumps(payload,indent=2,sort_keys=True)+'\n',encoding='utf-8')
     if actual:print(f'RELEASE_CERT_SHA256={actual}')
     if failed:
         print('SIGNING_IDENTITY_GATE = NOT_PROVEN',file=sys.stderr)
