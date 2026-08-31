@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "applicationId": "io.toolbox.app",
   "debugApplicationId": "io.toolbox.app.debug",
   "platform": {
@@ -35,7 +35,7 @@
     },
     "R2": {
       "status": "REQUIRED",
-      "reason": "Main-thread, StrictMode, memory growth, responsiveness and resource budgets apply to every process."
+      "reason": "Main-thread, shared-state synchronization, StrictMode, memory growth, responsiveness and resource budgets apply to every process."
     },
     "R3": {
       "status": "REQUIRED",
@@ -59,7 +59,7 @@
     },
     "R8": {
       "status": "REQUIRED",
-      "reason": "Bootstrap UI, configuration, accessibility, startup and Android 11 ARM64 device behavior apply. WebView and hardware feature universes are closed empty."
+      "reason": "Bootstrap UI, configuration, accessibility, startup, frame rendering and Android 11 ARM64 device behavior apply. WebView and hardware feature universes are closed empty."
     },
     "R9": {
       "status": "REQUIRED",
@@ -92,6 +92,7 @@
     "runtimePssCeilingKb": 196608,
     "lifecycleIterations": 20,
     "runtimeCycles": 12,
+    "jankyFramePercent": 20.0,
     "apkBytes": 67108864,
     "apkUncompressedBytes": 134217728
   },
@@ -112,6 +113,12 @@
     "ASSET_SAFE_100_METHODS.md",
     "ASSET_SAFE_100_PROCESS.md",
     "PREBUILD_ASSET_GATE.md",
+    "ASSET_ROUTE_PROOF_METHODS.md",
+    "ASSET_ROUTE_PROOF_PROCESS.md",
+    "ARCHITECTURE.md",
+    "ACCEPTANCE-TESTS.md",
+    "verification/application_contracts.json",
+    "verification/asset_contracts.json",
     "verification/signing_contract.json"
   ]
 }

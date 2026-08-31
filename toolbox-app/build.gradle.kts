@@ -38,7 +38,9 @@ android {
                 storePassword = releaseStorePassword.get()
                 keyAlias = releaseKeyAlias.get()
                 keyPassword = releaseKeyPassword.get()
-                enableV1Signing = true
+                // ToolBox is locked to minSdk 30. V1/JAR signing is unnecessary
+                // legacy surface; Android 11 validates v2/v3 natively.
+                enableV1Signing = false
                 enableV2Signing = true
                 enableV3Signing = true
                 enableV4Signing = false

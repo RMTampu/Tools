@@ -12,6 +12,9 @@ class ToolBoxApplication : Application() {
     var initialKernelSnapshot: KernelSnapshot? = null
         private set
 
+    var startupFailure: String? = null
+        private set
+
     override fun onCreate() {
         super.onCreate()
 
@@ -39,7 +42,12 @@ class ToolBoxApplication : Application() {
         }
 
         if (compatibility.supported) {
-            initialKernelSnapshot = KernelRuntime.startIfNeeded()
+            runCatching { KernelRuntime.startIfNeeded() }
+                .onSuccess { initialKernelSnapshot = it }
+                .onFailure {
+                    startupFailure = it::class.java.simpleName
+                    initialKernelSnapshot = null
+                }
         }
     }
 }

@@ -27,6 +27,7 @@ class MainActivity : Activity() {
 
         val status = when {
             !compatibility.supported -> "UNSUPPORTED: ${compatibility.reason}"
+            snapshot == null && app.startupFailure != null -> "FAILED: ${app.startupFailure}"
             snapshot == null -> "FAILED: kernel unavailable"
             snapshot.state != KernelState.RUNNING -> "FAILED: kernel state ${snapshot.state}"
             else -> "RUNNING: ${snapshot.config.name} ${snapshot.config.version}"
