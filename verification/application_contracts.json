@@ -1,0 +1,76 @@
+{
+  "acceptance": {
+    "missingAllowed": 0,
+    "requiredPostbuildStatuses": [
+      "FINAL_APK_GATE_DEBUG",
+      "FINAL_APK_GATE_RELEASE",
+      "APK_SIGNATURE_GATE_DEBUG",
+      "APK_SIGNATURE_GATE_RELEASE",
+      "ANDROID_RUNTIME_GATE_DEBUG",
+      "ANDROID_RUNTIME_GATE_RELEASE",
+      "ASSET_SAFE_100",
+      "CROSS_DOMAIN_GATE",
+      "APPLICATION_SAFE_100"
+    ],
+    "requiredPrebuildStatuses": [
+      "APPLICATION_PREBUILD_SOURCE_GATE",
+      "ASSET_PREBUILD_GATE",
+      "DEPENDENCY_TRUST_CURRENT",
+      "SIGNING_IDENTITY_GATE",
+      "PREBUILD_MUTATION_GATE"
+    ],
+    "skippedAllowed": 0,
+    "unknownAllowed": 0,
+    "unprovenAllowed": 0
+  },
+  "configurationUniverse": {
+    "fontScale": [1.0, 1.3, 2.0],
+    "hardwareDependency": "CLOSED_EMPTY",
+    "localeDependency": "CLOSED_EMPTY_APP_RESOURCES",
+    "oemPrivateBehavior": "OUTSIDE_CLAIM",
+    "orientation": ["PORTRAIT", "LANDSCAPE"],
+    "runtime": ["API30_ARM64"],
+    "screenWitnesses": ["BASELINE_DEVICE", "COMPACT_480x800_240DPI"],
+    "uiMode": ["DAY", "NIGHT"],
+    "webViewDependency": "CLOSED_EMPTY"
+  },
+  "crossDomainScenarios": [
+    {"domains":["R1","R3","R8"],"id":"X1","oracle":"RUNNING remains visible and generation increments exactly once","scenario":"recreate while kernel is RUNNING"},
+    {"domains":["R1","R5","R8"],"id":"X2","oracle":"RUNNING semantics unchanged","scenario":"launcher receives malformed/unexpected external extra"},
+    {"domains":["R2","R3","R8"],"id":"X3","oracle":"no fatal/ANR/StrictMode finding and PSS stays within budget","scenario":"repeated home/resume and configuration changes"},
+    {"domains":["R3","R6","R8"],"id":"X4","oracle":"new process starts within budget and RUNNING is visible","scenario":"force-stop exact installed APK then restart"},
+    {"domains":["R6","R7"],"id":"X5","oracle":"no native payload while R7 remains CLOSED_EMPTY","scenario":"final package inspection"}
+  ],
+  "domainClosure": {
+    "R1":{"activeFaults":["WRONG_BRANCH","MISSING_CASE","ILLEGAL_STATE","UNHANDLED_EXCEPTION","INVALID_INPUT_ACCEPTED","BOUNDARY_ERROR","REQUIREMENT_IMPLEMENTATION_MISMATCH","REGRESSION_AFTER_CHANGE"],"notApplicable":["FLOAT_PRECISION_ERROR","TIMEZONE_DST_CLOCK_ERROR","PARSER_SEMANTIC_ERROR"],"reason":"Bootstrap has no numeric financial/parser/time/locale semantics.","status":"REQUIRED"},
+    "R2":{"activeFaults":["DATA_RACE_SHARED_APP_STATE","DEADLOCK_LOCK_ORDER","REENTRANCY_ERROR","MAIN_THREAD_BLOCK","ANR_TIMEOUT","MEMORY_LEAK","OOM_SUPPORTED_WORKLOAD","RESOURCE_RELEASE_ERROR","TAIL_LATENCY_BUDGET_BREACH"],"notApplicable":["SOCKET_LEAK","UNBOUNDED_NETWORK_QUEUE"],"reason":"No app-owned queue/socket/network; kernel concurrency is verified in toolbox-kernel tests.","status":"REQUIRED"},
+    "R3":{"activeFaults":["MISSING_STATE_SAVE","INCORRECT_STATE_RESTORE","PROCESS_DEATH_LOSS","DUPLICATE_SIDE_EFFECT_AFTER_RECREATE","STARTUP_ORDER_ERROR","NON_IDEMPOTENT_BOOTSTRAP"],"notApplicable":["IPC_REMOTE_DEATH_ERROR","SERVICE_RESTART_ERROR","RECOVERY_LOOP"],"reason":"No IPC/service/recovery transaction in bootstrap shell.","status":"REQUIRED"},
+    "R4":{"activeFaults":[],"notApplicable":["ALL_R4_FAULTS"],"reason":"No durable database/file/preferences/cache source of truth; source token gate invalidates this closure if persistence is introduced.","status":"CLOSED_EMPTY"},
+    "R5":{"activeFaults":["EXCESS_PRIVILEGE","UNTRUSTED_INPUT_ACCEPTED","AUTHORIZATION_BYPASS_EXPORTED_COMPONENT"],"notApplicable":["TLS_VALIDATION_BYPASS","UNBOUNDED_RETRY","OFFLINE_STATE_ERROR","SECRET_EXPOSURE_RUNTIME"],"reason":"No network or dangerous permissions; exported launcher remains an external boundary.","status":"REQUIRED"},
+    "R6":{"activeFaults":["UNDECLARED_BUILD_INPUT","TOOLCHAIN_DRIFT","DEPENDENCY_VERSION_DRIFT","DEPENDENCY_INTEGRITY_MISMATCH","MANIFEST_MERGE_OVERRIDE_ERROR","SIGNATURE_INVALID","SIGNING_IDENTITY_MISMATCH","CI_GATE_BYPASS","ARTIFACT_SOURCE_PROVENANCE_MISMATCH"],"notApplicable":["UPGRADE_FROM_PRIOR_RELEASE"],"reason":"versionCode 1 has no prior supported production release; same-version reinstall is still exercised.","status":"REQUIRED"},
+    "R7":{"activeFaults":[],"notApplicable":["ALL_R7_FAULTS"],"reason":"No native/JNI/plugin/reflection/dynamic-code path; source/package gates invalidate closure if introduced.","status":"CLOSED_EMPTY"},
+    "R8":{"activeFaults":["UI_ACTION_WRONG_RESULT","VISUAL_LAYOUT_REGRESSION","SCREEN_SIZE_CONFIG_ERROR","ACCESSIBILITY_SEMANTIC_ERROR","STARTUP_BUDGET_BREACH","FRAME_JANK_BUDGET_BREACH","SYSTEM_INTERRUPTION_STATE_ERROR"],"notApplicable":["WEBVIEW_CONFIG_ERROR","HARDWARE_UNAVAILABLE_CRASH","VENDOR_DEVICE_INCOMPATIBILITY","WAKELOCK_POWER_LEAK"],"reason":"No WebView, physical hardware feature, background job, wake lock, or OEM-private behavior is claimed.","status":"REQUIRED"}
+  },
+  "inputUniverse": {
+    "buildEnvironment":{"closedBy":"workflow + pinned toolchain + declared secrets","type":"CI"},
+    "launcherIntent":{"consumedExtras":[],"type":"Intent","unknownExtras":"ignored"},
+    "runtimeApi":{"closedBy":"exact equality to 30","type":"integer"},
+    "savedInstanceState":{"consumedKeys":["toolbox.screen.generation"],"type":"Bundle","unknownKeys":"ignored"},
+    "supportedAbis":{"closedBy":"arm64-v8a membership requirement","type":"finite runtime list"}
+  },
+  "platform":{"abi":"arm64-v8a","androidApi":30,"minSdk":30,"targetSdk":30},
+  "requirements": [
+    {"behavior":"The application executes only when runtime API is exactly 30 and arm64-v8a is present; unsupported runtime is rejected without fallback.","domains":["R1","R6","R8"],"id":"REQ-PLATFORM","implementation":["toolbox-app/src/main/kotlin/io/toolbox/app/RuntimeCompatibility.kt"],"proof":["unit","runtime"]},
+    {"behavior":"On a supported runtime the kernel bootstrap reaches RUNNING or exposes a deterministic failure state without crashing the Activity.","domains":["R1","R2","R3"],"id":"REQ-BOOT","implementation":["toolbox-app/src/main/kotlin/io/toolbox/app/ToolBoxApplication.kt","toolbox-app/src/main/kotlin/io/toolbox/app/KernelRuntime.kt","toolbox-app/src/main/kotlin/io/toolbox/app/MainActivity.kt"],"proof":["unit","instrumentation","runtime"]},
+    {"behavior":"Recreation, background/resume, repeated lifecycle cycles, and process restart preserve an operational bootstrap with no duplicate side effect or leak within declared budgets.","domains":["R2","R3","R8"],"id":"REQ-LIFECYCLE","implementation":["toolbox-app/src/main/kotlin/io/toolbox/app/MainActivity.kt","toolbox-app/src/main/kotlin/io/toolbox/app/KernelRuntime.kt"],"proof":["instrumentation","runtime"]},
+    {"behavior":"The only exported component is the launcher Activity and unexpected Intent extras cannot alter bootstrap semantics.","domains":["R1","R5"],"id":"REQ-EXTERNAL-BOUNDARY","implementation":["toolbox-app/src/main/AndroidManifest.xml","toolbox-app/src/main/kotlin/io/toolbox/app/MainActivity.kt"],"proof":["prebuild","instrumentation","runtime"]},
+    {"behavior":"The bootstrap status surface is visible, semantically exposes RUNNING/FAILED state, remains usable across declared configuration witnesses, and has an accessibility description.","domains":["R8"],"id":"REQ-UI","implementation":["toolbox-app/src/main/kotlin/io/toolbox/app/MainActivity.kt"],"proof":["instrumentation","runtime"]},
+    {"behavior":"Final debug and release APKs are built only after APPLICATION_PREBUILD_PASS from pinned, locked, checksum-verified inputs and are bound to source revision and exact artifact digest.","domains":["R6"],"id":"REQ-BUILD","implementation":[".github/workflows/application-safe-100.yml"],"proof":["prebuild","build","artifact","provenance"]},
+    {"behavior":"Release APK is signed with the repository-pinned certificate identity using v2 and v3 schemes and the exact verified APK is the tested artifact.","domains":["R6"],"id":"REQ-SIGNING","implementation":["verification/signing_contract.json",".github/workflows/application-safe-100.yml"],"proof":["signing-preflight","signature","runtime"]},
+    {"behavior":"The closed bootstrap asset/package universe is complete, route-resolved, packaged, and exercised through Android 11 consumers.","domains":["ASSET","R6","R8"],"id":"REQ-ASSET","implementation":["verification/asset_contracts.json"],"proof":["asset-prebuild","artifact","runtime","mutation"]}
+  ],
+  "schemaVersion":1,
+  "scopeId":"toolbox-bootstrap-android11-arm64",
+  "scopeStatement":"Current ToolBox bootstrap application shell and toolbox-kernel integration only; future engines/tools are outside this closed application scope until introduced.",
+  "stateUniverse":{"activity":["CREATED","RESUMED","BACKGROUND","RECREATED","DESTROYED"],"applicationCompatibility":["SUPPORTED","UNSUPPORTED"],"bootstrap":["NOT_STARTED","RUNNING","FAILED"],"kernelObserved":["RUNNING","DEGRADED","STOPPED","FAILED"],"persistentState":"CLOSED_EMPTY"}
+}
