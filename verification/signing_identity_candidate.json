@@ -8,7 +8,7 @@
     "privateKeySigningProbeVerified": true,
     "sha256sumMatchesOpenSSL": true
   },
-  "generatedFromGitSha": "aee06f7f44e1321a7620498a553d9a0725a73ffd",
+  "generatedFromGitSha": "1a381c9ee98e34fdea4f731b5ca3a370cad82802",
   "schemaVersion": 1,
   "signingContractSha256": "940471d0d98cf64e724595819f5c67df8685a8d0c55654de9f51d76da7fff2f3",
   "status": "SIGNING_IDENTITY_CANDIDATE_UNREVIEWED",
@@ -17,6 +17,6 @@
     "jdkRuntime": "17.0.20.1+1",
     "jdkSelector": "17.0.20+1"
   },
-  "workflowRunAttempt": "3",
-  "workflowRunId": "33345244073"
+  "workflowRunAttempt": "1",
+  "workflowRunId": "33346436111"
 }
