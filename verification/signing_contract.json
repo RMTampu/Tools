@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "debug": {
     "purpose": "CI verification artifact only; never a production identity.",
     "requireV2": true,
@@ -8,20 +8,29 @@
   },
   "release": {
     "purpose": "Production/release identity.",
-    "requiredSecrets": [
-      "TOOLBOX_KEYSTORE_BASE64",
-      "TOOLBOX_KEYSTORE_PASSWORD",
-      "TOOLBOX_KEY_ALIAS",
-      "TOOLBOX_KEY_PASSWORD"
-    ],
+    "expectedAlias": "dreams",
+    "acceptedSecretNames": {
+      "keystoreBase64": [
+        "TOOLBOX_SIGNING_KEYSTORE_BASE64",
+        "V_SIGNING_KEYSTORE_BASE64",
+        "TOOLBOX_KEYSTORE_BASE64"
+      ],
+      "password": [
+        "TOOLBOX_SIGNING_PASSWORD",
+        "V_SIGNING_PASSWORD",
+        "TOOLBOX_KEYSTORE_PASSWORD",
+        "TOOLBOX_KEY_PASSWORD"
+      ]
+    },
     "requireV2": true,
     "requireV3": true,
-    "expectedCertificateSha256": null,
-    "statusUntilFingerprintIsPinned": "NOT_PROVEN"
+    "expectedCertificateSha256": "290fb37d527935766e327781833493400dd647cfc8bdbe433254a2df52e4b8e4",
+    "identityProvenance": "Observed from keytool -list -v on dreams-release.jks and dreams-release.p12 on 2026-08-31; CI must independently reproduce this fingerprint before build unlock."
   },
   "rules": [
     "Private key material must never be committed to the repository.",
     "Release signature validity is insufficient without a pinned expected certificate SHA-256 identity.",
+    "CI must independently read the supplied release keystore and match expectedCertificateSha256 before build.",
     "Any certificate rotation requires an explicit lineage/update of this contract and invalidates affected release proof.",
     "The exact APK verified here must be the exact APK installed, tested, attested and distributed."
   ]

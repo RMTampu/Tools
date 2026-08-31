@@ -69,18 +69,6 @@ jobs:
           grep -F 'Pkg.Revision=34.0.0' "$ANDROID_SDK_ROOT/build-tools/34.0.0/source.properties"
           echo 'R6_TOOLCHAIN_PASS=1' >> "$GITHUB_ENV"
 
-      - name: Materialize release keystore from permanent secrets
-        shell: bash
-        env:
-          KEYSTORE_B64: ${{ secrets.TOOLBOX_SIGNING_KEYSTORE_BASE64 }}
-        run: |
-          set -euo pipefail
-          test -n "${KEYSTORE_B64:-}"
-          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/toolbox-release.p12"
-          test -s "$RUNNER_TEMP/toolbox-release.p12"
-          chmod 600 "$RUNNER_TEMP/toolbox-release.p12"
-          echo "TOOLBOX_KEYSTORE_PATH=$RUNNER_TEMP/toolbox-release.p12" >> "$GITHUB_ENV"
-
       - name: A0 source and build-input gate
         run: python3 verification/scripts/prebuild_gate.py
 
@@ -111,9 +99,24 @@ jobs:
       - name: Current revision dependency trust
         run: python3 verification/scripts/dependency_trust_current.py
 
+      - name: Prebuild mutation adequacy
+        run: python3 verification/scripts/prebuild_mutation_gate.py
+
+      - name: Materialize release keystore from known permanent secret names
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.TOOLBOX_SIGNING_KEYSTORE_BASE64 || secrets.V_SIGNING_KEYSTORE_BASE64 || secrets.TOOLBOX_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          test -n "${KEYSTORE_B64:-}"
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/toolbox-release.p12"
+          test -s "$RUNNER_TEMP/toolbox-release.p12"
+          chmod 600 "$RUNNER_TEMP/toolbox-release.p12"
+          echo "TOOLBOX_KEYSTORE_PATH=$RUNNER_TEMP/toolbox-release.p12" >> "$GITHUB_ENV"
+
       - name: Release signing identity preflight
         env:
-          TOOLBOX_SIGNING_PASSWORD: ${{ secrets.TOOLBOX_SIGNING_PASSWORD }}
+          TOOLBOX_SIGNING_PASSWORD: ${{ secrets.TOOLBOX_SIGNING_PASSWORD || secrets.V_SIGNING_PASSWORD || secrets.TOOLBOX_KEYSTORE_PASSWORD || secrets.TOOLBOX_KEY_PASSWORD }}
         shell: bash
         run: |
           set -euo pipefail
@@ -121,10 +124,7 @@ jobs:
           python3 verification/scripts/signing_identity_gate.py \
             --keystore "$TOOLBOX_KEYSTORE_PATH" \
             --store-password "$TOOLBOX_SIGNING_PASSWORD" \
-            --alias "dreams-key-permanent"
-
-      - name: Prebuild mutation adequacy
-        run: python3 verification/scripts/prebuild_mutation_gate.py
+            --alias "dreams"
 
       - name: A0-A9 application prebuild closure
         run: python3 verification/scripts/application_prebuild_gate.py
