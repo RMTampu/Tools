@@ -1,27 +1,142 @@
 {
-  "activeFaultClasses": ["PRESENCE_MISSING","PATH_AMBIGUITY","SYNTAX_MALFORMED_MANIFEST","SEMANTIC_WRONG_MANIFEST_VALUE","REFERENCE_FRAMEWORK_THEME_MISSING","CONSUMER_BINDING_ERROR","PACKAGING_REQUIRED_ENTRY_MISSING","PACKAGING_UNEXPECTED_NATIVE_PAYLOAD","FINAL_MANIFEST_DRIFT","RESOURCE_BUDGET_EXCEEDED"],
+  "activeFaultClasses": [
+    "PRESENCE_MISSING",
+    "PATH_AMBIGUITY",
+    "SYNTAX_MALFORMED_MANIFEST",
+    "SEMANTIC_WRONG_MANIFEST_VALUE",
+    "REFERENCE_FRAMEWORK_THEME_MISSING",
+    "CONSUMER_BINDING_ERROR",
+    "PACKAGING_REQUIRED_ENTRY_MISSING",
+    "PACKAGING_UNEXPECTED_NATIVE_PAYLOAD",
+    "FINAL_MANIFEST_DRIFT",
+    "RESOURCE_BUDGET_EXCEEDED"
+  ],
   "assetUniverse": {
-    "customAssetsDirectory":"CLOSED_EMPTY",
-    "customResDirectory":"CLOSED_EMPTY",
-    "dynamicLookup":"CLOSED_EMPTY",
-    "optionalGenerated":["resources.arsc"],
-    "required":[{
-      "assetId":"APP-MANIFEST",
-      "consumer":"Android PackageManager/ActivityManager",
-      "loader":"Android package parser",
-      "required":true,
-      "semantic":["application class ToolBoxApplication","launcher MainActivity exported","cleartext disabled","backup disabled","framework Material NoActionBar theme"],
-      "source":"toolbox-app/src/main/AndroidManifest.xml",
-      "transform":["manifest merge","binary XML packaging"],
-      "type":"android-manifest-xml"
-    }]
+    "customAssetsDirectory": "CLOSED_EMPTY",
+    "customResDirectory": {
+      "status": "FINITE_LOCKED",
+      "sources": [
+        "toolbox-app/src/main/res/drawable/ic_toolbox.xml"
+      ]
+    },
+    "dynamicLookup": "CLOSED_EMPTY",
+    "optionalGenerated": [
+      "resources.arsc"
+    ],
+    "required": [
+      {
+        "assetId": "APP-MANIFEST",
+        "consumer": "Android PackageManager/ActivityManager",
+        "loader": "Android package parser",
+        "required": true,
+        "semantic": [
+          "application class ToolBoxApplication",
+          "launcher MainActivity exported",
+          "cleartext disabled",
+          "backup disabled",
+          "framework Material NoActionBar theme",
+          "application icon bound to ic_toolbox"
+        ],
+        "source": "toolbox-app/src/main/AndroidManifest.xml",
+        "transform": [
+          "manifest merge",
+          "binary XML packaging"
+        ],
+        "type": "android-manifest-xml"
+      },
+      {
+        "assetId": "APP-ICON",
+        "consumer": "Android PackageManager/launcher icon resolver",
+        "loader": "Android Resources",
+        "required": true,
+        "semantic": [
+          "deterministic local vector",
+          "48dp square viewport",
+          "opaque cyan ToolBox mark",
+          "no external or dynamic resource dependency"
+        ],
+        "source": "toolbox-app/src/main/res/drawable/ic_toolbox.xml",
+        "transform": [
+          "aapt2 compile",
+          "aapt2 link",
+          "resources.arsc packaging"
+        ],
+        "type": "android-vector-drawable-xml"
+      }
+    ]
   },
-  "budgets":{"apkBytes":67108864,"apkUncompressedBytes":134217728},
-  "configurationContract":{"bitmapAssets":"CLOSED_EMPTY","customQualifierUniverse":"CLOSED_EMPTY","databaseAssets":"CLOSED_EMPTY","fontAssets":"CLOSED_EMPTY","localeSpecificAssets":"CLOSED_EMPTY","mediaAssets":"CLOSED_EMPTY","statefulAssets":"CLOSED_EMPTY","webAssets":"CLOSED_EMPTY"},
-  "notApplicableFaultClasses":{"BITMAP_DECODE":"no bitmap assets","DATABASE":"no prepackaged database","DYNAMIC_RESOURCE":"no dynamic lookup","FONT_GLYPH":"no bundled font assets","LOCALIZATION_FORMAT":"no app string resources","MEDIA":"no media","MERGE_OVERLAY_RESOURCE":"no app res overlay candidates","STATE_SELECTOR":"no selectors","WEB":"no local web assets"},
-  "packageContract":{"conditionallyAllowed":["resources.arsc","META-INF/**","kotlin/**"],"duplicateEntries":0,"forbiddenPrefixes":["lib/"],"normalizedCollisions":0,"requiredEntries":["AndroidManifest.xml","classes.dex"],"unsafePaths":0},
-  "platform":{"abi":"arm64-v8a","androidApi":30},
-  "routes":[{"androidApi":30,"authority":"framework package only","consumer":"application theme resolver","exactIdentity":"android.R.style.Theme_Material_NoActionBar","kind":"ANDROID_FRAMEWORK_RESOURCE","routeId":"ROUTE-FRAMEWORK-THEME","source":"@android:style/Theme.Material.NoActionBar","state":"all bootstrap states"}],
-  "schemaVersion":1,
-  "scopeId":"toolbox-bootstrap-assets"
+  "budgets": {
+    "apkBytes": 67108864,
+    "apkUncompressedBytes": 134217728,
+    "singleVectorDrawableBytes": 16384
+  },
+  "configurationContract": {
+    "bitmapAssets": "CLOSED_EMPTY",
+    "customQualifierUniverse": [
+      "drawable"
+    ],
+    "databaseAssets": "CLOSED_EMPTY",
+    "fontAssets": "CLOSED_EMPTY",
+    "localeSpecificAssets": "CLOSED_EMPTY",
+    "mediaAssets": "CLOSED_EMPTY",
+    "statefulAssets": "CLOSED_EMPTY",
+    "webAssets": "CLOSED_EMPTY"
+  },
+  "notApplicableFaultClasses": {
+    "BITMAP_DECODE": "no bitmap assets",
+    "DATABASE": "no prepackaged database",
+    "DYNAMIC_RESOURCE": "no dynamic lookup",
+    "FONT_GLYPH": "no bundled font assets",
+    "LOCALIZATION_FORMAT": "no app string resources",
+    "MEDIA": "no media",
+    "MERGE_OVERLAY_RESOURCE": "one unqualified drawable exists and there are no overlay/qualifier competitors",
+    "STATE_SELECTOR": "no selectors",
+    "WEB": "no local web assets"
+  },
+  "packageContract": {
+    "conditionallyAllowed": [
+      "resources.arsc",
+      "res/**",
+      "META-INF/**",
+      "kotlin/**"
+    ],
+    "duplicateEntries": 0,
+    "forbiddenPrefixes": [
+      "lib/"
+    ],
+    "normalizedCollisions": 0,
+    "requiredEntries": [
+      "AndroidManifest.xml",
+      "classes.dex"
+    ],
+    "unsafePaths": 0
+  },
+  "platform": {
+    "abi": "arm64-v8a",
+    "androidApi": 30
+  },
+  "routes": [
+    {
+      "androidApi": 30,
+      "authority": "framework package only",
+      "consumer": "application theme resolver",
+      "exactIdentity": "android.R.style.Theme_Material_NoActionBar",
+      "kind": "ANDROID_FRAMEWORK_RESOURCE",
+      "routeId": "ROUTE-FRAMEWORK-THEME",
+      "source": "@android:style/Theme.Material.NoActionBar",
+      "state": "all bootstrap states"
+    },
+    {
+      "androidApi": 30,
+      "authority": "ToolBox application package only",
+      "consumer": "Android PackageManager/launcher icon resolver",
+      "exactIdentity": "io.toolbox.app.R.drawable.ic_toolbox",
+      "kind": "ANDROID_APP_RESOURCE",
+      "routeId": "ROUTE-APP-ICON",
+      "source": "@drawable/ic_toolbox",
+      "state": "all bootstrap states"
+    }
+  ],
+  "schemaVersion": 2,
+  "scopeId": "toolbox-bootstrap-assets"
 }

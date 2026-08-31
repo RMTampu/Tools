@@ -4,7 +4,7 @@
     <application
         android:name=".ToolBoxApplication"
         android:allowBackup="false"
-        android:extractNativeLibs="false"
+        android:icon="@drawable/ic_toolbox"
         android:label="ToolBox"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.NoActionBar"
