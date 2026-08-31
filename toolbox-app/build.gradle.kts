@@ -30,6 +30,16 @@ android {
         buildConfig = true
     }
 
+    // AGP's dependency metadata block is encrypted for Play and therefore
+    // intentionally non-deterministic between otherwise identical builds.
+    // ToolBox keeps dependency inventory as explicit verification evidence,
+    // so this optional APK/AAB metadata is disabled to preserve byte-for-byte
+    // reproducibility without changing application code or runtime behavior.
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
+
     signingConfigs {
         if (
             releaseKeystorePath.isPresent &&
