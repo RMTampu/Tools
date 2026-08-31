@@ -133,7 +133,10 @@ dependencies {
     androidTestImplementation("androidx.test:runner:1.7.0")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
-    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.4.0")
+    // 2.4.0 publishes Kotlin 2.1 metadata and cannot be compiled by the
+    // repository-locked Kotlin 1.9.24 compiler. 2.3.0 provides the legacy
+    // UiDevice API used by these tests and remains compatible with this toolchain.
+    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
     androidTestUtil("androidx.test:orchestrator:1.6.1")
 }
 

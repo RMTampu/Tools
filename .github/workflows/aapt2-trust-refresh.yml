@@ -7,6 +7,7 @@ on:
       - '.github/workflows/aapt2-trust-refresh.yml'
       - 'toolbox-app/build.gradle.kts'
       - 'toolbox-app/src/main/**'
+      - 'toolbox-app/gradle.lockfile'
       - 'gradle/verification-metadata.xml'
   workflow_dispatch:
 
@@ -17,7 +18,7 @@ permissions:
 jobs:
   verify-android-tool-trust:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 55
     steps:
       - name: Checkout exact revision
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
@@ -65,26 +66,30 @@ jobs:
             git archive HEAD | tar -x -C "$dir"
           done
 
-      - name: Resolve complete Android tool surface in replica A
+      - name: Resolve complete dependency and Android test surface in replica A
         env:
           GRADLE_USER_HOME: ${{ runner.temp }}/gradle-home-a
         shell: bash
         run: |
           set -euo pipefail
           gradle -p "$RUNNER_TEMP/source-a" --no-daemon --refresh-dependencies \
-            --write-verification-metadata sha256 \
+            --write-locks --write-verification-metadata sha256 \
+            :toolbox-app:dependencies \
+            :toolbox-app:assembleDebugAndroidTest \
             :toolbox-app:processDebugResources \
             :toolbox-app:lintDebug \
             :toolbox-app:lintRelease
 
-      - name: Resolve complete Android tool surface in replica B
+      - name: Resolve complete dependency and Android test surface in replica B
         env:
           GRADLE_USER_HOME: ${{ runner.temp }}/gradle-home-b
         shell: bash
         run: |
           set -euo pipefail
           gradle -p "$RUNNER_TEMP/source-b" --no-daemon --refresh-dependencies \
-            --write-verification-metadata sha256 \
+            --write-locks --write-verification-metadata sha256 \
+            :toolbox-app:dependencies \
+            :toolbox-app:assembleDebugAndroidTest \
             :toolbox-app:processDebugResources \
             :toolbox-app:lintDebug \
             :toolbox-app:lintRelease
@@ -93,7 +98,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          cmp "$RUNNER_TEMP/source-a/toolbox-app/gradle.lockfile" "$RUNNER_TEMP/source-b/toolbox-app/gradle.lockfile"
           cmp "$RUNNER_TEMP/source-a/gradle/verification-metadata.xml" "$RUNNER_TEMP/source-b/gradle/verification-metadata.xml"
+          grep -F 'androidx.test.uiautomator:uiautomator:2.3.0' "$RUNNER_TEMP/source-a/toolbox-app/gradle.lockfile"
+          ! grep -F 'androidx.test.uiautomator:uiautomator:2.4.0' "$RUNNER_TEMP/source-a/toolbox-app/gradle.lockfile"
           python3 - <<'PY'
           import hashlib, os, pathlib, xml.etree.ElementTree as ET
           ns={'v':'https://schema.gradle.org/dependency-verification'}
@@ -112,9 +120,7 @@ jobs:
                       missing.append((*coord,art.attrib.get('name')))
           if missing:
               raise SystemExit(f'artifacts without SHA-256: {missing[:20]}')
-          raw=p.read_bytes()
-          print('TRUST_METADATA_SHA256='+hashlib.sha256(raw).hexdigest())
-          print('TRUSTED_ARTIFACT_COUNT='+str(len(artifacts)))
+          observed={(g,n,v,a) for g,n,v,a,h in artifacts if h}
           required={
             ('com.android.tools.build','aapt2','8.6.1-11315950','aapt2-8.6.1-11315950-linux.jar'),
             ('com.android.tools.lint','lint','31.6.1','lint-31.6.1.jar'),
@@ -122,20 +128,24 @@ jobs:
             ('com.android.tools.lint','lint-checks','31.6.1','lint-checks-31.6.1.jar'),
             ('com.android.tools.lint','lint-gradle','31.6.1','lint-gradle-31.6.1.jar'),
           }
-          observed={(g,n,v,a) for g,n,v,a,h in artifacts if h}
           absent=required-observed
           if absent:
               raise SystemExit(f'required Android tool trust missing: {sorted(absent)}')
+          print('TRUST_METADATA_SHA256='+hashlib.sha256(p.read_bytes()).hexdigest())
+          print('TRUSTED_ARTIFACT_COUNT='+str(len(artifacts)))
           PY
 
       - name: Package converged trust evidence
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/android-tool-trust-evidence"
-          cp "$RUNNER_TEMP/source-a/gradle/verification-metadata.xml" "$RUNNER_TEMP/android-tool-trust-evidence/verification-metadata-a.xml"
-          cp "$RUNNER_TEMP/source-b/gradle/verification-metadata.xml" "$RUNNER_TEMP/android-tool-trust-evidence/verification-metadata-b.xml"
-          sha256sum "$RUNNER_TEMP/android-tool-trust-evidence/"*.xml > "$RUNNER_TEMP/android-tool-trust-evidence/SHA256SUMS"
+          out="$RUNNER_TEMP/android-tool-trust-evidence"
+          mkdir -p "$out"
+          cp "$RUNNER_TEMP/source-a/toolbox-app/gradle.lockfile" "$out/toolbox-app-lock-a.txt"
+          cp "$RUNNER_TEMP/source-b/toolbox-app/gradle.lockfile" "$out/toolbox-app-lock-b.txt"
+          cp "$RUNNER_TEMP/source-a/gradle/verification-metadata.xml" "$out/verification-metadata-a.xml"
+          cp "$RUNNER_TEMP/source-b/gradle/verification-metadata.xml" "$out/verification-metadata-b.xml"
+          sha256sum "$out"/* > "$out/SHA256SUMS"
 
       - name: Upload converged trust evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -145,7 +155,7 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Promote converged metadata only when changed
+      - name: Atomically promote converged lock and verification metadata
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
@@ -155,59 +165,65 @@ jobs:
           set -euo pipefail
           BRANCH='kernel-foundation-hardening'
           API="https://api.github.com/repos/$REPOSITORY"
-          HEAD_SHA="$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$API/git/ref/heads/$BRANCH" | python3 -c 'import json,sys; print(json.load(sys.stdin)["object"]["sha"])')"
+          auth=(-H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28')
+          HEAD_SHA="$(curl -fsSL "${auth[@]}" "$API/git/ref/heads/$BRANCH" | python3 -c 'import json,sys; print(json.load(sys.stdin)["object"]["sha"])')"
           test "$HEAD_SHA" = "$SOURCE_SHA"
 
-          curl -fsSL \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H 'Accept: application/vnd.github+json' \
-            "$API/contents/gradle/verification-metadata.xml?ref=$BRANCH" \
-            > "$RUNNER_TEMP/current-metadata.json"
+          GEN_LOCK="$RUNNER_TEMP/source-a/toolbox-app/gradle.lockfile"
+          GEN_META="$RUNNER_TEMP/source-a/gradle/verification-metadata.xml"
+          test -s "$GEN_LOCK"
+          test -s "$GEN_META"
 
-          CURRENT_BLOB="$(python3 - <<'PY'
-          import json, os, pathlib
-          p=pathlib.Path(os.environ['RUNNER_TEMP'])/'current-metadata.json'
-          print(json.loads(p.read_text())['sha'])
-          PY
-          )"
-          export CURRENT_BLOB BRANCH
-
-          CURRENT_SHA256="$(python3 - <<'PY'
-          import base64, hashlib, json, os, pathlib
-          p=pathlib.Path(os.environ['RUNNER_TEMP'])/'current-metadata.json'
-          raw=base64.b64decode(json.loads(p.read_text())['content'])
-          print(hashlib.sha256(raw).hexdigest())
-          PY
-          )"
-          GENERATED_SHA256="$(sha256sum "$RUNNER_TEMP/source-a/gradle/verification-metadata.xml" | awk '{print $1}')"
-
-          if [ "$CURRENT_SHA256" = "$GENERATED_SHA256" ]; then
-            echo "TRUST_METADATA_ALREADY_CURRENT=1"
+          if cmp -s toolbox-app/gradle.lockfile "$GEN_LOCK" && cmp -s gradle/verification-metadata.xml "$GEN_META"; then
+            echo 'TRUST_PROMOTED=0' >> "$GITHUB_ENV"
             echo "FINAL_TRUSTED_HEAD=$SOURCE_SHA" >> "$GITHUB_ENV"
-          else
-            python3 - <<'PY'
-          import base64,json,os,pathlib
-          source=pathlib.Path(os.environ['RUNNER_TEMP'])/'source-a/gradle/verification-metadata.xml'
-          body={'message':'Trust independently verified Android build tools','content':base64.b64encode(source.read_bytes()).decode(),'sha':os.environ['CURRENT_BLOB'],'branch':os.environ['BRANCH']}
-          pathlib.Path(os.environ['RUNNER_TEMP']+'/promote.json').write_text(json.dumps(body))
-          PY
-            curl -fsSL -X PUT \
-              -H "Authorization: Bearer $GH_TOKEN" \
-              -H 'Accept: application/vnd.github+json' \
-              -H 'X-GitHub-Api-Version: 2022-11-28' \
-              "$API/contents/gradle/verification-metadata.xml" \
-              --data-binary "@$RUNNER_TEMP/promote.json" > "$RUNNER_TEMP/promote-response.json"
-            PROMOTED_COMMIT="$(python3 - <<'PY'
-          import json,os,pathlib
-          data=json.loads(pathlib.Path(os.environ['RUNNER_TEMP']+'/promote-response.json').read_text())
-          print(data['commit']['sha'])
-          PY
-          )"
-            echo "PROMOTED_COMMIT=$PROMOTED_COMMIT"
-            echo "FINAL_TRUSTED_HEAD=$PROMOTED_COMMIT" >> "$GITHUB_ENV"
+            exit 0
           fi
 
-      - name: Dispatch Application Safe on trusted head
+          python3 - <<'PY'
+          import base64, json, os, pathlib
+          temp=pathlib.Path(os.environ['RUNNER_TEMP'])
+          pairs={
+            'lock': temp/'source-a/toolbox-app/gradle.lockfile',
+            'meta': temp/'source-a/gradle/verification-metadata.xml',
+          }
+          for name,path in pairs.items():
+              (temp/f'{name}-blob.json').write_text(json.dumps({'content':base64.b64encode(path.read_bytes()).decode(),'encoding':'base64'}))
+          PY
+
+          LOCK_BLOB="$(curl -fsSL -X POST "${auth[@]}" "$API/git/blobs" --data-binary "@$RUNNER_TEMP/lock-blob.json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["sha"])')"
+          META_BLOB="$(curl -fsSL -X POST "${auth[@]}" "$API/git/blobs" --data-binary "@$RUNNER_TEMP/meta-blob.json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["sha"])')"
+          BASE_TREE="$(curl -fsSL "${auth[@]}" "$API/git/commits/$SOURCE_SHA" | python3 -c 'import json,sys; print(json.load(sys.stdin)["tree"]["sha"])')"
+          export LOCK_BLOB META_BLOB BASE_TREE SOURCE_SHA
+
+          python3 - <<'PY'
+          import json, os, pathlib
+          temp=pathlib.Path(os.environ['RUNNER_TEMP'])
+          tree={
+            'base_tree':os.environ['BASE_TREE'],
+            'tree':[
+              {'path':'toolbox-app/gradle.lockfile','mode':'100644','type':'blob','sha':os.environ['LOCK_BLOB']},
+              {'path':'gradle/verification-metadata.xml','mode':'100644','type':'blob','sha':os.environ['META_BLOB']},
+            ],
+          }
+          (temp/'tree.json').write_text(json.dumps(tree))
+          PY
+          NEW_TREE="$(curl -fsSL -X POST "${auth[@]}" "$API/git/trees" --data-binary "@$RUNNER_TEMP/tree.json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["sha"])')"
+          export NEW_TREE
+          python3 - <<'PY'
+          import json, os, pathlib
+          body={'message':'Refresh independently converged Android test dependency trust','tree':os.environ['NEW_TREE'],'parents':[os.environ['SOURCE_SHA']]}
+          pathlib.Path(os.environ['RUNNER_TEMP']+'/commit.json').write_text(json.dumps(body))
+          PY
+          PROMOTED_COMMIT="$(curl -fsSL -X POST "${auth[@]}" "$API/git/commits" --data-binary "@$RUNNER_TEMP/commit.json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["sha"])')"
+          printf '{"sha":"%s","force":false}' "$PROMOTED_COMMIT" > "$RUNNER_TEMP/ref.json"
+          curl -fsSL -X PATCH "${auth[@]}" "$API/git/refs/heads/$BRANCH" --data-binary "@$RUNNER_TEMP/ref.json" >/dev/null
+          echo 'TRUST_PROMOTED=1' >> "$GITHUB_ENV"
+          echo "FINAL_TRUSTED_HEAD=$PROMOTED_COMMIT" >> "$GITHUB_ENV"
+          echo "PROMOTED_COMMIT=$PROMOTED_COMMIT"
+
+      - name: Dispatch Application Safe on stable trusted head
+        if: env.TRUST_PROMOTED == '0'
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
