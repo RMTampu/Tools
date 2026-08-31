@@ -16,9 +16,15 @@ Dokumen ini adalah **orkestrator wajib** untuk sembilan paket assurance aplikasi
 
 Tujuan akhir adalah status `APPLICATION_SAFE_100` terhadap **closed application domain** yang ditetapkan untuk ToolBox pada Android 11 / API 30 / ARM64.
 
-Dokumen ini tidak menggantikan `ASSET_SAFE_100_RULES.md`, `ASSET_SAFE_100_PROCESS.md`, `PREBUILD_ASSET_GATE.md`, atau `AGENT_PROCEDURE_EXECUTION_RULES.md`. Bila scope aplikasi menyentuh asset/resource, seluruh asset gate tetap wajib dan menjadi dependency dari application-wide acceptance.
+Android 11 / API30 / ARM64 pada kalimat di atas adalah **target produk/final compatibility domain**, bukan hard lock untuk seluruh GitHub development test environment.
+
+Dokumen ini tidak menggantikan `ASSET_SAFE_100_RULES.md`, `ASSET_SAFE_100_PROCESS.md`, `PREBUILD_ASSET_GATE.md`, `AGENT_PROCEDURE_EXECUTION_RULES.md`, atau `TEST_ROUTING_POLICY.md`.
+
+Bila scope aplikasi menyentuh asset/resource, seluruh asset gate tetap wajib dan menjadi dependency dari application-wide acceptance.
 
 Seluruh eksekusi wajib mengikuti `AGENT_PROCEDURE_EXECUTION_RULES.md`.
+
+Seluruh keputusan test environment dan Firebase authorization WAJIB mengikuti `TEST_ROUTING_POLICY.md`.
 
 ---
 
@@ -78,7 +84,20 @@ APPLICATION_PREBUILD_PASS
 APPLICATION_SAFE_100
 ```
 
-Status berikut **bukan PASS**:
+Status routing tambahan dari `TEST_ROUTING_POLICY.md` dapat hidup di samping status di atas:
+
+```text
+DEVELOPMENT_PASS
+FINAL_GATE_WAITING_USER_APPROVAL
+FIREBASE_AUTHORIZED_ONCE
+FIREBASE_AUTHORIZATION_CONSUMED
+FIREBASE_TARGET_PASS
+FINAL_GATE_NOT_PROVEN
+```
+
+`DEVELOPMENT_PASS` bukan sinonim `APPLICATION_SAFE_100` dan tidak otomatis membuka Firebase.
+
+Status berikut **bukan PASS final**:
 
 ```text
 UNKNOWN
@@ -142,7 +161,46 @@ A17 R9 APPLICATION-WIDE VERIFICATION COMPLETENESS
 A18 FINAL APPLICATION_SAFE_100 ACCEPTANCE
 ```
 
-Setiap stage hanya dapat dibuka jika stage sebelumnya PASS.
+Setiap stage hanya dapat dibuka jika stage sebelumnya memenuhi prerequisite yang berlaku.
+
+**Catatan routing wajib:** A11–A15 tidak berarti semua test harus berjalan pada Android 11 ARM64. Development/regression execution menggunakan GitHub environment yang fleksibel sesuai `TEST_ROUTING_POLICY.md`. Jika final target-specific Android 11 ARM64 witness dibutuhkan untuk menutup suatu stage/claim, agen harus berhenti dan meminta single-use user approval sebelum Firebase.
+
+---
+
+## 4A. Test-Environment dan Firebase Authority Boundary
+
+Target produk:
+
+```text
+Android 11 / API30 / arm64-v8a
+```
+
+GitHub development test environment:
+
+```text
+FLEXIBLE
+```
+
+Firebase final test environment:
+
+```text
+HARD LOCK = Android 11 / API30 / arm64-v8a
+```
+
+Aturan wajib:
+
+1. seluruh test yang dapat dijalankan secara sah di GitHub harus dijalankan di GitHub terlebih dahulu;
+2. GitHub boleh memakai API/ABI/emulator yang tersedia dan relevan;
+3. environment non-target tidak boleh diklaim sebagai final target proof;
+4. setelah affected GitHub checks mencapai `DEVELOPMENT_PASS`, agen wajib berhenti sebelum Firebase;
+5. agen wajib bertanya kepada pengguna apakah kandidat tersebut diizinkan masuk Firebase Final Gate;
+6. tanpa jawaban eksplisit, Firebase tetap `LOCKED`;
+7. satu jawaban approval hanya berlaku untuk satu Firebase execution attempt;
+8. setelah attempt dimulai, approval habis walaupun hasil PASS/FAIL/error/timeout/cancel;
+9. retry/second run selalu membutuhkan approval baru;
+10. Firebase tidak boleh fallback dari API30/ARM64 ke target lain.
+
+Tidak ada stage A11–A18 yang boleh ditafsirkan sebagai kewenangan agen untuk menjalankan Firebase tanpa approval pengguna.
 
 ---
 
@@ -152,6 +210,7 @@ Wajib baca:
 
 - `AGENTS.md`;
 - `AGENT_PROCEDURE_EXECUTION_RULES.md`;
+- `TEST_ROUTING_POLICY.md`;
 - `APPLICATION_SAFE_100_PROCESS.md`;
 - seluruh `APP_SAFE_R1...R9` yang relevan dengan pekerjaan aktif;
 - `PREBUILD_ASSET_GATE.md`, `ASSET_SAFE_100_RULES.md`, `ASSET_SAFE_100_METHODS.md`, `ASSET_SAFE_100_PROCESS.md` bila asset/resource termasuk scope;
@@ -170,7 +229,11 @@ DEPENDENCY / PLUGIN / EXTERNAL SERVICE DOMAIN
 PERSISTENT_VERSION DOMAIN
 APPLICATION_FAULT_UNIVERSE
 EVIDENCE / TOOL TRUST BOUNDARY
+TEST_ROUTING_BOUNDARY
+FIREBASE_AUTHORIZATION_STATE
 ```
+
+`SUPPORTED_PLATFORM` dan `SUPPORTED_ABI` adalah target product/final claim boundary. Mereka tidak memaksa seluruh GitHub test environment identik.
 
 Jika boundary belum diketahui, `A0 = NOT_PROVEN`.
 
@@ -388,6 +451,8 @@ Build APK hanya melalui GitHub Actions sesuai `AGENTS.md`.
 
 Build wajib menggunakan exact prebuild inputs/provenance yang telah dibuktikan. Perubahan input setelah `APPLICATION_PREBUILD_PASS` membatalkan status tersebut dan proses kembali ke stage paling awal yang terdampak.
 
+Build artifact tetap harus memenuhi target product contract Android 11/API30/ARM64, tetapi runtime environment untuk development tests setelah build boleh fleksibel sesuai `TEST_ROUTING_POLICY.md`.
+
 ---
 
 # 16. A11 — R6 Final Artifact / Sign / Install Verification
@@ -402,13 +467,19 @@ Setelah APK final ada:
 - verify install/update failure cases;
 - verify mapping/retrace evidence.
 
-R6 baru dapat menjadi:
+Development/regression install testing dijalankan di GitHub menggunakan environment yang tersedia dan relevan.
+
+Jika final claim memerlukan actual Android 11/API30/ARM64 install witness, witness tersebut hanya boleh dijalankan pada Firebase Final Gate setelah explicit single-use user approval.
+
+R6 baru dapat menjadi final:
 
 ```text
 APP_SAFE_R6_PASS
 ```
 
 setelah seluruh required postbuild proof selesai.
+
+Jika target-specific witness masih menunggu user approval, pertahankan development status; jangan menjalankan Firebase otomatis.
 
 ---
 
@@ -422,7 +493,11 @@ Jalankan runtime evidence yang tidak mungkin diselesaikan sebelum APK final:
 - R4 migration/crash/corruption/storage/backup runtime witnesses;
 - R5 permission/network/offline/TLS/external fault/security runtime witnesses.
 
-Output wajib:
+GitHub environment untuk runtime/integration development evidence bersifat fleksibel. API/ABI aktual wajib dicatat.
+
+Jika suatu claim benar-benar target-specific terhadap Android 11/API30/ARM64 dan belum terbukti di GitHub secara authoritative, tandai sebagai pending Final Gate. A12 tidak memberikan izin Firebase.
+
+Output final wajib:
 
 ```text
 APP_SAFE_R1_PASS
@@ -446,7 +521,11 @@ Jalankan:
 - crash isolation/reload/restart;
 - native symbolization evidence.
 
-Output:
+Development tests boleh menggunakan GitHub ABI/runtime yang tersedia sesuai `APP_SAFE_R7_NATIVE_PLUGIN_RUNTIME.md`.
+
+Structural proof bahwa artifact release berisi ARM64 berbeda dari actual ARM64 runtime witness. Jika actual ARM64/API30 witness diperlukan, Firebase hanya boleh dijalankan setelah user approval satu kali.
+
+Output final:
 
 ```text
 APP_SAFE_R7_PASS
@@ -469,7 +548,13 @@ Jalankan:
 - Doze/App Standby/background restrictions;
 - graceful-degradation verification.
 
-Output:
+GitHub UI/device regression matrix bersifat fleksibel dan tidak dikunci ke API30/ARM64.
+
+Jika target-specific Android 11/API30/ARM64 virtual-device witness dibutuhkan, Firebase Final Gate tetap memerlukan explicit single-use user approval.
+
+Jika claim memerlukan physical/vendor hardware evidence, Firebase virtual device tidak menggantikan real/authoritative device witness.
+
+Output final:
 
 ```text
 APP_SAFE_R8_PASS
@@ -499,11 +584,51 @@ ASSET configuration × R8 screen/locale/state
 
 Gunakan exhaustive combinations bila finite/feasible; bila tidak, gunakan model/constraints + combinatorial strength yang eksplisit serta targeted high-risk sequences.
 
+Development cross-domain tests boleh dijalankan pada GitHub environment yang sesuai. Target-specific gap tetap tunduk pada Final Gate authority boundary.
+
 Output:
 
 ```text
 CROSS_DOMAIN_CLOSURE = PASS
 ```
+
+---
+
+## 20A. Development PASS → Mandatory User Decision
+
+Jika implementation dan seluruh affected GitHub checks yang dapat dijalankan telah PASS, agen dapat mencapai:
+
+```text
+DEVELOPMENT_PASS
+```
+
+Pada titik ini agen WAJIB berhenti sebelum Firebase dan bertanya:
+
+```text
+Apakah Anda mengizinkan 1x eksekusi Firebase Final Gate
+untuk kandidat ini pada Android 11 / API30 / ARM64?
+```
+
+Jika pengguna tidak menyetujui:
+
+```text
+FIREBASE = LOCKED
+```
+
+Jika pengguna menyetujui:
+
+```text
+FIREBASE = AUTHORIZED_ONCE
+```
+
+Setelah satu execution attempt dimulai:
+
+```text
+AUTHORIZATION = CONSUMED
+FIREBASE = LOCKED AGAIN
+```
+
+Run/retry berikutnya wajib meminta approval baru.
 
 ---
 
@@ -525,6 +650,8 @@ AND CROSS_DOMAIN_CLOSURE = PASS
 
 Tidak ada finding critical/high yang unresolved sesuai severity model aktif, dan tidak ada required proof berstatus non-PASS.
 
+Jika target-specific Final Gate evidence diwajibkan oleh active claims, evidence tersebut harus berasal dari execution yang sah: Android 11/API30/ARM64 dan mempunyai single-use user approval untuk attempt tersebut.
+
 ---
 
 # 22. A17 — R9 Application-Wide Verification Completeness
@@ -543,6 +670,8 @@ Jalankan seluruh `APP_SAFE_R9_VERIFICATION_COMPLETENESS.md`:
 - defeater analysis;
 - assurance case graph;
 - unknown/skipped/inconclusive closure.
+
+R9 boleh menentukan bahwa Final Gate evidence diperlukan, tetapi R9 tidak boleh mengotorisasi atau menjalankan Firebase sendiri.
 
 Output:
 
@@ -581,6 +710,14 @@ AND FAULT_ESCAPE = 0
 AND UNRESOLVED_DEFEATER = 0
 ```
 
+Jika Firebase Final Gate evidence termasuk required evidence, evidence hanya sah bila:
+
+```text
+TARGET = Android 11 / API30 / arm64-v8a
+AND USER_APPROVAL_FOR_THAT_ATTEMPT = VALID
+AND APPROVAL_REUSE = 0
+```
+
 Status akhir:
 
 ```text
@@ -597,9 +734,11 @@ Status ini tidak berarti hukum fisika, OS/hardware di luar supported environment
 
 Jika scope/boundary diperluas atau fault class baru ditemukan, final claim yang terdampak wajib dibuka kembali.
 
+GitHub development environment yang fleksibel tidak memperluas claim ke target yang tidak diuji. Firebase target evidence hanya berlaku pada scope execution yang benar-benar dijalankan.
+
 ---
 
-# 25. Anti-Skip
+# 25. Anti-Skip dan Anti-Auto-Firebase
 
 Dilarang:
 
@@ -612,4 +751,19 @@ Dilarang:
 - mengubah tool failure menjadi PASS;
 - mempertahankan PASS setelah input/evidence berubah tanpa change-impact proof;
 - menghapus fault class hanya agar final status hijau;
-- mengurangi prosedur karena context/memory agen tidak cukup.
+- mengurangi prosedur karena context/memory agen tidak cukup;
+- menganggap target Android 11 ARM64 berarti semua GitHub tests harus Android 11 ARM64;
+- menganggap GitHub PASS otomatis membuka Firebase;
+- menjalankan Firebase tanpa explicit user approval;
+- memakai satu user approval untuk lebih dari satu execution attempt;
+- auto-retry Firebase setelah PASS/FAIL/error/timeout/cancel;
+- fallback Firebase ke API/ABI selain Android 11/API30/ARM64;
+- menggunakan approval lama untuk kandidat baru atau retry.
+
+Final principle:
+
+```text
+GITHUB DEVELOPMENT TESTING = FLEXIBLE
+FIREBASE FINAL TARGET = ANDROID 11 / API30 / ARM64 ONLY
+1 USER APPROVAL = 1 FIREBASE EXECUTION ATTEMPT
+```
