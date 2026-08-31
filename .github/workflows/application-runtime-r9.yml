@@ -164,21 +164,46 @@ jobs:
           packages: ''
           log-accepted-android-sdk-licenses: 'false'
 
-      - name: Install API30 ARM64 guest runtime inputs
+      - name: Install Android host emulator tools
         shell: bash
         run: |
           set -euo pipefail
           test "$(uname -m)" = x86_64
           java -version 2>&1 | tee "$RUNNER_TEMP/runtime-java.txt"
           grep -F '17.0.20.1' "$RUNNER_TEMP/runtime-java.txt"
-          sdkmanager 'platform-tools' 'emulator' 'system-images;android-30;google_apis;arm64-v8a'
+          sdkmanager 'platform-tools' 'emulator'
           test -x "$ANDROID_SDK_ROOT/platform-tools/adb"
           test -x "$ANDROID_SDK_ROOT/emulator/emulator"
-          test -s "$ANDROID_SDK_ROOT/system-images/android-30/google_apis/arm64-v8a/system.img"
-          test -s "$ANDROID_SDK_ROOT/system-images/android-30/google_apis/arm64-v8a/source.properties"
           mkdir -p verification/evidence/diagnostics
           "$ANDROID_SDK_ROOT/emulator/emulator" -version > verification/evidence/diagnostics/emulator-version.txt 2>&1
           "$ANDROID_SDK_ROOT/platform-tools/adb" version > verification/evidence/diagnostics/adb-version.txt 2>&1
+
+      - name: Select and install API30 ARM64 guest image
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p verification/evidence/diagnostics
+          sdkmanager --list > verification/evidence/diagnostics/sdkmanager-list.txt
+
+          if grep -Fq 'system-images;android-30;google_apis;arm64-v8a' verification/evidence/diagnostics/sdkmanager-list.txt; then
+            IMAGE_PACKAGE='system-images;android-30;google_apis;arm64-v8a'
+            IMAGE_TAG='google_apis'
+          elif grep -Fq 'system-images;android-30;default;arm64-v8a' verification/evidence/diagnostics/sdkmanager-list.txt; then
+            IMAGE_PACKAGE='system-images;android-30;default;arm64-v8a'
+            IMAGE_TAG='default'
+          else
+            echo 'NO_API30_ARM64_SYSTEM_IMAGE_AVAILABLE'
+            grep -E 'system-images;android-30;.*arm64-v8a' verification/evidence/diagnostics/sdkmanager-list.txt || true
+            exit 1
+          fi
+
+          echo "RUNTIME_SYSTEM_IMAGE_PACKAGE=$IMAGE_PACKAGE" >> "$GITHUB_ENV"
+          echo "RUNTIME_SYSTEM_IMAGE_TAG=$IMAGE_TAG" >> "$GITHUB_ENV"
+          echo "RUNTIME_SYSTEM_IMAGE_DIR=$ANDROID_SDK_ROOT/system-images/android-30/$IMAGE_TAG/arm64-v8a" >> "$GITHUB_ENV"
+          printf '%s\n' "$IMAGE_PACKAGE" > verification/evidence/diagnostics/system-image-package.txt
+          sdkmanager "$IMAGE_PACKAGE"
+          test -s "$ANDROID_SDK_ROOT/system-images/android-30/$IMAGE_TAG/arm64-v8a/system.img"
+          test -s "$ANDROID_SDK_ROOT/system-images/android-30/$IMAGE_TAG/arm64-v8a/source.properties"
 
       - name: Qualify runtime tool and ARM64 guest boundary
         shell: bash
@@ -188,15 +213,16 @@ jobs:
           import json, os, platform, re
           from pathlib import Path
 
-          sdk = Path(os.environ['ANDROID_SDK_ROOT'])
+          image_dir = Path(os.environ['RUNTIME_SYSTEM_IMAGE_DIR'])
           emulator_text = Path('verification/evidence/diagnostics/emulator-version.txt').read_text(errors='replace').strip()
           adb_text = Path('verification/evidence/diagnostics/adb-version.txt').read_text(errors='replace').strip()
-          props_path = sdk / 'system-images/android-30/google_apis/arm64-v8a/source.properties'
+          props_path = image_dir / 'source.properties'
           props = props_path.read_text(errors='replace')
           revision_match = re.search(r'(?m)^Pkg\.Revision=(.+)$', props)
           revision = revision_match.group(1).strip() if revision_match else None
           machine = platform.machine().lower()
-          image = sdk / 'system-images/android-30/google_apis/arm64-v8a/system.img'
+          image = image_dir / 'system.img'
+          package = os.environ['RUNTIME_SYSTEM_IMAGE_PACKAGE']
 
           checks = [
               ('runtime-host-x64-for-software-emulation', machine in {'x86_64', 'amd64'}, machine),
@@ -204,17 +230,18 @@ jobs:
               ('runtime-adb-version-known', bool(adb_text), adb_text.splitlines()[0] if adb_text else ''),
               ('runtime-system-image-revision-known', bool(revision), str(revision)),
               ('runtime-api30-arm64-image-installed', image.is_file(), str(image)),
-              ('runtime-guest-abi-declared-arm64-v8a', 'arm64-v8a' in props or image.is_file(), 'arm64-v8a'),
+              ('runtime-api30-arm64-package-selected', package.endswith(';arm64-v8a') and ';android-30;' in package, package),
           ]
           failed = [row for row in checks if not row[1]]
           payload = {
-              'schemaVersion': 2,
+              'schemaVersion': 3,
               'gate': 'RUNTIME_TOOL_QUALIFICATION',
               'status': 'PASS' if not failed else 'NOT_PROVEN',
               'gitSha': os.environ['PROOF_SHA'].lower(),
               'hostArch': machine,
               'guestTargetApi': 30,
               'guestTargetAbi': 'arm64-v8a',
+              'systemImagePackage': package,
               'emulationMode': 'software-cross-architecture',
               'runnerImage': os.environ.get('ImageOS'),
               'emulatorVersion': emulator_text,
@@ -247,7 +274,7 @@ jobs:
           printf 'no\n' | avdmanager create avd \
             --force \
             --name toolbox-api30-arm64 \
-            --package 'system-images;android-30;google_apis;arm64-v8a'
+            --package "$RUNTIME_SYSTEM_IMAGE_PACKAGE"
 
           nohup "$ANDROID_SDK_ROOT/emulator/emulator" \
             -avd toolbox-api30-arm64 \
@@ -273,9 +300,9 @@ jobs:
               exit 1
             fi
             if adb get-state >/dev/null 2>&1; then
-              API="$(adb shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r')"
-              ABI="$(adb shell getprop ro.product.cpu.abi 2>/dev/null | tr -d '\r')"
-              BOOT="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')"
+              API="$(timeout 10s adb shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r' || true)"
+              ABI="$(timeout 10s adb shell getprop ro.product.cpu.abi 2>/dev/null | tr -d '\r' || true)"
+              BOOT="$(timeout 10s adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
               if [ "$BOOT" = 1 ] && [ "$API" = 30 ] && [ "$ABI" = arm64-v8a ]; then
                 BOOTED=1
                 break
@@ -384,8 +411,8 @@ jobs:
             tail -n 500 verification/evidence/diagnostics/emulator-boot.log \
               > verification/evidence/diagnostics/emulator-boot-tail.txt
           fi
-          adb shell getprop > verification/evidence/diagnostics/device-getprop-final.txt 2>/dev/null || true
-          adb logcat -d -v threadtime > verification/evidence/diagnostics/logcat-final.txt 2>/dev/null || true
+          timeout 8s adb shell getprop > verification/evidence/diagnostics/device-getprop-final.txt 2>/dev/null || true
+          timeout 8s adb logcat -d -v threadtime > verification/evidence/diagnostics/logcat-final.txt 2>/dev/null || true
 
       - name: Publish final application assurance evidence
         if: always()
