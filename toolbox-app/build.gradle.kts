@@ -26,6 +26,10 @@ android {
         testInstrumentationRunnerArguments["clearPackageData"] = "true"
     }
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     signingConfigs {
         if (
             releaseKeystorePath.isPresent &&
