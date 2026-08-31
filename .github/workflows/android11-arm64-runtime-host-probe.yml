@@ -39,7 +39,7 @@ jobs:
           test "$(uname -m)" = x86_64
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends libpulse0
-          dpkg-query -W -f='${Package}=${Version}\n' libpulse0
+          dpkg-query -W -f='${Package}=${Version}\n' libpulse0 | tee "$RUNNER_TEMP/host-packages.txt"
           ldconfig -p | grep -F 'libpulse.so.0'
 
       - name: Install exact Android runtime package set
@@ -58,13 +58,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          QEMU="$ANDROID_SDK_ROOT/emulator/qemu/linux-x86_64/qemu-system-x86_64"
-          test -x "$QEMU"
-          ldd "$QEMU" | tee "$RUNNER_TEMP/qemu-ldd.txt"
-          if grep -Fq 'not found' "$RUNNER_TEMP/qemu-ldd.txt"; then
-            echo 'EMULATOR_HOST_LIBRARY_MISSING'
-            exit 1
-          fi
+          ldconfig -p | grep -F 'libpulse.so.0'
+          test -e /lib/x86_64-linux-gnu/libpulse.so.0
 
           grep -F 'Pkg.Revision=20.0' "$ANDROID_SDK_ROOT/cmdline-tools/20.0/source.properties"
           grep -F 'Pkg.Revision=37.0.1' "$ANDROID_SDK_ROOT/platform-tools/source.properties"
@@ -75,7 +70,10 @@ jobs:
           grep -F 'SystemImage.Abi=arm64-v8a' "$ANDROID_SDK_ROOT/system-images/android-30/google_apis/arm64-v8a/source.properties"
           grep -F 'SystemImage.TagId=google_apis' "$ANDROID_SDK_ROOT/system-images/android-30/google_apis/arm64-v8a/source.properties"
 
-          "$ANDROID_SDK_ROOT/emulator/emulator" -version | tee "$RUNNER_TEMP/emulator-version.txt"
+          # The emulator launcher configures its bundled private libraries.
+          # A bare ldd on the internal QEMU child is invalid and caused a false failure.
+          "$ANDROID_SDK_ROOT/emulator/emulator" -version 2>&1 | tee "$RUNNER_TEMP/emulator-version.txt"
+          grep -F 'Android emulator version 37.1.11.0' "$RUNNER_TEMP/emulator-version.txt"
           "$ANDROID_SDK_ROOT/platform-tools/adb" version | tee "$RUNNER_TEMP/adb-version.txt"
 
       - name: Create and boot exact Android 11 ARM64 AVD in software mode
@@ -133,6 +131,7 @@ jobs:
           test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = 11
           test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = 30
           test "$(adb shell getprop ro.product.cpu.abi | tr -d '\r')" = arm64-v8a
+          adb shell getprop > "$RUNNER_TEMP/device-getprop.txt"
           echo 'ANDROID_11_ARM64_SOFTWARE_RUNTIME_PROBE_PASS'
 
       - name: Preserve diagnostics
@@ -141,9 +140,10 @@ jobs:
         with:
           name: android11-arm64-runtime-host-probe
           path: |
-            ${{ runner.temp }}/qemu-ldd.txt
+            ${{ runner.temp }}/host-packages.txt
             ${{ runner.temp }}/emulator-version.txt
             ${{ runner.temp }}/adb-version.txt
             ${{ runner.temp }}/emulator-boot.log
+            ${{ runner.temp }}/device-getprop.txt
           if-no-files-found: warn
           retention-days: 14
