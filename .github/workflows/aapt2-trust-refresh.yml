@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   verify-aapt2-trust:
@@ -123,6 +123,12 @@ jobs:
           (base/'aapt2-trust.json').write_text(json.dumps(a, indent=2, sort_keys=True)+'\n')
           PY
 
+      - name: Require full generated metadata byte convergence
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmp "$RUNNER_TEMP/source-a/gradle/verification-metadata.xml" "$RUNNER_TEMP/source-b/gradle/verification-metadata.xml"
+
       - name: Package converged trust evidence
         shell: bash
         run: |
@@ -140,3 +146,41 @@ jobs:
           path: ${{ runner.temp }}/aapt2-trust-evidence
           if-no-files-found: error
           retention-days: 14
+
+      - name: Promote exact converged metadata to current branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          SOURCE_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          BRANCH='kernel-foundation-hardening'
+          API="https://api.github.com/repos/$REPOSITORY"
+          HEAD_SHA="$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$API/git/ref/heads/$BRANCH" | python3 -c 'import json,sys; print(json.load(sys.stdin)["object"]["sha"])')"
+          test "$HEAD_SHA" = "$SOURCE_SHA"
+          CURRENT_BLOB="$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$API/contents/gradle/verification-metadata.xml?ref=$BRANCH" | python3 -c 'import json,sys; print(json.load(sys.stdin)["sha"])')"
+          export CURRENT_BLOB BRANCH
+          python3 - <<'PY'
+          import base64, json, os, pathlib
+          source = pathlib.Path(os.environ['RUNNER_TEMP'])/'source-a/gradle/verification-metadata.xml'
+          body = {
+              'message': 'Trust independently verified AAPT2 artifacts',
+              'content': base64.b64encode(source.read_bytes()).decode(),
+              'sha': os.environ['CURRENT_BLOB'],
+              'branch': os.environ['BRANCH'],
+          }
+          pathlib.Path(os.environ['RUNNER_TEMP'] + '/promote.json').write_text(json.dumps(body))
+          PY
+          curl -fsSL -X PUT \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "$API/contents/gradle/verification-metadata.xml" \
+            --data-binary "@$RUNNER_TEMP/promote.json" \
+            > "$RUNNER_TEMP/promote-response.json"
+          python3 - <<'PY'
+          import json, os, pathlib
+          data=json.loads(pathlib.Path(os.environ['RUNNER_TEMP']+'/promote-response.json').read_text())
+          print('PROMOTED_COMMIT='+data['commit']['sha'])
+          PY
