@@ -104,6 +104,9 @@ android {
         xmlReport = true
         // API 30 is an explicit product contract in AGENTS.md, not an accidental stale target.
         disable += "ExpiredTargetSdkVersion"
+        // Repository policy forbids dependency upgrades merely because a newer release exists.
+        // Version drift/integrity is enforced instead by locks + strict SHA-256 verification.
+        disable += "GradleDependency"
     }
 }
 
