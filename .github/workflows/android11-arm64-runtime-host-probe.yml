@@ -1,0 +1,149 @@
+name: Android 11 ARM64 Runtime Host Probe
+
+on:
+  push:
+    branches: [kernel-foundation-hardening]
+    paths:
+      - '.github/workflows/android11-arm64-runtime-host-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prove-runtime-host:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+
+    steps:
+      - name: Setup exact Temurin JDK
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '17.0.20+1'
+          java-package: jdk
+          architecture: x64
+          check-latest: false
+
+      - name: Setup exact Android command line tools
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699
+        with:
+          cmdline-tools-version: '14742923'
+          packages: ''
+          log-accepted-android-sdk-licenses: 'false'
+
+      - name: Install required host runtime library
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = x86_64
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libpulse0
+          dpkg-query -W -f='${Package}=${Version}\n' libpulse0
+          ldconfig -p | grep -F 'libpulse.so.0'
+
+      - name: Install exact Android runtime package set
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager \
+            'platform-tools' \
+            'emulator' \
+            'system-images;android-30;google_apis;arm64-v8a'
+          test -x "$ANDROID_SDK_ROOT/platform-tools/adb"
+          test -x "$ANDROID_SDK_ROOT/emulator/emulator"
+          test -s "$ANDROID_SDK_ROOT/system-images/android-30/google_apis/arm64-v8a/system.img"
+
+      - name: Fail closed on host library or package drift
+        shell: bash
+        run: |
+          set -euo pipefail
+          QEMU="$ANDROID_SDK_ROOT/emulator/qemu/linux-x86_64/qemu-system-x86_64"
+          test -x "$QEMU"
+          ldd "$QEMU" | tee "$RUNNER_TEMP/qemu-ldd.txt"
+          if grep -Fq 'not found' "$RUNNER_TEMP/qemu-ldd.txt"; then
+            echo 'EMULATOR_HOST_LIBRARY_MISSING'
+            exit 1
+          fi
+
+          grep -F 'Pkg.Revision=20.0' "$ANDROID_SDK_ROOT/cmdline-tools/20.0/source.properties"
+          grep -F 'Pkg.Revision=37.0.1' "$ANDROID_SDK_ROOT/platform-tools/source.properties"
+          grep -F 'Pkg.Revision=37.1.11' "$ANDROID_SDK_ROOT/emulator/source.properties"
+          grep -F 'Pkg.BuildId=15917651' "$ANDROID_SDK_ROOT/emulator/source.properties"
+          grep -F 'Pkg.Revision=16' "$ANDROID_SDK_ROOT/system-images/android-30/google_apis/arm64-v8a/source.properties"
+          grep -F 'AndroidVersion.ApiLevel=30' "$ANDROID_SDK_ROOT/system-images/android-30/google_apis/arm64-v8a/source.properties"
+          grep -F 'SystemImage.Abi=arm64-v8a' "$ANDROID_SDK_ROOT/system-images/android-30/google_apis/arm64-v8a/source.properties"
+          grep -F 'SystemImage.TagId=google_apis' "$ANDROID_SDK_ROOT/system-images/android-30/google_apis/arm64-v8a/source.properties"
+
+          "$ANDROID_SDK_ROOT/emulator/emulator" -version | tee "$RUNNER_TEMP/emulator-version.txt"
+          "$ANDROID_SDK_ROOT/platform-tools/adb" version | tee "$RUNNER_TEMP/adb-version.txt"
+
+      - name: Create and boot exact Android 11 ARM64 AVD in software mode
+        shell: bash
+        run: |
+          set -euo pipefail
+          adb kill-server || true
+          printf 'no\n' | avdmanager create avd \
+            --force \
+            --name toolbox-api30-arm64-probe \
+            --package 'system-images;android-30;google_apis;arm64-v8a'
+
+          nohup "$ANDROID_SDK_ROOT/emulator/emulator" \
+            -avd toolbox-api30-arm64-probe \
+            -accel off \
+            -gpu software \
+            -no-window \
+            -no-audio \
+            -no-boot-anim \
+            -no-snapshot \
+            -wipe-data \
+            -no-metrics \
+            -cores 2 \
+            -memory 2048 \
+            > "$RUNNER_TEMP/emulator-boot.log" 2>&1 &
+          EMU_PID="$!"
+          echo "EMU_PID=$EMU_PID"
+
+          BOOTED=0
+          for i in $(seq 1 360); do
+            if ! kill -0 "$EMU_PID" 2>/dev/null; then
+              echo 'EMULATOR_EXITED_BEFORE_BOOT'
+              cat "$RUNNER_TEMP/emulator-boot.log"
+              exit 1
+            fi
+            if adb get-state >/dev/null 2>&1; then
+              API="$(timeout 10s adb shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r' || true)"
+              ABI="$(timeout 10s adb shell getprop ro.product.cpu.abi 2>/dev/null | tr -d '\r' || true)"
+              RELEASE="$(timeout 10s adb shell getprop ro.build.version.release 2>/dev/null | tr -d '\r' || true)"
+              BOOT="$(timeout 10s adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
+              if [ "$BOOT" = 1 ] && [ "$API" = 30 ] && [ "$ABI" = arm64-v8a ] && [ "$RELEASE" = 11 ]; then
+                BOOTED=1
+                break
+              fi
+            fi
+            sleep 5
+          done
+
+          if [ "$BOOTED" != 1 ]; then
+            echo 'EMULATOR_BOOT_TIMEOUT'
+            cat "$RUNNER_TEMP/emulator-boot.log"
+            exit 1
+          fi
+
+          test "$(adb shell getprop ro.build.version.release | tr -d '\r')" = 11
+          test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = 30
+          test "$(adb shell getprop ro.product.cpu.abi | tr -d '\r')" = arm64-v8a
+          echo 'ANDROID_11_ARM64_SOFTWARE_RUNTIME_PROBE_PASS'
+
+      - name: Preserve diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: android11-arm64-runtime-host-probe
+          path: |
+            ${{ runner.temp }}/qemu-ldd.txt
+            ${{ runner.temp }}/emulator-version.txt
+            ${{ runner.temp }}/adb-version.txt
+            ${{ runner.temp }}/emulator-boot.log
+          if-no-files-found: warn
+          retention-days: 14
