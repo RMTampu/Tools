@@ -6,6 +6,8 @@ Korpus metode aktif untuk **R6 — Build, Dependency, Manifest, Shrinking & Inst
 
 Status riset: `PRACTICAL_SATURATION` terhadap ruang metode yang telah disapu.
 
+Test environment dan Firebase authorization selalu mengikuti `TEST_ROUTING_POLICY.md`.
+
 ---
 
 ## 2. Scope
@@ -25,6 +27,8 @@ R6 menutup:
 
 Asset package proof tetap mengikuti `ASSET_SAFE_100`; native runtime semantics dimiliki R7.
 
+Target produk tetap Android 11 / API 30 / ARM64. Penyebutan target tersebut tidak berarti seluruh install/runtime test GitHub wajib berjalan pada environment identik. GitHub development testing bersifat fleksibel; target-specific Firebase test hanya boleh dijalankan setelah single-use approval pengguna.
+
 ---
 
 ## 3. Metode Aktif
@@ -42,7 +46,9 @@ Seluruh resolved direct + transitive dependency harus mempunyai exact version/id
 Gunakan checksum/signature/verification metadata atau mekanisme setara untuk membuktikan binary/source dependency yang diambil sama dengan yang diharapkan.
 
 ### R6-M05 — Dependency Compatibility Contract
-Setiap dependency wajib kompatibel dengan Android 11/API30, JVM/bytecode, min/target SDK, arm64/native needs, public API contract, R8 behavior, and required runtime. Upgrade dependency invalidates affected proof.
+Setiap dependency wajib kompatibel dengan target Android 11/API30, JVM/bytecode, min/target SDK, arm64/native needs, public API contract, R8 behavior, and required runtime. Upgrade dependency invalidates affected proof.
+
+Compatibility contract boleh dibuktikan secara struktural/static pada GitHub bila property tersebut tidak membutuhkan target runtime. Runtime target-specific proof mengikuti `TEST_ROUTING_POLICY.md`.
 
 ### R6-M06 — Hermeticity / External Influence Closure
 Final build harus mengurangi atau menutup undeclared network/time/user-home/global cache/input influence. Bila hermetic full tidak feasible, seluruh external influence yang dapat mengubah output harus dideklarasikan dan diverifikasi.
@@ -71,20 +77,46 @@ Untuk release shrink/minify, buktikan code yang dipanggil secara direct, reflect
 ### R6-M14 — Keep-Rule Minimality & Mutation Verification
 Keep rule harus cukup untuk preserve required behavior tetapi tidak sekadar `-keep **` untuk menyembunyikan reachability problem. Mutation remove/narrow keep rules and release runtime tests harus menangkap missing code.
 
+Runtime mutation tests di GitHub boleh menggunakan environment yang sesuai/tersedia selama claim dibatasi pada environment tersebut. Target-specific final witness tidak boleh dipalsukan oleh environment non-target.
+
 ### R6-M15 — Obfuscation Mapping / Retrace Evidence
 Simpan mapping/retrace metadata yang tepat untuk artifact final. Crash evidence final harus dapat dikembalikan ke source revision yang sesuai.
 
 ### R6-M16 — Final APK Structural / Semantic Verification
 Periksa APK final: package/applicationId, manifest, sdk levels, classes/dex, native ABI set, resource/asset presence, compression/alignment where relevant, versionCode/versionName, signing certificates, and forbidden unexpected payload.
 
+Verifikasi bahwa artifact release tetap menargetkan Android 11 / API30 / ARM64. Ini adalah package/target verification, bukan perintah agar semua runtime test GitHub memakai environment identik.
+
 ### R6-M17 — Signing Identity / Signature Verification
 Final artifact harus diverifikasi dengan `apksigner` atau equivalent terhadap supported platform range. Certificate identity/lineage harus sesuai release contract. Modifikasi APK setelah signing dilarang.
 
 ### R6-M18 — Install / Upgrade / Reinstall Matrix
-Uji install clean, upgrade dari seluruh supported installed versions, reinstall same version where relevant, data preservation, signature continuity, versionCode rules, failure behavior, and package manager acceptance pada Android 11 ARM64.
+Uji install clean, upgrade dari seluruh supported installed versions, reinstall same version where relevant, data preservation, signature continuity, versionCode rules, failure behavior, and package manager acceptance.
+
+Routing environment:
+
+```text
+DEVELOPMENT / REGRESSION INSTALL TESTS
+-> GitHub Actions
+-> environment Android yang tersedia dan relevan
+-> API/ABI boleh fleksibel sesuai TEST_ROUTING_POLICY.md
+
+FINAL TARGET-SPECIFIC INSTALL WITNESS
+-> Firebase Final Gate
+-> Android 11 / API 30 / ARM64 only
+-> hanya setelah explicit single-use user approval
+```
+
+Jika GitHub tidak menyediakan Android 11 ARM64, development install matrix tidak boleh dihentikan hanya karena environment identik tidak tersedia. Gunakan environment yang paling relevan dan catat limitation.
+
+Environment GitHub non-target tidak boleh diklaim sebagai final Android 11 ARM64 install proof.
+
+Jika final target-specific install witness diperlukan untuk final claim dan pengguna belum memberi approval Firebase, status target-specific witness tetap `NOT_PROVEN`; agen tidak boleh menjalankan Firebase sendiri.
 
 ### R6-M19 — Failed / Interrupted Update Semantics
 Jika aplikasi memiliki self-update/package update workflow, uji download/package corruption, insufficient storage, signature mismatch, interrupted staging, install rejection, and rollback/fallback. R3/R4 own internal state recovery; R6 owns package/install transaction.
+
+Development fault testing dilakukan di GitHub sejauh feasible. Target-specific final execution mengikuti single-use Firebase approval rule.
 
 ### R6-M20 — Supply-Chain Inventory / SBOM
 Buat machine-readable dependency/material inventory yang mengikat direct/transitive components ke final build. Vulnerability status adalah security maintenance evidence, tetapi presence/identity closure tetap wajib walau tidak ada known CVE.
@@ -92,15 +124,35 @@ Buat machine-readable dependency/material inventory yang mengikat direct/transit
 ### R6-M21 — CI Workflow Integrity & Required Gate Binding
 Final artifact hanya sah jika berasal dari workflow/revision yang diwajibkan, seluruh mandatory gate dijalankan, no continue-on-error bypass, and artifact upload occurs only after validation.
 
+Workflow CI dilarang mengubah GitHub PASS menjadi Firebase execution otomatis. Firebase authorization tetap mengikuti `TEST_ROUTING_POLICY.md`.
+
 ### R6-M22 — Build Mutation / Defeater Testing
 Inject wrong dependency, unlocked version, modified artifact checksum, manifest exported override, missing keep rule, wrong signing cert, extra ABI, wrong minSdk/target, stale generated file, and post-sign modification. Gate harus mendeteksi semua meaningful mutation.
 
 ### R6-M23 — Change-Impact Invalidation
 Perubahan build script, dependency lock, repository, toolchain, plugin, manifest, keep rule, signing, CI workflow, variant, or package policy invalidates corresponding evidence and downstream artifact proof.
 
+Perubahan kandidat setelah Firebase approval tetapi sebelum execution juga membatalkan approval sesuai `TEST_ROUTING_POLICY.md`.
+
 ---
 
-## 4. Fault Model Minimum
+## 4. Development vs Final R6 Status
+
+Untuk mencegah salah tafsir:
+
+```text
+R6_DEVELOPMENT_PASS
+```
+
+boleh dicapai setelah seluruh R6 proof yang relevan dan dapat dilakukan di GitHub selesai pada environment development yang dicatat.
+
+`R6_DEVELOPMENT_PASS` tidak sama dengan `APP_SAFE_R6_PASS` bila final target-specific install/runtime witness masih diwajibkan oleh active claim.
+
+Firebase tidak boleh dijalankan untuk menutup gap tersebut sampai pengguna memberikan single-use approval.
+
+---
+
+## 5. Fault Model Minimum
 
 ```text
 UNDECLARED_BUILD_INPUT
@@ -130,7 +182,7 @@ ARTIFACT_SOURCE_PROVENANCE_MISMATCH
 
 ---
 
-## 5. PASS Formula
+## 6. PASS Formula
 
 `APP_SAFE_R6_PASS` hanya jika:
 
@@ -147,3 +199,5 @@ ARTIFACT_PROVENANCE_UNKNOWN = 0
 BUILD_FAULT_ESCAPE = 0
 STALE_EVIDENCE = 0
 ```
+
+Jika `SUPPORTED_INSTALL_PATH_UNPROVEN` hanya tersisa karena target-specific Android 11 ARM64 runtime witness belum diotorisasi, agen wajib berhenti pada development status dan meminta Final Gate approval; tidak boleh menjalankan Firebase otomatis.
