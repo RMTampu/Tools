@@ -1,479 +1,731 @@
-# TEST_ROUTING_POLICY.md — ToolBox
+# TEST_ROUTING_POLICY.md — ToolBox Test Routing & Final-Gate Authorization
 
 ## 1. Status dan Tujuan
 
-Dokumen ini adalah aturan routing pengujian untuk repository `RMTampu/Tools`.
+Dokumen ini adalah sumber aturan utama untuk **pemilihan lingkungan pengujian** dan **otorisasi Firebase Test Lab** pada repository `RMTampu/Tools`.
 
-Tujuannya adalah:
+Tujuan aturan ini:
 
-- menjadikan GitHub Actions sebagai jalur default untuk pengujian development, basic, intermediate, dan regression;
-- melindungi kuota Firebase Test Lab agar tidak terpakai untuk debugging atau pemeriksaan berulang yang dapat dilakukan di GitHub;
-- menggunakan Firebase Test Lab terutama pada final qualification untuk kandidat fitur/perubahan/release yang sudah stabil;
-- mempertahankan target distribusi resmi Android 11 / API 30 / ARM64 (`arm64-v8a`);
-- mengizinkan environment GitHub yang paling sesuai untuk pengujian dasar bila Android 11 ARM64 tidak tersedia secara praktis di GitHub;
-- mencegah environment non-target dianggap sebagai bukti final target;
-- menggunakan kembali evidence yang masih valid sesuai change-impact analysis.
+- menjadikan GitHub Actions sebagai jalur default untuk development, basic, intermediate, regression, debugging, dan pemeriksaan berulang;
+- membuat environment pengujian GitHub **fleksibel** agar pekerjaan tidak terhambat hanya karena Android 11 ARM64 tidak tersedia secara praktis;
+- mempertahankan target produk ToolBox tetap Android 11 / API 30 / ARM64 (`arm64-v8a`);
+- mengunci **setiap Firebase Test Lab final execution** hanya pada Android 11 / API 30 / ARM64;
+- memastikan Firebase **tidak pernah dijalankan otomatis hanya karena GitHub PASS**;
+- memastikan setiap eksekusi Firebase membutuhkan persetujuan eksplisit pengguna;
+- memastikan **1 persetujuan = tepat 1 percobaan eksekusi Firebase**;
+- mencegah auto-retry, approval reuse, approval inheritance, atau penggunaan kuota tanpa keputusan pengguna;
+- membedakan dengan tegas development evidence dari final target evidence.
 
-Prinsip utama:
+Prinsip inti:
 
 ```text
-GITHUB = DEVELOPMENT / BASIC / INTERMEDIATE / REGRESSION VERIFICATION
-FIREBASE TEST LAB = FINAL TARGET QUALIFICATION
+GITHUB ACTIONS = FLEXIBLE DEVELOPMENT / REGRESSION TEST ENVIRONMENT
+FIREBASE TEST LAB = USER-AUTHORIZED FINAL TARGET GATE
+FIREBASE TARGET = ANDROID 11 / API 30 / ARM64 ONLY
+1 USER APPROVAL = 1 FIREBASE EXECUTION ATTEMPT
 ```
-
-Penghematan kuota hanya boleh mengubah **tempat, waktu, dan batching pengujian**. Penghematan kuota DILARANG mengurangi required test, coverage, invariant, proof, evidence, atau syarat PASS yang diwajibkan aturan repository lain.
 
 ---
 
-## 2. Hubungan dengan Aturan Repository Lain
+## 2. Prioritas dan Hubungan dengan Aturan Lain
 
-Dokumen ini mengatur **routing lingkungan pengujian**, bukan menggantikan requirement pengujian.
+Dokumen ini mengatur **test execution routing**. Ia tidak menghapus requirement correctness, coverage, proof, invariant, gate, atau evidence dari R1–R9, `APPLICATION_SAFE_100`, `ASSET_SAFE_100`, dan aturan repository lainnya.
 
-Urutan prioritas tetap:
+Urutan prioritas:
 
 1. instruksi pengguna terbaru;
 2. `AGENTS.md`;
-3. prosedur/gate wajib yang dirujuk oleh `AGENTS.md`;
-4. `TEST_ROUTING_POLICY.md` untuk pemilihan lingkungan pengujian.
+3. `TEST_ROUTING_POLICY.md` untuk seluruh keputusan test environment dan Firebase authorization;
+4. prosedur/metode domain lain.
 
-Jika suatu rule R1–R9, asset rule, prebuild gate, atau prosedur lain mewajibkan proof tertentu, proof tersebut tetap wajib. Policy ini hanya menentukan di mana proof dapat/harus dijalankan dan kapan Firebase boleh digunakan.
+Setiap kalimat pada dokumen lain yang menyebut Android 11 / API 30 / ARM64 harus dibaca sebagai **target produk / compatibility target**, kecuali kalimat tersebut secara eksplisit membahas Firebase Final Gate.
+
+Tidak boleh menafsirkan penyebutan target produk tersebut sebagai perintah bahwa seluruh runtime test GitHub wajib berjalan pada Android 11 ARM64.
+
+Jika ada wording lama yang dapat ditafsirkan sebagai:
+
+```text
+ALL GITHUB TESTS MUST RUN ON ANDROID 11 ARM64
+```
+
+interpretasi tersebut DILARANG. Aturan environment test yang sah adalah dokumen ini.
 
 ---
 
-## 3. Target Resmi
+## 3. Target Produk Tidak Berubah
 
-Target distribusi final ToolBox tetap:
+Target distribusi utama ToolBox tetap:
 
 ```text
-Android 11
-API 30
-ABI arm64-v8a
+ANDROID_VERSION = Android 11
+ANDROID_API = 30
+RELEASE_ABI = arm64-v8a
 ```
 
-Tidak tersedianya GitHub-hosted Android 11 ARM64 runtime yang identik dengan target final TIDAK mengubah target resmi.
+Fleksibilitas test GitHub **tidak** berarti:
 
-Environment GitHub yang berbeda API/ABI hanya boleh menjadi development/basic evidence sesuai batas klaim pada dokumen ini.
+- APK release boleh berubah menjadi x86/x86_64;
+- dependency native boleh kehilangan `arm64-v8a`;
+- min/target SDK boleh berubah tanpa keputusan desain;
+- engine boleh mengklaim ARM64 tanpa compatibility contract;
+- target produk boleh bergeser dari Android 11.
+
+Yang dibuat fleksibel hanya **environment pengujian development di GitHub**.
 
 ---
 
-## 4. Stage T0 — Source / Static / Unit Verification
+## 4. State Resmi
 
-Lokasi default:
+State routing resmi:
 
 ```text
-GitHub Actions
+DEVELOPMENT_IN_PROGRESS
+DEVELOPMENT_PASS
+FINAL_GATE_WAITING_USER_APPROVAL
+FIREBASE_AUTHORIZED_ONCE
+FIREBASE_EXECUTION_IN_PROGRESS
+FIREBASE_AUTHORIZATION_CONSUMED
+FIREBASE_TARGET_PASS
+FIREBASE_TARGET_FAIL
+FINAL_GATE_NOT_PROVEN
 ```
 
-Digunakan untuk pekerjaan yang tidak membutuhkan target runtime final, termasuk bila relevan:
+State default Firebase selalu:
 
-- compile checks;
-- lint;
-- static analysis;
-- dependency verification;
-- source invariant checks;
-- pure JVM/unit tests;
-- contract tests;
-- deterministic model tests;
-- asset/prebuild checks;
-- kernel/core tests yang independen dari Android runtime.
+```text
+FIREBASE_AUTHORIZATION = LOCKED
+```
 
-Firebase Test Lab DILARANG digunakan untuk T0.
-
-Output T0 tidak boleh diklaim sebagai runtime Android 11 ARM64 proof.
+Tidak ada state `AUTO_APPROVED`.
+Tidak ada state `PERMANENT_APPROVAL`.
+Tidak ada state `RETRY_APPROVED`.
 
 ---
 
-## 5. Stage T1 — Basic Android Runtime Verification
+## 5. GitHub Actions Adalah Jalur Default
 
-Lokasi default:
+Selama pengembangan, agen wajib menggunakan GitHub Actions untuk seluruh pemeriksaan yang dapat dilakukan di sana.
 
-```text
-GitHub Actions
-```
+Contoh:
 
-Gunakan Android emulator/runtime yang paling sesuai dan tersedia secara praktis.
-
-Urutan preferensi:
-
-1. API 30 bila tersedia;
-2. API Android yang perilakunya paling dekat dan masih relevan terhadap perubahan yang diuji;
-3. ABI emulator yang tersedia di GitHub, termasuk `x86_64`, bila ARM64 tidak tersedia secara praktis.
-
-T1 digunakan untuk menemukan failure dasar, misalnya:
-
-- startup crash;
-- lifecycle error dasar;
-- navigation/interaction error;
-- manifest/configuration problem;
-- resource/runtime integration failure;
-- UI behavior dasar;
-- install/startup issue yang dapat direproduksi pada environment tersebut.
-
-Environment non-ARM64 atau non-API30 pada T1 DILARANG dianggap sebagai bukti final kompatibilitas Android 11 ARM64.
-
-Status yang boleh dihasilkan antara lain:
-
-```text
-GITHUB_BASIC_RUNTIME_PASS
-```
-
-Status tersebut bukan `ANDROID_11_ARM64_FINAL_PASS`.
-
----
-
-## 6. Stage T2 — Development / Regression Verification
-
-Lokasi default:
-
-```text
-GitHub Actions
-```
-
-T2 digunakan selama:
-
-- implementasi fitur;
-- penambahan engine/tool;
+- compile/build checks;
+- lint/static analysis;
+- unit tests;
+- contract/model tests;
+- integration tests;
+- Android emulator tests;
+- UI tests;
+- lifecycle tests;
+- regression tests;
+- install/startup smoke tests;
 - debugging;
-- refactor;
-- bug fixing;
-- perubahan UI;
-- perubahan dependency;
-- perubahan asset;
-- perubahan manifest;
-- perubahan persistence/lifecycle/runtime;
-- perubahan workflow;
-- perubahan internal lain yang belum menjadi final candidate.
+- fault injection yang didukung;
+- dependency/manifest/package checks;
+- artifact inspection;
+- native checks yang dapat dilakukan tanpa final target device.
 
-Selama perubahan masih berada pada development loop:
-
-```text
-FIREBASE_TEST_LAB_ROUTE = FORBIDDEN
-```
-
-Agen wajib menggunakan pemeriksaan GitHub yang relevan terlebih dahulu dan memperbaiki semua failure yang dapat ditemukan tanpa Firebase.
+Firebase tidak boleh dipakai hanya karena Firebase tersedia.
 
 ---
 
-## 7. FINAL_CANDIDATE_READY
+## 6. GitHub Test Environment Bersifat Fleksibel
 
-Firebase final qualification hanya boleh dibuka setelah perubahan menjadi kandidat final.
+Untuk development/basic/intermediate/regression testing di GitHub, agen boleh menggunakan Android runtime/emulator yang paling sesuai dan tersedia secara praktis.
 
-Minimal:
-
-```text
-IMPLEMENTATION_COMPLETE
-AND REQUIRED_PREBUILD_GATES = PASS
-AND CONTROLLED_GITHUB_BUILD = PASS
-AND REQUIRED_GITHUB_TESTS = PASS
-AND KNOWN_CRITICAL_HIGH_FAILURE = 0
-AND FINAL_CANDIDATE_ARTIFACT_EXISTS
-AND SOURCE_REVISION_IS_LOCKED
-AND NO_PLANNED_SOURCE_CHANGE_BEFORE_FINAL_QUALIFICATION
-```
-
-Jika salah satu kondisi belum terpenuhi:
+Urutan preferensi yang dianjurkan, bukan hard lock:
 
 ```text
-FINAL_CANDIDATE_READY = NO
-FIREBASE_TEST_LAB_ROUTE = CLOSED
+1. Android 11 / API 30 bila tersedia dan stabil
+2. API terdekat yang relevan terhadap behavior yang diuji
+3. emulator/ABI yang tersedia dan stabil pada GitHub
+4. x86_64 diperbolehkan untuk behavior yang tidak bergantung pada ARM64
 ```
 
-Jika seluruh kondisi terpenuhi:
+GitHub testing boleh menggunakan:
 
-```text
-FINAL_CANDIDATE_READY = YES
-```
+- API selain 30;
+- ABI x86_64 atau ABI test lain yang tersedia;
+- emulator/model yang berbeda dari target final;
+- environment yang lebih baru/lama bila masih valid untuk menemukan defect pada scope tersebut.
+
+Syaratnya:
+
+- environment yang dipakai harus dicatat pada evidence;
+- agen tidak boleh membuat claim lebih luas daripada environment yang diuji;
+- environment non-target tidak boleh diklaim sebagai bukti final Android 11 ARM64;
+- bila suatu behavior benar-benar architecture/API-specific, limitation harus dicatat sebagai target-specific evidence yang belum ditutup.
 
 ---
 
-## 8. Stage T3 — Firebase Final Target Qualification
+## 7. GitHub PASS Bukan Firebase PASS
 
-Lokasi:
-
-```text
-Firebase Test Lab
-```
-
-Firebase digunakan sebagai **final target qualification**, bukan development/debugging environment.
-
-Target final qualification harus sedekat mungkin dengan target distribusi resmi:
+Status berikut berbeda:
 
 ```text
-Android 11 / API 30
-ARM64 / arm64-v8a
-```
-
-Firebase boleh digunakan setelah `FINAL_CANDIDATE_READY = YES` ketika final Android 11 ARM64 runtime/device evidence memang diwajibkan atau evidence sebelumnya telah terinvalidasi.
-
-Contoh scope:
-
-- fitur baru yang telah selesai;
-- engine/tool baru yang telah stabil;
-- perubahan runtime/lifecycle/persistence yang telah selesai;
-- perubahan native/plugin yang telah selesai;
-- perubahan UI/device-sensitive yang telah selesai;
-- bug fix runtime target yang telah lolos regression GitHub;
-- release candidate;
-- perubahan material yang menginvalidasi evidence Android 11 ARM64 sebelumnya.
-
-Firebase final qualification yang PASS hanya membuktikan scope yang benar-benar diuji. Satu run Firebase tidak menggantikan seluruh R1–R9 atau seluruh `APPLICATION_SAFE_100`.
-
----
-
-## 9. Firebase Forbidden Uses
-
-Firebase Test Lab DILARANG digunakan hanya untuk:
-
-- mencoba apakah source compile;
-- mencoba apakah build berhasil;
-- debugging awal;
-- setiap commit;
-- setiap perubahan kecil;
-- perubahan dokumentasi/comment/formatting;
-- unit-test-only changes;
-- static-analysis-only changes;
-- perubahan yang tidak mempengaruhi runtime target;
-- mengulang evidence yang masih valid;
-- menjalankan kandidat yang masih diketahui akan diubah;
-- menggantikan pemeriksaan GitHub yang dapat dilakukan tanpa Firebase;
-- loop `Firebase -> edit -> Firebase -> edit` selama debugging.
-
----
-
-## 10. Fail → Fix → GitHub → New Final Candidate → Firebase
-
-Jika final qualification Firebase FAIL:
-
-```text
-FIREBASE FAIL
-      ↓
-ANALYZE FAILURE
-      ↓
-FIX SOURCE / CONFIGURATION
-      ↓
-CHANGE-IMPACT ANALYSIS
-      ↓
-RERUN ALL AFFECTED GITHUB GATES / TESTS
-      ↓
-GITHUB PASS
-      ↓
-BUILD NEW FINAL CANDIDATE
-      ↓
-FINAL_CANDIDATE_READY
-      ↓
-FIREBASE MAY RUN AGAIN
-```
-
-DILARANG menggunakan Firebase sebagai iterative debugging loop bila failure dapat dianalisis dan diuji ulang melalui GitHub.
-
-Jika failure bersifat target-specific dan tidak dapat direproduksi pada GitHub, Firebase rerun tetap hanya dilakukan setelah perubahan perbaikan telah melewati seluruh affected GitHub proof yang tersedia dan kandidat final baru telah dibentuk.
-
----
-
-## 11. Change-Impact dan Evidence Reuse
-
-Setiap perubahan wajib menentukan evidence apa yang terdampak.
-
-Evidence Firebase yang tidak terdampak dan masih memenuhi provenance/freshness rule BOLEH digunakan kembali.
-
-Perubahan tidak otomatis membatalkan seluruh evidence Firebase.
-
-Evidence final minimal harus mengikat:
-
-- source revision / commit SHA;
-- APK/artifact digest, idealnya SHA-256;
-- application/version identity;
-- workflow/test run identity;
-- Android API;
-- model/device class;
-- ABI bila tersedia sebagai property environment;
-- test configuration/scope;
-- timestamp;
-- result;
-- claim/proof yang didukung.
-
-Evidence dari artifact/revision lain tidak boleh digunakan kembali tanpa change-impact/equivalence proof yang sah sesuai aturan repository.
-
----
-
-## 12. Feature Development Example
-
-Benar:
-
-```text
-Feature A
-├─ commit 1 ─┐
-├─ commit 2  │
-├─ commit 3  ├─ GitHub verification/regression
-├─ commit 4  │
-└─ commit 5 ─┘
-       ↓
-FINAL_CANDIDATE_READY
-       ↓
-Firebase final qualification
-```
-
-Dilarang sebagai default:
-
-```text
-commit 1 -> Firebase
-commit 2 -> Firebase
-commit 3 -> Firebase
-commit 4 -> Firebase
-commit 5 -> Firebase
-```
-
----
-
-## 13. Routing Decision
-
-Agen wajib mengikuti keputusan berikut:
-
-```text
-CHANGE
-  ↓
-CHANGE-IMPACT ANALYSIS
-  ↓
-IS DEVELOPMENT/INTERMEDIATE?
-  ├─ YES
-  │    → GITHUB ROUTE
-  │
-  └─ NO
-       ↓
-FINAL_CANDIDATE_READY?
-  ├─ NO
-  │    → GITHUB ROUTE
-  │
-  └─ YES
-       ↓
-IS FINAL ANDROID 11 ARM64 EVIDENCE REQUIRED OR INVALIDATED?
-  ├─ NO
-  │    → REUSE STILL-VALID EVIDENCE
-  │
-  └─ YES
-       → FIREBASE FINAL ROUTE
-```
-
-Agen tidak boleh memilih Firebase hanya karena Firebase tersedia.
-
----
-
-## 14. PASS Semantics
-
-Status berikut tidak setara:
-
-```text
-GITHUB_BASIC_RUNTIME_PASS
-ANDROID_11_ARM64_FINAL_PASS
+DEVELOPMENT_PASS
+FIREBASE_TARGET_PASS
 APPLICATION_SAFE_100
 ```
 
-`GITHUB_BASIC_RUNTIME_PASS` hanya membuktikan scope pada environment GitHub yang digunakan.
+`DEVELOPMENT_PASS` berarti seluruh pemeriksaan GitHub yang relevan terhadap pekerjaan aktif telah PASS pada environment development yang digunakan.
 
-`ANDROID_11_ARM64_FINAL_PASS` hanya boleh diberikan jika required target-specific evidence telah tersedia untuk kandidat/scope tersebut.
-
-`APPLICATION_SAFE_100` tetap tunduk pada seluruh requirement R1–R9, asset proof bila berlaku, cross-domain closure, evidence completeness, dan seluruh aturan lain yang diwajibkan repository.
-
-Build sukses, GitHub emulator hijau, atau satu Firebase run hijau tidak boleh sendiri menjadi final oracle untuk `APPLICATION_SAFE_100`.
-
----
-
-## 15. Native / ABI Rule
-
-GitHub x86/x86_64 runtime dapat digunakan untuk behavior development yang architecture-independent.
-
-Namun untuk claim yang material terhadap native/ABI, termasuk:
-
-- JNI;
-- `.so` loading;
-- native symbol/linkage;
-- plugin native;
-- ARM64-only dependency;
-- alignment/ABI-specific behavior;
-- architecture-specific crash;
-
-non-ARM64 runtime DILARANG menjadi pengganti ARM64 proof.
-
-Required ARM64 evidence harus tetap ditutup pada final qualification atau environment authoritative lain yang sah sesuai aturan R7/R9.
-
----
-
-## 16. Hardware / Vendor / Physical Device Exception
-
-Firebase virtual device tidak otomatis cukup untuk semua claim R8.
-
-Jika claim membutuhkan physical/representative device evidence, misalnya:
-
-- camera/sensor behavior;
-- Bluetooth/NFC;
-- vendor/OEM behavior;
-- GPU/device-specific timing;
-- thermal/power behavior;
-- hardware interruption yang tidak dapat direproduksi secara sah oleh virtual device;
-
-maka gunakan physical-device atau authoritative lab evidence sebagaimana diwajibkan R8.
-
-Policy `FIREBASE_FINAL_ONLY` tidak boleh digunakan untuk menghapus physical-device requirement yang memang berlaku.
-
----
-
-## 17. Quota Protection
-
-Default routing:
+`DEVELOPMENT_PASS` tidak otomatis berarti:
 
 ```text
-GITHUB_BASIC_ROUTE = DEFAULT
-GITHUB_REGRESSION_ROUTE = DEFAULT
-FIREBASE_DEBUG_ROUTE = DISABLED
-FIREBASE_INTERMEDIATE_ROUTE = DISABLED
-FIREBASE_FINAL_ROUTE = CONDITIONAL
+ANDROID_11_ARM64_RUNTIME_PROVEN
+FIREBASE_TARGET_PASS
+APPLICATION_SAFE_100
 ```
 
-Jika beberapa required final scenarios dapat dibatch secara teknis tanpa mengurangi coverage, oracle, isolation, atau diagnosability yang diwajibkan, agen boleh melakukan batching untuk menghemat penggunaan quota.
-
-Agen DILARANG menghapus required scenario hanya agar jumlah Firebase run berkurang.
+Agen dilarang menyamakan ketiganya.
 
 ---
 
-## 18. Tool / Environment Failure
+## 8. Kapan DEVELOPMENT_PASS Boleh Diberikan
 
-Jika GitHub runner, emulator, Firebase, CLI, network, atau tool gagal:
+Agen hanya boleh menyatakan `DEVELOPMENT_PASS` jika:
 
 ```text
-TOOL_FAILURE != APPLICATION_PASS
-TOOL_FAILURE != APPLICATION_FAIL
+IMPLEMENTATION_SCOPE_COMPLETE
+AND REQUIRED_PREBUILD_GATES = PASS
+AND REQUIRED_GITHUB_BUILD_OR_CHECKS = PASS
+AND REQUIRED_GITHUB_TESTS = PASS
+AND KNOWN_BLOCKING_FAILURE = 0
+AND TEST_ENVIRONMENT_RECORDED
+AND UNRESOLVED_DEVELOPMENT_FAILURE = 0
 ```
 
-Klasifikasikan penyebab berdasarkan evidence.
+Target-specific proof yang memang hanya dapat diperoleh di Final Gate boleh tetap belum tersedia dan tidak menghalangi `DEVELOPMENT_PASS`, selama:
 
-Jika proof wajib tidak dapat diselesaikan karena tool/environment failure, status proof tetap `NOT_PROVEN`/`INDETERMINATE_TOOL` sesuai aturan yang berlaku sampai evidence sah tersedia.
-
-Jangan memindahkan test ke Firebase hanya karena GitHub mengalami transient infrastructure failure. Perbaiki/rerun GitHub route terlebih dahulu kecuali final target qualification memang sudah dibuka.
-
----
-
-## 19. Mandatory Agent Behavior
-
-Ketika pekerjaan melibatkan test, emulator, runtime verification, final candidate, atau Firebase Test Lab, agen wajib:
-
-1. menentukan stage T0/T1/T2/T3;
-2. melakukan change-impact analysis;
-3. menentukan apakah existing evidence masih valid;
-4. menggunakan GitHub sebagai default route selama development;
-5. memastikan `FINAL_CANDIDATE_READY` sebelum Firebase test execution;
-6. membatasi Firebase pada required final target qualification;
-7. menyimpan provenance/evidence final;
-8. tidak mengurangi requirement dari aturan repository lain.
+- ketiadaan proof tersebut dinyatakan eksplisit;
+- tidak diklaim sebagai target PASS;
+- seluruh proof development yang dapat dilakukan di GitHub sudah diselesaikan.
 
 ---
 
-## 20. Final Rule
+## 9. Mandatory Stop Setelah DEVELOPMENT_PASS
+
+Setelah pekerjaan executable/runtime mencapai `DEVELOPMENT_PASS`, agen **WAJIB BERHENTI sebelum Firebase**.
+
+Tidak boleh ada transisi otomatis:
 
 ```text
-DEVELOP OFTEN ON GITHUB.
-QUALIFY FINAL CANDIDATES ON FIREBASE.
-REUSE VALID EVIDENCE.
-DO NOT SPEND FIREBASE QUOTA ON DEBUGGING.
-DO NOT CLAIM NON-TARGET TESTS AS TARGET PROOF.
-DO NOT REDUCE REQUIRED VERIFICATION TO SAVE QUOTA.
+DEVELOPMENT_PASS -> FIREBASE
+```
+
+Transisi yang sah:
+
+```text
+DEVELOPMENT_PASS
+        ↓
+FINAL_GATE_WAITING_USER_APPROVAL
+        ↓
+AGEN BERTANYA KEPADA PENGGUNA
+```
+
+Agen wajib menampilkan identitas kandidat yang akan diuji sejauh tersedia, minimal:
+
+- pekerjaan/fitur yang selesai;
+- source revision / commit SHA bila tersedia;
+- artifact/run identity bila tersedia;
+- jenis final test yang akan dijalankan;
+- target final: Android 11 / API 30 / ARM64;
+- penegasan bahwa izin hanya berlaku untuk satu eksekusi.
+
+Pertanyaan harus memiliki makna eksplisit seperti:
+
+```text
+Pengujian GitHub sudah DEVELOPMENT_PASS.
+Apakah Anda mengizinkan 1x eksekusi Firebase Final Gate untuk kandidat ini pada Android 11 / API 30 / ARM64?
+```
+
+---
+
+## 10. Apa yang Dianggap Persetujuan Sah
+
+Persetujuan hanya sah jika pengguna menjawab secara eksplisit terhadap pertanyaan Final Gate tersebut.
+
+Contoh jawaban yang sah dalam konteks pertanyaan Final Gate:
+
+```text
+ya
+yes
+setuju
+izinkan
+lanjut final gate
+jalankan firebase 1x
+```
+
+Persetujuan TIDAK boleh disimpulkan dari:
+
+- persetujuan yang diberikan untuk pertanyaan lain;
+- perintah lama pada percakapan sebelumnya;
+- kalimat umum seperti `lanjutkan pekerjaan` bila tidak menjawab pertanyaan Final Gate;
+- fakta bahwa pengguna sebelumnya pernah mengizinkan Firebase;
+- fakta bahwa Firebase sudah terkonfigurasi;
+- fakta bahwa GitHub PASS;
+- asumsi agen bahwa final test sebaiknya dijalankan;
+- approval milik kandidat/run sebelumnya.
+
+Jika jawaban ambigu:
+
+```text
+FIREBASE_AUTHORIZATION = LOCKED
+```
+
+Agen wajib meminta kejelasan dan tidak boleh menjalankan Firebase.
+
+---
+
+## 11. Single-Use Authorization
+
+Setelah persetujuan eksplisit:
+
+```text
+FIREBASE_AUTHORIZATION = AUTHORIZED_ONCE
+```
+
+Otorisasi tersebut:
+
+- berlaku untuk **1 execution attempt saja**;
+- berlaku hanya untuk kandidat yang ditanyakan;
+- tidak berlaku permanen;
+- tidak dapat diwariskan ke agen lain;
+- tidak dapat dipakai untuk kandidat/artifact lain;
+- tidak dapat dipakai untuk retry;
+- tidak dapat dipakai untuk run kedua;
+- tidak dapat disimpan sebagai blanket permission;
+- tidak boleh diinterpretasikan sebagai `gunakan Firebase kapan pun diperlukan`.
+
+Formula:
+
+```text
+1 EXPLICIT USER APPROVAL = 1 FIREBASE TEST EXECUTION ATTEMPT
+```
+
+---
+
+## 12. Kapan Otorisasi Dianggap Terpakai
+
+Otorisasi dianggap terpakai saat satu final-test execution attempt dimulai.
+
+Begitu execution attempt dimulai:
+
+```text
+FIREBASE_AUTHORIZATION = CONSUMED
+```
+
+Otorisasi tetap dianggap habis jika attempt menghasilkan:
+
+- PASS;
+- FAIL;
+- test matrix error;
+- timeout;
+- cancellation setelah attempt dimulai;
+- infrastructure error saat execution attempt;
+- immediate execution rejection setelah command final test disubmit.
+
+Setelah itu:
+
+```text
+FIREBASE_AUTHORIZATION = LOCKED
+```
+
+Tidak ada auto-retry.
+
+Untuk percobaan berikutnya, agen wajib bertanya lagi kepada pengguna.
+
+---
+
+## 13. Perubahan Kandidat Membatalkan Otorisasi
+
+Sebelum execution attempt dimulai, authorization juga batal jika kandidat berubah material.
+
+Contoh perubahan yang membatalkan authorization:
+
+- source commit berubah;
+- APK dibangun ulang dari input berbeda;
+- artifact diganti;
+- dependency berubah;
+- manifest berubah;
+- signing identity berubah;
+- test scope berubah secara material;
+- target final test berubah.
+
+Setelah perubahan tersebut:
+
+```text
+FIREBASE_AUTHORIZATION = LOCKED
+```
+
+Agen harus menyelesaikan kembali affected GitHub verification dan meminta approval baru.
+
+---
+
+## 14. User Rejection / No Response
+
+Jika pengguna menjawab tidak, menolak, belum siap, atau tidak memberikan persetujuan:
+
+```text
+FINAL_GATE = CLOSED
+FIREBASE_AUTHORIZATION = LOCKED
+```
+
+Agen tidak boleh menjalankan Firebase.
+
+`DEVELOPMENT_PASS` tetap boleh dipertahankan selama evidence-nya masih valid.
+
+Agen tidak boleh mengubah penolakan menjadi kegagalan aplikasi.
+
+---
+
+## 15. Firebase Final Gate Dikunci Keras ke Android 11 ARM64
+
+Berbeda dengan GitHub yang fleksibel, **Firebase Final Gate tidak fleksibel**.
+
+Setiap Firebase final test WAJIB menggunakan:
+
+```text
+ANDROID_VERSION = Android 11
+ANDROID_API = 30
+ABI = arm64-v8a
+DEVICE/MODEL = Firebase model yang secara live membuktikan dukungan API 30 + ARM64
+```
+
+Firebase Final Gate DILARANG menggunakan fallback ke:
+
+- API 29;
+- API 31+;
+- x86;
+- x86_64;
+- non-ARM model;
+- device yang tidak membuktikan `arm64-v8a`;
+- target lain hanya karena target wajib sedang tidak tersedia.
+
+Jika target wajib tidak tersedia:
+
+```text
+FINAL_GATE_TARGET_AVAILABLE = NO
+FINAL_GATE_RESULT = NOT_PROVEN
+```
+
+Jangan mengganti target diam-diam.
+
+---
+
+## 16. Preflight Target Check
+
+Sebelum mengirim APK untuk final execution, workflow/agen wajib memeriksa katalog Firebase dan membuktikan:
+
+```text
+MODEL_SUPPORTS_API_30 = TRUE
+MODEL_SUPPORTS_ARM64_V8A = TRUE
+MODEL_IS_LIVE/AVAILABLE = TRUE
+```
+
+Jika salah satu false/unknown:
+
+- APK tidak boleh dikirim ke target alternatif;
+- target final tidak boleh diklaim PASS;
+- agen melaporkan bahwa Final Gate belum dapat dieksekusi pada target yang dikunci.
+
+---
+
+## 17. Tidak Ada Auto-Fallback
+
+Aturan hard fail:
+
+```text
+FIREBASE_API != 30        -> DO NOT RUN FINAL TEST
+FIREBASE_ABI != arm64-v8a -> DO NOT RUN FINAL TEST
+TARGET_NOT_PROVEN         -> DO NOT CLAIM PASS
+```
+
+Tidak ada `best available Firebase device` untuk Final Gate.
+Yang diperbolehkan hanya `required target available` atau `final target unavailable`.
+
+---
+
+## 18. Tidak Ada Auto-Retry Firebase
+
+Dilarang membuat mekanisme:
+
+```text
+Firebase FAIL -> automatic Firebase retry
+Firebase timeout -> automatic Firebase retry
+Firebase infra error -> automatic Firebase retry
+Firebase flaky -> automatic Firebase retry
+```
+
+Setiap retry adalah execution attempt baru dan membutuhkan persetujuan pengguna baru.
+
+Alur yang benar:
+
+```text
+FIREBASE ATTEMPT #1
+        ↓
+AUTHORIZATION CONSUMED
+        ↓
+PASS / FAIL / ERROR / TIMEOUT
+        ↓
+FIREBASE LOCKED
+        ↓
+Jika run lain diperlukan:
+AGEN BERTANYA LAGI
+        ↓
+USER APPROVAL #2
+        ↓
+FIREBASE ATTEMPT #2
+```
+
+---
+
+## 19. Jika Firebase FAIL
+
+Jika final test menemukan defect aplikasi:
+
+```text
+FIREBASE FAIL
+   ↓
+FIREBASE LOCKED
+   ↓
+ANALYZE RESULT
+   ↓
+FIX DI SOURCE
+   ↓
+RETURN TO GITHUB
+   ↓
+RERUN AFFECTED DEVELOPMENT/REGRESSION TESTS
+   ↓
+DEVELOPMENT_PASS BARU
+   ↓
+ASK USER AGAIN
+```
+
+Firebase tidak boleh menjadi iterative debugging loop.
+
+Jika defect hanya dapat direproduksi pada Android 11 ARM64, analisis boleh menggunakan evidence Firebase yang sudah diperoleh, tetapi execution baru tetap membutuhkan approval baru.
+
+---
+
+## 20. Jika Firebase PASS
+
+Jika Firebase test PASS pada target terkunci:
+
+```text
+FIREBASE_TARGET_PASS
+```
+
+hanya berlaku untuk:
+
+- kandidat/artifact yang diuji;
+- test scope yang benar-benar dijalankan;
+- Android 11 / API 30 / ARM64 environment tersebut;
+- evidence/run identity tersebut.
+
+Satu Firebase PASS tidak otomatis berarti seluruh `APPLICATION_SAFE_100` selesai.
+
+Domain R1–R9, asset proof, cross-domain proof, physical-device claim, atau proof lain yang masih diperlukan tetap harus ditutup sesuai scope.
+
+---
+
+## 21. Hardware / Vendor / Physical Device Exception
+
+Firebase virtual ARM64 tidak boleh dipakai untuk mengklaim hal yang memang memerlukan physical-device evidence.
+
+Contoh:
+
+- sensor fisik;
+- Bluetooth/NFC/camera quirk;
+- OEM/vendor-specific behavior;
+- thermal behavior;
+- hardware-specific GPU timing;
+- physical power behavior.
+
+Untuk claim tersebut gunakan evidence fisik/authoritative yang diwajibkan R8.
+
+Aturan ini tidak membuka permission Firebase tambahan dan tidak mengubah single-use authorization.
+
+---
+
+## 22. Evidence Binding
+
+Setiap Firebase final execution wajib mencatat sejauh tersedia:
+
+```text
+USER_APPROVAL_CONTEXT
+SOURCE_COMMIT_SHA
+SOURCE_RUN_ID
+ARTIFACT_NAME
+APK_SHA256
+FIREBASE_PROJECT
+DEVICE_MODEL
+ANDROID_API = 30
+ABI = arm64-v8a
+TEST_TYPE
+TEST_MATRIX/RUN_ID
+TIMESTAMP
+RESULT
+```
+
+Approval tidak boleh dipindahkan ke evidence lain.
+
+---
+
+## 23. Evidence Reuse
+
+Evidence Firebase lama boleh digunakan kembali untuk claim yang masih identik dan tidak terinvalidasi oleh change-impact analysis.
+
+Evidence reuse berarti **tidak menjalankan Firebase baru**.
+
+Evidence reuse tidak menghasilkan authorization baru dan tidak boleh digunakan sebagai alasan untuk menjalankan test tambahan tanpa approval.
+
+---
+
+## 24. Development Environment vs Target-Specific Claim
+
+Contoh sah:
+
+```text
+GitHub API 35 x86_64
+-> UI navigation regression PASS
+-> DEVELOPMENT_PASS
+```
+
+Itu tidak membuktikan:
+
+```text
+Android 11 ARM64 final runtime PASS
+```
+
+Contoh native:
+
+```text
+GitHub x86_64
+-> logic around plugin loader PASS
+-> APK inspection proves arm64-v8a .so packaged correctly
+-> target-specific ARM64 runtime load remains unproven
+```
+
+Jika pengguna mengizinkan Final Gate:
+
+```text
+Firebase Android 11 API30 ARM64
+-> target-specific runtime witness
+```
+
+---
+
+## 25. Routing Decision Resmi
+
+```text
+START WORK
+   ↓
+IMPLEMENT / FIX / CHANGE
+   ↓
+GITHUB FLEXIBLE VERIFICATION
+   ↓
+PASS?
+   ├─ NO -> FIX -> GITHUB AGAIN
+   │
+   └─ YES
+        ↓
+DEVELOPMENT_PASS
+        ↓
+STOP BEFORE FIREBASE
+        ↓
+ASK USER FOR 1x FINAL-GATE APPROVAL
+        ↓
+USER APPROVES?
+   ├─ NO / AMBIGUOUS
+   │      -> FIREBASE LOCKED
+   │
+   └─ YES
+          ↓
+FIREBASE_AUTHORIZED_ONCE
+          ↓
+VERIFY FIREBASE TARGET = API30 + ARM64
+          ↓
+TARGET VALID?
+   ├─ NO -> FINAL_GATE_NOT_PROVEN / NO FALLBACK
+   │
+   └─ YES
+          ↓
+ONE FIREBASE EXECUTION ATTEMPT
+          ↓
+AUTHORIZATION CONSUMED
+          ↓
+FIREBASE LOCKED AGAIN
+```
+
+---
+
+## 26. Mandatory Agent Behavior
+
+Setiap agen yang terlibat dalam test wajib:
+
+1. membaca `AGENTS.md` dan dokumen ini;
+2. membedakan target produk dari test environment;
+3. menggunakan GitHub sebagai default route;
+4. memilih environment GitHub secara fleksibel berdasarkan availability dan relevansi;
+5. mencatat environment aktual;
+6. tidak menyebut environment GitHub non-target sebagai Android 11 ARM64 final proof;
+7. menyelesaikan seluruh affected GitHub checks sebelum `DEVELOPMENT_PASS`;
+8. setelah `DEVELOPMENT_PASS`, berhenti sebelum Firebase;
+9. meminta approval Final Gate secara eksplisit;
+10. tidak menjalankan Firebase bila approval belum ada;
+11. memperlakukan approval sebagai single-use;
+12. mengikat approval ke kandidat yang ditanyakan;
+13. mengunci Firebase target ke Android 11/API30/ARM64;
+14. menolak fallback;
+15. menghabiskan approval setelah satu execution attempt;
+16. tidak auto-retry;
+17. meminta approval baru untuk setiap attempt berikutnya;
+18. tidak mengurangi verification requirement lain hanya untuk menghemat quota.
+
+---
+
+## 27. Anti-Misinterpretation Rules
+
+Interpretasi berikut DILARANG:
+
+```text
+GitHub PASS means Firebase may run automatically.
+Previous user approval means future Firebase runs are approved.
+One approval allows retries.
+One approval allows multiple test matrices.
+One approval allows another artifact.
+Android 11 ARM64 target means every GitHub emulator must be Android 11 ARM64.
+GitHub x86_64 PASS means ARM64 runtime is proven.
+Firebase can fall back to x86_64 if ARM64 unavailable.
+Firebase can fall back to another API if API30 unavailable.
+Firebase error allows automatic rerun.
+Agent judgment can replace user approval.
+```
+
+Semua interpretasi di atas salah.
+
+---
+
+## 28. Final Rule
+
+```text
+TARGET PRODUCT = ANDROID 11 / API 30 / ARM64
+
+GITHUB TESTING = FLEXIBLE
+GITHUB = DEFAULT DEVELOPMENT ROUTE
+
+AFTER DEVELOPMENT_PASS:
+STOP AND ASK USER
+
+USER APPROVAL = SINGLE USE
+1 APPROVAL = 1 FIREBASE EXECUTION ATTEMPT
+AFTER ATTEMPT = LOCKED AGAIN
+EVERY RETRY = ASK AGAIN
+
+FIREBASE FINAL TARGET = ANDROID 11 / API 30 / ARM64 ONLY
+NO FIREBASE FALLBACK
+NO AUTO FIREBASE
+NO AUTO RETRY
+NO APPROVAL REUSE
 ```
