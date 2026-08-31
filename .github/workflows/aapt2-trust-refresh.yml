@@ -5,6 +5,9 @@ on:
     branches: [kernel-foundation-hardening]
     paths:
       - '.github/workflows/aapt2-trust-refresh.yml'
+      - 'toolbox-app/build.gradle.kts'
+      - 'toolbox-app/src/main/**'
+      - 'gradle/verification-metadata.xml'
   workflow_dispatch:
 
 permissions:
