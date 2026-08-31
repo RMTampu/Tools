@@ -130,6 +130,8 @@ Untuk bagian Android, integrasi, UI, atau emulator, jalankan pengujian melalui G
 
 Jangan menyatakan PASS hanya berdasarkan keberhasilan kompilasi jika fitur membutuhkan pengujian runtime.
 
+Untuk setiap pekerjaan yang melibatkan pemilihan lingkungan test, emulator/runtime verification, final candidate, atau Firebase Test Lab, agen WAJIB membaca dan mematuhi `TEST_ROUTING_POLICY.md` sebelum menjalankan test terkait. GitHub Actions adalah route default untuk development/basic/intermediate/regression verification. Firebase Test Lab hanya boleh digunakan sebagai final target qualification setelah `FINAL_CANDIDATE_READY`, kecuali instruksi pengguna terbaru secara eksplisit mengubah routing tersebut. Environment GitHub non-API30/non-ARM64 boleh digunakan untuk development/basic proof sesuai policy, tetapi tidak boleh diklaim sebagai final Android 11 ARM64 proof.
+
 ## 12. Perubahan Repository
 
 Sebelum mengubah file yang sudah ada:
