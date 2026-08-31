@@ -1,0 +1,220 @@
+name: ToolBox Firebase Test Lab ARM64
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Connection check or test an APK artifact from a prior gated build
+        required: true
+        default: connection-only
+        type: choice
+        options:
+          - connection-only
+          - test-existing-artifact
+      source_run_id:
+        description: GitHub Actions run ID that produced the APK artifact
+        required: false
+        type: string
+      artifact_name:
+        description: Artifact name containing exactly one APK
+        required: false
+        default: toolbox-apk
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+
+concurrency:
+  group: firebase-test-lab-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  GCP_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+  GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+  GCP_SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
+  ANDROID_VERSION_ID: '30'
+  REQUIRED_ABI: arm64-v8a
+
+jobs:
+  firebase-test-lab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+
+      - name: Validate one-time bridge configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in GCP_PROJECT_ID GCP_WIF_PROVIDER GCP_SERVICE_ACCOUNT; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::$name is not configured. See FIREBASE_TEST_LAB_BRIDGE.md"
+              missing=1
+            fi
+          done
+          if [[ "$missing" -ne 0 ]]; then
+            exit 1
+          fi
+
+          if [[ "${{ inputs.mode }}" == "test-existing-artifact" && -z "${{ inputs.source_run_id }}" ]]; then
+            echo "::error::source_run_id is required in test-existing-artifact mode"
+            exit 1
+          fi
+
+      - name: Authenticate to Google Cloud with GitHub OIDC
+        id: auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
+          create_credentials_file: true
+
+      - name: Install pinned Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
+        with:
+          version: '582.0.0'
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Verify authenticated project
+        shell: bash
+        run: |
+          set -euo pipefail
+          gcloud --quiet config set project "$GCP_PROJECT_ID"
+          active_project="$(gcloud config get-value project)"
+          test "$active_project" = "$GCP_PROJECT_ID"
+          gcloud version
+          gcloud auth list --filter=status:ACTIVE --format='value(account)'
+
+      - name: Resolve live Android 11 ARM64 Test Lab model
+        id: device
+        shell: bash
+        run: |
+          set -euo pipefail
+          catalog="testlab-virtual-models.json"
+
+          gcloud firebase test android models list \
+            --project="$GCP_PROJECT_ID" \
+            --filter=virtual \
+            --format=json > "$catalog"
+
+          model_id="$(jq -r \
+            --arg version "$ANDROID_VERSION_ID" \
+            --arg abi "$REQUIRED_ABI" '
+              .[]
+              | select((.id // "") | endswith(".arm"))
+              | select((.supportedVersionIds // []) | index($version))
+              | select(any(.supportedAbis[]?; . == $abi or endswith(":" + $abi)))
+              | .id
+            ' "$catalog" | head -n 1)"
+
+          if [[ -z "$model_id" || "$model_id" == "null" ]]; then
+            echo "::error::No live Test Lab virtual model currently proves Android API 30 + arm64-v8a"
+            echo "Available Arm candidates:"
+            jq -r '.[] | select((.id // "") | endswith(".arm")) | [.id, ((.supportedVersionIds // []) | join(",")), ((.supportedAbis // []) | join(","))] | @tsv' "$catalog" || true
+            exit 1
+          fi
+
+          gcloud firebase test android models describe "$model_id" \
+            --project="$GCP_PROJECT_ID" \
+            --format=json > selected-testlab-model.json
+
+          jq -e \
+            --arg version "$ANDROID_VERSION_ID" \
+            --arg abi "$REQUIRED_ABI" '
+              ((.supportedVersionIds // []) | index($version)) != null
+              and any(.supportedAbis[]?; . == $abi or endswith(":" + $abi))
+            ' selected-testlab-model.json >/dev/null
+
+          echo "model_id=$model_id" >> "$GITHUB_OUTPUT"
+          echo "Selected Test Lab model: $model_id / Android API $ANDROID_VERSION_ID / $REQUIRED_ABI"
+
+          {
+            echo "### Firebase Test Lab bridge"
+            echo "- Project: \`$GCP_PROJECT_ID\`"
+            echo "- Model: \`$model_id\`"
+            echo "- Android: API \`$ANDROID_VERSION_ID\` (Android 11)"
+            echo "- ABI requirement: \`$REQUIRED_ABI\`"
+            echo "- gcloud: \`582.0.0\`"
+            echo "- Mode: \`${{ inputs.mode }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Download APK artifact from prior gated run
+        if: ${{ inputs.mode == 'test-existing-artifact' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: firebase-input
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ inputs.source_run_id }}
+
+      - name: Validate APK artifact identity
+        if: ${{ inputs.mode == 'test-existing-artifact' }}
+        id: apk
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t apks < <(find firebase-input -type f -name '*.apk' -print | sort)
+
+          if [[ "${#apks[@]}" -ne 1 ]]; then
+            echo "::error::Expected exactly one APK in artifact '${{ inputs.artifact_name }}'; found ${#apks[@]}"
+            printf '%s\n' "${apks[@]:-}"
+            exit 1
+          fi
+
+          apk="${apks[0]}"
+          digest="$(sha256sum "$apk" | awk '{print $1}')"
+          echo "path=$apk" >> "$GITHUB_OUTPUT"
+          echo "sha256=$digest" >> "$GITHUB_OUTPUT"
+          echo "APK: $apk"
+          echo "SHA-256: $digest"
+
+          {
+            echo "- Source workflow run: \`${{ inputs.source_run_id }}\`"
+            echo "- APK artifact: \`${{ inputs.artifact_name }}\`"
+            echo "- APK SHA-256: \`$digest\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run Robo smoke test on Android 11 ARM64
+        if: ${{ inputs.mode == 'test-existing-artifact' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="firebase-test-lab.log"
+          apk="${{ steps.apk.outputs.path }}"
+          model="${{ steps.device.outputs.model_id }}"
+
+          set +e
+          gcloud firebase test android run \
+            --project="$GCP_PROJECT_ID" \
+            --type=robo \
+            --app="$apk" \
+            --device="model=$model,version=$ANDROID_VERSION_ID,locale=en,orientation=portrait" \
+            --timeout=5m \
+            --client-details="matrixLabel=ToolBox API30 ARM64 ${GITHUB_RUN_ID}" \
+            2>&1 | tee "$log"
+          status="${PIPESTATUS[0]}"
+          set -e
+
+          if [[ "$status" -ne 0 ]]; then
+            echo "::error::Firebase Test Lab returned exit code $status"
+            exit "$status"
+          fi
+
+          echo "- Test status: PASS" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Test Lab bridge evidence
+        if: always()
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        with:
+          name: firebase-test-lab-bridge-evidence-${{ github.run_id }}
+          path: |
+            testlab-virtual-models.json
+            selected-testlab-model.json
+            firebase-test-lab.log
+          if-no-files-found: ignore
+          retention-days: 14
