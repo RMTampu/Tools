@@ -1,0 +1,141 @@
+name: ToolBox Application Safe 100
+
+on:
+  push:
+    branches: [kernel-foundation-hardening]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: application-safe-100-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  application-prebuild:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+
+      - name: Setup exact Temurin JDK
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '17.0.20+1'
+          java-package: jdk
+          architecture: x64
+          check-latest: false
+
+      - name: Setup exact Gradle
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
+        with:
+          gradle-version: '8.7'
+          cache-disabled: true
+
+      - name: Setup exact Android command line tools
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699
+        with:
+          cmdline-tools-version: '14742923'
+          packages: ''
+          log-accepted-android-sdk-licenses: 'false'
+
+      - name: Install declared Android inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager 'platforms;android-30' 'platforms;android-35' 'build-tools;34.0.0' 'platform-tools'
+          test -s "$ANDROID_SDK_ROOT/platforms/android-30/android.jar"
+          test -s "$ANDROID_SDK_ROOT/platforms/android-35/android.jar"
+          test -x "$ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner"
+
+      - name: Verify exact toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -version 2>&1 | tee "$RUNNER_TEMP/java-version.txt"
+          grep -F 'openjdk version "17.0.20.1"' "$RUNNER_TEMP/java-version.txt"
+          grep -F 'Temurin-17.0.20.1+1' "$RUNNER_TEMP/java-version.txt"
+          gradle --version | tee "$RUNNER_TEMP/gradle-version.txt"
+          grep -F 'Gradle 8.7' "$RUNNER_TEMP/gradle-version.txt"
+          GRADLE_ZIP="$RUNNER_TEMP/.gradle-actions/gradle-installations/downloads/gradle-8.7-bin.zip"
+          test -f "$GRADLE_ZIP"
+          echo '544c35d6bd849ae8a5ed0bcea39ba677dc40f49df7d1835561582da2009b961d  '"$GRADLE_ZIP" | sha256sum -c -
+          grep -F 'Pkg.Revision=34.0.0' "$ANDROID_SDK_ROOT/build-tools/34.0.0/source.properties"
+          echo 'R6_TOOLCHAIN_PASS=1' >> "$GITHUB_ENV"
+
+      - name: Materialize release keystore from secrets
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.TOOLBOX_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          test -n "${KEYSTORE_B64:-}"
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/toolbox-release.jks"
+          test -s "$RUNNER_TEMP/toolbox-release.jks"
+          chmod 600 "$RUNNER_TEMP/toolbox-release.jks"
+          echo "TOOLBOX_KEYSTORE_PATH=$RUNNER_TEMP/toolbox-release.jks" >> "$GITHUB_ENV"
+
+      - name: A0 source and build-input gate
+        run: python3 verification/scripts/prebuild_gate.py
+
+      - name: Asset and route prebuild gate
+        run: python3 verification/scripts/asset_prebuild_gate.py
+
+      - name: R1-R3 kernel verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle --no-daemon --warning-mode=all --dependency-verification strict :toolbox-kernel:clean :toolbox-kernel:check
+          echo 'KERNEL_CHECK_PASS=1' >> "$GITHUB_ENV"
+
+      - name: Application unit verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle --no-daemon --warning-mode=all --dependency-verification strict :toolbox-app:testDebugUnitTest :toolbox-app:testReleaseUnitTest
+          echo 'APP_UNIT_CHECK_PASS=1' >> "$GITHUB_ENV"
+
+      - name: Application lint verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle --no-daemon --warning-mode=all --dependency-verification strict :toolbox-app:lintDebug :toolbox-app:lintRelease
+          echo 'APP_LINT_PASS=1' >> "$GITHUB_ENV"
+
+      - name: Current revision dependency trust
+        run: python3 verification/scripts/dependency_trust_current.py
+
+      - name: Release signing identity preflight
+        env:
+          TOOLBOX_KEYSTORE_PASSWORD: ${{ secrets.TOOLBOX_KEYSTORE_PASSWORD }}
+          TOOLBOX_KEY_ALIAS: ${{ secrets.TOOLBOX_KEY_ALIAS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${TOOLBOX_KEYSTORE_PASSWORD:-}"
+          test -n "${TOOLBOX_KEY_ALIAS:-}"
+          python3 verification/scripts/signing_identity_gate.py \
+            --keystore "$TOOLBOX_KEYSTORE_PATH" \
+            --store-password "$TOOLBOX_KEYSTORE_PASSWORD" \
+            --alias "$TOOLBOX_KEY_ALIAS"
+
+      - name: Prebuild mutation adequacy
+        run: python3 verification/scripts/prebuild_mutation_gate.py
+
+      - name: A0-A9 application prebuild closure
+        run: python3 verification/scripts/application_prebuild_gate.py
+
+      - name: Publish prebuild evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: application-prebuild-evidence
+          path: verification/evidence/
+          if-no-files-found: warn
+          retention-days: 14
