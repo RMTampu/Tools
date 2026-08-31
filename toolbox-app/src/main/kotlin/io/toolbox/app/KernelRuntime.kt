@@ -17,9 +17,11 @@ object KernelRuntime {
         }
 
         val created = ToolBoxKernel()
-        val failures = created.start()
-        check(failures.isEmpty()) {
-            "Kernel startup failed: ${failures.joinToString { "${it.moduleId}:${it.phase}" }}"
+        val result = created.start()
+        check(result.isSuccess) {
+            val errors = result.errors.joinToString(separator = "; ") { "${it.code}:${it.message}" }
+            val failures = result.failures.joinToString(separator = "; ") { "${it.moduleId}:${it.phase}" }
+            "Kernel startup failed: errors=[$errors], failures=[$failures]"
         }
         check(created.state == KernelState.RUNNING) {
             "Kernel entered unexpected state ${created.state}"
