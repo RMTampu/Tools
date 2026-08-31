@@ -1,0 +1,142 @@
+name: ToolBox AAPT2 Trust Refresh
+
+on:
+  push:
+    branches: [kernel-foundation-hardening]
+    paths:
+      - '.github/workflows/aapt2-trust-refresh.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-aapt2-trust:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+
+      - name: Setup exact Temurin JDK
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '17.0.20+1'
+          java-package: jdk
+          architecture: x64
+          check-latest: false
+
+      - name: Setup exact Gradle
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
+        with:
+          gradle-version: '8.7'
+          cache-disabled: true
+
+      - name: Setup exact Android tools
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699
+        with:
+          cmdline-tools-version: '14742923'
+          packages: ''
+          log-accepted-android-sdk-licenses: 'false'
+
+      - name: Install declared Android inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager 'platforms;android-30' 'platforms;android-35' 'build-tools;34.0.0'
+          test -s "$ANDROID_SDK_ROOT/platforms/android-35/android.jar"
+          test -x "$ANDROID_SDK_ROOT/build-tools/34.0.0/aapt2"
+
+      - name: Create independent clean replicas
+        shell: bash
+        run: |
+          set -euo pipefail
+          for replica in a b; do
+            dir="$RUNNER_TEMP/source-$replica"
+            rm -rf "$dir" "$RUNNER_TEMP/gradle-home-$replica"
+            mkdir -p "$dir"
+            git archive HEAD | tar -x -C "$dir"
+          done
+
+      - name: Resolve replica A and write missing SHA-256
+        env:
+          GRADLE_USER_HOME: ${{ runner.temp }}/gradle-home-a
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle -p "$RUNNER_TEMP/source-a" --no-daemon --refresh-dependencies --write-verification-metadata sha256 :toolbox-app:processDebugResources
+
+      - name: Resolve replica B and write missing SHA-256
+        env:
+          GRADLE_USER_HOME: ${{ runner.temp }}/gradle-home-b
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle -p "$RUNNER_TEMP/source-b" --no-daemon --refresh-dependencies --write-verification-metadata sha256 :toolbox-app:processDebugResources
+
+      - name: Require AAPT2 trust convergence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import pathlib
+          import xml.etree.ElementTree as ET
+
+          ns = {'v': 'https://schema.gradle.org/dependency-verification'}
+          target = ('com.android.tools.build', 'aapt2', '8.6.1-11315950')
+          required_names = {
+              'aapt2-8.6.1-11315950-linux.jar',
+              'aapt2-8.6.1-11315950.pom',
+          }
+
+          def rows(path):
+              root = ET.parse(path).getroot()
+              out = {}
+              comps = root.find('v:components', ns)
+              for comp in comps.findall('v:component', ns):
+                  coord = (comp.attrib.get('group'), comp.attrib.get('name'), comp.attrib.get('version'))
+                  if coord != target:
+                      continue
+                  for art in comp.findall('v:artifact', ns):
+                      name = art.attrib.get('name')
+                      hashes = sorted({n.attrib.get('value') for n in art.findall('v:sha256', ns) if n.attrib.get('value')})
+                      if name in required_names:
+                          out[name] = hashes
+              return out
+
+          base = pathlib.Path(os.environ['RUNNER_TEMP'])
+          a = rows(base/'source-a/gradle/verification-metadata.xml')
+          b = rows(base/'source-b/gradle/verification-metadata.xml')
+          if set(a) != required_names or set(b) != required_names:
+              raise SystemExit(f'missing AAPT2 artifacts: replicaA={a} replicaB={b}')
+          if a != b:
+              raise SystemExit(f'AAPT2 trust did not converge: A={a} B={b}')
+          for name in sorted(a):
+              if len(a[name]) != 1 or len(a[name][0]) != 64:
+                  raise SystemExit(f'invalid SHA-256 set for {name}: {a[name]}')
+              print(f'AAPT2_TRUST {name} SHA256={a[name][0]}')
+          (base/'aapt2-trust.json').write_text(json.dumps(a, indent=2, sort_keys=True)+'\n')
+          PY
+
+      - name: Package converged trust evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/aapt2-trust-evidence"
+          cp "$RUNNER_TEMP/source-a/gradle/verification-metadata.xml" "$RUNNER_TEMP/aapt2-trust-evidence/verification-metadata-a.xml"
+          cp "$RUNNER_TEMP/source-b/gradle/verification-metadata.xml" "$RUNNER_TEMP/aapt2-trust-evidence/verification-metadata-b.xml"
+          cp "$RUNNER_TEMP/aapt2-trust.json" "$RUNNER_TEMP/aapt2-trust-evidence/aapt2-trust.json"
+          sha256sum "$RUNNER_TEMP/aapt2-trust-evidence/"* > "$RUNNER_TEMP/aapt2-trust-evidence/SHA256SUMS"
+
+      - name: Upload converged trust evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: aapt2-trust-evidence
+          path: ${{ runner.temp }}/aapt2-trust-evidence
+          if-no-files-found: error
+          retention-days: 14
