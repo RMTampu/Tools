@@ -52,7 +52,7 @@ jobs:
   runtime-r9:
     needs: wait-static
     runs-on: macos-15
-    timeout-minutes: 75
+    timeout-minutes: 90
     env:
       PROOF_SHA: ${{ github.sha }}
     steps:
@@ -146,22 +146,48 @@ jobs:
           if failed: raise SystemExit('RUNTIME_TOOL_QUALIFICATION = NOT_PROVEN')
           print('RUNTIME_TOOL_QUALIFICATION = PASS')
           PY
-          "$ANDROID_SDK_ROOT/emulator/emulator" -accel-check | tee verification/evidence/diagnostics/emulator-accel-check.txt
+          "$ANDROID_SDK_ROOT/emulator/emulator" -accel-check | tee verification/evidence/diagnostics/emulator-accel-check.txt || true
 
       - name: Create and boot Android 11 ARM64 emulator
         shell: bash
         run: |
           set -euo pipefail
           printf 'no\n' | avdmanager create avd --force --name toolbox-api30-arm64 --package 'system-images;android-30;google_apis;arm64-v8a'
-          nohup "$ANDROID_SDK_ROOT/emulator/emulator" -avd toolbox-api30-arm64 -no-window -no-audio -no-boot-anim -no-snapshot -wipe-data -gpu swiftshader_indirect > verification/evidence/diagnostics/emulator-boot.log 2>&1 &
-          echo "$!" > verification/evidence/diagnostics/emulator.pid
-          adb wait-for-device
+          nohup "$ANDROID_SDK_ROOT/emulator/emulator" \
+            -avd toolbox-api30-arm64 \
+            -accel off \
+            -no-window \
+            -no-audio \
+            -no-boot-anim \
+            -no-snapshot \
+            -wipe-data \
+            -no-metrics \
+            -cores 2 \
+            -memory 2048 \
+            -gpu swiftshader_indirect \
+            > verification/evidence/diagnostics/emulator-boot.log 2>&1 &
+          EMU_PID="$!"
+          echo "$EMU_PID" > verification/evidence/diagnostics/emulator.pid
           BOOTED=0
-          for i in $(seq 1 180); do
-            [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ] && { BOOTED=1; break; }
+          for i in $(seq 1 240); do
+            if ! kill -0 "$EMU_PID" 2>/dev/null; then
+              echo 'EMULATOR_EXITED_BEFORE_BOOT'
+              cat verification/evidence/diagnostics/emulator-boot.log
+              exit 1
+            fi
+            if adb get-state >/dev/null 2>&1; then
+              if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = 1 ]; then
+                BOOTED=1
+                break
+              fi
+            fi
             sleep 5
           done
-          if [ "$BOOTED" != 1 ]; then cat verification/evidence/diagnostics/emulator-boot.log; exit 1; fi
+          if [ "$BOOTED" != 1 ]; then
+            echo 'EMULATOR_BOOT_TIMEOUT'
+            cat verification/evidence/diagnostics/emulator-boot.log
+            exit 1
+          fi
           adb shell input keyevent 82
           test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = 30
           test "$(adb shell getprop ro.product.cpu.abi | tr -d '\r')" = arm64-v8a
