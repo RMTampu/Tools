@@ -9,15 +9,15 @@
   "release": {
     "purpose": "Production/release identity.",
     "requiredSecrets": [
-      "TOOLBOX_KEYSTORE_BASE64",
-      "TOOLBOX_KEYSTORE_PASSWORD",
-      "TOOLBOX_KEY_ALIAS",
-      "TOOLBOX_KEY_PASSWORD"
+      "SIGNING_KEY",
+      "KEY_STORE_PASSWORD",
+      "KEY_ALIAS",
+      "KEY_PASSWORD"
     ],
     "requireV2": true,
     "requireV3": true,
-    "expectedCertificateSha256": null,
-    "statusUntilFingerprintIsPinned": "NOT_PROVEN"
+    "expectedCertificateSha256": "290fb37d527935766e327781833493400dd647cfc8bdbe433254a2df52e4b8e4",
+    "statusUntilFingerprintIsPinned": "PINNED_PENDING_CI_PROOF"
   },
   "rules": [
     "Private key material must never be committed to the repository.",
