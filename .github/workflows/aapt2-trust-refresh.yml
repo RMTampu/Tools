@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   verify-android-tool-trust:
@@ -144,7 +145,7 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Promote exact converged metadata to current branch
+      - name: Promote converged metadata only when changed
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
@@ -156,22 +157,71 @@ jobs:
           API="https://api.github.com/repos/$REPOSITORY"
           HEAD_SHA="$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$API/git/ref/heads/$BRANCH" | python3 -c 'import json,sys; print(json.load(sys.stdin)["object"]["sha"])')"
           test "$HEAD_SHA" = "$SOURCE_SHA"
-          CURRENT_BLOB="$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$API/contents/gradle/verification-metadata.xml?ref=$BRANCH" | python3 -c 'import json,sys; print(json.load(sys.stdin)["sha"])')"
+
+          curl -fsSL \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H 'Accept: application/vnd.github+json' \
+            "$API/contents/gradle/verification-metadata.xml?ref=$BRANCH" \
+            > "$RUNNER_TEMP/current-metadata.json"
+
+          CURRENT_BLOB="$(python3 - <<'PY'
+          import json, os, pathlib
+          p=pathlib.Path(os.environ['RUNNER_TEMP'])/'current-metadata.json'
+          print(json.loads(p.read_text())['sha'])
+          PY
+          )"
           export CURRENT_BLOB BRANCH
-          python3 - <<'PY'
+
+          CURRENT_SHA256="$(python3 - <<'PY'
+          import base64, hashlib, json, os, pathlib
+          p=pathlib.Path(os.environ['RUNNER_TEMP'])/'current-metadata.json'
+          raw=base64.b64decode(json.loads(p.read_text())['content'])
+          print(hashlib.sha256(raw).hexdigest())
+          PY
+          )"
+          GENERATED_SHA256="$(sha256sum "$RUNNER_TEMP/source-a/gradle/verification-metadata.xml" | awk '{print $1}')"
+
+          if [ "$CURRENT_SHA256" = "$GENERATED_SHA256" ]; then
+            echo "TRUST_METADATA_ALREADY_CURRENT=1"
+            echo "FINAL_TRUSTED_HEAD=$SOURCE_SHA" >> "$GITHUB_ENV"
+          else
+            python3 - <<'PY'
           import base64,json,os,pathlib
           source=pathlib.Path(os.environ['RUNNER_TEMP'])/'source-a/gradle/verification-metadata.xml'
           body={'message':'Trust independently verified Android build tools','content':base64.b64encode(source.read_bytes()).decode(),'sha':os.environ['CURRENT_BLOB'],'branch':os.environ['BRANCH']}
           pathlib.Path(os.environ['RUNNER_TEMP']+'/promote.json').write_text(json.dumps(body))
           PY
-          curl -fsSL -X PUT \
+            curl -fsSL -X PUT \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "$API/contents/gradle/verification-metadata.xml" \
+              --data-binary "@$RUNNER_TEMP/promote.json" > "$RUNNER_TEMP/promote-response.json"
+            PROMOTED_COMMIT="$(python3 - <<'PY'
+          import json,os,pathlib
+          data=json.loads(pathlib.Path(os.environ['RUNNER_TEMP']+'/promote-response.json').read_text())
+          print(data['commit']['sha'])
+          PY
+          )"
+            echo "PROMOTED_COMMIT=$PROMOTED_COMMIT"
+            echo "FINAL_TRUSTED_HEAD=$PROMOTED_COMMIT" >> "$GITHUB_ENV"
+          fi
+
+      - name: Dispatch Application Safe on trusted head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          API="https://api.github.com/repos/$REPOSITORY"
+          BRANCH='kernel-foundation-hardening'
+          HEAD_SHA="$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$API/git/ref/heads/$BRANCH" | python3 -c 'import json,sys; print(json.load(sys.stdin)["object"]["sha"])')"
+          test "$HEAD_SHA" = "$FINAL_TRUSTED_HEAD"
+          curl -fsSL -X POST \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H 'Accept: application/vnd.github+json' \
             -H 'X-GitHub-Api-Version: 2022-11-28' \
-            "$API/contents/gradle/verification-metadata.xml" \
-            --data-binary "@$RUNNER_TEMP/promote.json" > "$RUNNER_TEMP/promote-response.json"
-          python3 - <<'PY'
-          import json,os,pathlib
-          data=json.loads(pathlib.Path(os.environ['RUNNER_TEMP']+'/promote-response.json').read_text())
-          print('PROMOTED_COMMIT='+data['commit']['sha'])
-          PY
+            "$API/actions/workflows/application-safe-100.yml/dispatches" \
+            -d '{"ref":"kernel-foundation-hardening"}'
+          echo "APPLICATION_SAFE_DISPATCHED_FOR=$HEAD_SHA"
