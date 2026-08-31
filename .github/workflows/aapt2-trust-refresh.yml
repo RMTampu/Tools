@@ -222,8 +222,7 @@ jobs:
           echo "FINAL_TRUSTED_HEAD=$PROMOTED_COMMIT" >> "$GITHUB_ENV"
           echo "PROMOTED_COMMIT=$PROMOTED_COMMIT"
 
-      - name: Dispatch Application Safe on stable trusted head
-        if: env.TRUST_PROMOTED == '0'
+      - name: Dispatch Application Safe on trusted head
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
