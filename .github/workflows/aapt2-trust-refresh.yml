@@ -1,4 +1,4 @@
-name: ToolBox AAPT2 Trust Refresh
+name: ToolBox Android Tool Trust Refresh
 
 on:
   push:
@@ -11,9 +11,9 @@ permissions:
   contents: write
 
 jobs:
-  verify-aapt2-trust:
+  verify-android-tool-trust:
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - name: Checkout exact revision
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
@@ -61,89 +61,83 @@ jobs:
             git archive HEAD | tar -x -C "$dir"
           done
 
-      - name: Resolve replica A and write missing SHA-256
+      - name: Resolve complete Android tool surface in replica A
         env:
           GRADLE_USER_HOME: ${{ runner.temp }}/gradle-home-a
         shell: bash
         run: |
           set -euo pipefail
-          gradle -p "$RUNNER_TEMP/source-a" --no-daemon --refresh-dependencies --write-verification-metadata sha256 :toolbox-app:processDebugResources
+          gradle -p "$RUNNER_TEMP/source-a" --no-daemon --refresh-dependencies \
+            --write-verification-metadata sha256 \
+            :toolbox-app:processDebugResources \
+            :toolbox-app:lintDebug \
+            :toolbox-app:lintRelease
 
-      - name: Resolve replica B and write missing SHA-256
+      - name: Resolve complete Android tool surface in replica B
         env:
           GRADLE_USER_HOME: ${{ runner.temp }}/gradle-home-b
         shell: bash
         run: |
           set -euo pipefail
-          gradle -p "$RUNNER_TEMP/source-b" --no-daemon --refresh-dependencies --write-verification-metadata sha256 :toolbox-app:processDebugResources
+          gradle -p "$RUNNER_TEMP/source-b" --no-daemon --refresh-dependencies \
+            --write-verification-metadata sha256 \
+            :toolbox-app:processDebugResources \
+            :toolbox-app:lintDebug \
+            :toolbox-app:lintRelease
 
-      - name: Require AAPT2 trust convergence
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import json
-          import os
-          import pathlib
-          import xml.etree.ElementTree as ET
-
-          ns = {'v': 'https://schema.gradle.org/dependency-verification'}
-          target = ('com.android.tools.build', 'aapt2', '8.6.1-11315950')
-          required_names = {
-              'aapt2-8.6.1-11315950-linux.jar',
-              'aapt2-8.6.1-11315950.pom',
-          }
-
-          def rows(path):
-              root = ET.parse(path).getroot()
-              out = {}
-              comps = root.find('v:components', ns)
-              for comp in comps.findall('v:component', ns):
-                  coord = (comp.attrib.get('group'), comp.attrib.get('name'), comp.attrib.get('version'))
-                  if coord != target:
-                      continue
-                  for art in comp.findall('v:artifact', ns):
-                      name = art.attrib.get('name')
-                      hashes = sorted({n.attrib.get('value') for n in art.findall('v:sha256', ns) if n.attrib.get('value')})
-                      if name in required_names:
-                          out[name] = hashes
-              return out
-
-          base = pathlib.Path(os.environ['RUNNER_TEMP'])
-          a = rows(base/'source-a/gradle/verification-metadata.xml')
-          b = rows(base/'source-b/gradle/verification-metadata.xml')
-          if set(a) != required_names or set(b) != required_names:
-              raise SystemExit(f'missing AAPT2 artifacts: replicaA={a} replicaB={b}')
-          if a != b:
-              raise SystemExit(f'AAPT2 trust did not converge: A={a} B={b}')
-          for name in sorted(a):
-              if len(a[name]) != 1 or len(a[name][0]) != 64:
-                  raise SystemExit(f'invalid SHA-256 set for {name}: {a[name]}')
-              print(f'AAPT2_TRUST {name} SHA256={a[name][0]}')
-          (base/'aapt2-trust.json').write_text(json.dumps(a, indent=2, sort_keys=True)+'\n')
-          PY
-
-      - name: Require full generated metadata byte convergence
+      - name: Require complete trust convergence
         shell: bash
         run: |
           set -euo pipefail
           cmp "$RUNNER_TEMP/source-a/gradle/verification-metadata.xml" "$RUNNER_TEMP/source-b/gradle/verification-metadata.xml"
+          python3 - <<'PY'
+          import hashlib, os, pathlib, xml.etree.ElementTree as ET
+          ns={'v':'https://schema.gradle.org/dependency-verification'}
+          base=pathlib.Path(os.environ['RUNNER_TEMP'])
+          p=base/'source-a/gradle/verification-metadata.xml'
+          root=ET.parse(p).getroot()
+          components=root.find('v:components',ns)
+          artifacts=[]
+          missing=[]
+          for comp in components.findall('v:component',ns):
+              coord=(comp.attrib.get('group'),comp.attrib.get('name'),comp.attrib.get('version'))
+              for art in comp.findall('v:artifact',ns):
+                  hashes=[x.attrib.get('value') for x in art.findall('v:sha256',ns) if x.attrib.get('value')]
+                  artifacts.append((*coord,art.attrib.get('name'),tuple(sorted(hashes))))
+                  if not hashes:
+                      missing.append((*coord,art.attrib.get('name')))
+          if missing:
+              raise SystemExit(f'artifacts without SHA-256: {missing[:20]}')
+          raw=p.read_bytes()
+          print('TRUST_METADATA_SHA256='+hashlib.sha256(raw).hexdigest())
+          print('TRUSTED_ARTIFACT_COUNT='+str(len(artifacts)))
+          required={
+            ('com.android.tools.build','aapt2','8.6.1-11315950','aapt2-8.6.1-11315950-linux.jar'),
+            ('com.android.tools.lint','lint','31.6.1','lint-31.6.1.jar'),
+            ('com.android.tools.lint','lint-api','31.6.1','lint-api-31.6.1.jar'),
+            ('com.android.tools.lint','lint-checks','31.6.1','lint-checks-31.6.1.jar'),
+            ('com.android.tools.lint','lint-gradle','31.6.1','lint-gradle-31.6.1.jar'),
+          }
+          observed={(g,n,v,a) for g,n,v,a,h in artifacts if h}
+          absent=required-observed
+          if absent:
+              raise SystemExit(f'required Android tool trust missing: {sorted(absent)}')
+          PY
 
       - name: Package converged trust evidence
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/aapt2-trust-evidence"
-          cp "$RUNNER_TEMP/source-a/gradle/verification-metadata.xml" "$RUNNER_TEMP/aapt2-trust-evidence/verification-metadata-a.xml"
-          cp "$RUNNER_TEMP/source-b/gradle/verification-metadata.xml" "$RUNNER_TEMP/aapt2-trust-evidence/verification-metadata-b.xml"
-          cp "$RUNNER_TEMP/aapt2-trust.json" "$RUNNER_TEMP/aapt2-trust-evidence/aapt2-trust.json"
-          sha256sum "$RUNNER_TEMP/aapt2-trust-evidence/"* > "$RUNNER_TEMP/aapt2-trust-evidence/SHA256SUMS"
+          mkdir -p "$RUNNER_TEMP/android-tool-trust-evidence"
+          cp "$RUNNER_TEMP/source-a/gradle/verification-metadata.xml" "$RUNNER_TEMP/android-tool-trust-evidence/verification-metadata-a.xml"
+          cp "$RUNNER_TEMP/source-b/gradle/verification-metadata.xml" "$RUNNER_TEMP/android-tool-trust-evidence/verification-metadata-b.xml"
+          sha256sum "$RUNNER_TEMP/android-tool-trust-evidence/"*.xml > "$RUNNER_TEMP/android-tool-trust-evidence/SHA256SUMS"
 
       - name: Upload converged trust evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: aapt2-trust-evidence
-          path: ${{ runner.temp }}/aapt2-trust-evidence
+          name: android-tool-trust-evidence
+          path: ${{ runner.temp }}/android-tool-trust-evidence
           if-no-files-found: error
           retention-days: 14
 
@@ -162,25 +156,19 @@ jobs:
           CURRENT_BLOB="$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H 'Accept: application/vnd.github+json' "$API/contents/gradle/verification-metadata.xml?ref=$BRANCH" | python3 -c 'import json,sys; print(json.load(sys.stdin)["sha"])')"
           export CURRENT_BLOB BRANCH
           python3 - <<'PY'
-          import base64, json, os, pathlib
-          source = pathlib.Path(os.environ['RUNNER_TEMP'])/'source-a/gradle/verification-metadata.xml'
-          body = {
-              'message': 'Trust independently verified AAPT2 artifacts',
-              'content': base64.b64encode(source.read_bytes()).decode(),
-              'sha': os.environ['CURRENT_BLOB'],
-              'branch': os.environ['BRANCH'],
-          }
-          pathlib.Path(os.environ['RUNNER_TEMP'] + '/promote.json').write_text(json.dumps(body))
+          import base64,json,os,pathlib
+          source=pathlib.Path(os.environ['RUNNER_TEMP'])/'source-a/gradle/verification-metadata.xml'
+          body={'message':'Trust independently verified Android build tools','content':base64.b64encode(source.read_bytes()).decode(),'sha':os.environ['CURRENT_BLOB'],'branch':os.environ['BRANCH']}
+          pathlib.Path(os.environ['RUNNER_TEMP']+'/promote.json').write_text(json.dumps(body))
           PY
           curl -fsSL -X PUT \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H 'Accept: application/vnd.github+json' \
             -H 'X-GitHub-Api-Version: 2022-11-28' \
             "$API/contents/gradle/verification-metadata.xml" \
-            --data-binary "@$RUNNER_TEMP/promote.json" \
-            > "$RUNNER_TEMP/promote-response.json"
+            --data-binary "@$RUNNER_TEMP/promote.json" > "$RUNNER_TEMP/promote-response.json"
           python3 - <<'PY'
-          import json, os, pathlib
+          import json,os,pathlib
           data=json.loads(pathlib.Path(os.environ['RUNNER_TEMP']+'/promote-response.json').read_text())
           print('PROMOTED_COMMIT='+data['commit']['sha'])
           PY
