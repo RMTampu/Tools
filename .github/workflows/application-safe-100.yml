@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: application-safe-100-${{ github.ref }}
@@ -15,7 +16,7 @@ concurrency:
 jobs:
   application-prebuild-and-build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 75
+    timeout-minutes: 90
 
     steps:
       - name: Checkout exact revision
@@ -130,7 +131,7 @@ jobs:
       - name: A0-A9 application prebuild closure
         run: python3 verification/scripts/application_prebuild_gate.py
 
-      - name: Controlled GitHub Actions APK build
+      - name: First clean controlled APK build
         env:
           TOOLBOX_KEYSTORE_PASSWORD: ${{ secrets.TOOLBOX_SIGNING_PASSWORD || secrets.V_SIGNING_PASSWORD || secrets.TOOLBOX_KEYSTORE_PASSWORD || secrets.TOOLBOX_KEY_PASSWORD }}
           TOOLBOX_KEY_ALIAS: dreams
@@ -138,12 +139,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -f verification/evidence/application-prebuild.json
           python3 - <<'PY'
           import json
           from pathlib import Path
-          p=Path('verification/evidence/application-prebuild.json')
-          data=json.loads(p.read_text())
+          data=json.loads(Path('verification/evidence/application-prebuild.json').read_text())
           if data.get('status') != 'PASS':
               raise SystemExit('APPLICATION_PREBUILD_PASS missing; build remains locked')
           print('APPLICATION_PREBUILD_PASS confirmed; BUILD_UNLOCKED=TRUE')
@@ -151,54 +150,100 @@ jobs:
           test -n "${TOOLBOX_KEYSTORE_PASSWORD:-}"
           test -n "${TOOLBOX_KEY_PASSWORD:-}"
           test "$TOOLBOX_KEY_ALIAS" = 'dreams'
+          gradle --no-daemon --warning-mode=all --dependency-verification strict :toolbox-app:clean
           gradle --no-daemon --warning-mode=all --dependency-verification strict \
             :toolbox-app:assembleDebug \
-            :toolbox-app:assembleRelease
+            :toolbox-app:assembleRelease \
+            :toolbox-app:assembleDebugAndroidTest \
+            :toolbox-app:writeReleaseDependencyInventory
           test -s toolbox-app/build/outputs/apk/debug/toolbox-app-debug.apk
           test -s toolbox-app/build/outputs/apk/release/toolbox-app-release.apk
+          TEST_APK="$(find toolbox-app/build/outputs/apk/androidTest -type f -name '*.apk' -print -quit)"
+          test -n "$TEST_APK"
+          test -s "$TEST_APK"
+          MAPPING=toolbox-app/build/outputs/mapping/release/mapping.txt
+          INVENTORY=toolbox-app/build/reports/verification/release-dependencies.txt
+          test -s "$MAPPING"
+          test -s "$INVENTORY"
+
+          DEBUG_MANIFEST="$(find toolbox-app/build/intermediates -type f -name AndroidManifest.xml | grep -E '/(merged_manifest|merged_manifests)/debug/' | head -n1)"
+          RELEASE_MANIFEST="$(find toolbox-app/build/intermediates -type f -name AndroidManifest.xml | grep -E '/(merged_manifest|merged_manifests)/release/' | head -n1)"
+          test -s "$DEBUG_MANIFEST"
+          test -s "$RELEASE_MANIFEST"
+
+          mkdir -p verification/candidate-apks verification/evidence/artifacts
+          cp toolbox-app/build/outputs/apk/debug/toolbox-app-debug.apk verification/candidate-apks/toolbox-app-debug.apk
+          cp toolbox-app/build/outputs/apk/release/toolbox-app-release.apk verification/candidate-apks/toolbox-app-release.apk
+          cp "$TEST_APK" verification/candidate-apks/toolbox-app-debug-androidTest.apk
+          cp "$DEBUG_MANIFEST" verification/candidate-apks/debug-AndroidManifest.xml
+          cp "$RELEASE_MANIFEST" verification/candidate-apks/release-AndroidManifest.xml
+          cp "$MAPPING" verification/evidence/artifacts/mapping-release.txt
+          cp "$INVENTORY" verification/evidence/artifacts/release-dependencies.txt
+
+      - name: Second clean release build and reproducibility proof
+        env:
+          TOOLBOX_KEYSTORE_PASSWORD: ${{ secrets.TOOLBOX_SIGNING_PASSWORD || secrets.V_SIGNING_PASSWORD || secrets.TOOLBOX_KEYSTORE_PASSWORD || secrets.TOOLBOX_KEY_PASSWORD }}
+          TOOLBOX_KEY_ALIAS: dreams
+          TOOLBOX_KEY_PASSWORD: ${{ secrets.TOOLBOX_SIGNING_PASSWORD || secrets.V_SIGNING_PASSWORD || secrets.TOOLBOX_KEY_PASSWORD || secrets.TOOLBOX_KEYSTORE_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle --no-daemon --warning-mode=all --dependency-verification strict :toolbox-app:clean
+          gradle --no-daemon --warning-mode=all --dependency-verification strict :toolbox-app:assembleRelease
+          SECOND=toolbox-app/build/outputs/apk/release/toolbox-app-release.apk
+          FIRST=verification/candidate-apks/toolbox-app-release.apk
+          test -s "$SECOND"
+          test -s "$FIRST"
+          cmp "$FIRST" "$SECOND"
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          first=Path('verification/candidate-apks/toolbox-app-release.apk')
+          second=Path('toolbox-app/build/outputs/apk/release/toolbox-app-release.apk')
+          def digest(p):
+              h=hashlib.sha256()
+              with p.open('rb') as f:
+                  for b in iter(lambda:f.read(1024*1024),b''):
+                      h.update(b)
+              return h.hexdigest()
+          a,b=digest(first),digest(second)
+          payload={
+              'schemaVersion':1,'gate':'REPRODUCIBLE_RELEASE_GATE',
+              'status':'PASS' if a==b else 'NOT_PROVEN',
+              'gitSha':os.environ['GITHUB_SHA'],
+              'candidateSha256':a,'secondCleanSha256':b,
+              'byteIdentical':a==b and first.read_bytes()==second.read_bytes()
+          }
+          Path('verification/evidence/reproducibility.json').write_text(
+              json.dumps(payload,indent=2,sort_keys=True)+'\n')
+          if payload['status']!='PASS' or not payload['byteIdentical']:
+              raise SystemExit('REPRODUCIBLE_RELEASE_GATE = NOT_PROVEN')
+          print('REPRODUCIBLE_RELEASE_GATE = PASS')
+          PY
           echo 'CONTROLLED_APK_BUILD_PASS=1' >> "$GITHUB_ENV"
 
       - name: Verify release signature scheme for Android 11 scope
         shell: bash
         run: |
           set -euo pipefail
-          APK=toolbox-app/build/outputs/apk/release/toolbox-app-release.apk
-          test -s "$APK"
+          APK=verification/candidate-apks/toolbox-app-release.apk
           "$ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner" verify --verbose --print-certs "$APK" | tee "$RUNNER_TEMP/release-signature-schemes.txt"
           grep -E 'Verified using v3 scheme.*:[[:space:]]*true' "$RUNNER_TEMP/release-signature-schemes.txt"
           grep -F 'Signer #1 certificate SHA-256 digest: 290fb37d527935766e327781833493400dd647cfc8bdbe433254a2df52e4b8e4' "$RUNNER_TEMP/release-signature-schemes.txt"
-
-      - name: Locate exact merged manifests
-        shell: bash
-        run: |
-          set -euo pipefail
-          DEBUG_MANIFEST="$(find toolbox-app/build/intermediates -type f -name AndroidManifest.xml | grep -E '/(merged_manifest|merged_manifests)/debug/' | head -n1 || true)"
-          RELEASE_MANIFEST="$(find toolbox-app/build/intermediates -type f -name AndroidManifest.xml | grep -E '/(merged_manifest|merged_manifests)/release/' | head -n1 || true)"
-          if [ -z "$DEBUG_MANIFEST" ]; then
-            DEBUG_MANIFEST="$(find toolbox-app/build/intermediates -type f -name AndroidManifest.xml | grep -i debug | head -n1 || true)"
-          fi
-          if [ -z "$RELEASE_MANIFEST" ]; then
-            RELEASE_MANIFEST="$(find toolbox-app/build/intermediates -type f -name AndroidManifest.xml | grep -i release | head -n1 || true)"
-          fi
-          test -s "$DEBUG_MANIFEST"
-          test -s "$RELEASE_MANIFEST"
-          echo "DEBUG_MERGED_MANIFEST=$DEBUG_MANIFEST" >> "$GITHUB_ENV"
-          echo "RELEASE_MERGED_MANIFEST=$RELEASE_MANIFEST" >> "$GITHUB_ENV"
-          printf 'debug manifest: %s\nrelease manifest: %s\n' "$DEBUG_MANIFEST" "$RELEASE_MANIFEST"
 
       - name: Final APK structural and semantic verification
         shell: bash
         run: |
           set -euo pipefail
           python3 verification/scripts/apk_gate.py \
-            --apk toolbox-app/build/outputs/apk/debug/toolbox-app-debug.apk \
-            --manifest-xml "$DEBUG_MERGED_MANIFEST" \
+            --apk verification/candidate-apks/toolbox-app-debug.apk \
+            --manifest-xml verification/candidate-apks/debug-AndroidManifest.xml \
             --variant debug
           python3 verification/scripts/apk_gate.py \
-            --apk toolbox-app/build/outputs/apk/release/toolbox-app-release.apk \
-            --manifest-xml "$RELEASE_MERGED_MANIFEST" \
+            --apk verification/candidate-apks/toolbox-app-release.apk \
+            --manifest-xml verification/candidate-apks/release-AndroidManifest.xml \
             --variant release
-          "$ANDROID_SDK_ROOT/build-tools/34.0.0/zipalign" -c -p -v 4 toolbox-app/build/outputs/apk/release/toolbox-app-release.apk
+          "$ANDROID_SDK_ROOT/build-tools/34.0.0/zipalign" -c -p -v 4 verification/candidate-apks/toolbox-app-release.apk
 
       - name: Verify APK signatures and pinned release identity
         shell: bash
@@ -206,17 +251,19 @@ jobs:
           set -euo pipefail
           mkdir -p verification/evidence/signature-reports
           "$ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner" verify --verbose --print-certs \
-            toolbox-app/build/outputs/apk/debug/toolbox-app-debug.apk \
+            verification/candidate-apks/toolbox-app-debug.apk \
             > verification/evidence/signature-reports/debug.txt
           "$ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner" verify --verbose --print-certs \
-            toolbox-app/build/outputs/apk/release/toolbox-app-release.apk \
+            verification/candidate-apks/toolbox-app-release.apk \
             > verification/evidence/signature-reports/release.txt
           cat verification/evidence/signature-reports/release.txt
           python3 verification/scripts/signature_gate.py \
             --report verification/evidence/signature-reports/debug.txt \
+            --apk verification/candidate-apks/toolbox-app-debug.apk \
             --variant debug
           python3 verification/scripts/signature_gate.py \
             --report verification/evidence/signature-reports/release.txt \
+            --apk verification/candidate-apks/toolbox-app-release.apk \
             --variant release
 
       - name: Postbuild package mutation adequacy
@@ -224,51 +271,366 @@ jobs:
         run: |
           set -euo pipefail
           python3 verification/scripts/postbuild_mutation_gate.py \
-            --apk toolbox-app/build/outputs/apk/release/toolbox-app-release.apk \
-            --manifest-xml "$RELEASE_MERGED_MANIFEST"
+            --apk verification/candidate-apks/toolbox-app-release.apk \
+            --manifest-xml verification/candidate-apks/release-AndroidManifest.xml
+
+      - name: Confirm baseline APK evidence survived mutation challenge
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path('verification/evidence/apk-release.json').read_text())
+          if data.get('status')!='PASS':
+              raise SystemExit('apk-release baseline was not preserved')
+          mut=json.loads(Path('verification/evidence/asset-mutations.json').read_text())
+          if mut.get('baselineEvidencePreserved') is not True:
+              raise SystemExit('mutation baseline preservation proof missing')
+          print('POSTBUILD_BASELINE_EVIDENCE_PRESERVED')
+          PY
 
       - name: Record artifact provenance and digests
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p verification/evidence/artifacts
-          sha256sum \
-            toolbox-app/build/outputs/apk/debug/toolbox-app-debug.apk \
-            toolbox-app/build/outputs/apk/release/toolbox-app-release.apk \
-            > verification/evidence/artifacts/SHA256SUMS
-          cat verification/evidence/artifacts/SHA256SUMS
           python3 - <<'PY'
           import hashlib, json, os
           from pathlib import Path
           files={
-            'debug':'toolbox-app/build/outputs/apk/debug/toolbox-app-debug.apk',
-            'release':'toolbox-app/build/outputs/apk/release/toolbox-app-release.apk',
+              'debug':'verification/candidate-apks/toolbox-app-debug.apk',
+              'release':'verification/candidate-apks/toolbox-app-release.apk',
+              'androidTest':'verification/candidate-apks/toolbox-app-debug-androidTest.apk',
           }
-          out={'schemaVersion':1,'gitSha':os.environ['GITHUB_SHA'],'workflowRunId':os.environ['GITHUB_RUN_ID'],'workflowRunAttempt':os.environ['GITHUB_RUN_ATTEMPT'],'builder':'github-actions/ubuntu-24.04','artifacts':{}}
+          materials={
+              'releaseMapping':'verification/evidence/artifacts/mapping-release.txt',
+              'releaseDependencyInventory':'verification/evidence/artifacts/release-dependencies.txt',
+          }
+          def digest(path):
+              h=hashlib.sha256()
+              with Path(path).open('rb') as f:
+                  for b in iter(lambda:f.read(1024*1024),b''):
+                      h.update(b)
+              return h.hexdigest()
+          out={
+              'schemaVersion':2,'gitSha':os.environ['GITHUB_SHA'],
+              'workflowRunId':os.environ['GITHUB_RUN_ID'],
+              'workflowRunAttempt':os.environ['GITHUB_RUN_ATTEMPT'],
+              'builder':'github-actions/ubuntu-24.04',
+              'artifacts':{},'materials':{}
+          }
           for name,path in files.items():
-              p=Path(path); h=hashlib.sha256(p.read_bytes()).hexdigest()
-              out['artifacts'][name]={'path':path,'sha256':h,'sizeBytes':p.stat().st_size}
-          Path('verification/evidence/artifacts/provenance.json').write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+              p=Path(path)
+              if not p.is_file():
+                  raise SystemExit(f'missing artifact: {path}')
+              out['artifacts'][name]={
+                  'path':path,'sha256':digest(path),'sizeBytes':p.stat().st_size}
+          for name,path in materials.items():
+              p=Path(path)
+              if not p.is_file():
+                  raise SystemExit(f'missing material: {path}')
+              out['materials'][name]={
+                  'path':path,'sha256':digest(path),'sizeBytes':p.stat().st_size}
+          target=Path('verification/evidence/artifacts/provenance.json')
+          target.write_text(json.dumps(out,indent=2,sort_keys=True)+'\n')
+          sums=Path('verification/evidence/artifacts/SHA256SUMS')
+          sums.write_text('\n'.join(
+              f"{item['sha256']}  {item['path']}"
+              for item in out['artifacts'].values())+'\n')
+          print(target.read_text())
           PY
 
-      - name: Upload verified ToolBox APKs
+      - name: Upload static candidate for exact runtime proof
         if: ${{ success() && env.CONTROLLED_APK_BUILD_PASS == '1' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: toolbox-android11-arm64-verified-apks
+          name: toolbox-android11-arm64-static-candidate
           path: |
-            toolbox-app/build/outputs/apk/debug/toolbox-app-debug.apk
-            toolbox-app/build/outputs/apk/release/toolbox-app-release.apk
-            verification/evidence/artifacts/
-            verification/evidence/signature-reports/
+            verification/candidate-apks/
+            verification/evidence/
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish application assurance evidence
+      - name: Publish static application assurance evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: application-assurance-evidence
+          name: application-assurance-evidence-static
+          path: verification/evidence/
+          if-no-files-found: warn
+          retention-days: 30
+
+  application-runtime-r9:
+    name: Android 11 ARM64 runtime and R9 closure
+    needs: application-prebuild-and-build
+    runs-on: macos-15
+    timeout-minutes: 75
+
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+
+      - name: Download exact static candidate from this workflow run
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+        with:
+          name: toolbox-android11-arm64-static-candidate
+          path: candidate
+
+      - name: Restore static evidence and locate exact APKs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d candidate/verification/evidence
+          test -d candidate/verification/candidate-apks
+          rm -rf verification/evidence
+          mkdir -p verification/evidence
+          cp -R candidate/verification/evidence/. verification/evidence/
+          DEBUG_APK="$GITHUB_WORKSPACE/candidate/verification/candidate-apks/toolbox-app-debug.apk"
+          RELEASE_APK="$GITHUB_WORKSPACE/candidate/verification/candidate-apks/toolbox-app-release.apk"
+          TEST_APK="$GITHUB_WORKSPACE/candidate/verification/candidate-apks/toolbox-app-debug-androidTest.apk"
+          test -s "$DEBUG_APK"
+          test -s "$RELEASE_APK"
+          test -s "$TEST_APK"
+          echo "DEBUG_APK=$DEBUG_APK" >> "$GITHUB_ENV"
+          echo "RELEASE_APK=$RELEASE_APK" >> "$GITHUB_ENV"
+          echo "TEST_APK=$TEST_APK" >> "$GITHUB_ENV"
+
+      - name: Verify downloaded artifact provenance before runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          prov=json.loads(Path('verification/evidence/artifacts/provenance.json').read_text())
+          if prov.get('gitSha') != os.environ['GITHUB_SHA']:
+              raise SystemExit(f"provenance revision mismatch: {prov.get('gitSha')} != {os.environ['GITHUB_SHA']}")
+          files={
+              'debug':Path(os.environ['DEBUG_APK']),
+              'release':Path(os.environ['RELEASE_APK']),
+              'androidTest':Path(os.environ['TEST_APK']),
+          }
+          for name,p in files.items():
+              h=hashlib.sha256(p.read_bytes()).hexdigest()
+              expected=prov['artifacts'][name]['sha256']
+              if h != expected:
+                  raise SystemExit(f'{name} digest mismatch: {h} != {expected}')
+          print('EXACT_STATIC_CANDIDATE_PROVENANCE_PASS')
+          PY
+
+      - name: Setup exact Temurin JDK for Android SDK tools
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '17.0.20+1'
+          java-package: jdk
+          check-latest: false
+
+      - name: Setup exact Android command line tools
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699
+        with:
+          cmdline-tools-version: '14742923'
+          packages: ''
+          log-accepted-android-sdk-licenses: 'false'
+
+      - name: Install API30 ARM64 runtime inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = "arm64"
+          sdkmanager 'platform-tools' 'emulator' 'system-images;android-30;google_apis;arm64-v8a'
+          test -x "$ANDROID_SDK_ROOT/platform-tools/adb"
+          test -x "$ANDROID_SDK_ROOT/emulator/emulator"
+          test -s "$ANDROID_SDK_ROOT/system-images/android-30/google_apis/arm64-v8a/system.img"
+          test -s "$ANDROID_SDK_ROOT/system-images/android-30/google_apis/arm64-v8a/source.properties"
+          mkdir -p verification/evidence/diagnostics
+          "$ANDROID_SDK_ROOT/emulator/emulator" -version > verification/evidence/diagnostics/emulator-version.txt 2>&1
+          "$ANDROID_SDK_ROOT/platform-tools/adb" version > verification/evidence/diagnostics/adb-version.txt 2>&1
+
+      - name: Qualify runtime tool and host boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, platform, re
+          from pathlib import Path
+          sdk=Path(os.environ['ANDROID_SDK_ROOT'])
+          emu=(Path('verification/evidence/diagnostics/emulator-version.txt').read_text(errors='replace').strip())
+          adb=(Path('verification/evidence/diagnostics/adb-version.txt').read_text(errors='replace').strip())
+          props=(sdk/'system-images/android-30/google_apis/arm64-v8a/source.properties').read_text(errors='replace')
+          m=re.search(r'(?m)^Pkg\.Revision=(.+)$',props)
+          revision=m.group(1).strip() if m else None
+          rows=[
+              ('runtime-host-arm64',platform.machine()=='arm64',platform.machine()),
+              ('runtime-emulator-version-known',bool(emu),emu.splitlines()[0] if emu else ''),
+              ('runtime-adb-version-known',bool(adb),adb.splitlines()[0] if adb else ''),
+              ('runtime-system-image-revision-known',bool(revision),str(revision)),
+              ('runtime-api30-arm64-image-installed',
+               (sdk/'system-images/android-30/google_apis/arm64-v8a/system.img').is_file(),
+               str(sdk/'system-images/android-30/google_apis/arm64-v8a/system.img')),
+          ]
+          failed=[r for r in rows if not r[1]]
+          payload={
+              'schemaVersion':1,'gate':'RUNTIME_TOOL_QUALIFICATION',
+              'status':'PASS' if not failed else 'NOT_PROVEN',
+              'gitSha':os.environ['GITHUB_SHA'],'hostArch':platform.machine(),
+              'runnerImage':os.environ.get('ImageOS'),'emulatorVersion':emu,
+              'adbVersion':adb,'systemImageRevision':revision,
+              'checks':[{'name':n,'passed':p,'detail':d} for n,p,d in rows],
+              'failed':[n for n,p,d in failed],
+              'unknown':0 if not failed else len(failed),'missing':0,
+              'unproven':0 if not failed else len(failed),'skipped':0,
+              'indeterminate':0,'staleEvidence':0,'faultEscape':0
+          }
+          Path('verification/evidence/runtime-tools.json').write_text(
+              json.dumps(payload,indent=2,sort_keys=True)+'\n')
+          if failed:
+              raise SystemExit('RUNTIME_TOOL_QUALIFICATION = NOT_PROVEN')
+          print('RUNTIME_TOOL_QUALIFICATION = PASS')
+          PY
+          "$ANDROID_SDK_ROOT/emulator/emulator" -accel-check | tee verification/evidence/diagnostics/emulator-accel-check.txt
+
+      - name: Create and boot Android 11 ARM64 emulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf 'no\n' | avdmanager create avd \
+            --force \
+            --name toolbox-api30-arm64 \
+            --package 'system-images;android-30;google_apis;arm64-v8a'
+          nohup "$ANDROID_SDK_ROOT/emulator/emulator" \
+            -avd toolbox-api30-arm64 \
+            -no-window \
+            -no-audio \
+            -no-boot-anim \
+            -no-snapshot \
+            -wipe-data \
+            -gpu swiftshader_indirect \
+            > verification/evidence/diagnostics/emulator-boot.log 2>&1 &
+          echo "$!" > verification/evidence/diagnostics/emulator.pid
+          adb wait-for-device
+          BOOTED=0
+          for i in $(seq 1 180); do
+            VALUE="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')"
+            if [ "$VALUE" = "1" ]; then
+              BOOTED=1
+              break
+            fi
+            sleep 5
+          done
+          if [ "$BOOTED" != "1" ]; then
+            cat verification/evidence/diagnostics/emulator-boot.log
+            exit 1
+          fi
+          adb shell input keyevent 82
+          API="$(adb shell getprop ro.build.version.sdk | tr -d '\r')"
+          ABI="$(adb shell getprop ro.product.cpu.abi | tr -d '\r')"
+          test "$API" = "30"
+          test "$ABI" = "arm64-v8a"
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+          adb shell getprop > verification/evidence/diagnostics/device-getprop.txt
+          echo "ANDROID_11_ARM64_RUNTIME_BOOT_PASS"
+
+      - name: Run instrumentation against exact debug APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          adb install -r -t "$DEBUG_APK"
+          adb install -r -t "$TEST_APK"
+          adb shell am instrument -w \
+            io.toolbox.app.debug.test/androidx.test.runner.AndroidJUnitRunner \
+            | tee verification/evidence/diagnostics/instrumentation-debug.txt
+          python3 verification/scripts/instrumentation_gate.py \
+            --report verification/evidence/diagnostics/instrumentation-debug.txt \
+            --apk "$DEBUG_APK" \
+            --test-apk "$TEST_APK" \
+            --provenance verification/evidence/artifacts/provenance.json
+
+      - name: Runtime gate exact debug APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 verification/scripts/runtime_gate.py \
+            --apk "$DEBUG_APK" \
+            --package io.toolbox.app.debug \
+            --variant debug
+
+      - name: Runtime gate exact release APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 verification/scripts/runtime_gate.py \
+            --apk "$RELEASE_APK" \
+            --package io.toolbox.app \
+            --variant release
+
+      - name: Final ASSET_SAFE_100 closure
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 verification/scripts/asset_final_gate.py
+
+      - name: Cross-domain X1-X5 closure
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 verification/scripts/cross_domain_gate.py
+
+      - name: R1-R9 final APPLICATION_SAFE_100 closure
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 verification/scripts/application_safe_100_gate.py
+
+      - name: Prepare exact final APK distribution set
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p final-apks
+          cp "$DEBUG_APK" final-apks/ToolBox-debug.apk
+          cp "$RELEASE_APK" final-apks/ToolBox-release.apk
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          safe=json.loads(Path('verification/evidence/application-safe-100.json').read_text())
+          if safe.get('status')!='PASS':
+              raise SystemExit('APPLICATION_SAFE_100 missing')
+          rows=[]
+          for p in (Path('final-apks/ToolBox-debug.apk'),Path('final-apks/ToolBox-release.apk')):
+              h=hashlib.sha256(p.read_bytes()).hexdigest()
+              rows.append(f'{h}  {p.name}')
+          Path('final-apks/SHA256SUMS').write_text('\n'.join(rows)+'\n')
+          Path('final-apks/APPLICATION_SAFE_100.json').write_text(
+              json.dumps(safe,indent=2,sort_keys=True)+'\n')
+          PY
+
+      - name: Upload final verified APKs
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: toolbox-android11-arm64-verified-apks
+          path: final-apks/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Collect runtime diagnostics
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p verification/evidence/diagnostics
+          if [ -f verification/evidence/diagnostics/emulator-boot.log ]; then
+            tail -n 400 verification/evidence/diagnostics/emulator-boot.log \
+              > verification/evidence/diagnostics/emulator-boot-tail.txt
+          fi
+
+      - name: Publish final application assurance evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: application-assurance-evidence-final
           path: verification/evidence/
           if-no-files-found: warn
           retention-days: 30
