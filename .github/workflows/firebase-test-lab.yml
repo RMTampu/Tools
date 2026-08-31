@@ -74,9 +74,10 @@ jobs:
           service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
           create_credentials_file: true
 
-      - name: Install pinned Google Cloud CLI action
+      - name: Install pinned Google Cloud CLI
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
         with:
+          version: '582.0.0'
           project_id: ${{ env.GCP_PROJECT_ID }}
 
       - name: Verify authenticated project
@@ -86,6 +87,7 @@ jobs:
           gcloud --quiet config set project "$GCP_PROJECT_ID"
           active_project="$(gcloud config get-value project)"
           test "$active_project" = "$GCP_PROJECT_ID"
+          gcloud version
           gcloud auth list --filter=status:ACTIVE --format='value(account)'
 
       - name: Resolve live Android 11 ARM64 Test Lab model
@@ -137,6 +139,7 @@ jobs:
             echo "- Model: \`$model_id\`"
             echo "- Android: API \`$ANDROID_VERSION_ID\` (Android 11)"
             echo "- ABI requirement: \`$REQUIRED_ABI\`"
+            echo "- gcloud: \`582.0.0\`"
             echo "- Mode: \`${{ inputs.mode }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
