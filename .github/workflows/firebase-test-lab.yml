@@ -4,19 +4,31 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: Connection check or test an APK artifact from a prior gated build
+        description: Connection check or ONE user-authorized final APK test
         required: true
         default: connection-only
         type: choice
         options:
           - connection-only
           - test-existing-artifact
+      final_gate_authorization:
+        description: test-existing-artifact only; choose approved-once ONLY after explicit user approval for this one execution attempt
+        required: true
+        default: locked
+        type: choice
+        options:
+          - locked
+          - approved-once
+      approval_reference:
+        description: Required for test mode; short reference to the explicit user approval for THIS execution attempt
+        required: false
+        type: string
       source_run_id:
-        description: GitHub Actions run ID that produced the APK artifact
+        description: GitHub Actions run ID that produced the approved APK artifact
         required: false
         type: string
       artifact_name:
-        description: Artifact name containing exactly one APK
+        description: Artifact name containing exactly one approved APK
         required: false
         default: toolbox-apk
         type: string
@@ -46,10 +58,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
 
-      - name: Validate one-time bridge configuration
+      - name: Validate bridge and single-use authorization input
         shell: bash
         run: |
           set -euo pipefail
+
           missing=0
           for name in GCP_PROJECT_ID GCP_WIF_PROVIDER GCP_SERVICE_ACCOUNT; do
             if [[ -z "${!name:-}" ]]; then
@@ -61,9 +74,33 @@ jobs:
             exit 1
           fi
 
-          if [[ "${{ inputs.mode }}" == "test-existing-artifact" && -z "${{ inputs.source_run_id }}" ]]; then
-            echo "::error::source_run_id is required in test-existing-artifact mode"
-            exit 1
+          mode='${{ inputs.mode }}'
+          authorization='${{ inputs.final_gate_authorization }}'
+          approval_reference='${{ inputs.approval_reference }}'
+          source_run_id='${{ inputs.source_run_id }}'
+
+          if [[ "$mode" == "connection-only" ]]; then
+            if [[ "$authorization" != "locked" ]]; then
+              echo "::error::connection-only must keep final_gate_authorization=locked. Do not consume a Final Gate approval on a connection check."
+              exit 1
+            fi
+          fi
+
+          if [[ "$mode" == "test-existing-artifact" ]]; then
+            if [[ "$authorization" != "approved-once" ]]; then
+              echo "::error::Firebase Final Gate is LOCKED. Explicit user approval is required for exactly one execution attempt."
+              exit 1
+            fi
+
+            if [[ -z "$approval_reference" ]]; then
+              echo "::error::approval_reference is required for test-existing-artifact. It must identify the explicit user approval for THIS attempt."
+              exit 1
+            fi
+
+            if [[ -z "$source_run_id" ]]; then
+              echo "::error::source_run_id is required in test-existing-artifact mode"
+              exit 1
+            fi
           fi
 
       - name: Authenticate to Google Cloud with GitHub OIDC
@@ -113,7 +150,7 @@ jobs:
             ' "$catalog" | head -n 1)"
 
           if [[ -z "$model_id" || "$model_id" == "null" ]]; then
-            echo "::error::No live Test Lab virtual model currently proves Android API 30 + arm64-v8a"
+            echo "::error::No live Test Lab virtual model currently proves Android API 30 + arm64-v8a. Final Gate is fail-closed; no API/ABI fallback is allowed."
             echo "Available Arm candidates:"
             jq -r '.[] | select((.id // "") | endswith(".arm")) | [.id, ((.supportedVersionIds // []) | join(",")), ((.supportedAbis // []) | join(","))] | @tsv' "$catalog" || true
             exit 1
@@ -141,6 +178,10 @@ jobs:
             echo "- ABI requirement: \`$REQUIRED_ABI\`"
             echo "- gcloud: \`582.0.0\`"
             echo "- Mode: \`${{ inputs.mode }}\`"
+            if [[ '${{ inputs.mode }}' == 'test-existing-artifact' ]]; then
+              echo "- Final Gate authorization input: \`approved-once\`"
+              echo "- Approval reference: \`${{ inputs.approval_reference }}\`"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Download APK artifact from prior gated run
@@ -179,11 +220,36 @@ jobs:
             echo "- APK SHA-256: \`$digest\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Run Robo smoke test on Android 11 ARM64
+      - name: Consume single-use Final Gate authorization
         if: ${{ inputs.mode == 'test-existing-artifact' }}
         shell: bash
         run: |
           set -euo pipefail
+
+          cat > firebase-authorization-consumed.txt <<EOF
+          state=CONSUMED
+          policy=1-explicit-user-approval-equals-1-firebase-execution-attempt
+          github_run_id=${GITHUB_RUN_ID}
+          source_run_id=${{ inputs.source_run_id }}
+          artifact_name=${{ inputs.artifact_name }}
+          apk_sha256=${{ steps.apk.outputs.sha256 }}
+          approval_reference=${{ inputs.approval_reference }}
+          target_android_api=${ANDROID_VERSION_ID}
+          target_abi=${REQUIRED_ABI}
+          EOF
+
+          echo "- Single-use Final Gate authorization: CONSUMED for this execution attempt" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Any second/retry Firebase execution requires a new explicit user approval and a new workflow dispatch." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run ONE Robo smoke test on Android 11 ARM64
+        if: ${{ inputs.mode == 'test-existing-artifact' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -f firebase-authorization-consumed.txt
+          grep -q '^state=CONSUMED$' firebase-authorization-consumed.txt
+
           log="firebase-test-lab.log"
           apk="${{ steps.apk.outputs.path }}"
           model="${{ steps.device.outputs.model_id }}"
@@ -201,11 +267,12 @@ jobs:
           set -e
 
           if [[ "$status" -ne 0 ]]; then
-            echo "::error::Firebase Test Lab returned exit code $status"
+            echo "::error::Firebase Test Lab returned exit code $status. Authorization is already consumed; DO NOT auto-retry. Ask the user again before any new Firebase execution."
             exit "$status"
           fi
 
           echo "- Test status: PASS" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Authorization after execution: LOCKED; another Firebase run requires new user approval." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload Test Lab bridge evidence
         if: always()
@@ -215,6 +282,7 @@ jobs:
           path: |
             testlab-virtual-models.json
             selected-testlab-model.json
+            firebase-authorization-consumed.txt
             firebase-test-lab.log
           if-no-files-found: ignore
           retention-days: 14
