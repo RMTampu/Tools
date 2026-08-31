@@ -188,7 +188,7 @@ jobs:
             --apk toolbox-app/build/outputs/apk/release/toolbox-app-release.apk \
             --manifest-xml "$RELEASE_MERGED_MANIFEST" \
             --variant release
-          "$ANDROID_SDK_ROOT/build-tools/34.0.0/zipalign" -c -P 16 -v 4 toolbox-app/build/outputs/apk/release/toolbox-app-release.apk
+          "$ANDROID_SDK_ROOT/build-tools/34.0.0/zipalign" -c -p -v 4 toolbox-app/build/outputs/apk/release/toolbox-app-release.apk
 
       - name: Verify APK signatures and pinned release identity
         shell: bash
