@@ -93,7 +93,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          catalog="$RUNNER_TEMP/testlab-virtual-models.json"
+          catalog="testlab-virtual-models.json"
 
           gcloud firebase test android models list \
             --project="$GCP_PROJECT_ID" \
@@ -119,14 +119,14 @@ jobs:
 
           gcloud firebase test android models describe "$model_id" \
             --project="$GCP_PROJECT_ID" \
-            --format=json > "$RUNNER_TEMP/selected-testlab-model.json"
+            --format=json > selected-testlab-model.json
 
           jq -e \
             --arg version "$ANDROID_VERSION_ID" \
             --arg abi "$REQUIRED_ABI" '
               ((.supportedVersionIds // []) | index($version)) != null
               and any(.supportedAbis[]?; . == $abi or endswith(":" + $abi))
-            ' "$RUNNER_TEMP/selected-testlab-model.json" >/dev/null
+            ' selected-testlab-model.json >/dev/null
 
           echo "model_id=$model_id" >> "$GITHUB_OUTPUT"
           echo "Selected Test Lab model: $model_id / Android API $ANDROID_VERSION_ID / $REQUIRED_ABI"
@@ -181,7 +181,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          log="$RUNNER_TEMP/firebase-test-lab.log"
+          log="firebase-test-lab.log"
           apk="${{ steps.apk.outputs.path }}"
           model="${{ steps.device.outputs.model_id }}"
 
@@ -197,9 +197,6 @@ jobs:
           status="${PIPESTATUS[0]}"
           set -e
 
-          cp "$RUNNER_TEMP/selected-testlab-model.json" selected-testlab-model.json
-          cp "$log" firebase-test-lab.log
-
           if [[ "$status" -ne 0 ]]; then
             echo "::error::Firebase Test Lab returned exit code $status"
             exit "$status"
@@ -213,6 +210,7 @@ jobs:
         with:
           name: firebase-test-lab-bridge-evidence-${{ github.run_id }}
           path: |
+            testlab-virtual-models.json
             selected-testlab-model.json
             firebase-test-lab.log
           if-no-files-found: ignore
