@@ -6,6 +6,8 @@ Korpus metode aktif untuk **R8 — UI, Rendering, WebView, Hardware, Vendor & Po
 
 Status riset: `PRACTICAL_SATURATION` terhadap ruang metode yang telah disapu.
 
+Test environment dan Firebase authorization selalu mengikuti `TEST_ROUTING_POLICY.md`.
+
 ---
 
 ## 2. Scope
@@ -26,6 +28,8 @@ R8 menutup:
 
 Logic is owned by R1; asset visual correctness by `ASSET_SAFE_100`; lifecycle by R3; resource budgets by R2.
 
+Target produk utama tetap Android 11/API30/ARM64. Penyebutan target tersebut tidak berarti seluruh UI/device test GitHub wajib berjalan pada target identik. Development matrix GitHub bersifat fleksibel; Firebase Final Gate tetap dikunci ke Android 11/API30/ARM64 dan memerlukan single-use approval pengguna.
+
 ---
 
 ## 3. Metode Aktif
@@ -36,11 +40,17 @@ Inventaris seluruh screen, dialog, sheet, menu, overlay, notification-facing flo
 ### R8-M02 — User-Flow Model & Behavioral UI Testing
 Bentuk user-flow/state graph dan automated tests untuk required actions, navigation, back behavior, enabled/disabled state, validation, repeated tap, long press/gesture where relevant, cancellation, and recovery. Test must assert observable semantics, not only element presence.
 
+Development automation dijalankan di GitHub pada environment yang tersedia dan relevan. Environment aktual wajib dicatat.
+
 ### R8-M03 — Screenshot / Structural / Semantic Visual Oracle
 Untuk required visual states gunakan screenshot golden, structural layout assertions, semantic UI tree assertions, or combination. Exact pixels only where stable contract requires them; otherwise use tolerances/structural oracle without hiding material regressions.
 
+Screenshot dari environment GitHub non-target adalah development evidence untuk environment tersebut, bukan final Android 11 ARM64 visual witness.
+
 ### R8-M04 — Screen / Window / Density / Font-Scale Matrix
 Close supported equivalence classes for size, orientation, density, font scale, navigation mode/system bars, locale/RTL, day/night, and resizable/multi-window behavior relevant to target. State preservation during transitions is cross-checked with R3.
+
+GitHub boleh menjalankan matrix tersebut pada API/ABI emulator yang paling sesuai dan tersedia. Tidak perlu menunggu emulator Android 11 ARM64 identik hanya untuk development regression.
 
 ### R8-M05 — Accessibility Closure
 Verify content descriptions/labels, role/state semantics, focus order, touch target, contrast where contract requires, TalkBack/screen-reader traversal, keyboard/switch-like navigation where supported, dynamic announcements, and no interaction that is only visually discoverable.
@@ -50,6 +60,8 @@ Exercise rapid taps, double actions, drag/scroll, pointer cancellation, keyboard
 
 ### R8-M07 — Startup & First-Usable-Frame Budget
 Measure cold/warm/hot startup as relevant and time to usable state, not merely process creation. Critical initialization must not regress beyond defined budget.
+
+Development performance values dari emulator boleh dipakai untuk regression comparison jika environment dicatat dan konsisten. Klaim hardware-level final membutuhkan representative evidence yang sesuai.
 
 ### R8-M08 — Frame/Jank/Rendering Performance Budget
 Measure frame timing during representative and worst supported UI flows. Track tail percentiles and regression. Device/emulator measurement limitations must be declared; performance claim requiring hardware characteristics needs representative real device evidence.
@@ -72,14 +84,40 @@ For every required/optional hardware feature declare manifest requirement where 
 ### R8-M14 — Hardware Lifecycle / Interruption Testing
 For camera/sensor/Bluetooth/NFC/location/audio or similar subsystem: test unavailable, disabled, permission denied/revoked, busy/in-use, connection loss, suspend/resume, device disconnect, error callback, and repeated acquire/release.
 
+Jika GitHub emulator tidak dapat merepresentasikan hardware secara authoritative, lakukan development simulation/fault injection sejauh feasible dan tandai physical-device witness yang masih diperlukan. Jangan memaksa Firebase virtual device untuk klaim hardware yang tidak dapat dibuktikan olehnya.
+
 ### R8-M15 — Vendor / Device Compatibility Equivalence Classes
-Build device matrix from factors that can materially affect behavior: API30 implementation/vendor, GPU/rendering stack, RAM class, screen metrics, hardware feature, WebView version, OEM background policy where applicable. One device cannot prove all classes.
+Build device matrix dari faktor yang dapat materially affect behavior: Android API/platform behavior, GPU/rendering stack, RAM class, screen metrics, hardware feature, WebView version, dan OEM background policy bila applicable.
+
+Untuk GitHub development/regression:
+
+```text
+DEVICE/API/ABI MATRIX = FLEXIBLE
+```
+
+Gunakan environment yang tersedia dan paling relevan untuk menemukan defect dan regression.
+
+Untuk final target witness pada Firebase:
+
+```text
+ANDROID = 11
+API = 30
+ABI = arm64-v8a
+```
+
+Firebase final execution hanya boleh dilakukan setelah single-use user approval.
+
+One device cannot prove all classes.
 
 ### R8-M16 — Real-Device Witnesses for Hardware/Vendor Claims
 Emulator evidence is insufficient for physical sensor, GPU timing, Bluetooth/NFC/camera quirks, thermal/power, and OEM behavior where emulation cannot reproduce them. Required class needs real-device or equivalent authoritative lab evidence.
 
+Firebase virtual ARM64 tidak menggantikan physical-device requirement tersebut.
+
 ### R8-M17 — Doze / App Standby / Restricted Background Testing
 Exercise idle/power modes and user/OEM background restriction states applicable to target. Verify deferred work, alarms/jobs/network assumptions, resumption, deadline semantics, duplicate execution, and user-visible degradation.
+
+Development tests boleh memakai emulator GitHub yang mendukung skenario tersebut. Jika claim bersifat OEM/physical-specific, gunakan representative authoritative evidence.
 
 ### R8-M18 — Power / Wake-Lock / Background Resource Contract
 Every wake lock, alarm, periodic job, foreground/background work, sensor scan, and persistent connection needs necessity, duration, release, scheduling and retry budget. Excessive work is R2 resource failure plus R8 platform-power incompatibility.
@@ -91,14 +129,45 @@ Test incoming notification/call-like interruption where feasible, app background
 For optional device/web/hardware capability, define degraded behavior that remains functional and does not expose dead controls, infinite spinners, hidden crash path, or stale state.
 
 ### R8-M21 — Compatibility / UI Regression Matrix in CI
-Automate repeatable UI behavior/screenshot/configuration tests across representative API30 screen/config classes and use physical-device jobs for claims not emulatable. Device matrix changes invalidate evidence.
+Automate repeatable UI behavior/screenshot/configuration tests di GitHub menggunakan Android environment yang tersedia, stabil, dan relevan.
+
+GitHub CI tidak dikunci ke API30/ARM64 untuk development/regression.
+
+Aturan:
+
+```text
+GITHUB DEVELOPMENT MATRIX = FLEXIBLE
+FIREBASE FINAL TARGET = API30 + arm64-v8a ONLY
+```
+
+Jika target-specific Android 11 ARM64 UI/runtime witness diperlukan untuk final claim, Firebase hanya boleh dijalankan setelah explicit single-use user approval.
+
+Gunakan physical-device jobs untuk claims yang tidak emulatable. Device matrix changes invalidate affected evidence.
 
 ### R8-M22 — Change-Impact & Mutation Adequacy
 Changes to UI toolkit, navigation, screen config, WebView settings, hardware use, permissions, background schedule, vendor workaround, animation/rendering, or device support invalidate relevant proof. Mutations: wrong layout on size class, missing accessibility label, jank budget breach, WebView unsafe setting, hardware capability unchecked, Doze work assumption, fallback removed.
 
+Perubahan kandidat setelah Firebase approval tetapi sebelum execution membatalkan approval sesuai `TEST_ROUTING_POLICY.md`.
+
 ---
 
-## 4. Fault Model Minimum
+## 4. Development vs Final R8 Status
+
+Untuk development:
+
+```text
+R8_DEVELOPMENT_PASS
+```
+
+boleh diberikan jika seluruh affected UI/device tests yang dapat dilakukan di GitHub telah PASS pada environment yang dicatat, seluruh known blocking regression telah diselesaikan, dan target-specific/physical gaps dinyatakan eksplisit.
+
+`R8_DEVELOPMENT_PASS` tidak sama dengan final `APP_SAFE_R8_PASS` bila active claim masih membutuhkan Android 11 ARM64 final witness atau real-device/vendor evidence.
+
+Agen tidak boleh menjalankan Firebase untuk menutup target-specific gap tanpa approval pengguna.
+
+---
+
+## 5. Fault Model Minimum
 
 ```text
 UI_ACTION_WRONG_RESULT
@@ -129,7 +198,7 @@ MISSING_OPTIONAL_CAPABILITY_FALLBACK
 
 ---
 
-## 5. PASS Formula
+## 6. PASS Formula
 
 `APP_SAFE_R8_PASS` hanya jika:
 
@@ -146,3 +215,5 @@ OPTIONAL_CAPABILITY_WITHOUT_FALLBACK = 0
 UI_DEVICE_FAULT_ESCAPE = 0
 STALE_EVIDENCE = 0
 ```
+
+Jika remaining witness hanya target-specific Android 11/API30/ARM64 final runtime evidence, agen wajib berhenti pada development status dan meminta Final Gate approval; tidak boleh menjalankan Firebase otomatis.
