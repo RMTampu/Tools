@@ -176,7 +176,7 @@ jobs:
             --ks-key-alias dreams \
             --ks-pass env:TOOLBOX_KEYSTORE_PASSWORD \
             --key-pass env:TOOLBOX_KEY_PASSWORD \
-            --min-sdk-version 30 \
+            --min-sdk-version 24 \
             --v1-signing-enabled false \
             --v2-signing-enabled true \
             --v3-signing-enabled true \
