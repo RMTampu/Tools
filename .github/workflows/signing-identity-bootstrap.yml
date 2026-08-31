@@ -43,10 +43,10 @@ jobs:
       - name: Require release signing secrets
         shell: bash
         env:
-          TOOLBOX_KEYSTORE_BASE64: ${{ secrets.TOOLBOX_KEYSTORE_BASE64 }}
-          TOOLBOX_KEYSTORE_PASSWORD: ${{ secrets.TOOLBOX_KEYSTORE_PASSWORD }}
-          TOOLBOX_KEY_ALIAS: ${{ secrets.TOOLBOX_KEY_ALIAS }}
-          TOOLBOX_KEY_PASSWORD: ${{ secrets.TOOLBOX_KEY_PASSWORD }}
+          TOOLBOX_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEY }}
+          TOOLBOX_KEYSTORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+          TOOLBOX_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          TOOLBOX_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           set -euo pipefail
           test -n "$TOOLBOX_KEYSTORE_BASE64"
@@ -58,9 +58,9 @@ jobs:
         id: cert
         shell: bash
         env:
-          TOOLBOX_KEYSTORE_BASE64: ${{ secrets.TOOLBOX_KEYSTORE_BASE64 }}
-          TOOLBOX_KEYSTORE_PASSWORD: ${{ secrets.TOOLBOX_KEYSTORE_PASSWORD }}
-          TOOLBOX_KEY_ALIAS: ${{ secrets.TOOLBOX_KEY_ALIAS }}
+          TOOLBOX_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEY }}
+          TOOLBOX_KEYSTORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+          TOOLBOX_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         run: |
           set -euo pipefail
           umask 077
@@ -98,10 +98,10 @@ jobs:
       - name: Prove private-key usability without building APK
         shell: bash
         env:
-          TOOLBOX_KEYSTORE_BASE64: ${{ secrets.TOOLBOX_KEYSTORE_BASE64 }}
-          TOOLBOX_KEYSTORE_PASSWORD: ${{ secrets.TOOLBOX_KEYSTORE_PASSWORD }}
-          TOOLBOX_KEY_ALIAS: ${{ secrets.TOOLBOX_KEY_ALIAS }}
-          TOOLBOX_KEY_PASSWORD: ${{ secrets.TOOLBOX_KEY_PASSWORD }}
+          TOOLBOX_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEY }}
+          TOOLBOX_KEYSTORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+          TOOLBOX_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          TOOLBOX_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           set -euo pipefail
           umask 077
