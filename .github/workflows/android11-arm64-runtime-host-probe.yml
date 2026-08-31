@@ -70,8 +70,6 @@ jobs:
           grep -F 'SystemImage.Abi=arm64-v8a' "$ANDROID_SDK_ROOT/system-images/android-30/google_apis/arm64-v8a/source.properties"
           grep -F 'SystemImage.TagId=google_apis' "$ANDROID_SDK_ROOT/system-images/android-30/google_apis/arm64-v8a/source.properties"
 
-          # The emulator launcher configures its bundled private libraries.
-          # A bare ldd on the internal QEMU child is invalid and caused a false failure.
           "$ANDROID_SDK_ROOT/emulator/emulator" -version 2>&1 | tee "$RUNNER_TEMP/emulator-version.txt"
           grep -F 'Android emulator version 37.1.11.0' "$RUNNER_TEMP/emulator-version.txt"
           "$ANDROID_SDK_ROOT/platform-tools/adb" version | tee "$RUNNER_TEMP/adb-version.txt"
@@ -80,11 +78,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/android-avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
+
           adb kill-server || true
           printf 'no\n' | avdmanager create avd \
             --force \
             --name toolbox-api30-arm64-probe \
             --package 'system-images;android-30;google_apis;arm64-v8a'
+
+          test -s "$ANDROID_AVD_HOME/toolbox-api30-arm64-probe.ini"
+          "$ANDROID_SDK_ROOT/emulator/emulator" -list-avds | tee "$RUNNER_TEMP/avd-list.txt"
+          grep -Fx 'toolbox-api30-arm64-probe' "$RUNNER_TEMP/avd-list.txt"
 
           nohup "$ANDROID_SDK_ROOT/emulator/emulator" \
             -avd toolbox-api30-arm64-probe \
@@ -143,6 +149,7 @@ jobs:
             ${{ runner.temp }}/host-packages.txt
             ${{ runner.temp }}/emulator-version.txt
             ${{ runner.temp }}/adb-version.txt
+            ${{ runner.temp }}/avd-list.txt
             ${{ runner.temp }}/emulator-boot.log
             ${{ runner.temp }}/device-getprop.txt
           if-no-files-found: warn
