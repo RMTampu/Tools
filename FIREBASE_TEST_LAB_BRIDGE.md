@@ -1,13 +1,16 @@
 # Firebase Test Lab Bridge — ToolBox
 
-## Status
+## 1. Status
 
-Bridge CI untuk target resmi ToolBox:
+Bridge ini khusus untuk **Firebase Final Gate** ToolBox.
 
-- Android 11 / API 30
-- ARM64 / `arm64-v8a`
-- Firebase Test Lab
-- GitHub Actions sebagai satu-satunya jalur build/test cloud
+Target Firebase dikunci keras ke:
+
+```text
+Android 11
+API 30
+ARM64 / arm64-v8a
+```
 
 Workflow:
 
@@ -15,30 +18,53 @@ Workflow:
 .github/workflows/firebase-test-lab.yml
 ```
 
-Workflow dibuat `workflow_dispatch` agar pemasangan bridge tidak otomatis memulai build atau melewati application prebuild boundary.
+Build dan development/regression testing tetap dilakukan melalui GitHub Actions. Firebase bukan development environment dan bukan fallback ketika GitHub test gagal.
 
-Pemakaian Firebase untuk eksekusi test WAJIB mengikuti `TEST_ROUTING_POLICY.md`. Firebase bukan route development/debugging; test APK melalui bridge hanya boleh dijalankan setelah kandidat memenuhi `FINAL_CANDIDATE_READY` dan final target evidence memang diwajibkan atau terinvalidasi.
+Aturan authorization utama berada pada:
 
-## Prinsip
+```text
+TEST_ROUTING_POLICY.md
+```
+
+---
+
+## 2. Prinsip Utama
 
 ```text
 GITHUB ACTIONS
-  -> GitHub OIDC token
-  -> Google Workload Identity Federation
-  -> Firebase / Google Cloud project
-  -> Firebase Test Lab device catalog
-  -> pilih live .arm model yang mendukung API 30 + arm64-v8a
-  -> connection check
-  -> final-candidate only: ambil APK artifact dari prior gated GitHub Actions run
-  -> Firebase Test Lab Robo smoke test
-  -> result/log/evidence kembali ke GitHub Actions
+  -> development/basic/intermediate/regression tests
+  -> environment fleksibel
+  -> DEVELOPMENT_PASS
+  -> STOP
+  -> minta persetujuan pengguna
+  -> 1 persetujuan = 1 Firebase execution attempt
+  -> Firebase target WAJIB API30 + arm64-v8a
+  -> setelah attempt izin habis
+  -> untuk attempt berikutnya wajib minta izin lagi
 ```
 
-Tidak ada service-account JSON/private key yang disimpan di repository.
+Tidak ada jalur:
 
-## Konfigurasi satu kali
+```text
+GitHub PASS -> Firebase otomatis
+```
 
-Tiga GitHub Repository Variables diperlukan:
+Tidak ada auto-retry Firebase.
+
+---
+
+## 3. Konfigurasi Identitas
+
+Bridge memakai:
+
+```text
+GitHub OIDC
+-> Google Workload Identity Federation
+-> dedicated service account
+-> Firebase / Google Cloud project
+```
+
+Repository Variables:
 
 ```text
 FIREBASE_PROJECT_ID
@@ -46,95 +72,331 @@ GCP_WIF_PROVIDER
 GCP_SERVICE_ACCOUNT
 ```
 
-Nilai tersebut bukan password. Authentication dilakukan melalui GitHub OIDC dan Google Workload Identity Federation.
+Tidak ada service-account JSON/private key yang perlu disimpan di repository.
 
-Di sisi Google Cloud/Firebase, satu kali konfigurasi diperlukan:
+---
 
-1. Buat/pilih Firebase project khusus untuk Test Lab.
-2. Pastikan Cloud Testing API dan Cloud Tool Results API tersedia untuk project.
-3. Buat Workload Identity Pool + GitHub provider.
-4. Batasi trust provider ke repository `RMTampu/Tools`.
-5. Hubungkan provider ke service account yang dipakai workflow.
-6. Berikan IAM yang diperlukan untuk menjalankan Test Lab melalui `gcloud` pada project test.
+## 4. User Authorization Gate
 
-Untuk penggunaan bucket hasil default yang dibuat Firebase, dokumentasi Test Lab saat ini mensyaratkan principal `gcloud` mempunyai `roles/editor` pada Firebase project. Karena itu gunakan project Firebase khusus Test Lab, bukan project yang menyimpan data produksi.
+Firebase test execution secara default:
 
-## Mode Workflow
+```text
+LOCKED
+```
+
+Setelah GitHub development verification menghasilkan `DEVELOPMENT_PASS`, agen wajib berhenti dan bertanya kepada pengguna apakah kandidat tersebut diizinkan masuk Final Gate.
+
+Persetujuan yang sah harus eksplisit dan diberikan sebagai jawaban terhadap pertanyaan Final Gate.
+
+Contoh makna pertanyaan:
+
+```text
+Apakah Anda mengizinkan 1x eksekusi Firebase Final Gate
+untuk kandidat ini pada Android 11 / API 30 / ARM64?
+```
+
+Jika pengguna tidak menjawab secara eksplisit atau jawaban ambigu:
+
+```text
+FIREBASE_AUTHORIZATION = LOCKED
+```
+
+---
+
+## 5. Single-Use Rule
+
+Persetujuan pengguna menghasilkan:
+
+```text
+FIREBASE_AUTHORIZATION = AUTHORIZED_ONCE
+```
+
+Persetujuan tersebut hanya berlaku untuk:
+
+- satu kandidat yang sedang ditanyakan;
+- satu artifact/run yang diidentifikasi;
+- satu Firebase test execution attempt.
+
+Setelah satu execution attempt dimulai:
+
+```text
+FIREBASE_AUTHORIZATION = CONSUMED
+FIREBASE_AUTHORIZATION = LOCKED
+```
+
+Ini tetap berlaku jika hasil attempt:
+
+- PASS;
+- FAIL;
+- timeout;
+- cancellation;
+- test matrix error;
+- infrastructure/execution error setelah attempt dimulai.
+
+Run ke-2 selalu membutuhkan approval ke-2.
+Run ke-3 selalu membutuhkan approval ke-3.
+Dan seterusnya.
+
+Dilarang reuse approval lama.
+
+---
+
+## 6. Kandidat yang Diizinkan
+
+Sebelum meminta approval, agen wajib memastikan kandidat sudah mencapai `DEVELOPMENT_PASS` sesuai `TEST_ROUTING_POLICY.md`.
+
+Identitas kandidat sejauh tersedia wajib dicatat:
+
+```text
+SOURCE_COMMIT_SHA
+SOURCE_RUN_ID
+ARTIFACT_NAME
+APK_SHA256
+TEST_SCOPE
+```
+
+Jika kandidat berubah material sebelum test attempt dimulai, approval sebelumnya batal dan Firebase kembali `LOCKED`.
+
+---
+
+## 7. Firebase Target Lock
+
+Setiap final test wajib memakai:
+
+```text
+ANDROID_VERSION_ID = 30
+REQUIRED_ABI = arm64-v8a
+```
+
+Model Firebase wajib dibuktikan secara live:
+
+```text
+model supports API 30
+AND model supports arm64-v8a
+AND model is available/live
+```
+
+Target Firebase tidak fleksibel.
+
+Dilarang fallback ke:
+
+- API selain 30;
+- x86;
+- x86_64;
+- non-ARM model;
+- model yang ABI-nya tidak dapat dibuktikan;
+- device lain hanya agar workflow hijau.
+
+Jika model API30 ARM64 tidak tersedia:
+
+```text
+FINAL_GATE_TARGET = NOT_AVAILABLE
+FINAL_GATE_RESULT = NOT_PROVEN
+```
+
+Jangan menjalankan final test pada target alternatif.
+
+---
+
+## 8. Perbedaan GitHub dan Firebase
+
+GitHub test environment bersifat fleksibel.
+
+Contoh yang sah:
+
+```text
+GitHub API 35 / x86_64
+-> runtime regression PASS
+-> DEVELOPMENT_PASS
+```
+
+Tetapi hasil tersebut bukan:
+
+```text
+ANDROID_11_ARM64_FINAL_PASS
+```
+
+Firebase adalah witness target final dan hanya dijalankan jika pengguna memberikan single-use approval.
+
+---
+
+## 9. Mode Workflow
 
 ### `connection-only`
 
-Tidak membutuhkan APK dan tidak menjalankan APK test.
+Tidak menjalankan APK test dan tidak membuat final test matrix.
 
-Memverifikasi:
+Mode ini hanya untuk pemeriksaan bridge/configuration, misalnya:
 
-- OIDC -> Google Cloud berhasil;
-- project identity benar;
-- katalog Firebase Test Lab dapat dibaca;
-- terdapat live virtual Arm model dengan Android API 30;
-- model tersebut mengiklankan `arm64-v8a`.
+- OIDC authentication;
+- project identity;
+- Firebase device catalog read;
+- memastikan model API30 ARM64 tersedia.
 
-Jika tidak dapat dibuktikan, workflow fail-closed.
+`connection-only` bukan runtime proof dan bukan Final Gate execution.
 
-`connection-only` adalah pemeriksaan bridge/configuration dan bukan pengganti runtime proof atau final qualification.
+Agen tetap tidak boleh menjalankannya berulang tanpa kebutuhan nyata. Namun mode ini tidak boleh diperlakukan sebagai pengganti final test.
 
 ### `test-existing-artifact`
 
-Membutuhkan:
+Mode ini adalah Firebase Final Gate execution.
+
+Membutuhkan minimal:
 
 ```text
 source_run_id
 artifact_name
+explicit single-use user approval
 ```
 
-Mode ini hanya boleh digunakan ketika `TEST_ROUTING_POLICY.md` telah membuka `FIREBASE_FINAL_ROUTE`, yaitu kandidat telah memenuhi `FINAL_CANDIDATE_READY` dan final Android 11 ARM64 evidence memang diperlukan atau telah terinvalidasi.
+Sebelum mode ini dijalankan:
 
-Workflow hanya mengambil artifact dari GitHub Actions run yang sudah ada. Ia tidak membangun APK sendiri dan tidak membuka build boundary.
+```text
+DEVELOPMENT_PASS = TRUE
+USER_APPROVAL = EXPLICIT
+FIREBASE_AUTHORIZATION = AUTHORIZED_ONCE
+```
+
+Workflow mengambil APK dari prior gated GitHub Actions run. Ia tidak membangun APK sendiri.
 
 Artifact wajib:
 
-- berasal dari controlled/gated GitHub Actions build yang sah;
-- terikat ke source revision final candidate;
-- telah melewati required GitHub development/regression verification;
+- berasal dari build GitHub yang sah;
+- terikat ke kandidat yang disetujui;
 - berisi tepat satu APK;
-- diberi SHA-256 sebelum dikirim ke Firebase Test Lab.
+- diberi SHA-256 sebelum Firebase execution.
 
-Test default:
+---
+
+## 10. Default Test
+
+Default final witness saat ini:
 
 ```text
 Robo smoke test
 Android 11 / API 30
-ARM64 arm64-v8a
+ARM64 / arm64-v8a
 portrait
 en
 5 minutes maximum
 ```
 
-Robo smoke test ini hanya merupakan satu witness. Ia tidak dengan sendirinya menutup seluruh runtime, install/upgrade, native/plugin, UI/device/power, cross-domain, atau R1–R9 proof.
+Robo smoke test hanya membuktikan scope yang benar-benar dijalankan.
 
-## Fail-Closed Rules
+Ia tidak otomatis menutup seluruh R1–R9 atau `APPLICATION_SAFE_100`.
 
-Workflow gagal jika:
+---
 
-- konfigurasi WIF belum lengkap;
+## 11. Preflight vs Execution Attempt
+
+Workflow boleh melakukan preflight yang diperlukan untuk memastikan target valid sebelum final command dikirim, termasuk membaca katalog model.
+
+Execution attempt dimulai ketika workflow mengirim final Firebase test command/matrix request untuk kandidat tersebut.
+
+Begitu attempt dimulai, approval dianggap consumed.
+
+Jika target validation gagal sebelum final execution dikirim, final target tetap `NOT_PROVEN`; workflow tidak boleh fallback ke target lain.
+
+Jika diperlukan percobaan final test baru setelah execution attempt sudah dimulai, agen wajib meminta approval pengguna baru.
+
+---
+
+## 12. Fail-Closed Rules
+
+Workflow/final gate harus fail-closed jika:
+
+- WIF configuration tidak lengkap;
 - authentication Google gagal;
-- project berbeda dari konfigurasi;
+- project identity tidak sesuai;
 - katalog Test Lab tidak dapat dibaca;
-- tidak ada model `.arm` API 30 + `arm64-v8a` yang dapat dibuktikan;
-- source run ID tidak diberikan ketika mode test dipilih;
+- model API30 ARM64 tidak tersedia;
+- source run ID tidak tersedia;
 - artifact tidak ditemukan;
 - artifact berisi nol atau lebih dari satu APK;
-- Firebase Test Lab mengembalikan kegagalan.
+- approval pengguna tidak ada;
+- approval tidak berlaku pada kandidat aktif;
+- Firebase execution mengembalikan failure.
 
-Tidak ada fallback diam-diam ke x86/x86_64, API lain, atau perangkat non-ARM untuk final target qualification.
+Tidak ada fallback diam-diam.
 
-Jika mode test dipakai pada artifact yang belum memenuhi `FINAL_CANDIDATE_READY`, hasil tersebut tidak boleh dipakai sebagai final evidence meskipun workflow secara teknis dapat dieksekusi.
+---
 
-## Hubungan dengan Application Safe Process
+## 13. No Auto-Retry
+
+Dilarang:
+
+```text
+Firebase FAIL -> Firebase retry otomatis
+Firebase timeout -> Firebase retry otomatis
+Firebase execution error -> Firebase retry otomatis
+```
+
+Alur wajib:
+
+```text
+attempt #1
+-> approval consumed
+-> Firebase LOCKED
+-> jika attempt baru diperlukan
+-> agen bertanya lagi
+-> pengguna approve lagi
+-> attempt #2
+```
+
+---
+
+## 14. Hubungan dengan APPLICATION_SAFE_100
 
 Bridge ini bukan pengganti `APPLICATION_SAFE_100_PROCESS.md`.
 
-Build APK tetap hanya boleh dilakukan setelah seluruh prebuild gate yang berlaku PASS. GitHub Actions tetap menjadi route default untuk development/basic/intermediate/regression verification sesuai `TEST_ROUTING_POLICY.md`.
+GitHub tetap route development/default sesuai `TEST_ROUTING_POLICY.md`.
 
-Bridge Firebase hanya dipakai untuk final target qualification setelah final candidate yang sah tersedia dan target-specific evidence diperlukan. Firebase Test Lab virtual Arm evidence tidak menggantikan physical-device witness untuk klaim yang memang membutuhkan hardware/vendor/power behavior nyata.
+Jika suatu final application claim membutuhkan target-specific Android 11 ARM64 runtime evidence, Firebase Final Gate dapat menyediakan evidence tersebut **hanya setelah approval eksplisit pengguna**.
 
-Evidence Firebase harus tetap terikat ke revision/artifact/test configuration yang aktif dan tunduk pada change-impact, freshness, dan evidence-reuse rules repository.
+Firebase virtual ARM64 tidak menggantikan physical-device witness untuk klaim hardware/vendor/power yang memang membutuhkan real-device evidence.
+
+---
+
+## 15. Evidence Minimum
+
+Setiap Firebase execution harus mencatat sejauh tersedia:
+
+```text
+USER_APPROVAL_CONTEXT
+SOURCE_COMMIT_SHA
+SOURCE_RUN_ID
+ARTIFACT_NAME
+APK_SHA256
+FIREBASE_PROJECT
+DEVICE_MODEL
+ANDROID_API = 30
+ABI = arm64-v8a
+TEST_TYPE
+TEST_MATRIX_OR_RUN_ID
+TIMESTAMP
+RESULT
+```
+
+Evidence hanya sah untuk kandidat dan scope tersebut.
+
+---
+
+## 16. Final Rule
+
+```text
+GITHUB = FLEXIBLE DEVELOPMENT TESTING
+
+FIREBASE = FINAL TARGET ONLY
+FIREBASE TARGET = ANDROID 11 / API 30 / ARM64
+
+FIREBASE DEFAULT = LOCKED
+USER MUST APPROVE EXPLICITLY
+1 APPROVAL = 1 EXECUTION ATTEMPT
+AFTER ATTEMPT = LOCKED AGAIN
+EVERY RETRY/SECOND RUN = ASK USER AGAIN
+
+NO AUTO FIREBASE
+NO AUTO RETRY
+NO FALLBACK TARGET
+NO APPROVAL REUSE
+```
