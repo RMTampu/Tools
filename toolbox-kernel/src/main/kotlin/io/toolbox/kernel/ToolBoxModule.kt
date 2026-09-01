@@ -9,6 +9,8 @@ interface ToolBoxModule {
 
     fun onStop() = Unit
 
+    fun onUnload() = Unit
+
     fun healthCheck(): HealthStatus = HealthStatus.ok()
 }
 
