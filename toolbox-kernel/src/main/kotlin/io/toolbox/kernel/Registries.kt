@@ -35,6 +35,12 @@ internal class KernelRegistryMutationJournal {
         }
     }
 
+    fun begin() = synchronized(lock) {
+        check(state == State.COMMITTED) { "Registry mutation journal cannot begin from $state" }
+        undoActions.clear()
+        state = State.OPEN
+    }
+
     fun commit() = synchronized(lock) {
         check(state == State.OPEN) { "Registry mutation journal cannot commit from $state" }
         undoActions.clear()
@@ -42,9 +48,25 @@ internal class KernelRegistryMutationJournal {
     }
 
     fun rollback(): List<Throwable> = synchronized(lock) {
-        if (state == State.ROLLED_BACK) return emptyList()
-        check(state == State.OPEN) { "Registry mutation journal cannot rollback from $state" }
+        when (state) {
+            State.OPEN -> rollbackLocked()
+            State.ROLLED_BACK -> emptyList()
+            State.COMMITTED,
+            State.ROLLING_BACK -> error("Registry mutation journal cannot rollback from $state")
+        }
+    }
 
+    fun rollbackIfOpen(): List<Throwable> = synchronized(lock) {
+        when (state) {
+            State.OPEN -> rollbackLocked()
+            State.COMMITTED,
+            State.ROLLED_BACK -> emptyList()
+            State.ROLLING_BACK -> error("Registry mutation journal is already rolling back")
+        }
+    }
+
+    private fun rollbackLocked(): List<Throwable> {
+        check(state == State.OPEN) { "Registry mutation journal cannot rollback from $state" }
         state = State.ROLLING_BACK
         val failures = mutableListOf<Throwable>()
         while (undoActions.isNotEmpty()) {
@@ -53,7 +75,7 @@ internal class KernelRegistryMutationJournal {
                 ?.let(failures::add)
         }
         state = State.ROLLED_BACK
-        failures
+        return failures
     }
 }
 
