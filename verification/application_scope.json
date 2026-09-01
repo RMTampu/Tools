@@ -18,44 +18,46 @@
     "included": [
       "Android 11 / API 30 compatible implementation",
       "primary ABI arm64-v8a",
-      "AOSP-compatible framework behavior covered by Android compatibility requirements"
+      "AOSP-compatible framework behavior covered by Android compatibility requirements",
+      "trusted compiled Engine Host contract, compatibility negotiation, lifecycle, cleanup and failure isolation"
     ],
     "notClaimedUntilScopeExpands": [
       "OEM-specific private behavior",
       "hardware-feature behavior not used by the bootstrap shell",
       "WebView behavior because WebView is not used",
       "network behavior because INTERNET permission and network code are not used",
-      "native/JNI behavior because no native payload is loaded"
+      "native/JNI behavior because no native payload is loaded",
+      "arbitrary external/dynamic executable plugin loading because downloaded DEX/JAR/native code is forbidden"
     ]
   },
   "domainScope": {
     "R1": {
       "status": "REQUIRED",
-      "reason": "Kernel bootstrap, compatibility decisions, exception and external input semantics are executable."
+      "reason": "Kernel bootstrap, engine compatibility/admission decisions, lifecycle errors, exception and external input semantics are executable."
     },
     "R2": {
       "status": "REQUIRED",
-      "reason": "Main-thread, StrictMode, memory growth, responsiveness and resource budgets apply to every process."
+      "reason": "Main-thread, concurrency, resource ownership/cleanup, memory growth, responsiveness and resource budgets apply to the kernel and Engine Host."
     },
     "R3": {
       "status": "REQUIRED",
-      "reason": "Activity lifecycle, recreation, background/resume and process restart are executable."
+      "reason": "Activity lifecycle, kernel/module lifecycle, Engine Host stop/restart behavior, background/resume and process restart are executable."
     },
     "R4": {
       "status": "CLOSED_EMPTY",
-      "reason": "Bootstrap shell contains no durable database, file, DataStore, preferences, cache source-of-truth, backup or migration path. Introduction of any persistent store invalidates this closure."
+      "reason": "Bootstrap shell and current Engine Host contain no durable database, file, DataStore, preferences, cache source-of-truth, backup or migration path. The current engine state adapter is in-memory only. Introduction of any durable store invalidates this closure."
     },
     "R5": {
       "status": "REQUIRED",
-      "reason": "Launcher Activity is exported and therefore an external boundary; network and dangerous permission universes are closed empty."
+      "reason": "Launcher Activity is exported and Engine Host enforces an executable trust boundary that accepts only compiled trusted runtime providers; network and dangerous permission universes remain closed empty."
     },
     "R6": {
       "status": "REQUIRED",
-      "reason": "All APK build, dependency, manifest, shrink, signing, install and provenance rules apply."
+      "reason": "All APK build, module dependency, manifest, shrink, signing, install and provenance rules apply."
     },
     "R7": {
-      "status": "CLOSED_EMPTY",
-      "reason": "Bootstrap APK loads no native library, external plugin, dynamic code or reflection-generated entry point. Introduction of any such path invalidates this closure."
+      "status": "REQUIRED",
+      "reason": "Compiled Engine Host/provider contracts, compatibility negotiation, capability ownership, load/start/stop/unload semantics and failure isolation are executable. Native payloads, reflection loading and arbitrary external dynamic code remain forbidden."
     },
     "R8": {
       "status": "REQUIRED",
