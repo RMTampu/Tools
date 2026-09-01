@@ -194,6 +194,25 @@ jobs:
           cp "$MANIFEST" verification/evidence/apk-candidate/release-AndroidManifest.xml
           cp toolbox-app/build/reports/verification/release-dependencies.txt verification/evidence/apk-candidate/release-dependencies.txt
 
+      - name: Apply explicit Android 11 v2+v3 signing contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=verification/firebase-candidate/toolbox-app-release.apk
+          test -s "$APK"
+          "$ANDROID_SDK_ROOT/build-tools/34.0.0/zipalign" -c -p -v 4 "$APK"
+          "$ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner" sign \
+            --ks "$TOOLBOX_KEYSTORE_PATH" \
+            --ks-pass env:TOOLBOX_KEYSTORE_PASSWORD \
+            --ks-key-alias "$TOOLBOX_KEY_ALIAS" \
+            --key-pass env:TOOLBOX_KEY_PASSWORD \
+            --v1-signing-enabled false \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
+            --v4-signing-enabled false \
+            "$APK"
+          test -s "$APK"
+
       - name: Final APK structural and semantic verification
         shell: bash
         run: |
