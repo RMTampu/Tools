@@ -53,6 +53,7 @@ jobs:
           sdkmanager 'platforms;android-30' 'platforms;android-35' 'build-tools;34.0.0' 'platform-tools'
           test -s "$ANDROID_SDK_ROOT/platforms/android-30/android.jar"
           test -s "$ANDROID_SDK_ROOT/platforms/android-35/android.jar"
+          test -x "$ANDROID_SDK_ROOT/build-tools/34.0.0/aapt2"
           test -x "$ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner"
           test -x "$ANDROID_SDK_ROOT/build-tools/34.0.0/zipalign"
 
@@ -68,7 +69,18 @@ jobs:
           GRADLE_ZIP="$RUNNER_TEMP/.gradle-actions/gradle-installations/downloads/gradle-8.7-bin.zip"
           test -f "$GRADLE_ZIP"
           echo '544c35d6bd849ae8a5ed0bcea39ba677dc40f49df7d1835561582da2009b961d  '"$GRADLE_ZIP" | sha256sum -c -
-          grep -F 'Pkg.Revision=34.0.0' "$ANDROID_SDK_ROOT/build-tools/34.0.0/source.properties"
+          BUILD_TOOLS_PROPERTIES="$ANDROID_SDK_ROOT/build-tools/34.0.0/source.properties"
+          grep -F 'Pkg.Revision=34.0.0' "$BUILD_TOOLS_PROPERTIES"
+          EXPECTED_BUILD_TOOLS_SHA="$(python3 - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path('verification/dependency_trust_candidate.json').read_text())
+          print(data['observedToolchainSha256']['androidBuildToolsProperties'].lower())
+          PY
+          )"
+          echo "$EXPECTED_BUILD_TOOLS_SHA  $BUILD_TOOLS_PROPERTIES" | sha256sum -c -
+          "$ANDROID_SDK_ROOT/build-tools/34.0.0/aapt2" version | tee "$RUNNER_TEMP/aapt2-version.txt"
+          sha256sum "$ANDROID_SDK_ROOT/build-tools/34.0.0/aapt2" | tee "$RUNNER_TEMP/aapt2-sha256.txt"
 
       - name: Dependency trust gate
         shell: bash
@@ -88,11 +100,19 @@ jobs:
 
       - name: Application unit verification
         shell: bash
-        run: gradle --no-daemon --warning-mode=all --dependency-verification strict :toolbox-app:testDebugUnitTest :toolbox-app:testReleaseUnitTest
+        run: >-
+          gradle --no-daemon --warning-mode=all --dependency-verification strict
+          -Pandroid.aapt2FromMavenOverride="$ANDROID_SDK_ROOT/build-tools/34.0.0/aapt2"
+          :toolbox-app:testDebugUnitTest
+          :toolbox-app:testReleaseUnitTest
 
       - name: Application lint verification
         shell: bash
-        run: gradle --no-daemon --warning-mode=all --dependency-verification strict :toolbox-app:lintDebug :toolbox-app:lintRelease
+        run: >-
+          gradle --no-daemon --warning-mode=all --dependency-verification strict
+          -Pandroid.aapt2FromMavenOverride="$ANDROID_SDK_ROOT/build-tools/34.0.0/aapt2"
+          :toolbox-app:lintDebug
+          :toolbox-app:lintRelease
 
       - name: Materialize and verify pinned release signing identity
         id: signing
@@ -161,6 +181,7 @@ jobs:
           set -euo pipefail
           gradle --no-daemon --warning-mode=all --dependency-verification strict :toolbox-app:clean
           gradle --no-daemon --warning-mode=all --dependency-verification strict \
+            -Pandroid.aapt2FromMavenOverride="$ANDROID_SDK_ROOT/build-tools/34.0.0/aapt2" \
             :toolbox-app:assembleRelease \
             :toolbox-app:writeReleaseDependencyInventory
           APK="toolbox-app/build/outputs/apk/release/toolbox-app-release.apk"
@@ -239,6 +260,7 @@ jobs:
           import os
           from pathlib import Path
           apk = Path('verification/firebase-candidate/toolbox-app-release.apk')
+          aapt2 = Path(os.environ['ANDROID_SDK_ROOT']) / 'build-tools' / '34.0.0' / 'aapt2'
           def digest(path):
               h = hashlib.sha256()
               with Path(path).open('rb') as f:
@@ -257,6 +279,11 @@ jobs:
                   'sha256': digest(apk),
                   'sizeBytes': apk.stat().st_size,
                   'certificateSha256': os.environ['CERTIFICATE_SHA256'].lower(),
+              },
+              'buildTools': {
+                  'revision': '34.0.0',
+                  'aapt2Source': 'android.aapt2FromMavenOverride',
+                  'aapt2Sha256': digest(aapt2),
               },
               'target': {'androidApi': 30, 'abi': 'arm64-v8a'},
               'assetStages': {
