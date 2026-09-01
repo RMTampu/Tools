@@ -12,17 +12,22 @@ permissions:
 
 jobs:
   prove-runtime-host:
-    runs-on: macos-15
-    timeout-minutes: 50
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
 
     steps:
       - name: Qualify exact ARM64 host
         shell: bash
         run: |
           set -euo pipefail
-          test "$(uname -s)" = Darwin
-          test "$(uname -m)" = arm64
-          sw_vers | tee "$RUNNER_TEMP/host-version.txt"
+          test "$(uname -s)" = Linux
+          test "$(uname -m)" = aarch64
+          uname -a | tee "$RUNNER_TEMP/host-version.txt"
+          if [ -e /dev/kvm ]; then
+            ls -l /dev/kvm | tee "$RUNNER_TEMP/kvm-status.txt"
+          else
+            echo 'KVM_NOT_PRESENT' | tee "$RUNNER_TEMP/kvm-status.txt"
+          fi
 
       - name: Setup exact ARM64 Temurin JDK
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
@@ -39,6 +44,15 @@ jobs:
           cmdline-tools-version: '14742923'
           packages: ''
           log-accepted-android-sdk-licenses: 'false'
+
+      - name: Install required Linux host runtime libraries
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libpulse0
+          dpkg-query -W -f='${Package}=${Version}\n' libpulse0 | tee "$RUNNER_TEMP/host-packages.txt"
+          ldconfig -p | grep -F 'libpulse.so.0'
 
       - name: Install exact Android 11 ARM64 runtime package set
         shell: bash
@@ -70,13 +84,19 @@ jobs:
           grep -F 'Android emulator version 37.1.11.0' "$RUNNER_TEMP/emulator-version.txt"
           "$ANDROID_SDK_ROOT/platform-tools/adb" version | tee "$RUNNER_TEMP/adb-version.txt"
 
-      - name: Create and boot exact Android 11 ARM64 AVD without host virtualization
+      - name: Create and boot exact Android 11 ARM64 AVD
         shell: bash
         run: |
           set -euo pipefail
           export ANDROID_AVD_HOME="$RUNNER_TEMP/android-avd"
           mkdir -p "$ANDROID_AVD_HOME"
           echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
+
+          ACCEL_MODE=off
+          if [ -c /dev/kvm ] && [ -r /dev/kvm ] && [ -w /dev/kvm ]; then
+            ACCEL_MODE=on
+          fi
+          printf '%s\n' "$ACCEL_MODE" | tee "$RUNNER_TEMP/accel-mode.txt"
 
           adb kill-server || true
           printf 'no\n' | avdmanager create avd \
@@ -89,7 +109,7 @@ jobs:
 
           nohup "$ANDROID_SDK_ROOT/emulator/emulator" \
             -avd toolbox-api30-arm64-probe \
-            -accel off \
+            -accel "$ACCEL_MODE" \
             -gpu software \
             -no-window \
             -no-audio \
@@ -111,10 +131,10 @@ jobs:
               exit 1
             fi
             if adb get-state >/dev/null 2>&1; then
-              API="$(adb shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r' || true)"
-              ABI="$(adb shell getprop ro.product.cpu.abi 2>/dev/null | tr -d '\r' || true)"
-              RELEASE="$(adb shell getprop ro.build.version.release 2>/dev/null | tr -d '\r' || true)"
-              BOOT="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
+              API="$(timeout 10s adb shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r' || true)"
+              ABI="$(timeout 10s adb shell getprop ro.product.cpu.abi 2>/dev/null | tr -d '\r' || true)"
+              RELEASE="$(timeout 10s adb shell getprop ro.build.version.release 2>/dev/null | tr -d '\r' || true)"
+              BOOT="$(timeout 10s adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
               if [ "$BOOT" = 1 ] && [ "$API" = 30 ] && [ "$ABI" = arm64-v8a ] && [ "$RELEASE" = 11 ]; then
                 BOOTED=1
                 break
@@ -142,9 +162,12 @@ jobs:
           name: android11-arm64-runtime-host-probe
           path: |
             ${{ runner.temp }}/host-version.txt
+            ${{ runner.temp }}/kvm-status.txt
+            ${{ runner.temp }}/host-packages.txt
             ${{ runner.temp }}/java-version.txt
             ${{ runner.temp }}/emulator-version.txt
             ${{ runner.temp }}/adb-version.txt
+            ${{ runner.temp }}/accel-mode.txt
             ${{ runner.temp }}/avd-list.txt
             ${{ runner.temp }}/emulator-boot.log
             ${{ runner.temp }}/device-getprop.txt
