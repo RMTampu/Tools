@@ -62,7 +62,8 @@ class ToolBoxKernel(
     }
 
     private fun preflight(descriptor: ModuleDescriptor, source: ModuleSource?): ModuleFailure? {
-        check(state !in setOf(KernelState.STARTING, KernelState.STOPPING, KernelState.FAILED)) {
+        val recoveryRegistration = state == KernelState.FAILED && recoveryStartAllowed
+        check(state !in setOf(KernelState.STARTING, KernelState.STOPPING) && (state != KernelState.FAILED || recoveryRegistration)) {
             "Cannot install module while kernel state is $state"
         }
 
