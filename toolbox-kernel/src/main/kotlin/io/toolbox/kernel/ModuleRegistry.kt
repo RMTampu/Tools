@@ -8,7 +8,8 @@ class ModuleRegistry {
         var state: ModuleState = ModuleState.REGISTERED,
         var loadAttempted: Boolean = false,
         var loadCompleted: Boolean = false,
-        var startAttempted: Boolean = false
+        var startAttempted: Boolean = false,
+        var registryJournal: KernelRegistryMutationJournal? = null
     )
 
     private data class LifecycleAttempt(
@@ -37,9 +38,14 @@ class ModuleRegistry {
         }
 
         val cleanupFailures = cleanupForRemoval(record)
-        if (cleanupFailures.isNotEmpty()) {
-            val primary = cleanupFailures.first()
-            cleanupFailures.drop(1).forEach(primary::addSuppressed)
+        val registryFailures = if (cleanupFailures.isEmpty()) rollbackRegistryIfOpen(record) else emptyList()
+        val failures = cleanupFailures + registryFailures
+        if (failures.isNotEmpty()) {
+            synchronized(lock) {
+                if (records[moduleId] === record) record.state = ModuleState.FAILED
+            }
+            val primary = failures.first()
+            failures.drop(1).forEach(primary::addSuppressed)
             throw IllegalStateException("Failed to cleanly uninstall module $moduleId", primary)
         }
 
@@ -54,7 +60,12 @@ class ModuleRegistry {
     internal fun rollbackInstall(moduleId: String): List<ModuleFailure> {
         val record = synchronized(lock) { records[moduleId] } ?: return emptyList()
         val cleanupFailures = cleanupForRemoval(record)
-        if (cleanupFailures.isEmpty()) {
+        val registryFailures = if (cleanupFailures.isEmpty()) rollbackRegistryIfOpen(record) else emptyList()
+        val failures = buildList {
+            cleanupFailures.forEach { add(ModuleFailure(moduleId, "rollback", it)) }
+            registryFailures.forEach { add(ModuleFailure(moduleId, "registry-rollback", it)) }
+        }
+        if (failures.isEmpty()) {
             synchronized(lock) {
                 if (records[moduleId] === record) {
                     records.remove(moduleId)
@@ -67,7 +78,7 @@ class ModuleRegistry {
                 record.state = ModuleState.FAILED
             }
         }
-        return cleanupFailures.map { ModuleFailure(moduleId, "rollback", it) }
+        return failures
     }
 
     fun loadAll(context: KernelContext): List<ModuleFailure> {
@@ -192,6 +203,7 @@ class ModuleRegistry {
                     record.state = ModuleState.FAILED
                     false
                 } else {
+                    record.registryJournal = KernelRegistryMutationJournal()
                     record.loadAttempted = true
                     true
                 }
@@ -211,6 +223,14 @@ class ModuleRegistry {
         if (!shouldLoad) return LifecycleAttempt()
 
         return synchronized(record.lifecycleLock) {
+            val journal = synchronized(lock) { record.registryJournal }
+                ?: return@synchronized LifecycleAttempt(
+                    failure = ModuleFailure(
+                        record.descriptor.id,
+                        "load",
+                        IllegalStateException("Missing registry journal for module load")
+                    )
+                )
             val stillClaimed = synchronized(lock) {
                 records[record.descriptor.id] === record &&
                     record.state == ModuleState.REGISTERED &&
@@ -223,27 +243,42 @@ class ModuleRegistry {
                 return@synchronized LifecycleAttempt()
             }
 
-            val loadResult = runCatching { record.module.onLoad(context) }
+            val activationContext = context.withRegistryJournal(journal)
+            val loadResult = runCatching { record.module.onLoad(activationContext) }
             if (loadResult.isSuccess) {
-                synchronized(lock) {
+                val retained = synchronized(lock) {
                     if (records[record.descriptor.id] === record) {
                         record.loadAttempted = false
                         record.loadCompleted = true
                         record.state = ModuleState.LOADED
+                        true
+                    } else {
+                        false
                     }
                 }
-                return@synchronized LifecycleAttempt()
+                if (retained) return@synchronized LifecycleAttempt()
+
+                val error = IllegalStateException("Module removed itself during load: ${record.descriptor.id}")
+                runCatching { record.module.onUnload() }.exceptionOrNull()?.let(error::addSuppressed)
+                journal.rollbackIfOpen().forEach(error::addSuppressed)
+                return@synchronized LifecycleAttempt(ModuleFailure(record.descriptor.id, "load", error))
             }
 
             val error = loadResult.exceptionOrNull()!!
             val cleanup = runCatching { record.module.onUnload() }
             cleanup.exceptionOrNull()?.let(error::addSuppressed)
-            synchronized(lock) {
+            val retained = synchronized(lock) {
                 if (records[record.descriptor.id] === record) {
                     record.loadAttempted = false
                     record.loadCompleted = cleanup.isFailure
                     record.state = ModuleState.FAILED
+                    true
+                } else {
+                    false
                 }
+            }
+            if (cleanup.isSuccess || !retained) {
+                journal.rollbackIfOpen().forEach(error::addSuppressed)
             }
             LifecycleAttempt(ModuleFailure(record.descriptor.id, "load", error))
         }
@@ -252,6 +287,7 @@ class ModuleRegistry {
     private fun startRecord(record: Record): LifecycleAttempt {
         var inactiveDependency: String? = null
         var busy = false
+        var startingFromStopped = false
         val shouldStart = synchronized(lock) {
             if (
                 records[record.descriptor.id] !== record ||
@@ -269,6 +305,7 @@ class ModuleRegistry {
                     record.state = ModuleState.FAILED
                     false
                 } else {
+                    startingFromStopped = record.state == ModuleState.STOPPED
                     record.startAttempted = true
                     true
                 }
@@ -276,18 +313,26 @@ class ModuleRegistry {
         }
 
         if (inactiveDependency != null) {
-            return LifecycleAttempt(
-                failure = ModuleFailure(
-                    record.descriptor.id,
-                    "start",
-                    IllegalStateException("Dependency not started: $inactiveDependency")
-                )
-            )
+            val error = IllegalStateException("Dependency not started: $inactiveDependency")
+            return failLoadedActivation(record, error)
         }
         if (busy) return LifecycleAttempt(busy = true)
         if (!shouldStart) return LifecycleAttempt()
 
         return synchronized(record.lifecycleLock) {
+            val journal = synchronized(lock) { record.registryJournal }
+            if (startingFromStopped && journal != null) {
+                val beginError = runCatching { journal.begin() }.exceptionOrNull()
+                if (beginError != null) {
+                    synchronized(lock) {
+                        if (records[record.descriptor.id] === record) {
+                            record.state = ModuleState.FAILED
+                        }
+                    }
+                    return@synchronized LifecycleAttempt(ModuleFailure(record.descriptor.id, "start", beginError))
+                }
+            }
+
             val stillClaimed = synchronized(lock) {
                 records[record.descriptor.id] === record &&
                     record.state in setOf(ModuleState.LOADED, ModuleState.STOPPED) &&
@@ -297,28 +342,76 @@ class ModuleRegistry {
 
             val startResult = runCatching { record.module.onStart() }
             if (startResult.isSuccess) {
-                synchronized(lock) {
-                    if (records[record.descriptor.id] === record) {
-                        record.state = ModuleState.STARTED
-                    }
+                val retained = synchronized(lock) { records[record.descriptor.id] === record }
+                if (!retained) {
+                    val error = IllegalStateException("Module removed itself during start: ${record.descriptor.id}")
+                    journal?.rollbackIfOpen()?.forEach(error::addSuppressed)
+                    return@synchronized LifecycleAttempt(ModuleFailure(record.descriptor.id, "start", error))
                 }
-                return@synchronized LifecycleAttempt()
+
+                val commitError = journal?.let { runCatching { it.commit() }.exceptionOrNull() }
+                if (commitError == null) {
+                    synchronized(lock) {
+                        if (records[record.descriptor.id] === record) {
+                            record.state = ModuleState.STARTED
+                        }
+                    }
+                    return@synchronized LifecycleAttempt()
+                }
+                return@synchronized failStartedActivation(record, commitError, startingFromStopped)
             }
 
-            val error = startResult.exceptionOrNull()!!
-            val cleanup = runCatching { record.module.onStop() }
+            failStartedActivation(record, startResult.exceptionOrNull()!!, startingFromStopped)
+        }
+    }
+
+    private fun failLoadedActivation(record: Record, error: Throwable): LifecycleAttempt =
+        synchronized(record.lifecycleLock) {
+            val journal = synchronized(lock) { record.registryJournal }
+            val shouldUnload = synchronized(lock) {
+                records[record.descriptor.id] === record && record.loadCompleted
+            }
+            val cleanup = if (shouldUnload) runCatching { record.module.onUnload() } else Result.success(Unit)
+            cleanup.exceptionOrNull()?.let(error::addSuppressed)
             synchronized(lock) {
                 if (records[record.descriptor.id] === record) {
-                    if (cleanup.isSuccess) {
-                        record.startAttempted = false
-                    } else {
-                        cleanup.exceptionOrNull()?.let(error::addSuppressed)
-                    }
+                    if (cleanup.isSuccess) record.loadCompleted = false
                     record.state = ModuleState.FAILED
                 }
             }
+            if (cleanup.isSuccess) {
+                journal?.rollbackIfOpen()?.forEach(error::addSuppressed)
+            }
             LifecycleAttempt(ModuleFailure(record.descriptor.id, "start", error))
         }
+
+    private fun failStartedActivation(
+        record: Record,
+        error: Throwable,
+        startingFromStopped: Boolean
+    ): LifecycleAttempt {
+        val journal = synchronized(lock) { record.registryJournal }
+        val stopCleanup = runCatching { record.module.onStop() }
+        stopCleanup.exceptionOrNull()?.let(error::addSuppressed)
+
+        val shouldUnload = !startingFromStopped && stopCleanup.isSuccess && synchronized(lock) {
+            records[record.descriptor.id] === record && record.loadCompleted
+        }
+        val unloadCleanup = if (shouldUnload) runCatching { record.module.onUnload() } else Result.success(Unit)
+        unloadCleanup.exceptionOrNull()?.let(error::addSuppressed)
+
+        synchronized(lock) {
+            if (records[record.descriptor.id] === record) {
+                if (stopCleanup.isSuccess) record.startAttempted = false
+                if (shouldUnload && unloadCleanup.isSuccess) record.loadCompleted = false
+                record.state = ModuleState.FAILED
+            }
+        }
+
+        if (stopCleanup.isSuccess && unloadCleanup.isSuccess) {
+            journal?.rollbackIfOpen()?.forEach(error::addSuppressed)
+        }
+        return LifecycleAttempt(ModuleFailure(record.descriptor.id, "start", error))
     }
 
     private fun stopRecord(record: Record): ModuleFailure? =
@@ -412,6 +505,9 @@ class ModuleRegistry {
 
             failures
         }
+
+    private fun rollbackRegistryIfOpen(record: Record): List<Throwable> =
+        synchronized(lock) { record.registryJournal }?.rollbackIfOpen() ?: emptyList()
 
     private fun resolveOrder(): List<Record> = synchronized(lock) {
         val visiting = mutableSetOf<String>()
