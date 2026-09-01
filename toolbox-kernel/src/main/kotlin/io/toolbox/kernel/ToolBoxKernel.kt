@@ -12,6 +12,14 @@ class ToolBoxKernel(
     val commands = CommandBus()
     val modules = ModuleRegistry()
 
+    private enum class KernelOperation {
+        INSTALL,
+        UNINSTALL,
+        START,
+        STOP
+    }
+
+    private val operationRef = AtomicReference<KernelOperation?>(null)
     private val recoveredInitialState = recoverPersistedState()
     private val stateRef = AtomicReference(recoveredInitialState.first)
     private var recoveryStartAllowed = recoveredInitialState.second
@@ -23,8 +31,7 @@ class ToolBoxKernel(
         services = services,
         capabilities = capabilities,
         events = events,
-        commands = commands,
-        ports = ports
+        commands = commands
     )
 
     init {
@@ -34,20 +41,19 @@ class ToolBoxKernel(
         }
     }
 
-    @Synchronized
-    fun install(module: ToolBoxModule): List<ModuleFailure> {
+    fun install(module: ToolBoxModule): List<ModuleFailure> = withOperation(KernelOperation.INSTALL) {
         val admittedDescriptor = runCatching { module.descriptor }
             .getOrElse {
                 safeError("Failed to read module descriptor", it)
-                return listOf(ModuleFailure("unknown", "descriptor", it))
+                return@withOperation listOf(ModuleFailure("unknown", "descriptor", it))
             }
         val preflightFailure = preflight(admittedDescriptor, null)
-        if (preflightFailure != null) return listOf(preflightFailure)
+        if (preflightFailure != null) return@withOperation listOf(preflightFailure)
 
         val confirmedDescriptor = runCatching { module.descriptor }
             .getOrElse {
                 safeError("Failed to re-read module descriptor ${admittedDescriptor.id}", it)
-                return listOf(ModuleFailure(admittedDescriptor.id, "compatibility", it))
+                return@withOperation listOf(ModuleFailure(admittedDescriptor.id, "compatibility", it))
             }
         if (confirmedDescriptor != admittedDescriptor) {
             val error = IllegalStateException(
@@ -55,39 +61,39 @@ class ToolBoxKernel(
             )
             safeWarn("Rejected unstable module descriptor ${admittedDescriptor.id}", error)
             events.publish(KernelEvent("kernel.module.rejected", config.name, admittedDescriptor))
-            return listOf(ModuleFailure(admittedDescriptor.id, "compatibility", error))
+            return@withOperation listOf(ModuleFailure(admittedDescriptor.id, "compatibility", error))
         }
 
-        return installAdmitted(module, admittedDescriptor)
+        installAdmitted(module, admittedDescriptor)
     }
 
-    @Synchronized
-    fun install(source: ModuleSource, loader: ModuleLoader): List<ModuleFailure> {
-        val expectedDescriptor = source.descriptor
-        val preflightFailure = preflight(expectedDescriptor, source)
-        if (preflightFailure != null) return listOf(preflightFailure)
+    fun install(source: ModuleSource, loader: ModuleLoader): List<ModuleFailure> =
+        withOperation(KernelOperation.INSTALL) {
+            val expectedDescriptor = source.descriptor
+            val preflightFailure = preflight(expectedDescriptor, source)
+            if (preflightFailure != null) return@withOperation listOf(preflightFailure)
 
-        val module = runCatching { loader.load(source) }
-            .getOrElse {
-                safeError("Failed to load module source ${source.id}", it)
-                return listOf(ModuleFailure(source.id, "source-load", it))
+            val module = runCatching { loader.load(source) }
+                .getOrElse {
+                    safeError("Failed to load module source ${source.id}", it)
+                    return@withOperation listOf(ModuleFailure(source.id, "source-load", it))
+                }
+
+            val loadedDescriptor = runCatching { module.descriptor }
+                .getOrElse {
+                    safeError("Failed to read loaded module descriptor ${source.id}", it)
+                    return@withOperation listOf(ModuleFailure(source.id, "source-descriptor", it))
+                }
+            if (loadedDescriptor != expectedDescriptor) {
+                val error = IllegalStateException(
+                    "Loaded module descriptor does not match admitted source descriptor: ${source.id}"
+                )
+                safeError("Rejected descriptor mismatch for source ${source.id}", error)
+                return@withOperation listOf(ModuleFailure(source.id, "source-descriptor-mismatch", error))
             }
 
-        val loadedDescriptor = runCatching { module.descriptor }
-            .getOrElse {
-                safeError("Failed to read loaded module descriptor ${source.id}", it)
-                return listOf(ModuleFailure(source.id, "source-descriptor", it))
-            }
-        if (loadedDescriptor != expectedDescriptor) {
-            val error = IllegalStateException(
-                "Loaded module descriptor does not match admitted source descriptor: ${source.id}"
-            )
-            safeError("Rejected descriptor mismatch for source ${source.id}", error)
-            return listOf(ModuleFailure(source.id, "source-descriptor-mismatch", error))
+            installAdmitted(module, expectedDescriptor)
         }
-
-        return installAdmitted(module, expectedDescriptor)
-    }
 
     private fun preflight(descriptor: ModuleDescriptor, source: ModuleSource?): ModuleFailure? {
         val recoveryRegistration = state == KernelState.FAILED && recoveryStartAllowed
@@ -160,8 +166,7 @@ class ToolBoxKernel(
         return emptyList()
     }
 
-    @Synchronized
-    fun uninstall(moduleId: String): Boolean {
+    fun uninstall(moduleId: String): Boolean = withOperation(KernelOperation.UNINSTALL) {
         check(state !in setOf(KernelState.STARTING, KernelState.STOPPING)) {
             "Cannot uninstall module while kernel state is $state"
         }
@@ -170,7 +175,7 @@ class ToolBoxKernel(
             .getOrElse {
                 safeError("Failed to uninstall module $moduleId", it)
                 refreshOperationalState()
-                return false
+                return@withOperation false
             }
 
         if (removed) {
@@ -178,11 +183,10 @@ class ToolBoxKernel(
             safeInfo("Uninstalled module $moduleId")
             refreshOperationalState()
         }
-        return removed
+        removed
     }
 
-    @Synchronized
-    fun start(): List<ModuleFailure> {
+    fun start(): List<ModuleFailure> = withOperation(KernelOperation.START) {
         val canRecover = state == KernelState.FAILED && recoveryStartAllowed
         check(state in setOf(KernelState.NEW, KernelState.STOPPED) || canRecover) {
             "Kernel cannot start from state $state"
@@ -192,7 +196,7 @@ class ToolBoxKernel(
         if (!setState(KernelState.STARTING)) {
             val failure = statePersistenceFailure(KernelState.STARTING)
             safeError("Kernel start blocked because STARTING state could not be persisted", failure.cause)
-            return listOf(failure)
+            return@withOperation listOf(failure)
         }
         events.publish(KernelEvent("kernel.starting", config.name))
         safeInfo("Starting ${config.name} kernel ${config.version}")
@@ -210,17 +214,16 @@ class ToolBoxKernel(
         }
         failures.forEach { safeError("Module ${it.moduleId} failed during ${it.phase}", it.cause) }
         events.publish(KernelEvent("kernel.started", config.name, failures.toList()))
-        return failures
+        failures
     }
 
-    @Synchronized
-    fun stop(): List<ModuleFailure> {
+    fun stop(): List<ModuleFailure> = withOperation(KernelOperation.STOP) {
         if (state in setOf(KernelState.NEW, KernelState.STOPPED)) {
             if (setState(KernelState.STOPPED)) {
                 recoveryStartAllowed = false
-                return emptyList()
+                return@withOperation emptyList()
             }
-            return listOf(statePersistenceFailure(KernelState.STOPPED))
+            return@withOperation listOf(statePersistenceFailure(KernelState.STOPPED))
         }
         check(state in setOf(KernelState.RUNNING, KernelState.DEGRADED, KernelState.FAILED)) {
             "Kernel cannot stop from state $state"
@@ -241,7 +244,7 @@ class ToolBoxKernel(
         }
         failures.forEach { safeError("Module ${it.moduleId} failed during ${it.phase}", it.cause) }
         events.publish(KernelEvent("kernel.stopped", config.name, failures.toList()))
-        return failures
+        failures
     }
 
     fun snapshot(): KernelSnapshot = KernelSnapshot(
@@ -255,7 +258,6 @@ class ToolBoxKernel(
 
     fun isOperational(): Boolean = state in setOf(KernelState.RUNNING, KernelState.DEGRADED)
 
-    @Synchronized
     private fun refreshOperationalState() {
         if (state !in setOf(KernelState.RUNNING, KernelState.DEGRADED)) return
         val unhealthy = modules.health().any {
@@ -310,6 +312,19 @@ class ToolBoxKernel(
         phase = "state-persist",
         cause = IllegalStateException("Unable to persist kernel state $target")
     )
+
+    private fun <T> withOperation(operation: KernelOperation, block: () -> T): T {
+        check(operationRef.compareAndSet(null, operation)) {
+            "Kernel operation is already in progress: ${operationRef.get()}"
+        }
+        return try {
+            block()
+        } finally {
+            check(operationRef.compareAndSet(operation, null)) {
+                "Kernel operation ownership lost: $operation"
+            }
+        }
+    }
 
     private fun safeInfo(message: String) {
         runCatching { ports.logger.info(message) }
