@@ -233,7 +233,7 @@ class ToolBoxKernel(
         events.publish(KernelEvent("kernel.stopping", config.name))
 
         failures += modules.stopAll()
-        val targetState = if (failures.none { it.phase == "stop" }) KernelState.STOPPED else KernelState.FAILED
+        val targetState = if (failures.isEmpty()) KernelState.STOPPED else KernelState.FAILED
         if (!setState(targetState)) {
             failures += statePersistenceFailure(targetState)
         } else if (targetState == KernelState.STOPPED) {
