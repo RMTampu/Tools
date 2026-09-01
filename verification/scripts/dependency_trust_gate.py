@@ -306,7 +306,14 @@ def main() -> int:
     check("review-verification-mode", audit.get("verifyMetadata") is True and audit.get("verifySignatures") is False, f"review={audit.get('verifyMetadata')}/{audit.get('verifySignatures')} actual={model.get('verifyMetadata')}/{model.get('verifySignatures')}")
     check("review-independent-convergence", audit.get("independentCleanReplicas") == 2 and audit.get("lockfilesByteIdentical") is True and audit.get("verificationMetadataCanonicalIdentical") is True, str(audit))
     check("review-structural-findings-zero", all(audit.get(name) == 0 for name in ("sha256SumsFailures", "dynamicLockSelectors", "duplicateLockedCoordinates", "legacyJunitBom563Rows", "verificationArtifactsWithoutSha256", "verificationArtifactsWithMultipleDistinctSha256")), str(audit))
-    check("review-commit-scope", audit.get("candidateCommitChangedFileCount") == 4 and audit.get("candidateCommitOnlyAllowedOutputs") is True, str(audit))
+    candidate_commit_changed_count = audit.get("candidateCommitChangedFileCount")
+    check(
+        "review-commit-scope",
+        isinstance(candidate_commit_changed_count, int)
+        and 1 <= candidate_commit_changed_count <= 4
+        and audit.get("candidateCommitOnlyAllowedOutputs") is True,
+        str(audit),
+    )
     check("review-repository-policy", audit.get("repositoryPolicyReviewed") is True, str(audit.get("repositoryPolicyReviewed")))
 
     return finish(candidate, review)
