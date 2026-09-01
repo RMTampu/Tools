@@ -128,17 +128,49 @@ data class AdmissionDecision(
     val reason: String = if (allowed) "Allowed" else "Rejected"
 )
 
-data class ModuleSource(
+class ModuleSource(
     val descriptor: ModuleDescriptor,
     val location: String,
-    val metadata: Map<String, String> = emptyMap()
+    metadata: Map<String, String> = emptyMap()
 ) {
+    val metadata: Map<String, String> = metadata.toMap()
     val id: String get() = descriptor.id
 
     init {
         require(location.isNotBlank()) { "Module source location cannot be blank" }
-        require(metadata.keys.none(String::isBlank)) { "Module source metadata key cannot be blank" }
+        require(this.metadata.keys.none(String::isBlank)) { "Module source metadata key cannot be blank" }
     }
+
+    fun copy(
+        descriptor: ModuleDescriptor = this.descriptor,
+        location: String = this.location,
+        metadata: Map<String, String> = this.metadata
+    ): ModuleSource = ModuleSource(
+        descriptor = descriptor,
+        location = location,
+        metadata = metadata
+    )
+
+    operator fun component1(): ModuleDescriptor = descriptor
+    operator fun component2(): String = location
+    operator fun component3(): Map<String, String> = metadata
+
+    override fun equals(other: Any?): Boolean =
+        this === other ||
+            (other is ModuleSource &&
+                descriptor == other.descriptor &&
+                location == other.location &&
+                metadata == other.metadata)
+
+    override fun hashCode(): Int {
+        var result = descriptor.hashCode()
+        result = 31 * result + location.hashCode()
+        result = 31 * result + metadata.hashCode()
+        return result
+    }
+
+    override fun toString(): String =
+        "ModuleSource(descriptor=$descriptor, location=$location, metadata=$metadata)"
 }
 
 data class HealthStatus(
@@ -179,8 +211,8 @@ data class KernelEvent(
     val timestampMillis: Long = System.currentTimeMillis()
 ) {
     init {
-        require(topic.isNotBlank()) { "Event topic cannot be blank" }
-        require(source.isNotBlank()) { "Event source cannot be blank" }
+        require(topic.isNotBlank()) { "Kernel event topic cannot be blank" }
+        require(source.isNotBlank()) { "Kernel event source cannot be blank" }
     }
 }
 
