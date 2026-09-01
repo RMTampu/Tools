@@ -138,6 +138,21 @@ class ModuleRegistry {
                 )
             )
         }
+
+        val finalState = synchronized(lock) {
+            if (records[moduleId] === record) record.state else null
+        }
+        if (finalState != ModuleState.STARTED) {
+            return listOf(
+                ModuleFailure(
+                    moduleId,
+                    "install",
+                    IllegalStateException(
+                        "Module did not reach STARTED state: ${finalState?.name ?: "REMOVED"}"
+                    )
+                )
+            )
+        }
         return emptyList()
     }
 
