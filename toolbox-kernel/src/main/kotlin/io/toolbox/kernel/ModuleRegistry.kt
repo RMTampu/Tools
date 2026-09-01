@@ -128,7 +128,11 @@ class ModuleRegistry {
         for (record in order) {
             var inactiveDependency: String? = null
             val shouldStart = synchronized(lock) {
-                if (records[record.descriptor.id] !== record || record.state !in setOf(ModuleState.LOADED, ModuleState.STOPPED)) {
+                if (
+                    records[record.descriptor.id] !== record ||
+                    record.state !in setOf(ModuleState.LOADED, ModuleState.STOPPED) ||
+                    record.startAttempted
+                ) {
                     false
                 } else {
                     inactiveDependency = record.descriptor.dependencies.firstOrNull { dependencyId ->
@@ -158,6 +162,7 @@ class ModuleRegistry {
                 .onSuccess {
                     synchronized(lock) {
                         if (records[record.descriptor.id] === record) {
+                            record.startAttempted = false
                             record.state = ModuleState.STARTED
                         }
                     }
@@ -230,16 +235,26 @@ class ModuleRegistry {
         }
 
         val shouldStart = synchronized(lock) {
-            failures.isEmpty() && records[moduleId] === record && record.state in setOf(ModuleState.LOADED, ModuleState.STOPPED)
+            if (
+                failures.isEmpty() &&
+                records[moduleId] === record &&
+                record.state in setOf(ModuleState.LOADED, ModuleState.STOPPED) &&
+                !record.startAttempted
+            ) {
+                record.startAttempted = true
+                true
+            } else {
+                false
+            }
         }
         if (shouldStart) {
-            synchronized(lock) {
-                if (records[moduleId] === record) record.startAttempted = true
-            }
             runCatching { record.module.onStart() }
                 .onSuccess {
                     synchronized(lock) {
-                        if (records[moduleId] === record) record.state = ModuleState.STARTED
+                        if (records[moduleId] === record) {
+                            record.startAttempted = false
+                            record.state = ModuleState.STARTED
+                        }
                     }
                 }
                 .onFailure { error ->
