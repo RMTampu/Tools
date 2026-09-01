@@ -181,7 +181,7 @@ class ModuleRegistry {
         val failures = mutableListOf<ModuleFailure>()
 
         order.forEach { record ->
-            if (record.state != ModuleState.STARTED) return@forEach
+            if (record.state != ModuleState.STARTED && !record.startAttempted) return@forEach
             runCatching { record.module.onStop() }
                 .onSuccess {
                     record.startAttempted = false
