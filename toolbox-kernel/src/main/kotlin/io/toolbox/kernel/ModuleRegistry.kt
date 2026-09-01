@@ -6,8 +6,14 @@ class ModuleRegistry {
         val descriptor: ModuleDescriptor,
         val lifecycleLock: Any = Any(),
         var state: ModuleState = ModuleState.REGISTERED,
+        var loadAttempted: Boolean = false,
         var loadCompleted: Boolean = false,
         var startAttempted: Boolean = false
+    )
+
+    private data class LifecycleAttempt(
+        val failure: ModuleFailure? = null,
+        val busy: Boolean = false
     )
 
     private val lock = Any()
@@ -69,7 +75,7 @@ class ModuleRegistry {
             .getOrElse { return listOf(ModuleFailure("kernel", "dependency-resolution", it)) }
         val failures = mutableListOf<ModuleFailure>()
         order.forEach { record ->
-            loadRecord(record, context)?.let(failures::add)
+            loadRecord(record, context).failure?.let(failures::add)
         }
         return failures
     }
@@ -79,7 +85,7 @@ class ModuleRegistry {
             .getOrElse { return listOf(ModuleFailure("kernel", "dependency-resolution", it)) }
         val failures = mutableListOf<ModuleFailure>()
         order.forEach { record ->
-            startRecord(record)?.let(failures::add)
+            startRecord(record).failure?.let(failures::add)
         }
         return failures
     }
@@ -88,35 +94,51 @@ class ModuleRegistry {
         val record = synchronized(lock) { records[moduleId] }
             ?: return listOf(ModuleFailure(moduleId, "install", IllegalArgumentException("Unknown module")))
 
-        return synchronized(record.lifecycleLock) {
-            val missingDependency = synchronized(lock) {
-                if (records[moduleId] !== record) {
-                    return@synchronized null
-                }
-                record.descriptor.dependencies.firstOrNull { dependencyId ->
-                    records[dependencyId]?.state != ModuleState.STARTED
-                }
+        val missingDependency = synchronized(lock) {
+            if (records[moduleId] !== record) {
+                return@synchronized null
             }
-            if (missingDependency != null) {
-                synchronized(lock) {
-                    if (records[moduleId] === record) record.state = ModuleState.FAILED
-                }
-                return@synchronized listOf(
-                    ModuleFailure(
-                        moduleId,
-                        "install",
-                        IllegalStateException("Dependency not started: $missingDependency")
-                    )
-                )
+            record.descriptor.dependencies.firstOrNull { dependencyId ->
+                records[dependencyId]?.state != ModuleState.STARTED
             }
-
-            val failures = mutableListOf<ModuleFailure>()
-            loadRecord(record, context)?.let(failures::add)
-            if (failures.isEmpty()) {
-                startRecord(record)?.let(failures::add)
-            }
-            failures
         }
+        if (missingDependency != null) {
+            synchronized(lock) {
+                if (records[moduleId] === record) record.state = ModuleState.FAILED
+            }
+            return listOf(
+                ModuleFailure(
+                    moduleId,
+                    "install",
+                    IllegalStateException("Dependency not started: $missingDependency")
+                )
+            )
+        }
+
+        val loadAttempt = loadRecord(record, context)
+        loadAttempt.failure?.let { return listOf(it) }
+        if (loadAttempt.busy) {
+            return listOf(
+                ModuleFailure(
+                    moduleId,
+                    "install",
+                    IllegalStateException("Module load is already in progress: $moduleId")
+                )
+            )
+        }
+
+        val startAttempt = startRecord(record)
+        startAttempt.failure?.let { return listOf(it) }
+        if (startAttempt.busy) {
+            return listOf(
+                ModuleFailure(
+                    moduleId,
+                    "install",
+                    IllegalStateException("Module start is already in progress: $moduleId")
+                )
+            )
+        }
+        return emptyList()
     }
 
     fun stopAll(): List<ModuleFailure> {
@@ -138,43 +160,64 @@ class ModuleRegistry {
 
     fun descriptors(): List<ModuleDescriptor> = synchronized(lock) { records.values.map { it.descriptor } }
 
-    private fun loadRecord(record: Record, context: KernelContext): ModuleFailure? =
-        synchronized(record.lifecycleLock) {
-            var missingReadyDependency: String? = null
-            val shouldLoad = synchronized(lock) {
-                if (records[record.descriptor.id] !== record || record.state != ModuleState.REGISTERED) {
+    private fun loadRecord(record: Record, context: KernelContext): LifecycleAttempt {
+        var missingReadyDependency: String? = null
+        var busy = false
+        val shouldLoad = synchronized(lock) {
+            if (records[record.descriptor.id] !== record || record.state != ModuleState.REGISTERED) {
+                false
+            } else if (record.loadAttempted) {
+                busy = true
+                false
+            } else {
+                missingReadyDependency = record.descriptor.dependencies.firstOrNull { dependencyId ->
+                    records[dependencyId]?.state !in setOf(ModuleState.LOADED, ModuleState.STARTED, ModuleState.STOPPED)
+                }
+                if (missingReadyDependency != null) {
+                    record.state = ModuleState.FAILED
                     false
                 } else {
-                    missingReadyDependency = record.descriptor.dependencies.firstOrNull { dependencyId ->
-                        records[dependencyId]?.state !in setOf(ModuleState.LOADED, ModuleState.STARTED, ModuleState.STOPPED)
-                    }
-                    if (missingReadyDependency != null) {
-                        record.state = ModuleState.FAILED
-                        false
-                    } else {
-                        true
-                    }
+                    record.loadAttempted = true
+                    true
                 }
             }
+        }
 
-            if (missingReadyDependency != null) {
-                return@synchronized ModuleFailure(
+        if (missingReadyDependency != null) {
+            return LifecycleAttempt(
+                failure = ModuleFailure(
                     record.descriptor.id,
                     "load",
                     IllegalStateException("Dependency not ready: $missingReadyDependency")
                 )
+            )
+        }
+        if (busy) return LifecycleAttempt(busy = true)
+        if (!shouldLoad) return LifecycleAttempt()
+
+        return synchronized(record.lifecycleLock) {
+            val stillClaimed = synchronized(lock) {
+                records[record.descriptor.id] === record &&
+                    record.state == ModuleState.REGISTERED &&
+                    record.loadAttempted
             }
-            if (!shouldLoad) return@synchronized null
+            if (!stillClaimed) {
+                synchronized(lock) {
+                    if (records[record.descriptor.id] === record) record.loadAttempted = false
+                }
+                return@synchronized LifecycleAttempt()
+            }
 
             val loadResult = runCatching { record.module.onLoad(context) }
             if (loadResult.isSuccess) {
                 synchronized(lock) {
                     if (records[record.descriptor.id] === record) {
+                        record.loadAttempted = false
                         record.loadCompleted = true
                         record.state = ModuleState.LOADED
                     }
                 }
-                return@synchronized null
+                return@synchronized LifecycleAttempt()
             }
 
             val error = loadResult.exceptionOrNull()!!
@@ -182,45 +225,60 @@ class ModuleRegistry {
             cleanup.exceptionOrNull()?.let(error::addSuppressed)
             synchronized(lock) {
                 if (records[record.descriptor.id] === record) {
+                    record.loadAttempted = false
                     record.loadCompleted = cleanup.isFailure
                     record.state = ModuleState.FAILED
                 }
             }
-            ModuleFailure(record.descriptor.id, "load", error)
+            LifecycleAttempt(ModuleFailure(record.descriptor.id, "load", error))
         }
+    }
 
-    private fun startRecord(record: Record): ModuleFailure? =
-        synchronized(record.lifecycleLock) {
-            var inactiveDependency: String? = null
-            val shouldStart = synchronized(lock) {
-                if (
-                    records[record.descriptor.id] !== record ||
-                    record.state !in setOf(ModuleState.LOADED, ModuleState.STOPPED) ||
-                    record.startAttempted
-                ) {
+    private fun startRecord(record: Record): LifecycleAttempt {
+        var inactiveDependency: String? = null
+        var busy = false
+        val shouldStart = synchronized(lock) {
+            if (
+                records[record.descriptor.id] !== record ||
+                record.state !in setOf(ModuleState.LOADED, ModuleState.STOPPED)
+            ) {
+                false
+            } else if (record.startAttempted) {
+                busy = true
+                false
+            } else {
+                inactiveDependency = record.descriptor.dependencies.firstOrNull { dependencyId ->
+                    records[dependencyId]?.state != ModuleState.STARTED
+                }
+                if (inactiveDependency != null) {
+                    record.state = ModuleState.FAILED
                     false
                 } else {
-                    inactiveDependency = record.descriptor.dependencies.firstOrNull { dependencyId ->
-                        records[dependencyId]?.state != ModuleState.STARTED
-                    }
-                    if (inactiveDependency != null) {
-                        record.state = ModuleState.FAILED
-                        false
-                    } else {
-                        record.startAttempted = true
-                        true
-                    }
+                    record.startAttempted = true
+                    true
                 }
             }
+        }
 
-            if (inactiveDependency != null) {
-                return@synchronized ModuleFailure(
+        if (inactiveDependency != null) {
+            return LifecycleAttempt(
+                failure = ModuleFailure(
                     record.descriptor.id,
                     "start",
                     IllegalStateException("Dependency not started: $inactiveDependency")
                 )
+            )
+        }
+        if (busy) return LifecycleAttempt(busy = true)
+        if (!shouldStart) return LifecycleAttempt()
+
+        return synchronized(record.lifecycleLock) {
+            val stillClaimed = synchronized(lock) {
+                records[record.descriptor.id] === record &&
+                    record.state in setOf(ModuleState.LOADED, ModuleState.STOPPED) &&
+                    record.startAttempted
             }
-            if (!shouldStart) return@synchronized null
+            if (!stillClaimed) return@synchronized LifecycleAttempt()
 
             val startResult = runCatching { record.module.onStart() }
             if (startResult.isSuccess) {
@@ -229,7 +287,7 @@ class ModuleRegistry {
                         record.state = ModuleState.STARTED
                     }
                 }
-                return@synchronized null
+                return@synchronized LifecycleAttempt()
             }
 
             val error = startResult.exceptionOrNull()!!
@@ -244,8 +302,9 @@ class ModuleRegistry {
                     record.state = ModuleState.FAILED
                 }
             }
-            ModuleFailure(record.descriptor.id, "start", error)
+            LifecycleAttempt(ModuleFailure(record.descriptor.id, "start", error))
         }
+    }
 
     private fun stopRecord(record: Record): ModuleFailure? =
         synchronized(record.lifecycleLock) {
