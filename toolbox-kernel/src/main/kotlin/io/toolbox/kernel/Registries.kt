@@ -4,6 +4,15 @@ import java.util.ArrayDeque
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
+/**
+ * Tracks registry mutations owned by one module for its full loaded lifetime.
+ *
+ * Initial load/start runs as a transaction from baseline 0. After commit, ownership
+ * actions are retained so uninstall/unload can deterministically restore the pre-module
+ * registry state. A restart transaction uses a checkpoint so a failed restart rolls back
+ * only mutations made since that restart began while preserving the previously committed
+ * module ownership baseline.
+ */
 internal class KernelRegistryMutationJournal {
     internal data class Mutation<T>(
         val result: T,
@@ -14,67 +23,84 @@ internal class KernelRegistryMutationJournal {
         OPEN,
         COMMITTED,
         ROLLING_BACK,
-        ROLLED_BACK
+        RELEASED
     }
 
     private val lock = Any()
     private val undoActions = ArrayDeque<() -> Unit>()
     private var state = State.OPEN
+    private var rollbackTargetSize = 0
 
     fun <T> mutate(block: () -> Mutation<T>): T = synchronized(lock) {
         when (state) {
-            State.OPEN -> {
+            State.OPEN,
+            State.COMMITTED -> {
                 val mutation = block()
                 mutation.undo?.let(undoActions::addFirst)
                 mutation.result
             }
 
-            State.COMMITTED -> block().result
             State.ROLLING_BACK,
-            State.ROLLED_BACK -> error("Registry mutation attempted through a rolled-back activation context")
+            State.RELEASED -> error("Registry mutation attempted through an inactive module context")
         }
     }
 
     fun begin() = synchronized(lock) {
         check(state == State.COMMITTED) { "Registry mutation journal cannot begin from $state" }
-        undoActions.clear()
+        rollbackTargetSize = undoActions.size
         state = State.OPEN
     }
 
     fun commit() = synchronized(lock) {
         check(state == State.OPEN) { "Registry mutation journal cannot commit from $state" }
-        undoActions.clear()
         state = State.COMMITTED
-    }
-
-    fun rollback(): List<Throwable> = synchronized(lock) {
-        when (state) {
-            State.OPEN -> rollbackLocked()
-            State.ROLLED_BACK -> emptyList()
-            State.COMMITTED,
-            State.ROLLING_BACK -> error("Registry mutation journal cannot rollback from $state")
-        }
     }
 
     fun rollbackIfOpen(): List<Throwable> = synchronized(lock) {
         when (state) {
-            State.OPEN -> rollbackLocked()
+            State.OPEN -> {
+                val target = rollbackTargetSize
+                val terminal = if (target == 0) State.RELEASED else State.COMMITTED
+                rollbackToLocked(target, terminal, State.OPEN)
+            }
+
             State.COMMITTED,
-            State.ROLLED_BACK -> emptyList()
+            State.RELEASED -> emptyList()
             State.ROLLING_BACK -> error("Registry mutation journal is already rolling back")
         }
     }
 
-    private fun rollbackLocked(): List<Throwable> {
-        check(state == State.OPEN) { "Registry mutation journal cannot rollback from $state" }
+    fun releaseAll(): List<Throwable> = synchronized(lock) {
+        when (state) {
+            State.RELEASED -> emptyList()
+            State.ROLLING_BACK -> error("Registry mutation journal is already rolling back")
+            State.OPEN,
+            State.COMMITTED -> {
+                val failureState = state
+                rollbackToLocked(0, State.RELEASED, failureState)
+            }
+        }
+    }
+
+    private fun rollbackToLocked(
+        targetSize: Int,
+        terminalState: State,
+        failureState: State
+    ): List<Throwable> {
+        check(targetSize in 0..undoActions.size) { "Invalid registry rollback checkpoint" }
         state = State.ROLLING_BACK
         val failures = mutableListOf<Throwable>()
-        while (undoActions.isNotEmpty()) {
-            runCatching { undoActions.removeFirst().invoke() }
-                .exceptionOrNull()
-                ?.let(failures::add)
+        while (undoActions.size > targetSize) {
+            val action = undoActions.first()
+            val result = runCatching { action.invoke() }
+            if (result.isFailure) {
+                failures += result.exceptionOrNull()!!
+                state = failureState
+                return failures
+            }
+            undoActions.removeFirst()
         }
-        state = State.ROLLED_BACK
+        state = terminalState
         return failures
     }
 }
@@ -123,7 +149,7 @@ class ServiceRegistry private constructor(
             KernelRegistryMutationJournal.Mutation(
                 result = Unit,
                 undo = removed?.let { previous ->
-                    { services.putIfAbsent(type, previous) }
+                    { services.putIfAbsent(type, previous); Unit }
                 }
             )
         }
@@ -134,7 +160,8 @@ class ServiceRegistry private constructor(
 
 class CapabilityRegistry private constructor(
     private val capabilities: ConcurrentHashMap<String, Capability>,
-    private val journal: KernelRegistryMutationJournal?
+    private val journal: KernelRegistryMutationJournal?,
+    private val ownerModuleId: String?
 ) {
     private data class RegisteredCapability(
         override val id: String,
@@ -142,10 +169,12 @@ class CapabilityRegistry private constructor(
         override val providerModuleId: String
     ) : Capability
 
-    constructor() : this(ConcurrentHashMap(), null)
+    constructor() : this(ConcurrentHashMap(), null, null)
 
-    internal fun transactionalView(journal: KernelRegistryMutationJournal): CapabilityRegistry =
-        CapabilityRegistry(capabilities, journal)
+    internal fun transactionalView(
+        journal: KernelRegistryMutationJournal,
+        ownerModuleId: String
+    ): CapabilityRegistry = CapabilityRegistry(capabilities, journal, ownerModuleId)
 
     fun register(capability: Capability, replace: Boolean = false) {
         val id = capability.id
@@ -158,6 +187,11 @@ class CapabilityRegistry private constructor(
         require(providerModuleId.isNotBlank()) { "Capability provider module id cannot be blank" }
         require(providerModuleId.none(Char::isWhitespace)) {
             "Capability provider module id cannot contain whitespace"
+        }
+        ownerModuleId?.let { owner ->
+            require(providerModuleId == owner) {
+                "Capability provider $providerModuleId does not match owning module $owner"
+            }
         }
 
         val registered = RegisteredCapability(
@@ -194,7 +228,7 @@ class CapabilityRegistry private constructor(
             KernelRegistryMutationJournal.Mutation(
                 result = Unit,
                 undo = removed?.let { previous ->
-                    { capabilities.putIfAbsent(id, previous) }
+                    { capabilities.putIfAbsent(id, previous); Unit }
                 }
             )
         }
@@ -218,30 +252,46 @@ class EventBus private constructor(
     fun subscribe(topic: String, listener: (KernelEvent) -> Unit): Subscription {
         require(topic.isNotBlank()) { "Event topic cannot be blank" }
         return applyRegistryMutation(journal) {
-            val bucket = listeners.computeIfAbsent(topic) { CopyOnWriteArrayList() }
-            bucket += listener
+            var bucket: CopyOnWriteArrayList<(KernelEvent) -> Unit>? = null
+            listeners.compute(topic) { _, current ->
+                val selected = current ?: CopyOnWriteArrayList()
+                selected += listener
+                bucket = selected
+                selected
+            }
+            val selectedBucket = checkNotNull(bucket)
             val subscription = Subscription {
-                removeSubscription(bucket, listener)
+                removeSubscription(topic, selectedBucket, listener)
             }
             KernelRegistryMutationJournal.Mutation(subscription) {
-                bucket.remove(listener)
+                removeListenerAtomically(topic, selectedBucket, listener)
             }
         }
     }
 
     private fun removeSubscription(
+        topic: String,
         bucket: CopyOnWriteArrayList<(KernelEvent) -> Unit>,
         listener: (KernelEvent) -> Unit
     ) {
         applyRegistryMutation(journal) {
             val removed = bucket.remove(listener)
             if (bucket.isEmpty()) {
-                // Keep the topic bucket stable. Removing an observed-empty bucket here
-                // races a concurrent subscribe and can detach the newly added listener.
-                // Empty buckets are lightweight metadata and are intentionally retained.
+                // The first observation may be stale under a racing subscribe. Re-check the
+                // mapped bucket atomically before removing the topic entry.
+                listeners.computeIfPresent(topic) { _, current ->
+                    if (current === bucket && current.size == 0) null else current
+                }
             }
             val undo: (() -> Unit)? = if (removed) {
-                { bucket.add(listener); Unit }
+                {
+                    listeners.compute(topic) { _, current ->
+                        val selected = current ?: bucket
+                        if (!selected.contains(listener)) selected.add(listener)
+                        selected
+                    }
+                    Unit
+                }
             } else {
                 null
             }
@@ -249,6 +299,17 @@ class EventBus private constructor(
                 result = Unit,
                 undo = undo
             )
+        }
+    }
+
+    private fun removeListenerAtomically(
+        topic: String,
+        bucket: CopyOnWriteArrayList<(KernelEvent) -> Unit>,
+        listener: (KernelEvent) -> Unit
+    ) {
+        bucket.remove(listener)
+        listeners.computeIfPresent(topic) { _, current ->
+            if (current === bucket && current.size == 0) null else current
         }
     }
 
@@ -330,7 +391,7 @@ class CommandBus private constructor(
             KernelRegistryMutationJournal.Mutation(
                 result = Unit,
                 undo = removed?.let { previous ->
-                    { handlers.putIfAbsent(commandName, previous) }
+                    { handlers.putIfAbsent(commandName, previous); Unit }
                 }
             )
         }
@@ -339,9 +400,12 @@ class CommandBus private constructor(
     val size: Int get() = handlers.size
 }
 
-internal fun KernelContext.withRegistryJournal(journal: KernelRegistryMutationJournal): KernelContext = copy(
+internal fun KernelContext.withRegistryJournal(
+    journal: KernelRegistryMutationJournal,
+    ownerModuleId: String
+): KernelContext = copy(
     services = services.transactionalView(journal),
-    capabilities = capabilities.transactionalView(journal),
+    capabilities = capabilities.transactionalView(journal, ownerModuleId),
     events = events.transactionalView(journal),
     commands = commands.transactionalView(journal)
 )
