@@ -45,28 +45,45 @@ class EngineRuntimeScope internal constructor(
         return subscription
     }
 
+    @Synchronized
     fun publish(topic: String, payload: Any? = null) {
         checkOpen()
         kernel.events.publish(KernelEvent(topic = topic, source = engineId, payload = payload))
     }
 
-    fun findCapability(id: String): Capability? = kernel.capabilities.get(id)
+    @Synchronized
+    fun findCapability(id: String): Capability? {
+        checkOpen()
+        return kernel.capabilities.get(id)
+    }
 
-    fun <T : Any> findService(type: Class<T>): T? = kernel.services.get(type)
+    @Synchronized
+    fun <T : Any> findService(type: Class<T>): T? {
+        checkOpen()
+        return kernel.services.get(type)
+    }
 
+    @Synchronized
     fun putState(key: String, value: String) {
         checkOpen()
         kernel.ports.stateStore.put(stateKey(key), value)
     }
 
-    fun getState(key: String): String? = kernel.ports.stateStore.get(stateKey(key))
+    @Synchronized
+    fun getState(key: String): String? {
+        checkOpen()
+        return kernel.ports.stateStore.get(stateKey(key))
+    }
 
+    @Synchronized
     fun removeState(key: String) {
         checkOpen()
         kernel.ports.stateStore.remove(stateKey(key))
     }
 
+    @Synchronized
     fun stateKeys(prefix: String = ""): Set<String> {
+        checkOpen()
         require(!prefix.startsWith(".")) { "State prefix cannot start with '.'" }
         val namespace = "engine.$engineId."
         return kernel.ports.stateStore.keys(namespace + prefix)
@@ -95,7 +112,6 @@ class EngineRuntimeScope internal constructor(
         firstFailure?.let { throw it }
     }
 
-    @Synchronized
     private fun checkOpen() {
         check(!closed) { "Engine runtime scope is closed: $engineId" }
     }
