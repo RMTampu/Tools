@@ -3,14 +3,14 @@
   "status": "DEPENDENCY_TRUST_ACCEPTED",
   "candidateGitCommit": "160e5f02d42b6f62db3b2dbde231bc5be8e99507",
   "candidateSourceGitSha": "4101ce6430271b8b81af0ef956f896ccf239062d",
-  "candidateSha256": "78456d13905883bc319de16322410ea09d24bdb94216c2f0f853e6db48851bc3",
+  "candidateSha256": "db60ebaa73d8a05575e9b66080ecbbdc8b5ba3f3a9047abd86b9b99c8d8cd788",
   "workflowRunId": "33555654515",
   "workflowArtifact": {
     "id": 9819348614,
     "digest": "sha256:42817eae9776ca437f8ac4ce383361629a11e59065ea1b12bfb7bf04bb68277f"
   },
   "identityMechanism": "Exact Gradle lock state plus SHA-256 dependency verification metadata",
-  "canonicalVerificationSha256": "90a019b9951cc25e9e2b0541f99f53129dee79d0165f2093700eba745a5d39c8",
+  "canonicalVerificationSha256": "9728de8314127c24554bd841b1cf9037853352f2daa3b91360354feb31abe3e7",
   "outputsSha256": {
     "gradle/verification-metadata.xml": "586f72706d56f87bbaaf81e5165bfd5f378c09ed58c4ac15f1c30e193215b6b6",
     "toolbox-app/gradle.lockfile": "4f36ef766ea026745b6abe9e88d1d68a2560f9267b6647d37fea354bcd50fca4",
@@ -39,7 +39,8 @@
   },
   "declaredLimitations": [
     "PGP signature verification is not used for this dependency state; accepted dependency identity is pinned by SHA-256 checksums and exact lock state.",
-    "The bot candidate commit is unsigned and is not used as the authenticity oracle; acceptance is bound to content digests, workflow run identity, clean-resolution convergence, repository policy, and the independent review record."
+    "The bot candidate commit is unsigned and is not used as the authenticity oracle; acceptance is bound to content digests, workflow run identity, clean-resolution convergence, repository policy, and the independent review record.",
+    "The proposal workflow originally computed canonicalVerificationSha256 over canonical JSON without its trailing newline. The corrected digest 9728de8314127c24554bd841b1cf9037853352f2daa3b91360354feb31abe3e7 is the SHA-256 recorded for verification-metadata.canonical.json in the original workflow artifact SHA256SUMS."
   ],
   "unresolvedFindings": []
 }
