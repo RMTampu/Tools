@@ -77,16 +77,10 @@ class EventBus(
 
     fun subscribe(topic: String, listener: (KernelEvent) -> Unit): Subscription {
         require(topic.isNotBlank()) { "Event topic cannot be blank" }
-        listeners.compute(topic) { _, current ->
-            val bucket = current ?: CopyOnWriteArrayList()
-            bucket += listener
-            bucket
-        }
+        val bucket = listeners.computeIfAbsent(topic) { CopyOnWriteArrayList() }
+        bucket += listener
         return Subscription {
-            listeners.computeIfPresent(topic) { _, bucket ->
-                bucket.remove(listener)
-                if (bucket.isEmpty()) null else bucket
-            }
+            bucket.remove(listener)
         }
     }
 
