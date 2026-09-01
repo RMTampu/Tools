@@ -22,6 +22,13 @@ class ServiceRegistry {
         services.remove(type)
     }
 
+    internal fun snapshotState(): Map<Class<*>, Any> = HashMap(services)
+
+    internal fun restoreState(snapshot: Map<Class<*>, Any>) {
+        services.clear()
+        services.putAll(snapshot)
+    }
+
     val size: Int get() = services.size
 }
 
@@ -33,6 +40,9 @@ class CapabilityRegistry {
         require(capability.id.none(Char::isWhitespace)) { "Capability id cannot contain whitespace" }
         require(capability.version > 0) { "Capability version must be positive" }
         require(capability.providerModuleId.isNotBlank()) { "Capability provider module id cannot be blank" }
+        require(capability.providerModuleId.none(Char::isWhitespace)) {
+            "Capability provider module id cannot contain whitespace"
+        }
         if (replace) {
             capabilities[capability.id] = capability
             return
@@ -50,6 +60,13 @@ class CapabilityRegistry {
 
     fun all(): List<Capability> = capabilities.values.sortedBy { it.id }
 
+    internal fun snapshotState(): Map<String, Capability> = HashMap(capabilities)
+
+    internal fun restoreState(snapshot: Map<String, Capability>) {
+        capabilities.clear()
+        capabilities.putAll(snapshot)
+    }
+
     val size: Int get() = capabilities.size
 }
 
@@ -60,12 +77,15 @@ class EventBus(
 
     fun subscribe(topic: String, listener: (KernelEvent) -> Unit): Subscription {
         require(topic.isNotBlank()) { "Event topic cannot be blank" }
-        val bucket = listeners.computeIfAbsent(topic) { CopyOnWriteArrayList() }
-        bucket += listener
+        listeners.compute(topic) { _, current ->
+            val bucket = current ?: CopyOnWriteArrayList()
+            bucket += listener
+            bucket
+        }
         return Subscription {
-            bucket.remove(listener)
-            if (bucket.isEmpty()) {
-                listeners.remove(topic, bucket)
+            listeners.computeIfPresent(topic) { _, bucket ->
+                bucket.remove(listener)
+                if (bucket.isEmpty()) null else bucket
             }
         }
     }
@@ -83,6 +103,16 @@ class EventBus(
                 .onFailure { error ->
                     runCatching { logger.warn("Event listener failed for topic ${event.topic}", error) }
                 }
+        }
+    }
+
+    internal fun snapshotState(): Map<String, List<(KernelEvent) -> Unit>> =
+        listeners.entries.associate { (topic, bucket) -> topic to bucket.toList() }
+
+    internal fun restoreState(snapshot: Map<String, List<(KernelEvent) -> Unit>>) {
+        listeners.clear()
+        snapshot.forEach { (topic, bucket) ->
+            listeners[topic] = CopyOnWriteArrayList(bucket)
         }
     }
 
@@ -128,5 +158,33 @@ class CommandBus {
         handlers.remove(commandName)
     }
 
+    internal fun snapshotState(): Map<String, (KernelCommand) -> CommandResult> = HashMap(handlers)
+
+    internal fun restoreState(snapshot: Map<String, (KernelCommand) -> CommandResult>) {
+        handlers.clear()
+        handlers.putAll(snapshot)
+    }
+
     val size: Int get() = handlers.size
+}
+
+internal data class KernelRegistryCheckpoint(
+    val services: Map<Class<*>, Any>,
+    val capabilities: Map<String, Capability>,
+    val listeners: Map<String, List<(KernelEvent) -> Unit>>,
+    val commands: Map<String, (KernelCommand) -> CommandResult>
+)
+
+internal fun KernelContext.captureRegistryCheckpoint(): KernelRegistryCheckpoint = KernelRegistryCheckpoint(
+    services = services.snapshotState(),
+    capabilities = capabilities.snapshotState(),
+    listeners = events.snapshotState(),
+    commands = commands.snapshotState()
+)
+
+internal fun KernelContext.restoreRegistryCheckpoint(checkpoint: KernelRegistryCheckpoint) {
+    services.restoreState(checkpoint.services)
+    capabilities.restoreState(checkpoint.capabilities)
+    events.restoreState(checkpoint.listeners)
+    commands.restoreState(checkpoint.commands)
 }
