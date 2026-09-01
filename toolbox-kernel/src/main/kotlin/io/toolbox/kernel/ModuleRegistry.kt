@@ -9,7 +9,9 @@ class ModuleRegistry {
         var loadAttempted: Boolean = false,
         var loadCompleted: Boolean = false,
         var startAttempted: Boolean = false,
-        var registryJournal: KernelRegistryMutationJournal? = null
+        var registryJournal: KernelRegistryMutationJournal? = null,
+        var activationPending: Boolean = false,
+        var activationIncludesLoad: Boolean = false
     )
 
     private data class LifecycleAttempt(
@@ -68,6 +70,8 @@ class ModuleRegistry {
         if (failures.isEmpty()) {
             synchronized(lock) {
                 if (records[moduleId] === record) {
+                    record.activationPending = false
+                    record.activationIncludesLoad = false
                     records.remove(moduleId)
                 }
             }
@@ -172,7 +176,12 @@ class ModuleRegistry {
             .getOrElse { synchronized(lock) { records.values.toList().asReversed() } }
         val failures = mutableListOf<ModuleFailure>()
         order.forEach { record ->
-            stopRecord(record)?.let(failures::add)
+            val stopFailure = stopRecord(record)
+            if (stopFailure != null) {
+                failures += stopFailure
+            } else {
+                failures += retryPendingActivationCleanup(record)
+            }
         }
         return failures
     }
@@ -204,6 +213,8 @@ class ModuleRegistry {
                     false
                 } else {
                     record.registryJournal = KernelRegistryMutationJournal()
+                    record.activationPending = true
+                    record.activationIncludesLoad = true
                     record.loadAttempted = true
                     true
                 }
@@ -278,7 +289,16 @@ class ModuleRegistry {
                 }
             }
             if (cleanup.isSuccess || !retained) {
-                journal.rollbackIfOpen().forEach(error::addSuppressed)
+                val rollbackFailures = journal.rollbackIfOpen()
+                rollbackFailures.forEach(error::addSuppressed)
+                if (rollbackFailures.isEmpty()) {
+                    synchronized(lock) {
+                        if (records[record.descriptor.id] === record) {
+                            record.activationPending = false
+                            record.activationIncludesLoad = false
+                        }
+                    }
+                }
             }
             LifecycleAttempt(ModuleFailure(record.descriptor.id, "load", error))
         }
@@ -331,6 +351,12 @@ class ModuleRegistry {
                     }
                     return@synchronized LifecycleAttempt(ModuleFailure(record.descriptor.id, "start", beginError))
                 }
+                synchronized(lock) {
+                    if (records[record.descriptor.id] === record) {
+                        record.activationPending = true
+                        record.activationIncludesLoad = false
+                    }
+                }
             }
 
             val stillClaimed = synchronized(lock) {
@@ -353,6 +379,8 @@ class ModuleRegistry {
                 if (commitError == null) {
                     synchronized(lock) {
                         if (records[record.descriptor.id] === record) {
+                            record.activationPending = false
+                            record.activationIncludesLoad = false
                             record.state = ModuleState.STARTED
                         }
                     }
@@ -380,7 +408,16 @@ class ModuleRegistry {
                 }
             }
             if (cleanup.isSuccess) {
-                journal?.rollbackIfOpen()?.forEach(error::addSuppressed)
+                val rollbackFailures = journal?.rollbackIfOpen() ?: emptyList()
+                rollbackFailures.forEach(error::addSuppressed)
+                if (rollbackFailures.isEmpty()) {
+                    synchronized(lock) {
+                        if (records[record.descriptor.id] === record) {
+                            record.activationPending = false
+                            record.activationIncludesLoad = false
+                        }
+                    }
+                }
             }
             LifecycleAttempt(ModuleFailure(record.descriptor.id, "start", error))
         }
@@ -409,7 +446,16 @@ class ModuleRegistry {
         }
 
         if (stopCleanup.isSuccess && unloadCleanup.isSuccess) {
-            journal?.rollbackIfOpen()?.forEach(error::addSuppressed)
+            val rollbackFailures = journal?.rollbackIfOpen() ?: emptyList()
+            rollbackFailures.forEach(error::addSuppressed)
+            if (rollbackFailures.isEmpty()) {
+                synchronized(lock) {
+                    if (records[record.descriptor.id] === record) {
+                        record.activationPending = false
+                        record.activationIncludesLoad = false
+                    }
+                }
+            }
         }
         return LifecycleAttempt(ModuleFailure(record.descriptor.id, "start", error))
     }
@@ -440,6 +486,61 @@ class ModuleRegistry {
                 }
             }
             ModuleFailure(record.descriptor.id, "stop", error)
+        }
+
+    private fun retryPendingActivationCleanup(record: Record): List<ModuleFailure> =
+        synchronized(record.lifecycleLock) {
+            val pending = synchronized(lock) {
+                records[record.descriptor.id] === record && record.activationPending
+            }
+            if (!pending) return@synchronized emptyList()
+
+            val stillStarting = synchronized(lock) { record.startAttempted }
+            if (stillStarting) {
+                return@synchronized listOf(
+                    ModuleFailure(
+                        record.descriptor.id,
+                        "activation-cleanup",
+                        IllegalStateException("Module activation stop cleanup is still unresolved")
+                    )
+                )
+            }
+
+            val shouldUnload = synchronized(lock) {
+                records[record.descriptor.id] === record &&
+                    record.activationIncludesLoad &&
+                    record.loadCompleted
+            }
+            if (shouldUnload) {
+                val unloadResult = runCatching { record.module.onUnload() }
+                if (unloadResult.isFailure) {
+                    synchronized(lock) {
+                        if (records[record.descriptor.id] === record) record.state = ModuleState.FAILED
+                    }
+                    return@synchronized listOf(
+                        ModuleFailure(
+                            record.descriptor.id,
+                            "activation-cleanup",
+                            unloadResult.exceptionOrNull()!!
+                        )
+                    )
+                }
+                synchronized(lock) {
+                    if (records[record.descriptor.id] === record) record.loadCompleted = false
+                }
+            }
+
+            val rollbackFailures = rollbackRegistryIfOpen(record)
+            synchronized(lock) {
+                if (records[record.descriptor.id] === record) {
+                    record.activationPending = false
+                    record.activationIncludesLoad = false
+                    record.state = ModuleState.FAILED
+                }
+            }
+            rollbackFailures.map { error ->
+                ModuleFailure(record.descriptor.id, "registry-rollback", error)
+            }
         }
 
     private fun healthRecord(record: Record): ModuleHealth? =
