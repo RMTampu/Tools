@@ -1,45 +1,129 @@
 package io.toolbox.kernel
 
+import java.util.ArrayDeque
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
-class ServiceRegistry {
-    private val services = ConcurrentHashMap<Class<*>, Any>()
+internal class KernelRegistryMutationJournal {
+    internal data class Mutation<T>(
+        val result: T,
+        val undo: (() -> Unit)? = null
+    )
+
+    private enum class State {
+        OPEN,
+        COMMITTED,
+        ROLLING_BACK,
+        ROLLED_BACK
+    }
+
+    private val lock = Any()
+    private val undoActions = ArrayDeque<() -> Unit>()
+    private var state = State.OPEN
+
+    fun <T> mutate(block: () -> Mutation<T>): T = synchronized(lock) {
+        when (state) {
+            State.OPEN -> {
+                val mutation = block()
+                mutation.undo?.let(undoActions::addFirst)
+                mutation.result
+            }
+
+            State.COMMITTED -> block().result
+            State.ROLLING_BACK,
+            State.ROLLED_BACK -> error("Registry mutation attempted through a rolled-back activation context")
+        }
+    }
+
+    fun commit() = synchronized(lock) {
+        check(state == State.OPEN) { "Registry mutation journal cannot commit from $state" }
+        undoActions.clear()
+        state = State.COMMITTED
+    }
+
+    fun rollback(): List<Throwable> = synchronized(lock) {
+        if (state == State.ROLLED_BACK) return emptyList()
+        check(state == State.OPEN) { "Registry mutation journal cannot rollback from $state" }
+
+        state = State.ROLLING_BACK
+        val failures = mutableListOf<Throwable>()
+        while (undoActions.isNotEmpty()) {
+            runCatching { undoActions.removeFirst().invoke() }
+                .exceptionOrNull()
+                ?.let(failures::add)
+        }
+        state = State.ROLLED_BACK
+        failures
+    }
+}
+
+private fun <T> applyRegistryMutation(
+    journal: KernelRegistryMutationJournal?,
+    block: () -> KernelRegistryMutationJournal.Mutation<T>
+): T = journal?.mutate(block) ?: block().result
+
+class ServiceRegistry private constructor(
+    private val services: ConcurrentHashMap<Class<*>, Any>,
+    private val journal: KernelRegistryMutationJournal?
+) {
+    constructor() : this(ConcurrentHashMap(), null)
+
+    internal fun transactionalView(journal: KernelRegistryMutationJournal): ServiceRegistry =
+        ServiceRegistry(services, journal)
 
     fun <T : Any> register(type: Class<T>, service: T, replace: Boolean = false) {
-        if (replace) {
-            services[type] = service
-            return
-        }
-        check(services.putIfAbsent(type, service) == null) {
-            "Service already registered: ${type.name}"
+        applyRegistryMutation(journal) {
+            if (replace) {
+                val previous = services.put(type, service)
+                KernelRegistryMutationJournal.Mutation(Unit) {
+                    services.compute(type) { _, current ->
+                        if (current === service) previous else current
+                    }
+                }
+            } else {
+                check(services.putIfAbsent(type, service) == null) {
+                    "Service already registered: ${type.name}"
+                }
+                KernelRegistryMutationJournal.Mutation(Unit) {
+                    services.compute(type) { _, current ->
+                        if (current === service) null else current
+                    }
+                }
+            }
         }
     }
 
     fun <T : Any> get(type: Class<T>): T? = services[type]?.let(type::cast)
 
     fun unregister(type: Class<*>) {
-        services.remove(type)
-    }
-
-    internal fun snapshotState(): Map<Class<*>, Any> = HashMap(services)
-
-    internal fun restoreState(snapshot: Map<Class<*>, Any>) {
-        services.clear()
-        services.putAll(snapshot)
+        applyRegistryMutation(journal) {
+            val removed = services.remove(type)
+            KernelRegistryMutationJournal.Mutation(
+                result = Unit,
+                undo = removed?.let { previous ->
+                    { services.putIfAbsent(type, previous) }
+                }
+            )
+        }
     }
 
     val size: Int get() = services.size
 }
 
-class CapabilityRegistry {
+class CapabilityRegistry private constructor(
+    private val capabilities: ConcurrentHashMap<String, Capability>,
+    private val journal: KernelRegistryMutationJournal?
+) {
     private data class RegisteredCapability(
         override val id: String,
         override val version: Int,
         override val providerModuleId: String
     ) : Capability
 
-    private val capabilities = ConcurrentHashMap<String, Capability>()
+    constructor() : this(ConcurrentHashMap(), null)
+
+    internal fun transactionalView(journal: KernelRegistryMutationJournal): CapabilityRegistry =
+        CapabilityRegistry(capabilities, journal)
 
     fun register(capability: Capability, replace: Boolean = false) {
         val id = capability.id
@@ -59,49 +143,85 @@ class CapabilityRegistry {
             version = version,
             providerModuleId = providerModuleId
         )
-        if (replace) {
-            capabilities[id] = registered
-            return
-        }
-        check(capabilities.putIfAbsent(id, registered) == null) {
-            "Capability already registered: $id"
+        applyRegistryMutation(journal) {
+            if (replace) {
+                val previous = capabilities.put(id, registered)
+                KernelRegistryMutationJournal.Mutation(Unit) {
+                    capabilities.compute(id) { _, current ->
+                        if (current === registered) previous else current
+                    }
+                }
+            } else {
+                check(capabilities.putIfAbsent(id, registered) == null) {
+                    "Capability already registered: $id"
+                }
+                KernelRegistryMutationJournal.Mutation(Unit) {
+                    capabilities.compute(id) { _, current ->
+                        if (current === registered) null else current
+                    }
+                }
+            }
         }
     }
 
     fun get(id: String): Capability? = capabilities[id]
 
     fun unregister(id: String) {
-        capabilities.remove(id)
+        applyRegistryMutation(journal) {
+            val removed = capabilities.remove(id)
+            KernelRegistryMutationJournal.Mutation(
+                result = Unit,
+                undo = removed?.let { previous ->
+                    { capabilities.putIfAbsent(id, previous) }
+                }
+            )
+        }
     }
 
     fun all(): List<Capability> = capabilities.values.sortedBy { it.id }
 
-    internal fun snapshotState(): Map<String, Capability> = HashMap(capabilities)
-
-    internal fun restoreState(snapshot: Map<String, Capability>) {
-        capabilities.clear()
-        capabilities.putAll(snapshot)
-    }
-
     val size: Int get() = capabilities.size
 }
 
-class EventBus(
-    private val logger: KernelLogger = NoopKernelLogger
+class EventBus private constructor(
+    private val logger: KernelLogger,
+    private val listeners: ConcurrentHashMap<String, CopyOnWriteArrayList<(KernelEvent) -> Unit>>,
+    private val journal: KernelRegistryMutationJournal?
 ) {
-    private val listeners = ConcurrentHashMap<String, CopyOnWriteArrayList<(KernelEvent) -> Unit>>()
+    constructor(logger: KernelLogger = NoopKernelLogger) : this(logger, ConcurrentHashMap(), null)
+
+    internal fun transactionalView(journal: KernelRegistryMutationJournal): EventBus =
+        EventBus(logger, listeners, journal)
 
     fun subscribe(topic: String, listener: (KernelEvent) -> Unit): Subscription {
         require(topic.isNotBlank()) { "Event topic cannot be blank" }
-        val bucket = listeners.computeIfAbsent(topic) { CopyOnWriteArrayList() }
-        bucket += listener
-        return Subscription {
-            bucket.remove(listener)
+        return applyRegistryMutation(journal) {
+            val bucket = listeners.computeIfAbsent(topic) { CopyOnWriteArrayList() }
+            bucket += listener
+            val subscription = Subscription {
+                removeSubscription(bucket, listener)
+            }
+            KernelRegistryMutationJournal.Mutation(subscription) {
+                bucket.remove(listener)
+            }
+        }
+    }
+
+    private fun removeSubscription(
+        bucket: CopyOnWriteArrayList<(KernelEvent) -> Unit>,
+        listener: (KernelEvent) -> Unit
+    ) {
+        applyRegistryMutation(journal) {
+            val removed = bucket.remove(listener)
             if (bucket.isEmpty()) {
                 // Keep the topic bucket stable. Removing an observed-empty bucket here
                 // races a concurrent subscribe and can detach the newly added listener.
                 // Empty buckets are lightweight metadata and are intentionally retained.
             }
+            KernelRegistryMutationJournal.Mutation(
+                result = Unit,
+                undo = if (removed) ({ bucket += listener }) else null
+            )
         }
     }
 
@@ -121,22 +241,6 @@ class EventBus(
         }
     }
 
-    internal fun snapshotState(): Map<String, List<(KernelEvent) -> Unit>> =
-        listeners.entries.associate { (topic, bucket) -> topic to bucket.toList() }
-
-    internal fun restoreState(snapshot: Map<String, List<(KernelEvent) -> Unit>>) {
-        listeners.forEach { (topic, bucket) ->
-            if (topic !in snapshot) {
-                bucket.clear()
-            }
-        }
-        snapshot.forEach { (topic, snapshotListeners) ->
-            val bucket = listeners.computeIfAbsent(topic) { CopyOnWriteArrayList() }
-            bucket.clear()
-            bucket.addAll(snapshotListeners)
-        }
-    }
-
     fun interface Subscription : AutoCloseable {
         override fun close()
     }
@@ -146,8 +250,14 @@ class EventBus(
     }
 }
 
-class CommandBus {
-    private val handlers = ConcurrentHashMap<String, (KernelCommand) -> CommandResult>()
+class CommandBus private constructor(
+    private val handlers: ConcurrentHashMap<String, (KernelCommand) -> CommandResult>,
+    private val journal: KernelRegistryMutationJournal?
+) {
+    constructor() : this(ConcurrentHashMap(), null)
+
+    internal fun transactionalView(journal: KernelRegistryMutationJournal): CommandBus =
+        CommandBus(handlers, journal)
 
     fun register(
         commandName: String,
@@ -156,12 +266,24 @@ class CommandBus {
     ) {
         require(commandName.isNotBlank()) { "Command name cannot be blank" }
         require(commandName.none(Char::isWhitespace)) { "Command name cannot contain whitespace" }
-        if (replace) {
-            handlers[commandName] = handler
-            return
-        }
-        check(handlers.putIfAbsent(commandName, handler) == null) {
-            "Command already registered: $commandName"
+        applyRegistryMutation(journal) {
+            if (replace) {
+                val previous = handlers.put(commandName, handler)
+                KernelRegistryMutationJournal.Mutation(Unit) {
+                    handlers.compute(commandName) { _, current ->
+                        if (current === handler) previous else current
+                    }
+                }
+            } else {
+                check(handlers.putIfAbsent(commandName, handler) == null) {
+                    "Command already registered: $commandName"
+                }
+                KernelRegistryMutationJournal.Mutation(Unit) {
+                    handlers.compute(commandName) { _, current ->
+                        if (current === handler) null else current
+                    }
+                }
+            }
         }
     }
 
@@ -176,36 +298,23 @@ class CommandBus {
     }
 
     fun unregister(commandName: String) {
-        handlers.remove(commandName)
-    }
-
-    internal fun snapshotState(): Map<String, (KernelCommand) -> CommandResult> = HashMap(handlers)
-
-    internal fun restoreState(snapshot: Map<String, (KernelCommand) -> CommandResult>) {
-        handlers.clear()
-        handlers.putAll(snapshot)
+        applyRegistryMutation(journal) {
+            val removed = handlers.remove(commandName)
+            KernelRegistryMutationJournal.Mutation(
+                result = Unit,
+                undo = removed?.let { previous ->
+                    { handlers.putIfAbsent(commandName, previous) }
+                }
+            )
+        }
     }
 
     val size: Int get() = handlers.size
 }
 
-internal data class KernelRegistryCheckpoint(
-    val services: Map<Class<*>, Any>,
-    val capabilities: Map<String, Capability>,
-    val listeners: Map<String, List<(KernelEvent) -> Unit>>,
-    val commands: Map<String, (KernelCommand) -> CommandResult>
+internal fun KernelContext.withRegistryJournal(journal: KernelRegistryMutationJournal): KernelContext = copy(
+    services = services.transactionalView(journal),
+    capabilities = capabilities.transactionalView(journal),
+    events = events.transactionalView(journal),
+    commands = commands.transactionalView(journal)
 )
-
-internal fun KernelContext.captureRegistryCheckpoint(): KernelRegistryCheckpoint = KernelRegistryCheckpoint(
-    services = services.snapshotState(),
-    capabilities = capabilities.snapshotState(),
-    listeners = events.snapshotState(),
-    commands = commands.snapshotState()
-)
-
-internal fun KernelContext.restoreRegistryCheckpoint(checkpoint: KernelRegistryCheckpoint) {
-    services.restoreState(checkpoint.services)
-    capabilities.restoreState(checkpoint.capabilities)
-    events.restoreState(checkpoint.listeners)
-    commands.restoreState(checkpoint.commands)
-}
