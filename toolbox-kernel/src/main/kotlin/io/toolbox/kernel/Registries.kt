@@ -218,9 +218,14 @@ class EventBus private constructor(
                 // races a concurrent subscribe and can detach the newly added listener.
                 // Empty buckets are lightweight metadata and are intentionally retained.
             }
+            val undo: (() -> Unit)? = if (removed) {
+                { bucket.add(listener); Unit }
+            } else {
+                null
+            }
             KernelRegistryMutationJournal.Mutation(
                 result = Unit,
-                undo = if (removed) ({ bucket += listener }) else null
+                undo = undo
             )
         }
     }
