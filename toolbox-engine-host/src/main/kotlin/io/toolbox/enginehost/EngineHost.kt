@@ -23,6 +23,7 @@ class EngineHost(
 
     private data class Record(
         val provider: EngineProvider,
+        val descriptor: EngineDescriptor,
         val compatibility: EngineCompatibilityResult,
         var state: EngineState,
         var instance: ToolBoxEngine? = null,
@@ -31,13 +32,16 @@ class EngineHost(
         var activeLeases: Int = 0,
         var generation: Long = 0,
         var lastFailure: String? = null
-    ) {
-        val descriptor: EngineDescriptor get() = provider.descriptor
-    }
+    )
 
     private val records = linkedMapOf<String, Record>()
     private var kernelContext: KernelContext? = null
     private var hostRunning = false
+
+    init {
+        require(environment.androidApi > 0) { "Engine environment Android API must be positive" }
+        require(environment.abi.isNotBlank()) { "Engine environment ABI cannot be blank" }
+    }
 
     override fun onLoad(context: KernelContext) {
         synchronized(this) {
@@ -82,7 +86,8 @@ class EngineHost(
 
     @Synchronized
     fun register(provider: EngineProvider): EngineRegistrationResult {
-        val validationError = runCatching { validateDescriptor(provider.descriptor) }.exceptionOrNull()
+        val engineDescriptor = snapshotDescriptor(provider.descriptor)
+        val validationError = runCatching { validateDescriptor(engineDescriptor) }.exceptionOrNull()
         if (validationError != null) {
             return EngineRegistrationResult(
                 registered = false,
@@ -91,7 +96,7 @@ class EngineHost(
             )
         }
 
-        val engineId = provider.descriptor.engineId
+        val engineId = engineDescriptor.engineId
         if (engineId in records) {
             return EngineRegistrationResult(
                 registered = false,
@@ -100,17 +105,18 @@ class EngineHost(
             )
         }
 
-        val compatibility = checkCompatibility(provider.descriptor)
+        val compatibility = checkCompatibility(engineDescriptor)
         val state = if (compatibility.compatible) EngineState.REGISTERED else EngineState.INCOMPATIBLE
         records[engineId] = Record(
             provider = provider,
+            descriptor = engineDescriptor,
             compatibility = compatibility,
             state = state
         )
 
         publish(
             topic = if (compatibility.compatible) "engine.registered" else "engine.incompatible",
-            payload = provider.descriptor
+            payload = engineDescriptor
         )
 
         return EngineRegistrationResult(
@@ -340,6 +346,9 @@ class EngineHost(
         require(descriptor.supportedAbi.isNotEmpty()) { "supportedAbi cannot be empty" }
         require(descriptor.supportedAbi.none(String::isBlank)) { "supportedAbi cannot contain blank values" }
         require(descriptor.entryPoint.isNotBlank()) { "Entry point identity cannot be blank" }
+
+        val requiredIds = descriptor.requiredCapabilities.map { it.id }
+        require(requiredIds.distinct().size == requiredIds.size) { "Required capability ids must be unique" }
         descriptor.requiredCapabilities.forEach { requirement ->
             require(requirement.id.isNotBlank()) { "Required capability id cannot be blank" }
             require(requirement.minVersion > 0) { "Required capability version must be positive" }
@@ -347,7 +356,14 @@ class EngineHost(
                 "Engine cannot require its own provided capability: ${requirement.id}"
             }
         }
-        validateIds("provided capability", descriptor.providedCapabilityIds)
+
+        val providedIds = descriptor.providedCapabilities.map { it.id }
+        require(providedIds.distinct().size == providedIds.size) { "Provided capability ids must be unique" }
+        descriptor.providedCapabilities.forEach { declaration ->
+            require(declaration.id.isNotBlank()) { "Provided capability id cannot be blank" }
+            require(declaration.version > 0) { "Provided capability version must be positive" }
+        }
+
         validateIds("component", descriptor.componentIds)
         validateIds("action", descriptor.actionIds)
         validateIds("event", descriptor.eventIds)
@@ -361,14 +377,28 @@ class EngineHost(
 
     private fun verifyDeclaredCapabilities(record: Record) {
         val context = kernelContext ?: error("EngineHost lost kernel context")
-        record.descriptor.providedCapabilityIds.forEach { capabilityId ->
-            val capability = context.capabilities.get(capabilityId)
-                ?: error("Declared capability was not registered: $capabilityId")
+        record.descriptor.providedCapabilities.forEach { declaration ->
+            val capability = context.capabilities.get(declaration.id)
+                ?: error("Declared capability was not registered: ${declaration.id}")
             check(capability.providerModuleId == record.descriptor.engineId) {
-                "Declared capability $capabilityId is owned by ${capability.providerModuleId}, not ${record.descriptor.engineId}"
+                "Declared capability ${declaration.id} is owned by ${capability.providerModuleId}, not ${record.descriptor.engineId}"
+            }
+            check(capability.version == declaration.version) {
+                "Declared capability ${declaration.id} version ${declaration.version} does not match runtime ${capability.version}"
             }
         }
     }
+
+    private fun snapshotDescriptor(source: EngineDescriptor): EngineDescriptor = source.copy(
+        supportedAbi = source.supportedAbi.toSet(),
+        requiredCapabilities = source.requiredCapabilities.toSet(),
+        providedCapabilities = source.providedCapabilities.toSet(),
+        componentIds = source.componentIds.toSet(),
+        actionIds = source.actionIds.toSet(),
+        eventIds = source.eventIds.toSet(),
+        dataTypeIds = source.dataTypeIds.toSet(),
+        permissionNeeds = source.permissionNeeds.toSet()
+    )
 
     private fun rejected(engineId: String, code: String, reason: String): EngineAcquireResult.Rejected =
         EngineAcquireResult.Rejected(engineId = engineId, code = code, reason = reason)
