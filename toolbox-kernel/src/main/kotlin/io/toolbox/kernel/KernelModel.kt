@@ -34,15 +34,18 @@ data class KernelConfig(
     }
 }
 
-data class ModuleDescriptor(
+class ModuleDescriptor(
     val id: String,
     val name: String,
     val version: String,
     val apiVersion: Int = 1,
     val minAndroidApi: Int = 30,
-    val supportedArchitectures: Set<String> = setOf("arm64-v8a"),
-    val dependencies: Set<String> = emptySet()
+    supportedArchitectures: Set<String> = setOf("arm64-v8a"),
+    dependencies: Set<String> = emptySet()
 ) {
+    val supportedArchitectures: Set<String> = supportedArchitectures.toSet()
+    val dependencies: Set<String> = dependencies.toSet()
+
     init {
         require(id.isNotBlank()) { "Module id cannot be blank" }
         require(id.none(Char::isWhitespace)) { "Module id cannot contain whitespace" }
@@ -50,10 +53,69 @@ data class ModuleDescriptor(
         require(version.isNotBlank()) { "Module version cannot be blank" }
         require(apiVersion > 0) { "Module API version must be positive" }
         require(minAndroidApi > 0) { "Module min Android API must be positive" }
-        require(supportedArchitectures.none(String::isBlank)) { "Supported architecture cannot be blank" }
-        require(dependencies.none(String::isBlank)) { "Module dependency id cannot be blank" }
-        require(id !in dependencies) { "Module cannot depend on itself: $id" }
+        require(this.supportedArchitectures.none(String::isBlank)) { "Supported architecture cannot be blank" }
+        require(this.supportedArchitectures.none { it.any(Char::isWhitespace) }) {
+            "Supported architecture cannot contain whitespace"
+        }
+        require(this.dependencies.none(String::isBlank)) { "Module dependency id cannot be blank" }
+        require(this.dependencies.none { it.any(Char::isWhitespace) }) {
+            "Module dependency id cannot contain whitespace"
+        }
+        require(id !in this.dependencies) { "Module cannot depend on itself: $id" }
     }
+
+    fun copy(
+        id: String = this.id,
+        name: String = this.name,
+        version: String = this.version,
+        apiVersion: Int = this.apiVersion,
+        minAndroidApi: Int = this.minAndroidApi,
+        supportedArchitectures: Set<String> = this.supportedArchitectures,
+        dependencies: Set<String> = this.dependencies
+    ): ModuleDescriptor = ModuleDescriptor(
+        id = id,
+        name = name,
+        version = version,
+        apiVersion = apiVersion,
+        minAndroidApi = minAndroidApi,
+        supportedArchitectures = supportedArchitectures,
+        dependencies = dependencies
+    )
+
+    operator fun component1(): String = id
+    operator fun component2(): String = name
+    operator fun component3(): String = version
+    operator fun component4(): Int = apiVersion
+    operator fun component5(): Int = minAndroidApi
+    operator fun component6(): Set<String> = supportedArchitectures
+    operator fun component7(): Set<String> = dependencies
+
+    override fun equals(other: Any?): Boolean =
+        this === other ||
+            (other is ModuleDescriptor &&
+                id == other.id &&
+                name == other.name &&
+                version == other.version &&
+                apiVersion == other.apiVersion &&
+                minAndroidApi == other.minAndroidApi &&
+                supportedArchitectures == other.supportedArchitectures &&
+                dependencies == other.dependencies)
+
+    override fun hashCode(): Int {
+        var result = id.hashCode()
+        result = 31 * result + name.hashCode()
+        result = 31 * result + version.hashCode()
+        result = 31 * result + apiVersion
+        result = 31 * result + minAndroidApi
+        result = 31 * result + supportedArchitectures.hashCode()
+        result = 31 * result + dependencies.hashCode()
+        return result
+    }
+
+    override fun toString(): String =
+        "ModuleDescriptor(id=$id, name=$name, version=$version, apiVersion=$apiVersion, " +
+            "minAndroidApi=$minAndroidApi, supportedArchitectures=$supportedArchitectures, " +
+            "dependencies=$dependencies)"
 }
 
 data class CompatibilityResult(
@@ -66,17 +128,49 @@ data class AdmissionDecision(
     val reason: String = if (allowed) "Allowed" else "Rejected"
 )
 
-data class ModuleSource(
+class ModuleSource(
     val descriptor: ModuleDescriptor,
     val location: String,
-    val metadata: Map<String, String> = emptyMap()
+    metadata: Map<String, String> = emptyMap()
 ) {
+    val metadata: Map<String, String> = metadata.toMap()
     val id: String get() = descriptor.id
 
     init {
         require(location.isNotBlank()) { "Module source location cannot be blank" }
-        require(metadata.keys.none(String::isBlank)) { "Module source metadata key cannot be blank" }
+        require(this.metadata.keys.none(String::isBlank)) { "Module source metadata key cannot be blank" }
     }
+
+    fun copy(
+        descriptor: ModuleDescriptor = this.descriptor,
+        location: String = this.location,
+        metadata: Map<String, String> = this.metadata
+    ): ModuleSource = ModuleSource(
+        descriptor = descriptor,
+        location = location,
+        metadata = metadata
+    )
+
+    operator fun component1(): ModuleDescriptor = descriptor
+    operator fun component2(): String = location
+    operator fun component3(): Map<String, String> = metadata
+
+    override fun equals(other: Any?): Boolean =
+        this === other ||
+            (other is ModuleSource &&
+                descriptor == other.descriptor &&
+                location == other.location &&
+                metadata == other.metadata)
+
+    override fun hashCode(): Int {
+        var result = descriptor.hashCode()
+        result = 31 * result + location.hashCode()
+        result = 31 * result + metadata.hashCode()
+        return result
+    }
+
+    override fun toString(): String =
+        "ModuleSource(descriptor=$descriptor, location=$location, metadata=$metadata)"
 }
 
 data class HealthStatus(
