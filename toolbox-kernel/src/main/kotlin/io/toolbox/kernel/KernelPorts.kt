@@ -65,6 +65,20 @@ fun interface ModuleAdmissionPolicy {
     fun evaluate(descriptor: ModuleDescriptor, source: ModuleSource?): AdmissionDecision
 }
 
+/**
+ * Safe kernel default: directly supplied in-APK modules are allowed, while a ModuleSource
+ * requires an explicit host admission policy before any loader is invoked.
+ */
+object DefaultModuleAdmissionPolicy : ModuleAdmissionPolicy {
+    override fun evaluate(descriptor: ModuleDescriptor, source: ModuleSource?): AdmissionDecision =
+        if (source == null) {
+            AdmissionDecision(true)
+        } else {
+            AdmissionDecision(false, "ModuleSource requires an explicit admission policy")
+        }
+}
+
+/** Explicit opt-in policy for trusted host code/tests that intentionally accept all sources. */
 object AllowAllModuleAdmissionPolicy : ModuleAdmissionPolicy {
     override fun evaluate(descriptor: ModuleDescriptor, source: ModuleSource?): AdmissionDecision = AdmissionDecision(true)
 }
@@ -78,5 +92,5 @@ data class KernelPorts(
     val logger: KernelLogger = NoopKernelLogger,
     val executor: KernelExecutor = DirectKernelExecutor,
     val compatibilityPolicy: CompatibilityPolicy = DefaultCompatibilityPolicy,
-    val admissionPolicy: ModuleAdmissionPolicy = AllowAllModuleAdmissionPolicy
+    val admissionPolicy: ModuleAdmissionPolicy = DefaultModuleAdmissionPolicy
 )
