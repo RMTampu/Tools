@@ -211,8 +211,8 @@ data class KernelEvent(
     val timestampMillis: Long = System.currentTimeMillis()
 ) {
     init {
-        require(topic.isNotBlank()) { "Kernel event topic cannot be blank" }
-        require(source.isNotBlank()) { "Kernel event source cannot be blank" }
+        require(topic.isNotBlank()) { "Event topic cannot be blank" }
+        require(source.isNotBlank()) { "Event source cannot be blank" }
     }
 }
 
