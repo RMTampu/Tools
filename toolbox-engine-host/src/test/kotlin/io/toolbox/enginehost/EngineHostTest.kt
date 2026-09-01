@@ -254,19 +254,19 @@ class EngineHostTest {
         var stopCount = 0
         var unloadCount = 0
 
-        override fun onLoad(scope: EngineRuntimeScope) {
+        open override fun onLoad(scope: EngineRuntimeScope) {
             loadCount += 1
         }
 
-        override fun onStart() {
+        open override fun onStart() {
             startCount += 1
         }
 
-        override fun onStop() {
+        open override fun onStop() {
             stopCount += 1
         }
 
-        override fun onUnload() {
+        open override fun onUnload() {
             unloadCount += 1
         }
     }
