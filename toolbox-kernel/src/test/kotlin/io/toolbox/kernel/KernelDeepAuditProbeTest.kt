@@ -18,7 +18,7 @@ class KernelDeepAuditProbeTest {
     fun `state store read failure must fail closed instead of pretending fresh state`() {
         val store = object : KernelStateStore {
             override fun put(key: String, value: String) = Unit
-            override fun get(key: String): String? = error("state read unavailable")
+            override fun get(key: String): String? = throw IllegalStateException("state read unavailable")
             override fun remove(key: String) = Unit
             override fun keys(prefix: String): Set<String> = emptySet()
         }
@@ -32,7 +32,7 @@ class KernelDeepAuditProbeTest {
     fun `logger failure must not abort kernel start transition`() {
         val logger = object : KernelLogger {
             override fun info(message: String) {
-                error("logger unavailable")
+                throw IllegalStateException("logger unavailable")
             }
         }
         val kernel = ToolBoxKernel(ports = KernelPorts(logger = logger))
@@ -53,6 +53,21 @@ class KernelDeepAuditProbeTest {
                 dependencies = setOf("invalid dependency")
             )
         }
+    }
+
+    @Test
+    fun `validated descriptor collections must not remain externally mutable`() {
+        val dependencies = linkedSetOf<String>()
+        val descriptor = ModuleDescriptor(
+            id = "engine.immutable",
+            name = "immutable",
+            version = "1.0.0",
+            dependencies = dependencies
+        )
+
+        dependencies += "invalid dependency"
+
+        assertTrue(descriptor.dependencies.isEmpty(), "external mutation changed a previously validated descriptor")
     }
 
     @Test
