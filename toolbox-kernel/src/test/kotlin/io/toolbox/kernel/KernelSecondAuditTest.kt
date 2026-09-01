@@ -60,8 +60,7 @@ class KernelSecondAuditTest {
             services = kernel.services,
             capabilities = kernel.capabilities,
             events = kernel.events,
-            commands = kernel.commands,
-            ports = kernel.ports
+            commands = kernel.commands
         )
         assertTrue(kernel.modules.loadAll(context).isEmpty())
 
