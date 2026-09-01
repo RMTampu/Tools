@@ -29,6 +29,24 @@ class KernelDeepAuditProbeTest {
     }
 
     @Test
+    fun `state store write failure must not permit a clean running claim`() {
+        val store = object : KernelStateStore {
+            override fun put(key: String, value: String) {
+                throw IllegalStateException("state write unavailable")
+            }
+
+            override fun get(key: String): String? = null
+            override fun remove(key: String) = Unit
+            override fun keys(prefix: String): Set<String> = emptySet()
+        }
+        val kernel = ToolBoxKernel(ports = KernelPorts(stateStore = store))
+
+        kernel.start()
+
+        assertTrue(kernel.state != KernelState.RUNNING, "kernel claimed RUNNING although lifecycle state could not be persisted")
+    }
+
+    @Test
     fun `logger failure must not abort kernel start transition`() {
         val logger = object : KernelLogger {
             override fun info(message: String) {
@@ -106,6 +124,33 @@ class KernelDeepAuditProbeTest {
         assertTrue(failures.isNotEmpty(), "descriptor changed after preflight but install still succeeded")
         assertEquals("compatibility", failures.first().phase)
         assertNull(kernel.modules.stateOf("engine.mutable"))
+    }
+
+    @Test
+    fun `failed dynamic install rollback must remove kernel registry side effects`() {
+        val kernel = ToolBoxKernel()
+        assertTrue(kernel.start().isEmpty())
+        val module = object : ToolBoxModule {
+            override val descriptor = ModuleDescriptor(
+                id = "engine.registry-leak",
+                name = "registry leak",
+                version = "1.0.0"
+            )
+
+            override fun onLoad(context: KernelContext) {
+                context.commands.register("audit.leaked-command") { CommandResult.success() }
+            }
+
+            override fun onStart() {
+                throw IllegalStateException("activation failed")
+            }
+        }
+
+        val failures = kernel.install(module)
+
+        assertTrue(failures.isNotEmpty())
+        assertNull(kernel.modules.stateOf("engine.registry-leak"))
+        assertEquals(0, kernel.commands.size, "rollback removed module record but leaked its command registration")
     }
 
     @Test
