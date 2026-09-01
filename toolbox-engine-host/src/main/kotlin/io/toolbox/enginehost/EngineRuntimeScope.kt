@@ -67,9 +67,10 @@ class EngineRuntimeScope internal constructor(
     }
 
     fun stateKeys(prefix: String = ""): Set<String> {
-        val namespacedPrefix = stateKey(prefix)
-        return kernel.ports.stateStore.keys(namespacedPrefix)
-            .mapTo(linkedSetOf()) { it.removePrefix("engine.$engineId.") }
+        require(!prefix.startsWith(".")) { "State prefix cannot start with '.'" }
+        val namespace = "engine.$engineId."
+        return kernel.ports.stateStore.keys(namespace + prefix)
+            .mapTo(linkedSetOf()) { it.removePrefix(namespace) }
     }
 
     override fun close() {
