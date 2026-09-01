@@ -132,31 +132,21 @@ class ToolBoxKernel(
         }
 
         if (state in setOf(KernelState.RUNNING, KernelState.DEGRADED)) {
-            val registryJournal = KernelRegistryMutationJournal()
-            val activationContext = context.withRegistryJournal(registryJournal)
             val activationFailures = runCatching {
-                modules.loadAndStart(descriptor.id, activationContext)
+                modules.loadAndStart(descriptor.id, context)
             }.getOrElse { error ->
                 listOf(ModuleFailure(descriptor.id, "activation", error))
             }
 
             if (activationFailures.isNotEmpty()) {
                 val rollbackFailures = modules.rollbackInstall(descriptor.id)
-                val registryRollbackFailures = registryJournal.rollback()
-                    .map { error -> ModuleFailure(descriptor.id, "registry-rollback", error) }
-                val failures = buildList {
-                    addAll(activationFailures)
-                    addAll(rollbackFailures)
-                    addAll(registryRollbackFailures)
-                }
+                val failures = activationFailures + rollbackFailures
                 failures.forEach {
                     safeError("Module ${it.moduleId} failed during ${it.phase}", it.cause)
                 }
                 refreshOperationalState()
                 return failures
             }
-
-            registryJournal.commit()
         }
 
         events.publish(
