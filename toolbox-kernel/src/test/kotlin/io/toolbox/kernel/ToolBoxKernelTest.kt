@@ -220,6 +220,32 @@ class ToolBoxKernelTest {
     }
 
     @Test
+    fun `failed load cleanup remains retryable until rollback succeeds`() {
+        var unloadCount = 0
+        val kernel = ToolBoxKernel()
+        kernel.start()
+        val failing = object : ToolBoxModule {
+            override val descriptor = descriptor("engine.load-cleanup")
+
+            override fun onLoad(context: KernelContext) {
+                error("load failed")
+            }
+
+            override fun onUnload() {
+                unloadCount += 1
+                if (unloadCount == 1) error("first cleanup failed")
+            }
+        }
+
+        val failures = kernel.install(failing)
+
+        assertTrue(failures.any { it.phase == "load" })
+        assertEquals(2, unloadCount)
+        assertNull(kernel.modules.stateOf("engine.load-cleanup"))
+        assertEquals(KernelState.RUNNING, kernel.state)
+    }
+
+    @Test
     fun `failed uninstall keeps module registered and marks kernel degraded`() {
         val kernel = ToolBoxKernel()
         val module = object : ToolBoxModule {
@@ -236,6 +262,31 @@ class ToolBoxKernelTest {
         assertFalse(kernel.uninstall("engine.stop-fail"))
         assertEquals(ModuleState.FAILED, kernel.modules.stateOf("engine.stop-fail"))
         assertEquals(KernelState.DEGRADED, kernel.state)
+    }
+
+    @Test
+    fun `kernel stop retries unresolved module stop and never reports false clean stop`() {
+        var stopCalls = 0
+        val kernel = ToolBoxKernel()
+        val module = object : ToolBoxModule {
+            override val descriptor = descriptor("engine.stop-retry")
+
+            override fun onStop() {
+                stopCalls += 1
+                error("still cannot stop")
+            }
+        }
+
+        kernel.install(module)
+        kernel.start()
+        assertFalse(kernel.uninstall("engine.stop-retry"))
+
+        val failures = kernel.stop()
+
+        assertTrue(failures.any { it.phase == "stop" })
+        assertEquals(2, stopCalls)
+        assertEquals(KernelState.FAILED, kernel.state)
+        assertEquals(ModuleState.FAILED, kernel.modules.stateOf("engine.stop-retry"))
     }
 
     @Test
@@ -309,6 +360,23 @@ class ToolBoxKernelTest {
 
         assertEquals(1, healthyListenerCalls)
         assertTrue(logger.warnings.any { it.contains("Event listener failed") })
+    }
+
+    @Test
+    fun `event listener isolation survives logger failure`() {
+        val throwingLogger = object : KernelLogger {
+            override fun warn(message: String, error: Throwable?) {
+                error("logger failed")
+            }
+        }
+        val kernel = ToolBoxKernel(ports = KernelPorts(logger = throwingLogger))
+        var healthyListenerCalls = 0
+        kernel.events.subscribe("probe") { error("listener failed") }
+        kernel.events.subscribe("probe") { healthyListenerCalls += 1 }
+
+        kernel.events.publish(KernelEvent("probe", "test"))
+
+        assertEquals(1, healthyListenerCalls)
     }
 
     @Test
