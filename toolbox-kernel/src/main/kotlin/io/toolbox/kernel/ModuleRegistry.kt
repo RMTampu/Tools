@@ -3,7 +3,9 @@ package io.toolbox.kernel
 class ModuleRegistry {
     private data class Record(
         val module: ToolBoxModule,
-        var state: ModuleState = ModuleState.REGISTERED
+        var state: ModuleState = ModuleState.REGISTERED,
+        var loadCompleted: Boolean = false,
+        var startAttempted: Boolean = false
     )
 
     private val records = linkedMapOf<String, Record>()
@@ -11,8 +13,6 @@ class ModuleRegistry {
     @Synchronized
     fun install(module: ToolBoxModule) {
         val descriptor = module.descriptor
-        require(descriptor.id.isNotBlank()) { "Module id cannot be blank" }
-        require(descriptor.name.isNotBlank()) { "Module name cannot be blank" }
         check(descriptor.id !in records) { "Module already installed: ${descriptor.id}" }
         records[descriptor.id] = Record(module)
     }
@@ -24,12 +24,28 @@ class ModuleRegistry {
         check(dependents.isEmpty()) {
             "Cannot uninstall $moduleId; required by ${dependents.joinToString { it.module.descriptor.id }}"
         }
-        if (record.state == ModuleState.STARTED) {
-            runCatching { record.module.onStop() }
-            record.state = ModuleState.STOPPED
+
+        val cleanupFailures = cleanupForRemoval(record)
+        if (cleanupFailures.isNotEmpty()) {
+            val primary = cleanupFailures.first()
+            cleanupFailures.drop(1).forEach(primary::addSuppressed)
+            throw IllegalStateException("Failed to cleanly uninstall module $moduleId", primary)
         }
+
         records.remove(moduleId)
         return true
+    }
+
+    @Synchronized
+    internal fun rollbackInstall(moduleId: String): List<ModuleFailure> {
+        val record = records[moduleId] ?: return emptyList()
+        val cleanupFailures = cleanupForRemoval(record)
+        if (cleanupFailures.isEmpty()) {
+            records.remove(moduleId)
+            return emptyList()
+        }
+        record.state = ModuleState.FAILED
+        return cleanupFailures.map { ModuleFailure(moduleId, "rollback", it) }
     }
 
     @Synchronized
@@ -54,10 +70,16 @@ class ModuleRegistry {
             }
 
             runCatching { record.module.onLoad(context) }
-                .onSuccess { record.state = ModuleState.LOADED }
-                .onFailure {
+                .onSuccess {
+                    record.loadCompleted = true
+                    record.state = ModuleState.LOADED
+                }
+                .onFailure { error ->
+                    val cleanup = runCatching { record.module.onUnload() }
+                    cleanup.exceptionOrNull()?.let(error::addSuppressed)
+                    record.loadCompleted = cleanup.isFailure
                     record.state = ModuleState.FAILED
-                    failures += ModuleFailure(record.module.descriptor.id, "load", it)
+                    failures += ModuleFailure(record.module.descriptor.id, "load", error)
                 }
         }
         return failures
@@ -84,11 +106,17 @@ class ModuleRegistry {
                 return@forEach
             }
 
+            record.startAttempted = true
             runCatching { record.module.onStart() }
-                .onSuccess { record.state = ModuleState.STARTED }
-                .onFailure {
+                .onSuccess {
+                    record.state = ModuleState.STARTED
+                }
+                .onFailure { error ->
+                    runCatching { record.module.onStop() }
+                        .onSuccess { record.startAttempted = false }
+                        .onFailure(error::addSuppressed)
                     record.state = ModuleState.FAILED
-                    failures += ModuleFailure(record.module.descriptor.id, "start", it)
+                    failures += ModuleFailure(record.module.descriptor.id, "start", error)
                 }
         }
         return failures
@@ -116,19 +144,31 @@ class ModuleRegistry {
 
         if (record.state == ModuleState.REGISTERED) {
             runCatching { record.module.onLoad(context) }
-                .onSuccess { record.state = ModuleState.LOADED }
-                .onFailure {
+                .onSuccess {
+                    record.loadCompleted = true
+                    record.state = ModuleState.LOADED
+                }
+                .onFailure { error ->
+                    val cleanup = runCatching { record.module.onUnload() }
+                    cleanup.exceptionOrNull()?.let(error::addSuppressed)
+                    record.loadCompleted = cleanup.isFailure
                     record.state = ModuleState.FAILED
-                    failures += ModuleFailure(moduleId, "load", it)
+                    failures += ModuleFailure(moduleId, "load", error)
                 }
         }
 
-        if (record.state in setOf(ModuleState.LOADED, ModuleState.STOPPED)) {
+        if (failures.isEmpty() && record.state in setOf(ModuleState.LOADED, ModuleState.STOPPED)) {
+            record.startAttempted = true
             runCatching { record.module.onStart() }
-                .onSuccess { record.state = ModuleState.STARTED }
-                .onFailure {
+                .onSuccess {
+                    record.state = ModuleState.STARTED
+                }
+                .onFailure { error ->
+                    runCatching { record.module.onStop() }
+                        .onSuccess { record.startAttempted = false }
+                        .onFailure(error::addSuppressed)
                     record.state = ModuleState.FAILED
-                    failures += ModuleFailure(moduleId, "start", it)
+                    failures += ModuleFailure(moduleId, "start", error)
                 }
         }
         return failures
@@ -141,9 +181,12 @@ class ModuleRegistry {
         val failures = mutableListOf<ModuleFailure>()
 
         order.forEach { record ->
-            if (record.state != ModuleState.STARTED) return@forEach
+            if (record.state != ModuleState.STARTED && !record.startAttempted) return@forEach
             runCatching { record.module.onStop() }
-                .onSuccess { record.state = ModuleState.STOPPED }
+                .onSuccess {
+                    record.startAttempted = false
+                    record.state = ModuleState.STOPPED
+                }
                 .onFailure {
                     record.state = ModuleState.FAILED
                     failures += ModuleFailure(record.module.descriptor.id, "stop", it)
@@ -168,6 +211,37 @@ class ModuleRegistry {
 
     @Synchronized
     fun descriptors(): List<ModuleDescriptor> = records.values.map { it.module.descriptor }
+
+    private fun cleanupForRemoval(record: Record): List<Throwable> {
+        val failures = mutableListOf<Throwable>()
+
+        if (record.state == ModuleState.STARTED || record.startAttempted) {
+            runCatching { record.module.onStop() }
+                .onSuccess {
+                    record.startAttempted = false
+                    record.state = ModuleState.STOPPED
+                }
+                .onFailure {
+                    record.state = ModuleState.FAILED
+                    failures += it
+                }
+            if (failures.isNotEmpty()) return failures
+        }
+
+        if (record.loadCompleted) {
+            runCatching { record.module.onUnload() }
+                .onSuccess {
+                    record.loadCompleted = false
+                    record.state = ModuleState.REGISTERED
+                }
+                .onFailure {
+                    record.state = ModuleState.FAILED
+                    failures += it
+                }
+        }
+
+        return failures
+    }
 
     private fun resolveOrder(): List<Record> {
         val visiting = mutableSetOf<String>()
