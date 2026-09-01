@@ -24,7 +24,15 @@ data class KernelConfig(
     val moduleApiVersion: Int = 1,
     val androidApiBaseline: Int = 30,
     val architectureBaseline: String = "arm64-v8a"
-)
+) {
+    init {
+        require(name.isNotBlank()) { "Kernel name cannot be blank" }
+        require(version.isNotBlank()) { "Kernel version cannot be blank" }
+        require(moduleApiVersion > 0) { "Kernel module API version must be positive" }
+        require(androidApiBaseline > 0) { "Kernel Android API baseline must be positive" }
+        require(architectureBaseline.isNotBlank()) { "Kernel architecture baseline cannot be blank" }
+    }
+}
 
 data class ModuleDescriptor(
     val id: String,
@@ -34,7 +42,19 @@ data class ModuleDescriptor(
     val minAndroidApi: Int = 30,
     val supportedArchitectures: Set<String> = setOf("arm64-v8a"),
     val dependencies: Set<String> = emptySet()
-)
+) {
+    init {
+        require(id.isNotBlank()) { "Module id cannot be blank" }
+        require(id.none(Char::isWhitespace)) { "Module id cannot contain whitespace" }
+        require(name.isNotBlank()) { "Module name cannot be blank" }
+        require(version.isNotBlank()) { "Module version cannot be blank" }
+        require(apiVersion > 0) { "Module API version must be positive" }
+        require(minAndroidApi > 0) { "Module min Android API must be positive" }
+        require(supportedArchitectures.none(String::isBlank)) { "Supported architecture cannot be blank" }
+        require(dependencies.none(String::isBlank)) { "Module dependency id cannot be blank" }
+        require(id !in dependencies) { "Module cannot depend on itself: $id" }
+    }
+}
 
 data class CompatibilityResult(
     val compatible: Boolean,
@@ -47,10 +67,17 @@ data class AdmissionDecision(
 )
 
 data class ModuleSource(
-    val id: String,
+    val descriptor: ModuleDescriptor,
     val location: String,
     val metadata: Map<String, String> = emptyMap()
-)
+) {
+    val id: String get() = descriptor.id
+
+    init {
+        require(location.isNotBlank()) { "Module source location cannot be blank" }
+        require(metadata.keys.none(String::isBlank)) { "Module source metadata key cannot be blank" }
+    }
+}
 
 data class HealthStatus(
     val healthy: Boolean,
@@ -88,7 +115,12 @@ data class KernelEvent(
     val source: String,
     val payload: Any? = null,
     val timestampMillis: Long = System.currentTimeMillis()
-)
+) {
+    init {
+        require(topic.isNotBlank()) { "Event topic cannot be blank" }
+        require(source.isNotBlank()) { "Event source cannot be blank" }
+    }
+}
 
 interface Capability {
     val id: String
