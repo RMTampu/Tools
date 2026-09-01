@@ -162,7 +162,6 @@ class ModuleRegistry {
                 .onSuccess {
                     synchronized(lock) {
                         if (records[record.descriptor.id] === record) {
-                            record.startAttempted = false
                             record.state = ModuleState.STARTED
                         }
                     }
@@ -252,7 +251,6 @@ class ModuleRegistry {
                 .onSuccess {
                     synchronized(lock) {
                         if (records[moduleId] === record) {
-                            record.startAttempted = false
                             record.state = ModuleState.STARTED
                         }
                     }
