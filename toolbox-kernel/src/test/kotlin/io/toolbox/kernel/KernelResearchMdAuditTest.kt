@@ -1,5 +1,7 @@
 package io.toolbox.kernel
 
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -104,5 +106,64 @@ class KernelResearchMdAuditTest {
             exposed,
             "module context exposes KernelPorts including the authoritative KernelStateStore and admission policies"
         )
+    }
+
+    @Test
+    fun `R2 lifecycle callback must not run while kernel global monitor blocks peer operation`() {
+        lateinit var kernel: ToolBoxKernel
+        val peerFinished = CountDownLatch(1)
+        var finishedInsideCallback = false
+        val module = object : ToolBoxModule {
+            override val descriptor = ModuleDescriptor(
+                id = "engine.callback-lock-audit",
+                name = "callback lock audit",
+                version = "1.0.0"
+            )
+
+            override fun onStart() {
+                val peer = Thread {
+                    runCatching { kernel.uninstall("engine.not-installed") }
+                    peerFinished.countDown()
+                }
+                peer.start()
+                finishedInsideCallback = peerFinished.await(750, TimeUnit.MILLISECONDS)
+            }
+        }
+
+        kernel = ToolBoxKernel()
+        assertTrue(kernel.install(module).isEmpty())
+        kernel.start()
+
+        assertTrue(
+            finishedInsideCallback,
+            "kernel lifecycle callback executed while a global kernel monitor blocked peer mutation progress"
+        )
+    }
+
+    @Test
+    fun `R5 R7 module cannot spoof capability provider ownership`() {
+        val kernel = ToolBoxKernel()
+        val module = object : ToolBoxModule {
+            override val descriptor = ModuleDescriptor(
+                id = "engine.capability-owner",
+                name = "capability owner",
+                version = "1.0.0"
+            )
+
+            override fun onLoad(context: KernelContext) {
+                context.capabilities.register(object : Capability {
+                    override val id = "audit.spoofed-provider"
+                    override val version = 1
+                    override val providerModuleId = "engine.someone-else"
+                })
+            }
+        }
+
+        assertTrue(kernel.install(module).isEmpty())
+        val failures = kernel.start()
+
+        assertTrue(failures.any { it.moduleId == module.descriptor.id })
+        assertNull(kernel.capabilities.get("audit.spoofed-provider"))
+        assertEquals(ModuleState.FAILED, kernel.modules.stateOf(module.descriptor.id))
     }
 }
