@@ -75,9 +75,9 @@ class ModuleRegistry {
                     record.state = ModuleState.LOADED
                 }
                 .onFailure { error ->
-                    runCatching { record.module.onUnload() }
-                        .onFailure(error::addSuppressed)
-                    record.loadCompleted = false
+                    val cleanup = runCatching { record.module.onUnload() }
+                    cleanup.exceptionOrNull()?.let(error::addSuppressed)
+                    record.loadCompleted = cleanup.isFailure
                     record.state = ModuleState.FAILED
                     failures += ModuleFailure(record.module.descriptor.id, "load", error)
                 }
@@ -149,9 +149,9 @@ class ModuleRegistry {
                     record.state = ModuleState.LOADED
                 }
                 .onFailure { error ->
-                    runCatching { record.module.onUnload() }
-                        .onFailure(error::addSuppressed)
-                    record.loadCompleted = false
+                    val cleanup = runCatching { record.module.onUnload() }
+                    cleanup.exceptionOrNull()?.let(error::addSuppressed)
+                    record.loadCompleted = cleanup.isFailure
                     record.state = ModuleState.FAILED
                     failures += ModuleFailure(moduleId, "load", error)
                 }
