@@ -80,7 +80,9 @@ class EventBus(
     private fun dispatch(topic: String, event: KernelEvent) {
         listeners[topic]?.forEach { listener ->
             runCatching { listener(event) }
-                .onFailure { logger.warn("Event listener failed for topic ${event.topic}", it) }
+                .onFailure { error ->
+                    runCatching { logger.warn("Event listener failed for topic ${event.topic}", error) }
+                }
         }
     }
 
