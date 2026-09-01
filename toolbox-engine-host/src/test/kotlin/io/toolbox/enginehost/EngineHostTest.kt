@@ -6,6 +6,7 @@ import io.toolbox.kernel.KernelState
 import io.toolbox.kernel.ToolBoxKernel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -68,7 +69,7 @@ class EngineHostTest {
         val provider = RecordingProvider(
             descriptor(
                 engineId = "engine.capability",
-                providedCapabilityIds = setOf("cap.search")
+                providedCapabilities = setOf(CapabilityDeclaration("cap.search", 2))
             )
         ) {
             object : RecordingEngine() {
@@ -87,6 +88,34 @@ class EngineHostTest {
         assertEquals(2, kernel.capabilities.get("cap.search")?.version)
 
         acquired.lease.close()
+        assertNull(kernel.capabilities.get("cap.search"))
+    }
+
+    @Test
+    fun `declared capability version must match runtime registration`() {
+        val kernel = ToolBoxKernel()
+        val host = EngineHost()
+        val provider = RecordingProvider(
+            descriptor(
+                engineId = "engine.capability-version",
+                providedCapabilities = setOf(CapabilityDeclaration("cap.search", 2))
+            )
+        ) {
+            object : RecordingEngine() {
+                override fun onLoad(scope: EngineRuntimeScope) {
+                    scope.registerCapability(TestCapability("cap.search", 1, "engine.capability-version"))
+                }
+            }
+        }
+
+        kernel.install(host)
+        host.register(provider)
+        kernel.start()
+
+        val result = host.acquire("engine.capability-version") as EngineAcquireResult.Rejected
+
+        assertEquals("ENGINE_ACTIVATION_FAILED", result.code)
+        assertEquals(EngineState.FAILED, host.status("engine.capability-version")?.state)
         assertNull(kernel.capabilities.get("cap.search"))
     }
 
@@ -174,7 +203,7 @@ class EngineHostTest {
         val provider = RecordingProvider(
             descriptor(
                 engineId = "engine.bad-contract",
-                providedCapabilityIds = setOf("cap.promised")
+                providedCapabilities = setOf(CapabilityDeclaration("cap.promised", 1))
             )
         ) { RecordingEngine() }
 
@@ -190,15 +219,17 @@ class EngineHostTest {
     }
 
     @Test
-    fun `runtime scope removes owned service and subscription on release`() {
+    fun `runtime scope removes owned service and subscription and closes access on release`() {
         val kernel = ToolBoxKernel()
         val host = EngineHost()
         val observed = mutableListOf<String>()
         val service = TestService("ready")
+        var capturedScope: EngineRuntimeScope? = null
         val provider = RecordingProvider(descriptor("engine.scope")) {
             object : RecordingEngine() {
                 override fun onLoad(scope: EngineRuntimeScope) {
                     super.onLoad(scope)
+                    capturedScope = scope
                     scope.registerService(TestService::class.java, service)
                     scope.subscribe("probe") { event -> observed += event.payload.toString() }
                 }
@@ -218,20 +249,21 @@ class EngineHostTest {
         assertNull(kernel.services.get(TestService::class.java))
         kernel.events.publish(KernelEvent("probe", "test", "after"))
         assertEquals(listOf("before"), observed)
+        assertFailsWith<IllegalStateException> { capturedScope!!.getState("probe") }
     }
 
     private fun descriptor(
         engineId: String,
         supportedAbi: Set<String> = setOf("arm64-v8a"),
         requiredCapabilities: Set<CapabilityRequirement> = emptySet(),
-        providedCapabilityIds: Set<String> = emptySet()
+        providedCapabilities: Set<CapabilityDeclaration> = emptySet()
     ) = EngineDescriptor(
         engineId = engineId,
         name = engineId,
         engineVersion = "1.0.0",
         supportedAbi = supportedAbi,
         requiredCapabilities = requiredCapabilities,
-        providedCapabilityIds = providedCapabilityIds,
+        providedCapabilities = providedCapabilities,
         entryPoint = "$engineId.EntryPoint"
     )
 
