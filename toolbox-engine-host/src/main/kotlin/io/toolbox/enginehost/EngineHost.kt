@@ -47,13 +47,13 @@ class EngineHost(
         synchronized(this) {
             check(kernelContext == null) { "EngineHost already loaded" }
             kernelContext = context
-            context.services.register(EngineHost::class.java, this)
         }
     }
 
     override fun onStart() {
         synchronized(this) {
             check(kernelContext != null) { "EngineHost cannot start before load" }
+            registerHostService()
             hostRunning = true
             publish("engine.host.started", descriptor.id)
         }
@@ -67,15 +67,18 @@ class EngineHost(
                 .asReversed()
                 .forEach { releaseRecord(it, "host-stop") }
             publish("engine.host.stopped", descriptor.id)
+            unregisterHostService()
         }
     }
 
     override fun healthCheck(): HealthStatus = synchronized(this) {
-        if (kernelContext == null) {
-            return@synchronized HealthStatus.failed("EngineHost has no kernel context")
-        }
+        val context = kernelContext
+            ?: return@synchronized HealthStatus.failed("EngineHost has no kernel context")
         if (!hostRunning) {
             return@synchronized HealthStatus.failed("EngineHost is not running")
+        }
+        if (context.services.get(EngineHost::class.java) !== this) {
+            return@synchronized HealthStatus.failed("EngineHost service is not bound to the active host")
         }
         val failed = records.values.count { it.state == EngineState.FAILED }
         val incompatible = records.values.count { it.state == EngineState.INCOMPATIBLE }
@@ -399,6 +402,22 @@ class EngineHost(
         dataTypeIds = source.dataTypeIds.toSet(),
         permissionNeeds = source.permissionNeeds.toSet()
     )
+
+    private fun registerHostService() {
+        val context = kernelContext ?: error("EngineHost has no kernel context")
+        val existing = context.services.get(EngineHost::class.java)
+        check(existing == null || existing === this) { "Another EngineHost service is already registered" }
+        if (existing == null) {
+            context.services.register(EngineHost::class.java, this)
+        }
+    }
+
+    private fun unregisterHostService() {
+        val context = kernelContext ?: return
+        if (context.services.get(EngineHost::class.java) === this) {
+            context.services.unregister(EngineHost::class.java)
+        }
+    }
 
     private fun rejected(engineId: String, code: String, reason: String): EngineAcquireResult.Rejected =
         EngineAcquireResult.Rejected(engineId = engineId, code = code, reason = reason)
