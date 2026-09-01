@@ -229,13 +229,25 @@ jobs:
         run: |
           set -euo pipefail
           APK=verification/firebase-candidate/toolbox-app-release.apk
-          REPORT=verification/evidence/apk-candidate/release-signature.txt
-          "$ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner" verify --verbose --print-certs "$APK" | tee "$REPORT"
-          grep -E 'Verified using v2 scheme.*:[[:space:]]*true' "$REPORT"
+          REPORT=verification/evidence/apk-candidate/release-signature-api30.txt
+          V2_REPORT=verification/evidence/apk-candidate/release-signature-v2-window.txt
+
+          # Actual product window: API 30 must verify with v3 and the pinned certificate.
+          "$ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner" verify \
+            --verbose --print-certs \
+            --min-sdk-version 30 --max-sdk-version 30 \
+            "$APK" | tee "$REPORT"
           grep -E 'Verified using v3 scheme.*:[[:space:]]*true' "$REPORT"
           ACTUAL="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "$REPORT" | head -n1 | tr 'A-F' 'a-f')"
           test -n "$ACTUAL"
           test "$ACTUAL" = "$EXPECTED_CERT_SHA256"
+
+          # Contract evidence: validate the embedded v2 block on the API range where v2 is authoritative.
+          "$ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner" verify \
+            --verbose \
+            --min-sdk-version 24 --max-sdk-version 27 \
+            "$APK" | tee "$V2_REPORT"
+          grep -E 'Verified using v2 scheme.*:[[:space:]]*true' "$V2_REPORT"
 
       - name: Verify closed custom-resource package and generated table budget
         shell: bash
