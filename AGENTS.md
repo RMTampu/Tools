@@ -297,3 +297,7 @@ AND FAULT_ESCAPE = 0
 Agen DILARANG mengurangi salah satu domain R1–R9, mengubah urutan final closure, menggunakan keberhasilan build sebagai pengganti proof, atau menganggap R9 PASS bila salah satu domain R1–R8 masih tidak lengkap.
 
 Jika kapasitas context/memory tidak cukup untuk memuat seluruh R1–R9 sekaligus, agen wajib menjalankan domain/sub-gate secara bertahap sesuai `AGENT_PROCEDURE_EXECUTION_RULES.md`; ukuran unit kerja boleh diperkecil tetapi aturan, coverage, fault model, proof, dan evidence tidak boleh dikurangi.
+
+## 22. Jalur Runtime Android 11 ARM64
+
+Runtime proof wajib mengikuti `RUNTIME_ANDROID11_ARM64.md` dan `.github/workflows/application-runtime-r9.yml`. Jalur emulator hosted yang sudah terbukti tidak valid dilarang diulang tanpa bukti perubahan kemampuan infrastruktur. Runtime tidak boleh membangun ulang APK production dan hanya boleh menguji exact static candidate yang digest/provenance-nya telah dibuktikan. Target wajib lolos `verification/scripts/runtime_environment_gate.py`. Layout artifact runtime dikunci ke `candidate/candidate-apks/` dan `candidate/evidence/`; `candidate/verification/...` adalah jalur salah. `verification/scripts/runtime_ci_guard.py` tidak boleh dilemahkan hanya agar CI hijau.

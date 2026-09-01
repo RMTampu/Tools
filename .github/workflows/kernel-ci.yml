@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   kernel-check:
@@ -69,28 +69,3 @@ jobs:
             --output "$DEX_OUT" \
             "$KERNEL_JAR"
           test -s "$DEX_OUT/classes.dex"
-
-  runtime-route-maintenance:
-    if: github.ref == 'refs/heads/kernel-foundation-hardening'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    steps:
-      - name: Checkout branch for one-time repair
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
-        with:
-          ref: kernel-foundation-hardening
-          persist-credentials: true
-      - name: Apply, validate, and self-remove runtime repair
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 verification/scripts/apply_runtime_route_once.py
-          python3 -m py_compile verification/scripts/runtime_environment_gate.py verification/scripts/runtime_ci_guard.py verification/scripts/application_safe_100_gate.py
-          python3 verification/scripts/runtime_ci_guard.py
-          git diff --check
-          git config user.name 'ToolBox CI Maintenance'
-          git config user.email 'actions@users.noreply.github.com'
-          git add -A
-          git diff --cached --quiet && { echo NO_CHANGES; exit 0; }
-          git commit -m 'Lock canonical Android 11 ARM64 runtime route'
-          git push origin HEAD:kernel-foundation-hardening

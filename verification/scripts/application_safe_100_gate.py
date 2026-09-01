@@ -244,8 +244,8 @@ def main()->int:
           'instrumentation + adb runtime + apk parser + apksigner + mutation')
     check('r9-runtime-tool-qualification',
           runtime_tools.get('status')=='PASS'
-          and {'runtime-host-arm64','runtime-emulator-version-known',
-               'runtime-adb-version-known','runtime-system-image-revision-known'}.issubset(tool_checks),
+          and {'runtime-device-connected','runtime-device-api30','runtime-device-android11',
+               'runtime-device-arm64','runtime-adb-version-known','runtime-transport-qualified'}.issubset(tool_checks),
           f'passed={sorted(tool_checks)}')
     check('r9-ci-tool-policy-qualified',
           {'github-actions-commit-pinned','no-ci-continue-on-error-bypass'}.issubset(pre_checks)

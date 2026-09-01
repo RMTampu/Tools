@@ -1,8 +1,6 @@
 name: ToolBox Android 11 ARM64 Runtime R9
 
 on:
-  push:
-    branches: [kernel-foundation-hardening]
   workflow_dispatch:
 
 permissions:
@@ -10,390 +8,124 @@ permissions:
   actions: read
 
 concurrency:
-  group: application-runtime-r9-${{ github.sha }}
+  group: application-runtime-r9-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  wait-static:
+  locate-static:
     runs-on: ubuntu-24.04
-    timeout-minutes: 80
+    timeout-minutes: 10
     outputs:
       run_id: ${{ steps.locate.outputs.run_id }}
-
     steps:
-      - name: Locate exact static candidate run
+      - name: Locate exact successful static candidate
         id: locate
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PROOF_SHA: ${{ github.sha }}
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import json, os, time, urllib.parse, urllib.request
-
-          repo = os.environ['GITHUB_REPOSITORY']
-          sha = os.environ['GITHUB_SHA'].lower()
-          token = os.environ['GH_TOKEN']
-          headers = {
-              'Accept': 'application/vnd.github+json',
-              'Authorization': f'Bearer {token}',
-              'X-GitHub-Api-Version': '2022-11-28',
-              'User-Agent': 'toolbox-runtime-r9',
-          }
-
+          import json,os,urllib.parse,urllib.request
+          repo=os.environ['GITHUB_REPOSITORY']; sha=os.environ['PROOF_SHA'].lower(); token=os.environ['GH_TOKEN']
+          headers={'Accept':'application/vnd.github+json','Authorization':f'Bearer {token}','X-GitHub-Api-Version':'2022-11-28','User-Agent':'toolbox-runtime-r9'}
           def get(url):
-              request = urllib.request.Request(url, headers=headers)
-              with urllib.request.urlopen(request, timeout=30) as response:
-                  return json.load(response)
-
-          found = None
-          for _ in range(240):
-              query = urllib.parse.urlencode({'head_sha': sha, 'per_page': 100})
-              runs = get(f'https://api.github.com/repos/{repo}/actions/runs?{query}').get('workflow_runs', [])
-              runs = [
-                  run for run in runs
-                  if run.get('name') == 'ToolBox Application Safe 100'
-                  and str(run.get('head_sha', '')).lower() == sha
-                  and run.get('head_branch') == 'kernel-foundation-hardening'
-              ]
-              runs.sort(key=lambda run: run.get('id', 0), reverse=True)
-              for run in runs:
-                  artifacts = get(
-                      f"https://api.github.com/repos/{repo}/actions/runs/{run['id']}/artifacts?per_page=100"
-                  ).get('artifacts', [])
-                  if any(
-                      artifact.get('name') == 'toolbox-android11-arm64-static-candidate'
-                      and not artifact.get('expired', False)
-                      for artifact in artifacts
-                  ):
-                      found = run['id']
-                      break
-              if found:
-                  break
-              time.sleep(15)
-
-          if not found:
-              raise SystemExit('exact static candidate artifact was not produced for this revision')
-
-          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
-              output.write(f'run_id={found}\n')
-          print(f'EXACT_STATIC_RUN_ID={found}')
+              req=urllib.request.Request(url,headers=headers)
+              with urllib.request.urlopen(req,timeout=30) as r:return json.load(r)
+          q=urllib.parse.urlencode({'head_sha':sha,'branch':'kernel-foundation-hardening','per_page':100})
+          good=[]
+          for run in get(f'https://api.github.com/repos/{repo}/actions/runs?{q}').get('workflow_runs',[]):
+              if run.get('name')!='ToolBox Application Safe 100' or str(run.get('head_sha','')).lower()!=sha or run.get('conclusion')!='success':continue
+              arts=get(f"https://api.github.com/repos/{repo}/actions/runs/{run['id']}/artifacts?per_page=100").get('artifacts',[])
+              if any(a.get('name')=='toolbox-android11-arm64-static-candidate' and not a.get('expired',False) for a in arts):good.append(run)
+          if not good:raise SystemExit('no successful exact static candidate for current revision')
+          selected=max(good,key=lambda r:r['id'])
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f:f.write(f"run_id={selected['id']}\n")
+          print(f"EXACT_STATIC_RUN_ID={selected['id']}")
           PY
 
   runtime-r9:
-    needs: wait-static
-    runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    needs: locate-static
+    runs-on: [self-hosted, linux, toolbox-android11-arm64-runtime]
+    timeout-minutes: 90
     env:
       PROOF_SHA: ${{ github.sha }}
-
     steps:
       - name: Checkout exact revision
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-
       - name: Download exact static candidate
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
         with:
           name: toolbox-android11-arm64-static-candidate
           path: candidate
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ needs.wait-static.outputs.run_id }}
-
-      - name: Restore static evidence and locate exact APKs
+          run-id: ${{ needs.locate-static.outputs.run_id }}
+      - name: Restore canonical static evidence and locate exact APKs
         shell: bash
         run: |
           set -euo pipefail
           test -d candidate/evidence
           test -d candidate/candidate-apks
-          rm -rf verification/evidence
-          mkdir -p verification/evidence
+          test ! -e candidate/verification
+          rm -rf verification/evidence; mkdir -p verification/evidence
           cp -R candidate/evidence/. verification/evidence/
-
           DEBUG_APK="$GITHUB_WORKSPACE/candidate/candidate-apks/toolbox-app-debug.apk"
           RELEASE_APK="$GITHUB_WORKSPACE/candidate/candidate-apks/toolbox-app-release.apk"
           TEST_APK="$GITHUB_WORKSPACE/candidate/candidate-apks/toolbox-app-debug-androidTest.apk"
-          test -s "$DEBUG_APK"
-          test -s "$RELEASE_APK"
-          test -s "$TEST_APK"
-          echo "DEBUG_APK=$DEBUG_APK" >> "$GITHUB_ENV"
-          echo "RELEASE_APK=$RELEASE_APK" >> "$GITHUB_ENV"
-          echo "TEST_APK=$TEST_APK" >> "$GITHUB_ENV"
-
+          test -s "$DEBUG_APK"; test -s "$RELEASE_APK"; test -s "$TEST_APK"
+          echo "DEBUG_APK=$DEBUG_APK" >> "$GITHUB_ENV"; echo "RELEASE_APK=$RELEASE_APK" >> "$GITHUB_ENV"; echo "TEST_APK=$TEST_APK" >> "$GITHUB_ENV"
       - name: Verify downloaded artifact provenance before runtime
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import hashlib, json, os
+          import hashlib,json,os
           from pathlib import Path
-
-          proof_sha = os.environ['PROOF_SHA'].lower()
-          provenance = json.loads(Path('verification/evidence/artifacts/provenance.json').read_text())
-          if provenance.get('gitSha') != proof_sha:
-              raise SystemExit('provenance revision mismatch')
-
-          for env_name, key in [
-              ('DEBUG_APK', 'debug'),
-              ('RELEASE_APK', 'release'),
-              ('TEST_APK', 'androidTest'),
-          ]:
-              path = Path(os.environ[env_name])
-              digest = hashlib.sha256(path.read_bytes()).hexdigest()
-              expected = provenance['artifacts'][key]['sha256']
-              if digest != expected:
-                  raise SystemExit(f'{key} digest mismatch')
+          proof=os.environ['PROOF_SHA'].lower(); prov=json.loads(Path('verification/evidence/artifacts/provenance.json').read_text())
+          if prov.get('gitSha')!=proof:raise SystemExit('provenance revision mismatch')
+          for env_name,key in [('DEBUG_APK','debug'),('RELEASE_APK','release'),('TEST_APK','androidTest')]:
+              p=Path(os.environ[env_name]); actual=hashlib.sha256(p.read_bytes()).hexdigest(); expected=prov['artifacts'][key]['sha256']
+              if actual!=expected:raise SystemExit(f'{key} digest mismatch')
           print('EXACT_STATIC_CANDIDATE_PROVENANCE_PASS')
           PY
-
-      - name: Setup exact Temurin JDK for Android SDK tools
-        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
-        with:
-          distribution: temurin
-          java-version: '17.0.20+1'
-          java-package: jdk
-          architecture: x64
-          check-latest: false
-
-      - name: Setup exact Android command line tools
-        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699
-        with:
-          cmdline-tools-version: '14742923'
-          packages: ''
-          log-accepted-android-sdk-licenses: 'false'
-
-      - name: Install Android host emulator tools
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$(uname -m)" = x86_64
-          java -version 2>&1 | tee "$RUNNER_TEMP/runtime-java.txt"
-          grep -F '17.0.20.1' "$RUNNER_TEMP/runtime-java.txt"
-          sdkmanager 'platform-tools' 'emulator'
-          test -x "$ANDROID_SDK_ROOT/platform-tools/adb"
-          test -x "$ANDROID_SDK_ROOT/emulator/emulator"
-          mkdir -p verification/evidence/diagnostics
-          "$ANDROID_SDK_ROOT/emulator/emulator" -version > verification/evidence/diagnostics/emulator-version.txt 2>&1
-          "$ANDROID_SDK_ROOT/platform-tools/adb" version > verification/evidence/diagnostics/adb-version.txt 2>&1
-
-      - name: Select and install API30 ARM64 guest image
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p verification/evidence/diagnostics
-          sdkmanager --list > verification/evidence/diagnostics/sdkmanager-list.txt
-
-          if grep -Fq 'system-images;android-30;google_apis;arm64-v8a' verification/evidence/diagnostics/sdkmanager-list.txt; then
-            IMAGE_PACKAGE='system-images;android-30;google_apis;arm64-v8a'
-            IMAGE_TAG='google_apis'
-          elif grep -Fq 'system-images;android-30;default;arm64-v8a' verification/evidence/diagnostics/sdkmanager-list.txt; then
-            IMAGE_PACKAGE='system-images;android-30;default;arm64-v8a'
-            IMAGE_TAG='default'
-          else
-            echo 'NO_API30_ARM64_SYSTEM_IMAGE_AVAILABLE'
-            grep -E 'system-images;android-30;.*arm64-v8a' verification/evidence/diagnostics/sdkmanager-list.txt || true
-            exit 1
-          fi
-
-          echo "RUNTIME_SYSTEM_IMAGE_PACKAGE=$IMAGE_PACKAGE" >> "$GITHUB_ENV"
-          echo "RUNTIME_SYSTEM_IMAGE_TAG=$IMAGE_TAG" >> "$GITHUB_ENV"
-          echo "RUNTIME_SYSTEM_IMAGE_DIR=$ANDROID_SDK_ROOT/system-images/android-30/$IMAGE_TAG/arm64-v8a" >> "$GITHUB_ENV"
-          printf '%s\n' "$IMAGE_PACKAGE" > verification/evidence/diagnostics/system-image-package.txt
-          sdkmanager "$IMAGE_PACKAGE"
-          test -s "$ANDROID_SDK_ROOT/system-images/android-30/$IMAGE_TAG/arm64-v8a/system.img"
-          test -s "$ANDROID_SDK_ROOT/system-images/android-30/$IMAGE_TAG/arm64-v8a/source.properties"
-
-      - name: Qualify runtime tool and ARM64 guest boundary
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import json, os, platform, re
-          from pathlib import Path
-
-          image_dir = Path(os.environ['RUNTIME_SYSTEM_IMAGE_DIR'])
-          emulator_text = Path('verification/evidence/diagnostics/emulator-version.txt').read_text(errors='replace').strip()
-          adb_text = Path('verification/evidence/diagnostics/adb-version.txt').read_text(errors='replace').strip()
-          props_path = image_dir / 'source.properties'
-          props = props_path.read_text(errors='replace')
-          revision_match = re.search(r'(?m)^Pkg\.Revision=(.+)$', props)
-          revision = revision_match.group(1).strip() if revision_match else None
-          machine = platform.machine().lower()
-          image = image_dir / 'system.img'
-          package = os.environ['RUNTIME_SYSTEM_IMAGE_PACKAGE']
-
-          checks = [
-              ('runtime-host-x64-for-software-emulation', machine in {'x86_64', 'amd64'}, machine),
-              ('runtime-emulator-version-known', bool(emulator_text), emulator_text.splitlines()[0] if emulator_text else ''),
-              ('runtime-adb-version-known', bool(adb_text), adb_text.splitlines()[0] if adb_text else ''),
-              ('runtime-system-image-revision-known', bool(revision), str(revision)),
-              ('runtime-api30-arm64-image-installed', image.is_file(), str(image)),
-              ('runtime-api30-arm64-package-selected', package.endswith(';arm64-v8a') and ';android-30;' in package, package),
-          ]
-          failed = [row for row in checks if not row[1]]
-          payload = {
-              'schemaVersion': 3,
-              'gate': 'RUNTIME_TOOL_QUALIFICATION',
-              'status': 'PASS' if not failed else 'NOT_PROVEN',
-              'gitSha': os.environ['PROOF_SHA'].lower(),
-              'hostArch': machine,
-              'guestTargetApi': 30,
-              'guestTargetAbi': 'arm64-v8a',
-              'systemImagePackage': package,
-              'emulationMode': 'software-cross-architecture',
-              'runnerImage': os.environ.get('ImageOS'),
-              'emulatorVersion': emulator_text,
-              'adbVersion': adb_text,
-              'systemImageRevision': revision,
-              'checks': [{'name': n, 'passed': p, 'detail': d} for n, p, d in checks],
-              'failed': [n for n, p, d in failed],
-              'unknown': 0 if not failed else len(failed),
-              'missing': 0,
-              'unproven': 0 if not failed else len(failed),
-              'skipped': 0,
-              'indeterminate': 0,
-              'staleEvidence': 0,
-              'faultEscape': 0,
-          }
-          Path('verification/evidence/runtime-tools.json').write_text(
-              json.dumps(payload, indent=2, sort_keys=True) + '\n'
-          )
-          if failed:
-              raise SystemExit('RUNTIME_TOOL_QUALIFICATION = NOT_PROVEN')
-          print('RUNTIME_TOOL_QUALIFICATION = PASS')
-          PY
-
-      - name: Create and boot Android 11 ARM64 software emulator
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p verification/evidence/diagnostics
-          adb kill-server || true
-          printf 'no\n' | avdmanager create avd \
-            --force \
-            --name toolbox-api30-arm64 \
-            --package "$RUNTIME_SYSTEM_IMAGE_PACKAGE"
-
-          nohup "$ANDROID_SDK_ROOT/emulator/emulator" \
-            -avd toolbox-api30-arm64 \
-            -accel off \
-            -no-window \
-            -no-audio \
-            -no-boot-anim \
-            -no-snapshot \
-            -wipe-data \
-            -no-metrics \
-            -cores 2 \
-            -memory 2048 \
-            -gpu swiftshader_indirect \
-            > verification/evidence/diagnostics/emulator-boot.log 2>&1 &
-
-          EMU_PID="$!"
-          echo "$EMU_PID" > verification/evidence/diagnostics/emulator.pid
-          BOOTED=0
-          for i in $(seq 1 360); do
-            if ! kill -0 "$EMU_PID" 2>/dev/null; then
-              echo 'EMULATOR_EXITED_BEFORE_BOOT'
-              cat verification/evidence/diagnostics/emulator-boot.log
-              exit 1
-            fi
-            if adb get-state >/dev/null 2>&1; then
-              API="$(timeout 10s adb shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r' || true)"
-              ABI="$(timeout 10s adb shell getprop ro.product.cpu.abi 2>/dev/null | tr -d '\r' || true)"
-              BOOT="$(timeout 10s adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
-              if [ "$BOOT" = 1 ] && [ "$API" = 30 ] && [ "$ABI" = arm64-v8a ]; then
-                BOOTED=1
-                break
-              fi
-            fi
-            sleep 5
-          done
-
-          if [ "$BOOTED" != 1 ]; then
-            echo 'EMULATOR_BOOT_TIMEOUT'
-            cat verification/evidence/diagnostics/emulator-boot.log
-            exit 1
-          fi
-
-          adb shell input keyevent 82
-          test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = 30
-          test "$(adb shell getprop ro.product.cpu.abi | tr -d '\r')" = arm64-v8a
-          adb shell settings put global window_animation_scale 0
-          adb shell settings put global transition_animation_scale 0
-          adb shell settings put global animator_duration_scale 0
-          adb shell getprop > verification/evidence/diagnostics/device-getprop.txt
-          echo ANDROID_11_ARM64_RUNTIME_BOOT_PASS
-
+      - name: Qualify attached Android 11 ARM64 runtime
+        run: GITHUB_SHA="$PROOF_SHA" python3 verification/scripts/runtime_environment_gate.py
       - name: Run instrumentation against exact debug APK
         shell: bash
         run: |
           set -euo pipefail
-          adb install -r -t "$DEBUG_APK"
-          adb install -r -t "$TEST_APK"
-          adb shell am instrument -w \
-            io.toolbox.app.debug.test/androidx.test.runner.AndroidJUnitRunner \
-            | tee verification/evidence/diagnostics/instrumentation-debug.txt
-          GITHUB_SHA="$PROOF_SHA" python3 verification/scripts/instrumentation_gate.py \
-            --report verification/evidence/diagnostics/instrumentation-debug.txt \
-            --apk "$DEBUG_APK" \
-            --test-apk "$TEST_APK" \
-            --provenance verification/evidence/artifacts/provenance.json
-
+          mkdir -p verification/evidence/diagnostics
+          adb install -r -t "$DEBUG_APK"; adb install -r -t "$TEST_APK"
+          adb shell am instrument -w io.toolbox.app.debug.test/androidx.test.runner.AndroidJUnitRunner | tee verification/evidence/diagnostics/instrumentation-debug.txt
+          GITHUB_SHA="$PROOF_SHA" python3 verification/scripts/instrumentation_gate.py --report verification/evidence/diagnostics/instrumentation-debug.txt --apk "$DEBUG_APK" --test-apk "$TEST_APK" --provenance verification/evidence/artifacts/provenance.json
       - name: Runtime gate exact debug APK
-        shell: bash
-        run: |
-          set -euo pipefail
-          GITHUB_SHA="$PROOF_SHA" python3 verification/scripts/runtime_gate.py \
-            --apk "$DEBUG_APK" \
-            --package io.toolbox.app.debug \
-            --variant debug
-
+        run: GITHUB_SHA="$PROOF_SHA" python3 verification/scripts/runtime_gate.py --apk "$DEBUG_APK" --package io.toolbox.app.debug --variant debug
       - name: Runtime gate exact release APK
-        shell: bash
-        run: |
-          set -euo pipefail
-          GITHUB_SHA="$PROOF_SHA" python3 verification/scripts/runtime_gate.py \
-            --apk "$RELEASE_APK" \
-            --package io.toolbox.app \
-            --variant release
-
+        run: GITHUB_SHA="$PROOF_SHA" python3 verification/scripts/runtime_gate.py --apk "$RELEASE_APK" --package io.toolbox.app --variant release
       - name: Final ASSET_SAFE_100 closure
-        shell: bash
         run: GITHUB_SHA="$PROOF_SHA" python3 verification/scripts/asset_final_gate.py
-
       - name: Cross-domain X1-X5 closure
-        shell: bash
         run: GITHUB_SHA="$PROOF_SHA" python3 verification/scripts/cross_domain_gate.py
-
       - name: R1-R9 final APPLICATION_SAFE_100 closure
-        shell: bash
         run: GITHUB_SHA="$PROOF_SHA" python3 verification/scripts/application_safe_100_gate.py
-
       - name: Prepare exact final APK distribution set
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p final-apks
-          cp "$DEBUG_APK" final-apks/ToolBox-debug.apk
-          cp "$RELEASE_APK" final-apks/ToolBox-release.apk
+          mkdir -p final-apks; cp "$DEBUG_APK" final-apks/ToolBox-debug.apk; cp "$RELEASE_APK" final-apks/ToolBox-release.apk
           python3 - <<'PY'
-          import hashlib, json
+          import hashlib,json
           from pathlib import Path
-
-          safe = json.loads(Path('verification/evidence/application-safe-100.json').read_text())
-          if safe.get('status') != 'PASS':
-              raise SystemExit('APPLICATION_SAFE_100 missing')
-          apks = [Path('final-apks/ToolBox-debug.apk'), Path('final-apks/ToolBox-release.apk')]
-          Path('final-apks/SHA256SUMS').write_text(
-              '\n'.join(f'{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}' for path in apks) + '\n'
-          )
-          Path('final-apks/APPLICATION_SAFE_100.json').write_text(
-              json.dumps(safe, indent=2, sort_keys=True) + '\n'
-          )
+          safe=json.loads(Path('verification/evidence/application-safe-100.json').read_text())
+          if safe.get('status')!='PASS':raise SystemExit('APPLICATION_SAFE_100 missing')
+          ps=[Path('final-apks/ToolBox-debug.apk'),Path('final-apks/ToolBox-release.apk')]
+          Path('final-apks/SHA256SUMS').write_text('\n'.join(f'{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}' for p in ps)+'\n')
+          Path('final-apks/APPLICATION_SAFE_100.json').write_text(json.dumps(safe,indent=2,sort_keys=True)+'\n')
           PY
-
       - name: Upload final verified APKs
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -401,19 +133,12 @@ jobs:
           path: final-apks/
           if-no-files-found: error
           retention-days: 30
-
-      - name: Collect runtime diagnostics
+      - name: Cleanup installed candidates
         if: always()
         shell: bash
         run: |
-          mkdir -p verification/evidence/diagnostics
-          if [ -f verification/evidence/diagnostics/emulator-boot.log ]; then
-            tail -n 500 verification/evidence/diagnostics/emulator-boot.log \
-              > verification/evidence/diagnostics/emulator-boot-tail.txt
-          fi
-          timeout 8s adb shell getprop > verification/evidence/diagnostics/device-getprop-final.txt 2>/dev/null || true
-          timeout 8s adb logcat -d -v threadtime > verification/evidence/diagnostics/logcat-final.txt 2>/dev/null || true
-
+          adb uninstall io.toolbox.app.debug >/dev/null 2>&1 || true
+          adb uninstall io.toolbox.app >/dev/null 2>&1 || true
       - name: Publish final application assurance evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
