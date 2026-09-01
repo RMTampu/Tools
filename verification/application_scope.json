@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 1,
   "applicationId": "io.toolbox.app",
   "debugApplicationId": "io.toolbox.app.debug",
   "platform": {
@@ -67,7 +67,7 @@
     },
     "ASSET": {
       "status": "REQUIRED",
-      "reason": "The source-controlled asset universe is the manifest only; custom res/assets are closed empty, while the framework theme route and generated resources.arsc remain subject to route/package proof."
+      "reason": "Manifest/package and generated Android resources remain subject to asset/package proof even though custom app assets are intentionally minimized."
     }
   },
   "forbiddenUntilScopeUpdated": [
@@ -111,10 +111,7 @@
     "ASSET_SAFE_100_RULES.md",
     "ASSET_SAFE_100_METHODS.md",
     "ASSET_SAFE_100_PROCESS.md",
-    "ASSET_ROUTE_PROOF_METHODS.md",
-    "ASSET_ROUTE_PROOF_PROCESS.md",
     "PREBUILD_ASSET_GATE.md",
-    "verification/asset_contracts.json",
     "verification/signing_contract.json"
   ]
 }
