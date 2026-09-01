@@ -27,6 +27,7 @@ REVIEW_PATH = ROOT / "verification" / "dependency_trust_review.json"
 VERIFICATION_PATH = ROOT / "gradle" / "verification-metadata.xml"
 LOCK_PATHS = {
     "toolbox-kernel/gradle.lockfile": ROOT / "toolbox-kernel" / "gradle.lockfile",
+    "toolbox-engine-host/gradle.lockfile": ROOT / "toolbox-engine-host" / "gradle.lockfile",
     "toolbox-app/gradle.lockfile": ROOT / "toolbox-app" / "gradle.lockfile",
 }
 NS = {"v": "https://schema.gradle.org/dependency-verification"}
@@ -301,12 +302,13 @@ def main() -> int:
 
     audit = review.get("audit", {})
     check("review-lock-count-kernel", audit.get("kernelLockRows") == lock_counts.get("toolbox-kernel/gradle.lockfile"), f"review={audit.get('kernelLockRows')} actual={lock_counts.get('toolbox-kernel/gradle.lockfile')}")
+    check("review-lock-count-engine-host", audit.get("engineHostLockRows") == lock_counts.get("toolbox-engine-host/gradle.lockfile"), f"review={audit.get('engineHostLockRows')} actual={lock_counts.get('toolbox-engine-host/gradle.lockfile')}")
     check("review-lock-count-app", audit.get("appLockRows") == lock_counts.get("toolbox-app/gradle.lockfile"), f"review={audit.get('appLockRows')} actual={lock_counts.get('toolbox-app/gradle.lockfile')}")
     check("review-metadata-artifact-count", audit.get("verificationArtifacts") == len(model.get("artifacts", [])), f"review={audit.get('verificationArtifacts')} actual={len(model.get('artifacts', []))}")
     check("review-verification-mode", audit.get("verifyMetadata") is True and audit.get("verifySignatures") is False, f"review={audit.get('verifyMetadata')}/{audit.get('verifySignatures')} actual={model.get('verifyMetadata')}/{model.get('verifySignatures')}")
     check("review-independent-convergence", audit.get("independentCleanReplicas") == 2 and audit.get("lockfilesByteIdentical") is True and audit.get("verificationMetadataCanonicalIdentical") is True, str(audit))
     check("review-structural-findings-zero", all(audit.get(name) == 0 for name in ("sha256SumsFailures", "dynamicLockSelectors", "duplicateLockedCoordinates", "legacyJunitBom563Rows", "verificationArtifactsWithoutSha256", "verificationArtifactsWithMultipleDistinctSha256")), str(audit))
-    check("review-commit-scope", audit.get("candidateCommitChangedFileCount") == 4 and audit.get("candidateCommitOnlyAllowedOutputs") is True, str(audit))
+    check("review-commit-scope", audit.get("candidateCommitChangedFileCount") == 5 and audit.get("candidateCommitOnlyAllowedOutputs") is True, str(audit))
     check("review-repository-policy", audit.get("repositoryPolicyReviewed") is True, str(audit.get("repositoryPolicyReviewed")))
 
     return finish(candidate, review)
