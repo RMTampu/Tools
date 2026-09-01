@@ -33,22 +33,38 @@ class ServiceRegistry {
 }
 
 class CapabilityRegistry {
+    private data class RegisteredCapability(
+        override val id: String,
+        override val version: Int,
+        override val providerModuleId: String
+    ) : Capability
+
     private val capabilities = ConcurrentHashMap<String, Capability>()
 
     fun register(capability: Capability, replace: Boolean = false) {
-        require(capability.id.isNotBlank()) { "Capability id cannot be blank" }
-        require(capability.id.none(Char::isWhitespace)) { "Capability id cannot contain whitespace" }
-        require(capability.version > 0) { "Capability version must be positive" }
-        require(capability.providerModuleId.isNotBlank()) { "Capability provider module id cannot be blank" }
-        require(capability.providerModuleId.none(Char::isWhitespace)) {
+        val id = capability.id
+        val version = capability.version
+        val providerModuleId = capability.providerModuleId
+
+        require(id.isNotBlank()) { "Capability id cannot be blank" }
+        require(id.none(Char::isWhitespace)) { "Capability id cannot contain whitespace" }
+        require(version > 0) { "Capability version must be positive" }
+        require(providerModuleId.isNotBlank()) { "Capability provider module id cannot be blank" }
+        require(providerModuleId.none(Char::isWhitespace)) {
             "Capability provider module id cannot contain whitespace"
         }
+
+        val registered = RegisteredCapability(
+            id = id,
+            version = version,
+            providerModuleId = providerModuleId
+        )
         if (replace) {
-            capabilities[capability.id] = capability
+            capabilities[id] = registered
             return
         }
-        check(capabilities.putIfAbsent(capability.id, capability) == null) {
-            "Capability already registered: ${capability.id}"
+        check(capabilities.putIfAbsent(id, registered) == null) {
+            "Capability already registered: $id"
         }
     }
 
@@ -109,9 +125,15 @@ class EventBus(
         listeners.entries.associate { (topic, bucket) -> topic to bucket.toList() }
 
     internal fun restoreState(snapshot: Map<String, List<(KernelEvent) -> Unit>>) {
-        listeners.clear()
-        snapshot.forEach { (topic, bucket) ->
-            listeners[topic] = CopyOnWriteArrayList(bucket)
+        listeners.forEach { (topic, bucket) ->
+            if (topic !in snapshot) {
+                bucket.clear()
+            }
+        }
+        snapshot.forEach { (topic, snapshotListeners) ->
+            val bucket = listeners.computeIfAbsent(topic) { CopyOnWriteArrayList() }
+            bucket.clear()
+            bucket.addAll(snapshotListeners)
         }
     }
 
