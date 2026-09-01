@@ -4,6 +4,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -98,6 +99,101 @@ class KernelResearchMdAuditTest {
                 override val name = "audit.late-owned-command"
             }).success,
             "registry mutation made after activation escaped module ownership cleanup"
+        )
+    }
+
+    @Test
+    fun `R2 ownership tracking stays bounded for repeated same-key mutations`() {
+        lateinit var retainedContext: KernelContext
+        val kernel = ToolBoxKernel()
+        val module = object : ToolBoxModule {
+            override val descriptor = ModuleDescriptor(
+                id = "engine.bounded-ownership",
+                name = "bounded ownership",
+                version = "1.0.0"
+            )
+
+            override fun onLoad(context: KernelContext) {
+                retainedContext = context
+            }
+        }
+        assertTrue(kernel.install(module).isEmpty())
+        assertTrue(kernel.start().isEmpty())
+
+        repeat(2_000) {
+            retainedContext.commands.register("audit.repeated-owned-command") {
+                CommandResult.success("owned")
+            }
+            retainedContext.commands.unregister("audit.repeated-owned-command")
+        }
+
+        val recordsField = ModuleRegistry::class.java.getDeclaredField("records")
+        recordsField.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        val records = recordsField.get(kernel.modules) as Map<String, *>
+        val record = checkNotNull(records[module.descriptor.id])
+        val journalField = record.javaClass.getDeclaredField("registryJournal")
+        journalField.isAccessible = true
+        val journal = checkNotNull(journalField.get(record))
+        val undoField = KernelRegistryMutationJournal::class.java.getDeclaredField("undoActions")
+        undoField.isAccessible = true
+        val retainedUndoActions = (undoField.get(journal) as Collection<*>).size
+
+        assertTrue(
+            retainedUndoActions <= 4,
+            "same-key churn retained $retainedUndoActions ownership undo actions instead of bounded ownership state"
+        )
+    }
+
+    @Test
+    fun `R5 R7 module scoped command registry cannot replace foreign command`() {
+        val kernel = ToolBoxKernel()
+        kernel.commands.register("audit.foreign-command") { CommandResult.success("host") }
+        lateinit var retainedContext: KernelContext
+        val module = object : ToolBoxModule {
+            override val descriptor = ModuleDescriptor("engine.scope-replace", "scope replace", "1.0.0")
+            override fun onLoad(context: KernelContext) {
+                retainedContext = context
+            }
+        }
+        assertTrue(kernel.install(module).isEmpty())
+        assertTrue(kernel.start().isEmpty())
+
+        assertFailsWith<IllegalStateException> {
+            retainedContext.commands.register("audit.foreign-command", replace = true) {
+                CommandResult.success("module")
+            }
+        }
+        assertEquals(
+            "host",
+            kernel.commands.execute(object : KernelCommand {
+                override val name = "audit.foreign-command"
+            }).value
+        )
+    }
+
+    @Test
+    fun `R5 R7 module scoped command registry cannot unregister foreign command`() {
+        val kernel = ToolBoxKernel()
+        kernel.commands.register("audit.foreign-remove") { CommandResult.success("host") }
+        lateinit var retainedContext: KernelContext
+        val module = object : ToolBoxModule {
+            override val descriptor = ModuleDescriptor("engine.scope-remove", "scope remove", "1.0.0")
+            override fun onLoad(context: KernelContext) {
+                retainedContext = context
+            }
+        }
+        assertTrue(kernel.install(module).isEmpty())
+        assertTrue(kernel.start().isEmpty())
+
+        assertFailsWith<IllegalStateException> {
+            retainedContext.commands.unregister("audit.foreign-remove")
+        }
+        assertEquals(
+            "host",
+            kernel.commands.execute(object : KernelCommand {
+                override val name = "audit.foreign-remove"
+            }).value
         )
     }
 
