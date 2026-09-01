@@ -17,4 +17,5 @@ dependencyResolutionManagement {
 rootProject.name = "ToolBox"
 
 include(":toolbox-kernel")
+include(":toolbox-engine-host")
 include(":toolbox-app")
