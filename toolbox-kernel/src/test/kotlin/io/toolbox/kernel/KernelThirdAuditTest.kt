@@ -33,8 +33,7 @@ class KernelThirdAuditTest {
             services = kernel.services,
             capabilities = kernel.capabilities,
             events = kernel.events,
-            commands = kernel.commands,
-            ports = kernel.ports
+            commands = kernel.commands
         )
 
         val first = thread(start = true, name = "kernel-load-first") { kernel.modules.loadAll(context) }
@@ -85,8 +84,7 @@ class KernelThirdAuditTest {
             services = kernel.services,
             capabilities = kernel.capabilities,
             events = kernel.events,
-            commands = kernel.commands,
-            ports = kernel.ports
+            commands = kernel.commands
         )
         assertTrue(kernel.modules.loadAll(context).isEmpty())
 
