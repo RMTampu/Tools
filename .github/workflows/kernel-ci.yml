@@ -57,6 +57,6 @@ jobs:
         shell: bash
         run: python3 verification/scripts/dependency_trust_gate.py
 
-      - name: Run kernel tests with strict dependency verification
+      - name: Run kernel and engine-host tests with strict dependency verification
         shell: bash
-        run: gradle --no-daemon --dependency-verification strict :toolbox-kernel:test
+        run: gradle --no-daemon --dependency-verification strict :toolbox-kernel:test :toolbox-engine-host:test
