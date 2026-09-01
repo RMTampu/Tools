@@ -20,6 +20,12 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Parse every verification Python gate
+        run: python3 verification/scripts/python_gate_syntax.py
+
+      - name: Runtime CI route regression guard
+        run: python3 verification/scripts/runtime_ci_guard.py
+
       - name: Setup exact Temurin JDK
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
         with:
@@ -53,9 +59,6 @@ jobs:
 
       - name: Fail-closed Android 11 ARM64 toolchain gate
         run: python3 verification/scripts/toolchain_gate.py --mode build
-
-      - name: Runtime CI route regression guard
-        run: python3 verification/scripts/runtime_ci_guard.py
 
       - name: Verify kernel and locked ABI
         run: gradle --no-daemon --warning-mode=all --dependency-verification strict :toolbox-kernel:clean :toolbox-kernel:check

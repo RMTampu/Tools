@@ -23,6 +23,21 @@ if "runs-on: [self-hosted, linux, toolbox-android11-arm64-runtime]" not in runti
 if "runtime_environment_gate.py" not in runtime:
     errors.append("runtime target qualification missing")
 
+# Feature-branch runtime must be push-driven. workflow_dispatch is not a valid
+# canonical trigger until the workflow file exists on the repository default branch.
+if "\n  push:\n    branches: [kernel-foundation-hardening]\n" not in runtime:
+    errors.append("automatic feature-branch runtime push trigger missing")
+if "workflow_dispatch:" in runtime:
+    errors.append("misleading feature-branch workflow_dispatch route reintroduced")
+if "Wait for exact successful static candidate" not in runtime:
+    errors.append("runtime no longer waits for exact static candidate")
+if "STATIC_CANDIDATE_WAIT_TIMEOUT" not in runtime or "time.sleep(20)" not in runtime:
+    errors.append("bounded exact-static polling contract missing")
+if "Reject stale proof revision before device access" not in runtime:
+    errors.append("stale revision rejection missing")
+if "group: toolbox-android11-arm64-physical-runtime" not in runtime or "cancel-in-progress: false" not in runtime:
+    errors.append("physical runtime serialization contract missing")
+
 job = runtime.split("\n  runtime-r9:\n", 1)[1] if "\n  runtime-r9:\n" in runtime else runtime
 for token in (
     "sdkmanager ",

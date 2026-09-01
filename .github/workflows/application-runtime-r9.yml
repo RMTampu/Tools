@@ -1,24 +1,21 @@
 name: ToolBox Android 11 ARM64 Runtime R9
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [kernel-foundation-hardening]
 
 permissions:
   contents: read
   actions: read
 
-concurrency:
-  group: application-runtime-r9-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   locate-static:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 50
     outputs:
       run_id: ${{ steps.locate.outputs.run_id }}
     steps:
-      - name: Locate exact successful static candidate
+      - name: Wait for exact successful static candidate
         id: locate
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -27,28 +24,69 @@ jobs:
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import json,os,urllib.parse,urllib.request
-          repo=os.environ['GITHUB_REPOSITORY']; sha=os.environ['PROOF_SHA'].lower(); token=os.environ['GH_TOKEN']
-          headers={'Accept':'application/vnd.github+json','Authorization':f'Bearer {token}','X-GitHub-Api-Version':'2022-11-28','User-Agent':'toolbox-runtime-r9'}
+          import json,os,sys,time,urllib.parse,urllib.request
+          repo=os.environ['GITHUB_REPOSITORY']
+          sha=os.environ['PROOF_SHA'].lower()
+          token=os.environ['GH_TOKEN']
+          headers={
+              'Accept':'application/vnd.github+json',
+              'Authorization':f'Bearer {token}',
+              'X-GitHub-Api-Version':'2022-11-28',
+              'User-Agent':'toolbox-runtime-r9',
+          }
           def get(url):
               req=urllib.request.Request(url,headers=headers)
-              with urllib.request.urlopen(req,timeout=30) as r:return json.load(r)
-          q=urllib.parse.urlencode({'head_sha':sha,'branch':'kernel-foundation-hardening','per_page':100})
-          good=[]
-          for run in get(f'https://api.github.com/repos/{repo}/actions/runs?{q}').get('workflow_runs',[]):
-              if run.get('name')!='ToolBox Application Safe 100' or str(run.get('head_sha','')).lower()!=sha or run.get('conclusion')!='success':continue
-              arts=get(f"https://api.github.com/repos/{repo}/actions/runs/{run['id']}/artifacts?per_page=100").get('artifacts',[])
-              if any(a.get('name')=='toolbox-android11-arm64-static-candidate' and not a.get('expired',False) for a in arts):good.append(run)
-          if not good:raise SystemExit('no successful exact static candidate for current revision')
-          selected=max(good,key=lambda r:r['id'])
-          with open(os.environ['GITHUB_OUTPUT'],'a') as f:f.write(f"run_id={selected['id']}\n")
-          print(f"EXACT_STATIC_RUN_ID={selected['id']}")
+              with urllib.request.urlopen(req,timeout=30) as response:
+                  return json.load(response)
+          query=urllib.parse.urlencode({
+              'head_sha':sha,
+              'branch':'kernel-foundation-hardening',
+              'per_page':100,
+          })
+          deadline=time.monotonic()+(45*60)
+          last=None
+          while time.monotonic()<deadline:
+              runs=get(f'https://api.github.com/repos/{repo}/actions/runs?{query}').get('workflow_runs',[])
+              matching=[
+                  run for run in runs
+                  if run.get('name')=='ToolBox Application Safe 100'
+                  and str(run.get('head_sha','')).lower()==sha
+              ]
+              if matching:
+                  selected=max(matching,key=lambda run:run['id'])
+                  state=(selected.get('status'),selected.get('conclusion'))
+                  if state!=last:
+                      print(f"STATIC_RUN={selected['id']} STATUS={state[0]} CONCLUSION={state[1]}",flush=True)
+                      last=state
+                  if selected.get('status')=='completed':
+                      if selected.get('conclusion')!='success':
+                          raise SystemExit(
+                              f"exact static run {selected['id']} completed as {selected.get('conclusion')}"
+                          )
+                      artifacts=get(
+                          f"https://api.github.com/repos/{repo}/actions/runs/{selected['id']}/artifacts?per_page=100"
+                      ).get('artifacts',[])
+                      valid=[
+                          artifact for artifact in artifacts
+                          if artifact.get('name')=='toolbox-android11-arm64-static-candidate'
+                          and not artifact.get('expired',False)
+                      ]
+                      if valid:
+                          with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as output:
+                              output.write(f"run_id={selected['id']}\n")
+                          print(f"EXACT_STATIC_RUN_ID={selected['id']}")
+                          sys.exit(0)
+              time.sleep(20)
+          raise SystemExit('STATIC_CANDIDATE_WAIT_TIMEOUT: exact successful static candidate did not appear within 45 minutes')
           PY
 
   runtime-r9:
     needs: locate-static
     runs-on: [self-hosted, linux, toolbox-android11-arm64-runtime]
     timeout-minutes: 90
+    concurrency:
+      group: toolbox-android11-arm64-physical-runtime
+      cancel-in-progress: false
     env:
       PROOF_SHA: ${{ github.sha }}
     steps:
@@ -57,6 +95,18 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+
+      - name: Reject stale proof revision before device access
+        shell: bash
+        run: |
+          set -euo pipefail
+          CURRENT="$(git ls-remote origin refs/heads/kernel-foundation-hardening | awk 'NR==1{print $1}')"
+          test -n "$CURRENT"
+          if [ "$CURRENT" != "$PROOF_SHA" ]; then
+            echo "RUNTIME_PROOF_STALE: proof=$PROOF_SHA branch=$CURRENT"
+            exit 1
+          fi
+          echo "RUNTIME_PROOF_CURRENT=$PROOF_SHA"
 
       - name: Download exact static candidate
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
@@ -93,11 +143,16 @@ jobs:
           python3 - <<'PY'
           import hashlib,json,os
           from pathlib import Path
-          proof=os.environ['PROOF_SHA'].lower(); prov=json.loads(Path('verification/evidence/artifacts/provenance.json').read_text())
-          if prov.get('gitSha')!=proof:raise SystemExit('provenance revision mismatch')
+          proof=os.environ['PROOF_SHA'].lower()
+          provenance=json.loads(Path('verification/evidence/artifacts/provenance.json').read_text())
+          if provenance.get('gitSha')!=proof:
+              raise SystemExit('provenance revision mismatch')
           for env_name,key in [('DEBUG_APK','debug'),('RELEASE_APK','release'),('TEST_APK','androidTest')]:
-              p=Path(os.environ[env_name]); actual=hashlib.sha256(p.read_bytes()).hexdigest(); expected=prov['artifacts'][key]['sha256']
-              if actual!=expected:raise SystemExit(f'{key} digest mismatch')
+              path=Path(os.environ[env_name])
+              actual=hashlib.sha256(path.read_bytes()).hexdigest()
+              expected=provenance['artifacts'][key]['sha256']
+              if actual!=expected:
+                  raise SystemExit(f'{key} digest mismatch')
           print('EXACT_STATIC_CANDIDATE_PROVENANCE_PASS')
           PY
 
@@ -113,7 +168,11 @@ jobs:
           adb -s "$ANDROID_SERIAL" install -t "$DEBUG_APK"
           adb -s "$ANDROID_SERIAL" install -t "$TEST_APK"
           adb -s "$ANDROID_SERIAL" shell am instrument -w io.toolbox.app.debug.test/androidx.test.runner.AndroidJUnitRunner | tee verification/evidence/diagnostics/instrumentation-debug.txt
-          GITHUB_SHA="$PROOF_SHA" python3 verification/scripts/instrumentation_gate.py --report verification/evidence/diagnostics/instrumentation-debug.txt --apk "$DEBUG_APK" --test-apk "$TEST_APK" --provenance verification/evidence/artifacts/provenance.json
+          GITHUB_SHA="$PROOF_SHA" python3 verification/scripts/instrumentation_gate.py \
+            --report verification/evidence/diagnostics/instrumentation-debug.txt \
+            --apk "$DEBUG_APK" \
+            --test-apk "$TEST_APK" \
+            --provenance verification/evidence/artifacts/provenance.json
 
       - name: Isolate post-instrumentation state
         shell: bash
@@ -160,10 +219,15 @@ jobs:
           import hashlib,json
           from pathlib import Path
           safe=json.loads(Path('verification/evidence/application-safe-100.json').read_text())
-          if safe.get('status')!='PASS':raise SystemExit('APPLICATION_SAFE_100 missing')
-          ps=[Path('final-apks/ToolBox-debug.apk'),Path('final-apks/ToolBox-release.apk')]
-          Path('final-apks/SHA256SUMS').write_text('\n'.join(f'{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}' for p in ps)+'\n')
-          Path('final-apks/APPLICATION_SAFE_100.json').write_text(json.dumps(safe,indent=2,sort_keys=True)+'\n')
+          if safe.get('status')!='PASS':
+              raise SystemExit('APPLICATION_SAFE_100 missing')
+          apks=[Path('final-apks/ToolBox-debug.apk'),Path('final-apks/ToolBox-release.apk')]
+          Path('final-apks/SHA256SUMS').write_text(
+              '\n'.join(f'{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}' for path in apks)+'\n'
+          )
+          Path('final-apks/APPLICATION_SAFE_100.json').write_text(
+              json.dumps(safe,indent=2,sort_keys=True)+'\n'
+          )
           PY
 
       - name: Upload final verified APKs

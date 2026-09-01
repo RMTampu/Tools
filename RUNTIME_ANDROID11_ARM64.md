@@ -3,7 +3,9 @@
 ## Canonical route
 Runtime proof uses an actually attached ADB target and requires Android release 11, API 30, primary ABI `arm64-v8a`, boot completed, exact source revision, and exact APK digests from static GitHub Actions provenance. The runtime job never rebuilds production APKs.
 
-The canonical workflow is `.github/workflows/application-runtime-r9.yml`. Its runtime job requires the self-hosted labels `self-hosted`, `linux`, and `toolbox-android11-arm64-runtime`.
+The canonical workflow is `.github/workflows/application-runtime-r9.yml`. On `kernel-foundation-hardening` it is triggered automatically by the same push as the static workflow, waits with a finite timeout for the exact same-SHA successful static candidate, then proceeds only with that candidate. This avoids the feature-branch `workflow_dispatch` limitation and removes a repeated manual trigger step.
+
+Its physical runtime job requires the self-hosted labels `self-hosted`, `linux`, and `toolbox-android11-arm64-runtime`. Physical runtime jobs are serialized and are not automatically cancelled while a device may be under test. Before any device access, the job rejects a proof SHA that is no longer the branch head.
 
 The host running the GitHub self-hosted runner is only the controller. The Android proof is taken from the attached ADB target, so the controller CPU architecture is not used as a substitute for the device ABI.
 
