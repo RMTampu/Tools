@@ -3,13 +3,16 @@ name: ToolBox Dependency Trust Bootstrap
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'work/**'
     paths:
       - 'settings.gradle.kts'
       - 'build.gradle.kts'
       - 'gradle.properties'
       - 'gradle/**'
       - 'toolbox-kernel/build.gradle.kts'
+      - 'toolbox-engine-host/build.gradle.kts'
       - 'toolbox-app/build.gradle.kts'
       - 'verification/application_scope.json'
       - '.github/workflows/dependency-bootstrap.yml'
@@ -90,6 +93,7 @@ jobs:
             git archive HEAD | tar -x -C "$dir"
             rm -f \
               "$dir/toolbox-kernel/gradle.lockfile" \
+              "$dir/toolbox-engine-host/gradle.lockfile" \
               "$dir/toolbox-app/gradle.lockfile" \
               "$dir/gradle/verification-metadata.xml" \
               "$dir/verification/dependency_trust_candidate.json" \
@@ -107,6 +111,7 @@ jobs:
           --write-locks
           --write-verification-metadata sha256
           :toolbox-kernel:dependencies
+          :toolbox-engine-host:dependencies
           :toolbox-app:dependencies
 
       - name: Resolve replica B from clean Gradle home
@@ -120,6 +125,7 @@ jobs:
           --write-locks
           --write-verification-metadata sha256
           :toolbox-kernel:dependencies
+          :toolbox-engine-host:dependencies
           :toolbox-app:dependencies
 
       - name: Validate both generated trust states
@@ -129,12 +135,14 @@ jobs:
           for replica in a b; do
             dir="$RUNNER_TEMP/source-$replica"
             test -s "$dir/toolbox-kernel/gradle.lockfile"
+            test -s "$dir/toolbox-engine-host/gradle.lockfile"
             test -s "$dir/toolbox-app/gradle.lockfile"
             test -s "$dir/gradle/verification-metadata.xml"
             grep -q '<verify-metadata>true</verify-metadata>' "$dir/gradle/verification-metadata.xml"
             grep -q '<sha256' "$dir/gradle/verification-metadata.xml"
             ! grep -Eiq 'SNAPSHOT|latest[.]|:[+]|[[][0-9]' \
               "$dir/toolbox-kernel/gradle.lockfile" \
+              "$dir/toolbox-engine-host/gradle.lockfile" \
               "$dir/toolbox-app/gradle.lockfile"
           done
 
@@ -143,6 +151,7 @@ jobs:
         run: |
           set -euo pipefail
           cmp "$RUNNER_TEMP/source-a/toolbox-kernel/gradle.lockfile" "$RUNNER_TEMP/source-b/toolbox-kernel/gradle.lockfile"
+          cmp "$RUNNER_TEMP/source-a/toolbox-engine-host/gradle.lockfile" "$RUNNER_TEMP/source-b/toolbox-engine-host/gradle.lockfile"
           cmp "$RUNNER_TEMP/source-a/toolbox-app/gradle.lockfile" "$RUNNER_TEMP/source-b/toolbox-app/gradle.lockfile"
 
           python3 - <<'PY'
@@ -214,6 +223,7 @@ jobs:
         run: |
           set -euo pipefail
           cp "$RUNNER_TEMP/source-a/toolbox-kernel/gradle.lockfile" toolbox-kernel/gradle.lockfile
+          cp "$RUNNER_TEMP/source-a/toolbox-engine-host/gradle.lockfile" toolbox-engine-host/gradle.lockfile
           cp "$RUNNER_TEMP/source-a/toolbox-app/gradle.lockfile" toolbox-app/gradle.lockfile
           cp "$RUNNER_TEMP/source-a/gradle/verification-metadata.xml" gradle/verification-metadata.xml
 
@@ -260,6 +270,7 @@ jobs:
           }
           outputs = {
               'toolbox-kernel/gradle.lockfile': sha256(root / 'toolbox-kernel/gradle.lockfile'),
+              'toolbox-engine-host/gradle.lockfile': sha256(root / 'toolbox-engine-host/gradle.lockfile'),
               'toolbox-app/gradle.lockfile': sha256(root / 'toolbox-app/gradle.lockfile'),
               'gradle/verification-metadata.xml': sha256(root / 'gradle/verification-metadata.xml'),
           }
@@ -314,6 +325,7 @@ jobs:
           rm -rf verification/bootstrap
           mkdir -p verification/bootstrap
           cp toolbox-kernel/gradle.lockfile verification/bootstrap/toolbox-kernel.gradle.lockfile
+          cp toolbox-engine-host/gradle.lockfile verification/bootstrap/toolbox-engine-host.gradle.lockfile
           cp toolbox-app/gradle.lockfile verification/bootstrap/toolbox-app.gradle.lockfile
           cp gradle/verification-metadata.xml verification/bootstrap/verification-metadata.xml
           cp verification/dependency_trust_candidate.json verification/bootstrap/dependency_trust_candidate.json
@@ -323,6 +335,7 @@ jobs:
             cd verification/bootstrap
             sha256sum \
               toolbox-kernel.gradle.lockfile \
+              toolbox-engine-host.gradle.lockfile \
               toolbox-app.gradle.lockfile \
               verification-metadata.xml \
               verification-metadata.canonical.json \
@@ -343,14 +356,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          test "${GITHUB_REF_TYPE}" = "branch"
+          test -n "${GITHUB_REF_NAME}"
+
           git add \
             toolbox-kernel/gradle.lockfile \
+            toolbox-engine-host/gradle.lockfile \
             toolbox-app/gradle.lockfile \
             gradle/verification-metadata.xml \
             verification/dependency_trust_candidate.json
 
           mapfile -t staged < <(git diff --cached --name-only)
-          allowed='^(toolbox-kernel/gradle[.]lockfile|toolbox-app/gradle[.]lockfile|gradle/verification-metadata[.]xml|verification/dependency_trust_candidate[.]json)$'
+          allowed='^(toolbox-kernel/gradle[.]lockfile|toolbox-engine-host/gradle[.]lockfile|toolbox-app/gradle[.]lockfile|gradle/verification-metadata[.]xml|verification/dependency_trust_candidate[.]json)$'
           for path in "${staged[@]}"; do
             if [[ ! "$path" =~ $allowed ]]; then
               echo "Unexpected staged path: $path" >&2
@@ -362,4 +379,4 @@ jobs:
           git config user.name 'toolbox-trust-bootstrap[bot]'
           git config user.email 'toolbox-trust-bootstrap[bot]@users.noreply.github.com'
           git commit -m 'Record converged dependency trust candidate'
-          git push origin HEAD:main
+          git push origin "HEAD:${GITHUB_REF_NAME}"
