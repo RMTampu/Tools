@@ -1,0 +1,652 @@
+name: ToolBox Runtime Route Maintenance
+
+on:
+  push:
+    branches: [kernel-foundation-hardening]
+    paths:
+      - '.github/workflows/runtime-route-maintenance.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply-runtime-route:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: kernel-foundation-hardening
+          persist-credentials: true
+
+      - name: Apply canonical runtime route
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path('.')
+
+          runtime_gate = r'''#!/usr/bin/env python3
+          """Qualify the actual Android runtime target independently of host architecture."""
+          from __future__ import annotations
+
+          import hashlib
+          import json
+          import os
+          import re
+          import shutil
+          import subprocess
+          import sys
+          from dataclasses import asdict, dataclass
+          from pathlib import Path
+
+          ROOT = Path(__file__).resolve().parents[2]
+          EVIDENCE = ROOT / 'verification' / 'evidence'
+
+          @dataclass
+          class Check:
+              name: str
+              passed: bool
+              detail: str
+
+          def run(*args: str, check: bool = True, timeout: int = 30) -> str:
+              p = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                 text=True, timeout=timeout, check=False)
+              if check and p.returncode != 0:
+                  raise RuntimeError(
+                      f"command failed ({p.returncode}): {' '.join(args)}; "
+                      f"stderr={p.stderr.strip()}"
+                  )
+              return p.stdout.strip()
+
+          def source_sha() -> str | None:
+              value = os.environ.get('GITHUB_SHA', '').strip().lower()
+              if re.fullmatch(r'[0-9a-f]{40}', value):
+                  return value
+              try:
+                  value = subprocess.check_output(
+                      ['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True,
+                      stderr=subprocess.DEVNULL
+                  ).strip().lower()
+                  return value if re.fullmatch(r'[0-9a-f]{40}', value) else None
+              except Exception:
+                  return None
+
+          def main() -> int:
+              EVIDENCE.mkdir(parents=True, exist_ok=True)
+              checks: list[Check] = []
+              observations: dict[str, object] = {}
+
+              def add(name: str, passed: bool, detail: str) -> None:
+                  checks.append(Check(name, bool(passed), detail))
+
+              sha = source_sha()
+              add('runtime-source-sha-known', sha is not None, f'gitSha={sha}')
+
+              adb_path = shutil.which('adb')
+              add('runtime-adb-present', adb_path is not None,
+                  adb_path or 'adb not found on runner PATH')
+
+              selected_serial: str | None = None
+              try:
+                  if adb_path:
+                      version = run(adb_path, 'version')
+                      add('runtime-adb-version-known', bool(version),
+                          version.splitlines()[0] if version else '')
+                      observations['adbVersion'] = version
+
+                      devices_text = run(adb_path, 'devices', '-l')
+                      rows = []
+                      for line in devices_text.splitlines()[1:]:
+                          line = line.strip()
+                          if not line:
+                              continue
+                          parts = line.split()
+                          if len(parts) >= 2:
+                              rows.append((parts[0], parts[1], line))
+
+                      requested = os.environ.get('ANDROID_SERIAL', '').strip()
+                      ready = [row for row in rows if row[1] == 'device']
+                      if requested:
+                          matches = [row for row in ready if row[0] == requested]
+                          add('runtime-device-selected', len(matches) == 1,
+                              f'requestedSerialHash={hashlib.sha256(requested.encode()).hexdigest()[:16]}, readyDevices={len(ready)}')
+                          if len(matches) == 1:
+                              selected_serial = requested
+                      else:
+                          add('runtime-device-unique', len(ready) == 1,
+                              f'readyDevices={len(ready)}')
+                          if len(ready) == 1:
+                              selected_serial = ready[0][0]
+
+                      add('runtime-device-connected', selected_serial is not None,
+                          'exactly one qualified adb target selected' if selected_serial else 'no unique ready adb target')
+
+                      if selected_serial:
+                          serial_hash = hashlib.sha256(selected_serial.encode()).hexdigest()
+                          observations['deviceSerialSha256'] = serial_hash
+                          prefix = (adb_path, '-s', selected_serial)
+                          state = run(*prefix, 'get-state')
+                          api = run(*prefix, 'shell', 'getprop', 'ro.build.version.sdk')
+                          release = run(*prefix, 'shell', 'getprop', 'ro.build.version.release')
+                          abi = run(*prefix, 'shell', 'getprop', 'ro.product.cpu.abi')
+                          abilist = run(*prefix, 'shell', 'getprop', 'ro.product.cpu.abilist')
+                          fingerprint = run(*prefix, 'shell', 'getprop', 'ro.build.fingerprint')
+                          boot = run(*prefix, 'shell', 'getprop', 'sys.boot_completed')
+                          qemu = run(*prefix, 'shell', 'getprop', 'ro.kernel.qemu', check=False)
+
+                          add('runtime-device-state-ready', state == 'device', f'state={state}')
+                          add('runtime-device-api30', api == '30', f'api={api}')
+                          add('runtime-device-android11', release == '11', f'release={release}')
+                          add('runtime-device-arm64', abi == 'arm64-v8a',
+                              f'abi={abi}, abiList={abilist}')
+                          add('runtime-device-boot-complete', boot == '1', f'boot={boot}')
+                          add('runtime-device-fingerprint-known', bool(fingerprint),
+                              f'fingerprintPresent={bool(fingerprint)}')
+                          add('runtime-transport-qualified', state == 'device' and boot == '1',
+                              'adb transport is ready and target boot completed')
+
+                          observations['device'] = {
+                              'api': api,
+                              'release': release,
+                              'abi': abi,
+                              'abiList': abilist,
+                              'fingerprint': fingerprint,
+                              'runtimeKind': 'emulator' if qemu == '1' else 'device',
+                          }
+              except Exception as exc:
+                  add('runtime-environment-gate-execution', False, str(exc))
+
+              failed = [c for c in checks if not c.passed]
+              payload = {
+                  'schemaVersion': 2,
+                  'gate': 'RUNTIME_ENVIRONMENT_GATE',
+                  'status': 'PASS' if not failed else 'NOT_PROVEN',
+                  'gitSha': sha,
+                  'hostArchitectureClaim': 'NONE',
+                  'requiredTarget': {
+                      'androidRelease': '11',
+                      'api': 30,
+                      'primaryAbi': 'arm64-v8a',
+                      'transport': 'adb',
+                  },
+                  'checks': [asdict(c) for c in checks],
+                  'failed': [c.name for c in failed],
+                  'observations': observations,
+                  'unknown': 0 if not failed else len(failed),
+                  'missing': 0 if not failed else sum(1 for c in failed if 'present' in c.name or 'connected' in c.name),
+                  'unproven': 0 if not failed else len(failed),
+                  'skipped': 0,
+                  'indeterminate': 0,
+                  'staleEvidence': 0,
+                  'faultEscape': 0,
+              }
+              (EVIDENCE / 'runtime-tools.json').write_text(
+                  json.dumps(payload, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+              )
+
+              if failed:
+                  print('RUNTIME_ENVIRONMENT_GATE = NOT_PROVEN', file=sys.stderr)
+                  for item in failed:
+                      print(f'FAIL {item.name}: {item.detail}', file=sys.stderr)
+                  return 1
+              print('RUNTIME_ENVIRONMENT_GATE = PASS')
+              return 0
+
+          if __name__ == '__main__':
+              raise SystemExit(main())
+          '''
+          runtime_gate = '\n'.join(line[10:] if line.startswith('          ') else line for line in runtime_gate.splitlines()) + '\n'
+          (root / 'verification/scripts/runtime_environment_gate.py').write_text(runtime_gate, encoding='utf-8')
+
+          ci_guard = r'''#!/usr/bin/env python3
+          """Fail closed if a known-invalid Android 11 ARM64 runtime route reappears."""
+          from pathlib import Path
+          import sys
+
+          ROOT = Path(__file__).resolve().parents[2]
+          STATIC = ROOT / '.github/workflows/application-safe-100.yml'
+          RUNTIME = ROOT / '.github/workflows/application-runtime-r9.yml'
+          PROBE = ROOT / '.github/workflows/android11-arm64-runtime-host-probe.yml'
+
+          errors = []
+          static = STATIC.read_text(encoding='utf-8') if STATIC.is_file() else ''
+          runtime = RUNTIME.read_text(encoding='utf-8') if RUNTIME.is_file() else ''
+
+          if PROBE.exists():
+              errors.append('obsolete hosted ARM64 emulator probe workflow still exists')
+          if '\n  application-runtime-r9:\n' in static:
+              errors.append('static build workflow still owns runtime R9 job')
+          if 'Prepare canonical runtime bundle' not in static:
+              errors.append('canonical runtime bundle preparation missing')
+          if 'path: verification/runtime-bundle/' not in static:
+              errors.append('static candidate upload is not rooted at verification/runtime-bundle/')
+          if 'candidate/verification/' in runtime:
+              errors.append('obsolete nested candidate/verification artifact path detected')
+          if 'runs-on: [self-hosted, linux, toolbox-android11-arm64-runtime]' not in runtime:
+              errors.append('runtime job is not routed to the qualified self-hosted runtime label')
+          if 'runtime_environment_gate.py' not in runtime:
+              errors.append('runtime environment qualification gate missing')
+
+          marker = '\n  runtime-r9:\n'
+          runtime_job = runtime.split(marker, 1)[1] if marker in runtime else ''
+          for forbidden in ('sdkmanager ', 'avdmanager ', 'system-images;android-30', '-avd toolbox', 'runs-on: macos-', 'runs-on: ubuntu-24.04-arm'):
+              if forbidden in runtime_job:
+                  errors.append(f'known-invalid hosted emulator route token present: {forbidden}')
+          for forbidden in (':toolbox-app:assembleDebug', ':toolbox-app:assembleRelease'):
+              if forbidden in runtime_job:
+                  errors.append(f'production APK rebuild forbidden in runtime workflow: {forbidden}')
+
+          if errors:
+              print('RUNTIME_CI_ROUTE_GUARD = NOT_PROVEN', file=sys.stderr)
+              for error in errors:
+                  print(f'FAIL: {error}', file=sys.stderr)
+              raise SystemExit(1)
+          print('RUNTIME_CI_ROUTE_GUARD = PASS')
+          '''
+          ci_guard = '\n'.join(line[10:] if line.startswith('          ') else line for line in ci_guard.splitlines()) + '\n'
+          (root / 'verification/scripts/runtime_ci_guard.py').write_text(ci_guard, encoding='utf-8')
+
+          runtime_workflow = r'''name: ToolBox Android 11 ARM64 Runtime R9
+
+          on:
+            workflow_dispatch:
+
+          permissions:
+            contents: read
+            actions: read
+
+          concurrency:
+            group: application-runtime-r9-${{ github.ref }}
+            cancel-in-progress: false
+
+          jobs:
+            locate-static:
+              runs-on: ubuntu-24.04
+              timeout-minutes: 10
+              outputs:
+                run_id: ${{ steps.locate.outputs.run_id }}
+
+              steps:
+                - name: Locate exact successful static candidate
+                  id: locate
+                  env:
+                    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                    PROOF_SHA: ${{ github.sha }}
+                  shell: bash
+                  run: |
+                    set -euo pipefail
+                    python3 - <<'PY'
+                    import json, os, urllib.parse, urllib.request
+                    repo=os.environ['GITHUB_REPOSITORY']
+                    sha=os.environ['PROOF_SHA'].lower()
+                    token=os.environ['GH_TOKEN']
+                    headers={
+                        'Accept':'application/vnd.github+json',
+                        'Authorization':f'Bearer {token}',
+                        'X-GitHub-Api-Version':'2022-11-28',
+                        'User-Agent':'toolbox-runtime-r9',
+                    }
+                    def get(url):
+                        req=urllib.request.Request(url,headers=headers)
+                        with urllib.request.urlopen(req,timeout=30) as r:
+                            return json.load(r)
+                    query=urllib.parse.urlencode({'head_sha':sha,'branch':'kernel-foundation-hardening','per_page':100})
+                    runs=get(f'https://api.github.com/repos/{repo}/actions/runs?{query}').get('workflow_runs',[])
+                    candidates=[]
+                    for run in runs:
+                        if run.get('name')!='ToolBox Application Safe 100':
+                            continue
+                        if str(run.get('head_sha','')).lower()!=sha:
+                            continue
+                        if run.get('conclusion')!='success':
+                            continue
+                        artifacts=get(f"https://api.github.com/repos/{repo}/actions/runs/{run['id']}/artifacts?per_page=100").get('artifacts',[])
+                        if any(a.get('name')=='toolbox-android11-arm64-static-candidate' and not a.get('expired',False) for a in artifacts):
+                            candidates.append(run)
+                    if not candidates:
+                        raise SystemExit('no successful exact static candidate exists for current revision')
+                    selected=max(candidates,key=lambda r:r['id'])
+                    with open(os.environ['GITHUB_OUTPUT'],'a',encoding='utf-8') as f:
+                        f.write(f"run_id={selected['id']}\n")
+                    print(f"EXACT_STATIC_RUN_ID={selected['id']}")
+                    PY
+
+            runtime-r9:
+              needs: locate-static
+              runs-on: [self-hosted, linux, toolbox-android11-arm64-runtime]
+              timeout-minutes: 90
+              env:
+                PROOF_SHA: ${{ github.sha }}
+
+              steps:
+                - name: Checkout exact revision
+                  uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+                  with:
+                    ref: ${{ github.sha }}
+                    persist-credentials: false
+
+                - name: Download exact static candidate
+                  uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
+                  with:
+                    name: toolbox-android11-arm64-static-candidate
+                    path: candidate
+                    github-token: ${{ secrets.GITHUB_TOKEN }}
+                    run-id: ${{ needs.locate-static.outputs.run_id }}
+
+                - name: Restore canonical static evidence and locate exact APKs
+                  shell: bash
+                  run: |
+                    set -euo pipefail
+                    test -d candidate/evidence
+                    test -d candidate/candidate-apks
+                    test ! -e candidate/verification
+                    rm -rf verification/evidence
+                    mkdir -p verification/evidence
+                    cp -R candidate/evidence/. verification/evidence/
+                    DEBUG_APK="$GITHUB_WORKSPACE/candidate/candidate-apks/toolbox-app-debug.apk"
+                    RELEASE_APK="$GITHUB_WORKSPACE/candidate/candidate-apks/toolbox-app-release.apk"
+                    TEST_APK="$GITHUB_WORKSPACE/candidate/candidate-apks/toolbox-app-debug-androidTest.apk"
+                    test -s "$DEBUG_APK"
+                    test -s "$RELEASE_APK"
+                    test -s "$TEST_APK"
+                    echo "DEBUG_APK=$DEBUG_APK" >> "$GITHUB_ENV"
+                    echo "RELEASE_APK=$RELEASE_APK" >> "$GITHUB_ENV"
+                    echo "TEST_APK=$TEST_APK" >> "$GITHUB_ENV"
+
+                - name: Verify downloaded artifact provenance before runtime
+                  shell: bash
+                  run: |
+                    set -euo pipefail
+                    python3 - <<'PY'
+                    import hashlib, json, os
+                    from pathlib import Path
+                    proof=os.environ['PROOF_SHA'].lower()
+                    prov=json.loads(Path('verification/evidence/artifacts/provenance.json').read_text())
+                    if prov.get('gitSha')!=proof:
+                        raise SystemExit(f"provenance revision mismatch: {prov.get('gitSha')} != {proof}")
+                    for env_name,key in [('DEBUG_APK','debug'),('RELEASE_APK','release'),('TEST_APK','androidTest')]:
+                        p=Path(os.environ[env_name])
+                        actual=hashlib.sha256(p.read_bytes()).hexdigest()
+                        expected=prov['artifacts'][key]['sha256']
+                        if actual!=expected:
+                            raise SystemExit(f'{key} digest mismatch: {actual} != {expected}')
+                    print('EXACT_STATIC_CANDIDATE_PROVENANCE_PASS')
+                    PY
+
+                - name: Qualify attached Android 11 ARM64 runtime
+                  shell: bash
+                  run: GITHUB_SHA="$PROOF_SHA" python3 verification/scripts/runtime_environment_gate.py
+
+                - name: Run instrumentation against exact debug APK
+                  shell: bash
+                  run: |
+                    set -euo pipefail
+                    mkdir -p verification/evidence/diagnostics
+                    adb install -r -t "$DEBUG_APK"
+                    adb install -r -t "$TEST_APK"
+                    adb shell am instrument -w io.toolbox.app.debug.test/androidx.test.runner.AndroidJUnitRunner \
+                      | tee verification/evidence/diagnostics/instrumentation-debug.txt
+                    GITHUB_SHA="$PROOF_SHA" python3 verification/scripts/instrumentation_gate.py \
+                      --report verification/evidence/diagnostics/instrumentation-debug.txt \
+                      --apk "$DEBUG_APK" \
+                      --test-apk "$TEST_APK" \
+                      --provenance verification/evidence/artifacts/provenance.json
+
+                - name: Runtime gate exact debug APK
+                  shell: bash
+                  run: |
+                    set -euo pipefail
+                    GITHUB_SHA="$PROOF_SHA" python3 verification/scripts/runtime_gate.py \
+                      --apk "$DEBUG_APK" \
+                      --package io.toolbox.app.debug \
+                      --variant debug
+
+                - name: Runtime gate exact release APK
+                  shell: bash
+                  run: |
+                    set -euo pipefail
+                    GITHUB_SHA="$PROOF_SHA" python3 verification/scripts/runtime_gate.py \
+                      --apk "$RELEASE_APK" \
+                      --package io.toolbox.app \
+                      --variant release
+
+                - name: Final ASSET_SAFE_100 closure
+                  shell: bash
+                  run: GITHUB_SHA="$PROOF_SHA" python3 verification/scripts/asset_final_gate.py
+
+                - name: Cross-domain X1-X5 closure
+                  shell: bash
+                  run: GITHUB_SHA="$PROOF_SHA" python3 verification/scripts/cross_domain_gate.py
+
+                - name: R1-R9 final APPLICATION_SAFE_100 closure
+                  shell: bash
+                  run: GITHUB_SHA="$PROOF_SHA" python3 verification/scripts/application_safe_100_gate.py
+
+                - name: Prepare exact final APK distribution set
+                  shell: bash
+                  run: |
+                    set -euo pipefail
+                    mkdir -p final-apks
+                    cp "$DEBUG_APK" final-apks/ToolBox-debug.apk
+                    cp "$RELEASE_APK" final-apks/ToolBox-release.apk
+                    python3 - <<'PY'
+                    import hashlib, json
+                    from pathlib import Path
+                    safe=json.loads(Path('verification/evidence/application-safe-100.json').read_text())
+                    if safe.get('status')!='PASS':
+                        raise SystemExit('APPLICATION_SAFE_100 missing')
+                    rows=[]
+                    for p in (Path('final-apks/ToolBox-debug.apk'),Path('final-apks/ToolBox-release.apk')):
+                        rows.append(f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}")
+                    Path('final-apks/SHA256SUMS').write_text('\n'.join(rows)+'\n')
+                    Path('final-apks/APPLICATION_SAFE_100.json').write_text(json.dumps(safe,indent=2,sort_keys=True)+'\n')
+                    PY
+
+                - name: Upload final verified APKs
+                  uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+                  with:
+                    name: toolbox-android11-arm64-verified-apks
+                    path: final-apks/
+                    if-no-files-found: error
+                    retention-days: 30
+
+                - name: Cleanup installed candidates
+                  if: always()
+                  shell: bash
+                  run: |
+                    adb uninstall io.toolbox.app.debug >/dev/null 2>&1 || true
+                    adb uninstall io.toolbox.app >/dev/null 2>&1 || true
+
+                - name: Publish final application assurance evidence
+                  if: always()
+                  uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+                  with:
+                    name: application-assurance-evidence-final
+                    path: verification/evidence/
+                    if-no-files-found: warn
+                    retention-days: 30
+          '''
+          runtime_workflow = '\n'.join(line[10:] if line.startswith('          ') else line for line in runtime_workflow.splitlines()) + '\n'
+          (root / '.github/workflows/application-runtime-r9.yml').write_text(runtime_workflow, encoding='utf-8')
+
+          static_path = root / '.github/workflows/application-safe-100.yml'
+          static = static_path.read_text(encoding='utf-8')
+          runtime_marker = '\n  application-runtime-r9:\n'
+          if runtime_marker not in static:
+              raise SystemExit('integrated runtime job marker not found')
+          static = static.split(runtime_marker, 1)[0].rstrip() + '\n'
+
+          setup_marker = '      - name: Setup exact Temurin JDK\n'
+          if setup_marker not in static:
+              raise SystemExit('static setup marker not found')
+          guard_step = (
+              '      - name: Runtime CI route guard\n'
+              '        run: python3 verification/scripts/runtime_ci_guard.py\n\n'
+          )
+          static = static.replace(setup_marker, guard_step + setup_marker, 1)
+
+          old_upload = '''      - name: Upload static candidate for exact runtime proof
+        if: ${{ success() && env.CONTROLLED_APK_BUILD_PASS == '1' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: toolbox-android11-arm64-static-candidate
+          path: |
+            verification/candidate-apks/
+            verification/evidence/
+          if-no-files-found: error
+          retention-days: 30
+'''
+          new_upload = '''      - name: Prepare canonical runtime bundle
+        if: ${{ success() && env.CONTROLLED_APK_BUILD_PASS == '1' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf verification/runtime-bundle
+          mkdir -p verification/runtime-bundle/candidate-apks verification/runtime-bundle/evidence
+          cp -R verification/candidate-apks/. verification/runtime-bundle/candidate-apks/
+          cp -R verification/evidence/. verification/runtime-bundle/evidence/
+          test -s verification/runtime-bundle/candidate-apks/toolbox-app-debug.apk
+          test -s verification/runtime-bundle/candidate-apks/toolbox-app-release.apk
+          test -s verification/runtime-bundle/candidate-apks/toolbox-app-debug-androidTest.apk
+          test -s verification/runtime-bundle/evidence/artifacts/provenance.json
+
+      - name: Upload static candidate for exact runtime proof
+        if: ${{ success() && env.CONTROLLED_APK_BUILD_PASS == '1' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: toolbox-android11-arm64-static-candidate
+          path: verification/runtime-bundle/
+          if-no-files-found: error
+          retention-days: 30
+'''
+          if old_upload not in static:
+              raise SystemExit('old static candidate upload block not found')
+          static = static.replace(old_upload, new_upload, 1)
+          static_path.write_text(static, encoding='utf-8')
+
+          final_gate_path = root / 'verification/scripts/application_safe_100_gate.py'
+          final_gate = final_gate_path.read_text(encoding='utf-8')
+          old_tool_check = """    check('r9-runtime-tool-qualification',
+          runtime_tools.get('status')=='PASS'
+          and {'runtime-host-arm64','runtime-emulator-version-known',
+               'runtime-adb-version-known','runtime-system-image-revision-known'}.issubset(tool_checks),
+          f'passed={sorted(tool_checks)}')
+"""
+          new_tool_check = """    check('r9-runtime-tool-qualification',
+          runtime_tools.get('status')=='PASS'
+          and {'runtime-device-connected','runtime-device-api30','runtime-device-android11',
+               'runtime-device-arm64','runtime-adb-version-known','runtime-transport-qualified'}.issubset(tool_checks),
+          f'passed={sorted(tool_checks)}')
+"""
+          if old_tool_check not in final_gate:
+              raise SystemExit('old emulator-specific R9 tool qualification block not found')
+          final_gate_path.write_text(final_gate.replace(old_tool_check, new_tool_check, 1), encoding='utf-8')
+
+          runtime_doc = '''# Android 11 ARM64 Runtime Proof Route
+
+## Canonical route
+
+Runtime proof is performed only against an actually connected Android target that satisfies all of:
+
+- Android release exactly 11;
+- API exactly 30;
+- primary ABI exactly `arm64-v8a`;
+- ADB transport ready and boot completed;
+- exact APK digests match the static GitHub Actions provenance;
+- production APKs are never rebuilt by the runtime job.
+
+The canonical workflow is `.github/workflows/application-runtime-r9.yml`. Its runtime job requires a GitHub Actions runner carrying the custom label `toolbox-android11-arm64-runtime`. Host CPU architecture is not an application claim; the target device API/ABI is the claim.
+
+## Canonical artifact layout
+
+The static workflow uploads exactly one bundle root:
+
+```text
+verification/runtime-bundle/
+  candidate-apks/
+  evidence/
+```
+
+After `actions/download-artifact` with `path: candidate`, the only accepted runtime paths are:
+
+```text
+candidate/candidate-apks/
+candidate/evidence/
+```
+
+`candidate/verification/...` is invalid and is rejected by `runtime_ci_guard.py`.
+
+## Hosted routes closed by evidence
+
+The following routes were tested and are closed until infrastructure capability materially changes:
+
+1. GitHub hosted Ubuntu x64 + ARM64 Android 11 guest: Android Emulator 37.1.11 rejects the ARM64 AVD because guest architecture must match the x86_64 host. Evidence: workflow run `33431096853`.
+2. GitHub hosted macOS ARM64 + ARM64 Android 11 guest: emulator startup reaches the hypervisor boundary then fails with `HV_UNSUPPORTED`; nested virtualization is unavailable. Evidence: workflow run `33431361441`.
+3. GitHub hosted Ubuntu ARM64 (`ubuntu-24.04-arm`): the host is AArch64, but the official Android SDK repository exposes no Linux ARM64 `emulator` package to `sdkmanager`; the runner also has no `/dev/kvm`. Evidence: workflow run `33456579283`.
+
+These failures are infrastructure failures, not asset failures and not application runtime failures.
+
+## Reopening a hosted emulator route
+
+A hosted emulator route may be reconsidered only when all required capabilities are proven before production runtime testing:
+
+- supported host-native Android Emulator binary from an accepted provenance source;
+- usable virtualization/acceleration when required by that emulator/guest pair;
+- exact API30 ARM64 system image;
+- successful boot with `ro.build.version.sdk=30`, `ro.build.version.release=11`, and `ro.product.cpu.abi=arm64-v8a`;
+- the repository runtime CI guard is intentionally updated with the new proof.
+
+Do not retry a closed route merely by changing runner labels, emulator flags, AVD paths, or graphics flags.
+'''
+          (root / 'RUNTIME_ANDROID11_ARM64.md').write_text(runtime_doc, encoding='utf-8')
+
+          agents_path = root / 'AGENTS.md'
+          agents = agents_path.read_text(encoding='utf-8')
+          section = '''
+
+## 22. Jalur Runtime Android 11 ARM64
+
+Runtime proof wajib mengikuti `RUNTIME_ANDROID11_ARM64.md` dan `.github/workflows/application-runtime-r9.yml`.
+
+Jalur emulator hosted yang sudah terbukti tidak valid DILARANG diulang tanpa bukti perubahan kemampuan infrastruktur. Saat ini yang ditutup adalah: hosted Ubuntu x64 untuk guest ARM64, hosted macOS ARM64 tanpa nested virtualization, dan hosted Ubuntu ARM64 yang tidak mempunyai paket Android Emulator resmi/KVM yang diperlukan.
+
+Runtime job tidak boleh membangun ulang APK production. Job hanya boleh memakai exact static candidate yang digest/provenance-nya sudah dibuktikan oleh workflow build. Target runtime wajib membuktikan Android 11, API 30, primary ABI `arm64-v8a`, ADB ready, dan boot completed melalui `verification/scripts/runtime_environment_gate.py`.
+
+Layout artifact runtime dikunci ke `candidate/candidate-apks/` dan `candidate/evidence/`. Jalur `candidate/verification/...` adalah jalur salah dan tidak boleh digunakan kembali.
+
+`verification/scripts/runtime_ci_guard.py` adalah fail-closed guard terhadap regresi jalur ini dan tidak boleh dilemahkan hanya agar CI hijau.
+'''
+          if '## 22. Jalur Runtime Android 11 ARM64' not in agents:
+              agents_path.write_text(agents.rstrip() + section + '\n', encoding='utf-8')
+
+          probe = root / '.github/workflows/android11-arm64-runtime-host-probe.yml'
+          if probe.exists():
+              probe.unlink()
+
+          maintenance = root / '.github/workflows/runtime-route-maintenance.yml'
+          if maintenance.exists():
+              maintenance.unlink()
+          PY
+
+          python3 -m py_compile \
+            verification/scripts/runtime_environment_gate.py \
+            verification/scripts/runtime_ci_guard.py \
+            verification/scripts/application_safe_100_gate.py
+          python3 verification/scripts/runtime_ci_guard.py
+          git diff --check
+
+      - name: Commit canonical runtime route
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'ToolBox CI Maintenance'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git diff --cached --quiet && { echo 'NO_CHANGES'; exit 0; }
+          git commit -m 'Lock canonical Android 11 ARM64 runtime route'
+          git push origin HEAD:kernel-foundation-hardening
