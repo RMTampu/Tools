@@ -1,6 +1,6 @@
 {
   "convergence": {
-    "canonicalVerificationSha256": "683636f36db8ea5317c321e99c05cd846add7f40e7c0b73775f9278ca2c83f56",
+    "canonicalVerificationSha256": "90a019b9951cc25e9e2b0541f99f53129dee79d0165f2093700eba745a5d39c8",
     "independentCleanReplicas": 2,
     "lockfilesByteIdentical": true,
     "sharedGradleDependencyCache": false,
@@ -15,7 +15,7 @@
     "toolbox-kernel/build.gradle.kts": "db083ba6bf5d46eb88528b245fb13019395df305f22a3906bd7d945a4d07ee85",
     "verification/application_scope.json": "39ac8cb7c9a2bdd40c2ad76882a34e8bc62ffea16deabe4d203b70b69a04cdb6"
   },
-  "generatedFromGitSha": "fdc05ee35e08f020abb7f821a2602807ec69d481",
+  "generatedFromGitSha": "4101ce6430271b8b81af0ef956f896ccf239062d",
   "generator": {
     "androidCommandLineTools": "14742923",
     "buildTools": "34.0.0",
@@ -25,6 +25,7 @@
     "gradleDistributionSha256": "544c35d6bd849ae8a5ed0bcea39ba677dc40f49df7d1835561582da2009b961d",
     "jdk": "17.0.20+1",
     "jdkRuntime": "17.0.20.1+1",
+    "proposalScope": "dependencies+lintAnalyzeDebug+lintAnalyzeRelease",
     "refreshDependencies": true
   },
   "observedToolchainSha256": {
@@ -35,7 +36,7 @@
     "javaRelease": "973f28729da43962dfba2e39b2a27ab736122f3a1bf829e06abfbde2a731c711"
   },
   "outputsSha256": {
-    "gradle/verification-metadata.xml": "e599514382d0b727fd72c73fdc5c11beca90f226ca864468df64c3c47c74bef4",
+    "gradle/verification-metadata.xml": "586f72706d56f87bbaaf81e5165bfd5f378c09ed58c4ac15f1c30e193215b6b6",
     "toolbox-app/gradle.lockfile": "4f36ef766ea026745b6abe9e88d1d68a2560f9267b6647d37fea354bcd50fca4",
     "toolbox-kernel/gradle.lockfile": "b507a953bdd6727e93133b7600ac7880d64e0e3f34062db0e40056aff674b832"
   },
@@ -48,5 +49,5 @@
   "schemaVersion": 3,
   "status": "CANDIDATE_UNREVIEWED",
   "workflowRunAttempt": "1",
-  "workflowRunId": "33335925159"
+  "workflowRunId": "33555654515"
 }
