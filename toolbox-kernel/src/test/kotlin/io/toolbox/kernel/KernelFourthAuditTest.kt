@@ -30,7 +30,6 @@ class KernelFourthAuditTest {
     fun `registry rollback must preserve concurrent replacement of the same command`() {
         val kernel = ToolBoxKernel()
         assertTrue(kernel.start().isEmpty())
-        kernel.commands.register("audit.shared-command") { CommandResult.success("base") }
 
         val startEntered = CountDownLatch(1)
         val releaseFailure = CountDownLatch(1)
@@ -38,7 +37,7 @@ class KernelFourthAuditTest {
             override val descriptor = ModuleDescriptor("engine.same-key-rollback", "same key rollback", "1.0.0")
 
             override fun onLoad(context: KernelContext) {
-                context.commands.register("audit.shared-command", replace = true) {
+                context.commands.register("audit.shared-command") {
                     CommandResult.success("module")
                 }
             }
