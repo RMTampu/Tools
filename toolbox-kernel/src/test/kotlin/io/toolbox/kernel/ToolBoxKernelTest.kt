@@ -159,7 +159,9 @@ class ToolBoxKernelTest {
 
     @Test
     fun `loaded source descriptor must equal admitted descriptor`() {
-        val kernel = ToolBoxKernel()
+        val kernel = ToolBoxKernel(
+            ports = KernelPorts(admissionPolicy = AllowAllModuleAdmissionPolicy)
+        )
         val source = ModuleSource(descriptor("engine.expected"), "compiled://engine.expected")
         val loader = ModuleLoader { recordingModule("engine.other", mutableListOf()) }
 
