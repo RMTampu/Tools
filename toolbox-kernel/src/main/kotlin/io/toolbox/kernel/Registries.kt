@@ -81,6 +81,11 @@ class EventBus(
         bucket += listener
         return Subscription {
             bucket.remove(listener)
+            if (bucket.isEmpty()) {
+                // Keep the topic bucket stable. Removing an observed-empty bucket here
+                // races a concurrent subscribe and can detach the newly added listener.
+                // Empty buckets are lightweight metadata and are intentionally retained.
+            }
         }
     }
 
