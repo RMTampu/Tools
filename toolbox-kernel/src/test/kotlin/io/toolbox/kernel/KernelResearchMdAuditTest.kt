@@ -93,4 +93,16 @@ class KernelResearchMdAuditTest {
         assertTrue(failures.isNotEmpty(), "default kernel policy accepted a source without explicit trust admission")
         assertNull(kernel.modules.stateOf(descriptor.id))
     }
+
+    @Test
+    fun `R4 R5 R7 module context must not expose authoritative kernel ports`() {
+        val exposed = KernelContext::class.java.declaredFields.any { field ->
+            field.type == KernelPorts::class.java
+        }
+
+        assertFalse(
+            exposed,
+            "module context exposes KernelPorts including the authoritative KernelStateStore and admission policies"
+        )
+    }
 }
