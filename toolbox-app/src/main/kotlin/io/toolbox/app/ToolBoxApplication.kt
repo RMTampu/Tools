@@ -1,6 +1,7 @@
 package io.toolbox.app
 
 import android.app.Application
+import android.content.pm.ApplicationInfo
 import android.os.Build
 import android.os.StrictMode
 import io.toolbox.kernel.KernelSnapshot
@@ -20,7 +21,8 @@ class ToolBoxApplication : Application() {
             supportedAbis = Build.SUPPORTED_ABIS.toList()
         )
 
-        if (BuildConfig.DEBUG) {
+        val debuggable = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        if (debuggable) {
             StrictMode.setThreadPolicy(
                 StrictMode.ThreadPolicy.Builder()
                     .detectAll()
