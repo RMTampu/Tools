@@ -95,7 +95,12 @@ class ToolBoxKernel(
             "Cannot install module while kernel state is $state"
         }
 
-        val compatibility = ports.compatibilityPolicy.check(config, descriptor)
+        val compatibility = runCatching { ports.compatibilityPolicy.check(config, descriptor) }
+            .getOrElse { error ->
+                safeError("Compatibility policy failed for module ${descriptor.id}", error)
+                events.publish(KernelEvent("kernel.module.rejected", config.name, descriptor))
+                return ModuleFailure(descriptor.id, "compatibility-policy", error)
+            }
         if (!compatibility.compatible) {
             val error = IllegalArgumentException(compatibility.reason)
             safeWarn("Rejected incompatible module ${descriptor.id}", error)
@@ -103,7 +108,12 @@ class ToolBoxKernel(
             return ModuleFailure(descriptor.id, "compatibility", error)
         }
 
-        val admission = ports.admissionPolicy.evaluate(descriptor, source)
+        val admission = runCatching { ports.admissionPolicy.evaluate(descriptor, source) }
+            .getOrElse { error ->
+                safeError("Admission policy failed for module ${descriptor.id}", error)
+                events.publish(KernelEvent("kernel.module.rejected", config.name, descriptor))
+                return ModuleFailure(descriptor.id, "admission-policy", error)
+            }
         if (!admission.allowed) {
             val error = IllegalStateException(admission.reason)
             safeWarn("Module admission rejected ${descriptor.id}", error)
