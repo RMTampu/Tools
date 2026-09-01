@@ -1,0 +1,10 @@
+# Python generated files
+__pycache__/
+*.py[cod]
+
+# Local build/runtime outputs
+.gradle/
+build/
+**/build/
+verification/runtime-bundle/
+verification/candidate-apks/
