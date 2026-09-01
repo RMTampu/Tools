@@ -71,6 +71,37 @@ class KernelResearchMdAuditTest {
     }
 
     @Test
+    fun `R2 R7 late registry mutations remain module owned until unload`() {
+        lateinit var retainedContext: KernelContext
+        val kernel = ToolBoxKernel()
+        val module = object : ToolBoxModule {
+            override val descriptor = ModuleDescriptor(
+                id = "engine.late-ownership",
+                name = "late ownership",
+                version = "1.0.0"
+            )
+
+            override fun onLoad(context: KernelContext) {
+                retainedContext = context
+            }
+        }
+
+        assertTrue(kernel.install(module).isEmpty())
+        assertTrue(kernel.start().isEmpty())
+        retainedContext.commands.register("audit.late-owned-command") {
+            CommandResult.success("late")
+        }
+        assertTrue(kernel.uninstall(module.descriptor.id))
+
+        assertFalse(
+            kernel.commands.execute(object : KernelCommand {
+                override val name = "audit.late-owned-command"
+            }).success,
+            "registry mutation made after activation escaped module ownership cleanup"
+        )
+    }
+
+    @Test
     fun `R5 R7 default source boundary must reject before loader without explicit trust policy`() {
         var loadCount = 0
         val descriptor = ModuleDescriptor(
