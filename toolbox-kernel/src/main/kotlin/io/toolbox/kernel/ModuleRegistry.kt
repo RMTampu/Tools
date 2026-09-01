@@ -4,6 +4,7 @@ class ModuleRegistry {
     private data class Record(
         val module: ToolBoxModule,
         val descriptor: ModuleDescriptor,
+        val lifecycleLock: Any = Any(),
         var state: ModuleState = ModuleState.REGISTERED,
         var loadCompleted: Boolean = false,
         var startAttempted: Boolean = false
@@ -67,8 +68,78 @@ class ModuleRegistry {
         val order = runCatching { resolveOrder() }
             .getOrElse { return listOf(ModuleFailure("kernel", "dependency-resolution", it)) }
         val failures = mutableListOf<ModuleFailure>()
+        order.forEach { record ->
+            loadRecord(record, context)?.let(failures::add)
+        }
+        return failures
+    }
 
-        for (record in order) {
+    fun startAll(): List<ModuleFailure> {
+        val order = runCatching { resolveOrder() }
+            .getOrElse { return listOf(ModuleFailure("kernel", "dependency-resolution", it)) }
+        val failures = mutableListOf<ModuleFailure>()
+        order.forEach { record ->
+            startRecord(record)?.let(failures::add)
+        }
+        return failures
+    }
+
+    fun loadAndStart(moduleId: String, context: KernelContext): List<ModuleFailure> {
+        val record = synchronized(lock) { records[moduleId] }
+            ?: return listOf(ModuleFailure(moduleId, "install", IllegalArgumentException("Unknown module")))
+
+        return synchronized(record.lifecycleLock) {
+            val missingDependency = synchronized(lock) {
+                if (records[moduleId] !== record) {
+                    return@synchronized null
+                }
+                record.descriptor.dependencies.firstOrNull { dependencyId ->
+                    records[dependencyId]?.state != ModuleState.STARTED
+                }
+            }
+            if (missingDependency != null) {
+                synchronized(lock) {
+                    if (records[moduleId] === record) record.state = ModuleState.FAILED
+                }
+                return@synchronized listOf(
+                    ModuleFailure(
+                        moduleId,
+                        "install",
+                        IllegalStateException("Dependency not started: $missingDependency")
+                    )
+                )
+            }
+
+            val failures = mutableListOf<ModuleFailure>()
+            loadRecord(record, context)?.let(failures::add)
+            if (failures.isEmpty()) {
+                startRecord(record)?.let(failures::add)
+            }
+            failures
+        }
+    }
+
+    fun stopAll(): List<ModuleFailure> {
+        val order = runCatching { resolveOrder().asReversed() }
+            .getOrElse { synchronized(lock) { records.values.toList().asReversed() } }
+        val failures = mutableListOf<ModuleFailure>()
+        order.forEach { record ->
+            stopRecord(record)?.let(failures::add)
+        }
+        return failures
+    }
+
+    fun health(): List<ModuleHealth> {
+        val snapshot = synchronized(lock) { records.values.toList() }
+        return snapshot.mapNotNull(::healthRecord)
+    }
+
+    fun stateOf(moduleId: String): ModuleState? = synchronized(lock) { records[moduleId]?.state }
+
+    fun descriptors(): List<ModuleDescriptor> = synchronized(lock) { records.values.map { it.descriptor } }
+
+    private fun loadRecord(record: Record, context: KernelContext): ModuleFailure? =
+        synchronized(record.lifecycleLock) {
             var missingReadyDependency: String? = null
             val shouldLoad = synchronized(lock) {
                 if (records[record.descriptor.id] !== record || record.state != ModuleState.REGISTERED) {
@@ -87,45 +158,39 @@ class ModuleRegistry {
             }
 
             if (missingReadyDependency != null) {
-                failures += ModuleFailure(
+                return@synchronized ModuleFailure(
                     record.descriptor.id,
                     "load",
                     IllegalStateException("Dependency not ready: $missingReadyDependency")
                 )
-                continue
             }
-            if (!shouldLoad) continue
+            if (!shouldLoad) return@synchronized null
 
-            runCatching { record.module.onLoad(context) }
-                .onSuccess {
-                    synchronized(lock) {
-                        if (records[record.descriptor.id] === record) {
-                            record.loadCompleted = true
-                            record.state = ModuleState.LOADED
-                        }
+            val loadResult = runCatching { record.module.onLoad(context) }
+            if (loadResult.isSuccess) {
+                synchronized(lock) {
+                    if (records[record.descriptor.id] === record) {
+                        record.loadCompleted = true
+                        record.state = ModuleState.LOADED
                     }
                 }
-                .onFailure { error ->
-                    val cleanup = runCatching { record.module.onUnload() }
-                    cleanup.exceptionOrNull()?.let(error::addSuppressed)
-                    synchronized(lock) {
-                        if (records[record.descriptor.id] === record) {
-                            record.loadCompleted = cleanup.isFailure
-                            record.state = ModuleState.FAILED
-                        }
-                    }
-                    failures += ModuleFailure(record.descriptor.id, "load", error)
+                return@synchronized null
+            }
+
+            val error = loadResult.exceptionOrNull()!!
+            val cleanup = runCatching { record.module.onUnload() }
+            cleanup.exceptionOrNull()?.let(error::addSuppressed)
+            synchronized(lock) {
+                if (records[record.descriptor.id] === record) {
+                    record.loadCompleted = cleanup.isFailure
+                    record.state = ModuleState.FAILED
                 }
+            }
+            ModuleFailure(record.descriptor.id, "load", error)
         }
-        return failures
-    }
 
-    fun startAll(): List<ModuleFailure> {
-        val order = runCatching { resolveOrder() }
-            .getOrElse { return listOf(ModuleFailure("kernel", "dependency-resolution", it)) }
-        val failures = mutableListOf<ModuleFailure>()
-
-        for (record in order) {
+    private fun startRecord(record: Record): ModuleFailure? =
+        synchronized(record.lifecycleLock) {
             var inactiveDependency: String? = null
             val shouldStart = synchronized(lock) {
                 if (
@@ -149,231 +214,130 @@ class ModuleRegistry {
             }
 
             if (inactiveDependency != null) {
-                failures += ModuleFailure(
+                return@synchronized ModuleFailure(
                     record.descriptor.id,
                     "start",
                     IllegalStateException("Dependency not started: $inactiveDependency")
                 )
-                continue
             }
-            if (!shouldStart) continue
+            if (!shouldStart) return@synchronized null
 
-            runCatching { record.module.onStart() }
-                .onSuccess {
-                    synchronized(lock) {
-                        if (records[record.descriptor.id] === record) {
-                            record.state = ModuleState.STARTED
-                        }
+            val startResult = runCatching { record.module.onStart() }
+            if (startResult.isSuccess) {
+                synchronized(lock) {
+                    if (records[record.descriptor.id] === record) {
+                        record.state = ModuleState.STARTED
                     }
                 }
-                .onFailure { error ->
-                    val cleanup = runCatching { record.module.onStop() }
-                    synchronized(lock) {
-                        if (records[record.descriptor.id] === record) {
-                            if (cleanup.isSuccess) {
-                                record.startAttempted = false
-                            } else {
-                                cleanup.exceptionOrNull()?.let(error::addSuppressed)
-                            }
-                            record.state = ModuleState.FAILED
-                        }
-                    }
-                    failures += ModuleFailure(record.descriptor.id, "start", error)
-                }
-        }
-        return failures
-    }
-
-    fun loadAndStart(moduleId: String, context: KernelContext): List<ModuleFailure> {
-        val record = synchronized(lock) { records[moduleId] }
-            ?: return listOf(ModuleFailure(moduleId, "install", IllegalArgumentException("Unknown module")))
-        val failures = mutableListOf<ModuleFailure>()
-
-        val missingDependency = synchronized(lock) {
-            record.descriptor.dependencies.firstOrNull { dependencyId ->
-                records[dependencyId]?.state != ModuleState.STARTED
+                return@synchronized null
             }
-        }
-        if (missingDependency != null) {
+
+            val error = startResult.exceptionOrNull()!!
+            val cleanup = runCatching { record.module.onStop() }
             synchronized(lock) {
-                if (records[moduleId] === record) record.state = ModuleState.FAILED
+                if (records[record.descriptor.id] === record) {
+                    if (cleanup.isSuccess) {
+                        record.startAttempted = false
+                    } else {
+                        cleanup.exceptionOrNull()?.let(error::addSuppressed)
+                    }
+                    record.state = ModuleState.FAILED
+                }
             }
-            return listOf(
-                ModuleFailure(
-                    moduleId,
-                    "install",
-                    IllegalStateException("Dependency not started: $missingDependency")
-                )
-            )
+            ModuleFailure(record.descriptor.id, "start", error)
         }
 
-        val shouldLoad = synchronized(lock) {
-            records[moduleId] === record && record.state == ModuleState.REGISTERED
-        }
-        if (shouldLoad) {
-            runCatching { record.module.onLoad(context) }
-                .onSuccess {
-                    synchronized(lock) {
-                        if (records[moduleId] === record) {
-                            record.loadCompleted = true
-                            record.state = ModuleState.LOADED
-                        }
-                    }
-                }
-                .onFailure { error ->
-                    val cleanup = runCatching { record.module.onUnload() }
-                    cleanup.exceptionOrNull()?.let(error::addSuppressed)
-                    synchronized(lock) {
-                        if (records[moduleId] === record) {
-                            record.loadCompleted = cleanup.isFailure
-                            record.state = ModuleState.FAILED
-                        }
-                    }
-                    failures += ModuleFailure(moduleId, "load", error)
-                }
-        }
-
-        val shouldStart = synchronized(lock) {
-            if (
-                failures.isEmpty() &&
-                records[moduleId] === record &&
-                record.state in setOf(ModuleState.LOADED, ModuleState.STOPPED) &&
-                !record.startAttempted
-            ) {
-                record.startAttempted = true
-                true
-            } else {
-                false
-            }
-        }
-        if (shouldStart) {
-            runCatching { record.module.onStart() }
-                .onSuccess {
-                    synchronized(lock) {
-                        if (records[moduleId] === record) {
-                            record.state = ModuleState.STARTED
-                        }
-                    }
-                }
-                .onFailure { error ->
-                    val cleanup = runCatching { record.module.onStop() }
-                    synchronized(lock) {
-                        if (records[moduleId] === record) {
-                            if (cleanup.isSuccess) {
-                                record.startAttempted = false
-                            } else {
-                                cleanup.exceptionOrNull()?.let(error::addSuppressed)
-                            }
-                            record.state = ModuleState.FAILED
-                        }
-                    }
-                    failures += ModuleFailure(moduleId, "start", error)
-                }
-        }
-        return failures
-    }
-
-    fun stopAll(): List<ModuleFailure> {
-        val order = runCatching { resolveOrder().asReversed() }
-            .getOrElse { synchronized(lock) { records.values.toList().asReversed() } }
-        val failures = mutableListOf<ModuleFailure>()
-
-        for (record in order) {
+    private fun stopRecord(record: Record): ModuleFailure? =
+        synchronized(record.lifecycleLock) {
             val shouldStop = synchronized(lock) {
                 records[record.descriptor.id] === record &&
                     (record.state == ModuleState.STARTED || record.startAttempted)
             }
-            if (!shouldStop) continue
+            if (!shouldStop) return@synchronized null
 
-            runCatching { record.module.onStop() }
-                .onSuccess {
-                    synchronized(lock) {
-                        if (records[record.descriptor.id] === record) {
-                            record.startAttempted = false
-                            record.state = ModuleState.STOPPED
-                        }
+            val stopResult = runCatching { record.module.onStop() }
+            if (stopResult.isSuccess) {
+                synchronized(lock) {
+                    if (records[record.descriptor.id] === record) {
+                        record.startAttempted = false
+                        record.state = ModuleState.STOPPED
                     }
                 }
-                .onFailure { error ->
-                    synchronized(lock) {
-                        if (records[record.descriptor.id] === record) {
-                            record.state = ModuleState.FAILED
-                        }
-                    }
-                    failures += ModuleFailure(record.descriptor.id, "stop", error)
-                }
-        }
-        return failures
-    }
+                return@synchronized null
+            }
 
-    fun health(): List<ModuleHealth> {
-        val snapshot = synchronized(lock) {
-            records.values.map { Triple(it.module, it.descriptor, it.state) }
+            val error = stopResult.exceptionOrNull()!!
+            synchronized(lock) {
+                if (records[record.descriptor.id] === record) {
+                    record.state = ModuleState.FAILED
+                }
+            }
+            ModuleFailure(record.descriptor.id, "stop", error)
         }
-        return snapshot.map { (module, descriptor, state) ->
+
+    private fun healthRecord(record: Record): ModuleHealth? =
+        synchronized(record.lifecycleLock) {
+            val state = synchronized(lock) {
+                if (records[record.descriptor.id] !== record) null else record.state
+            } ?: return@synchronized null
+
             val status = when (state) {
-                ModuleState.STARTED -> runCatching { module.healthCheck() }
+                ModuleState.STARTED -> runCatching { record.module.healthCheck() }
                     .getOrElse { HealthStatus.failed(it.message ?: it::class.java.simpleName) }
                 ModuleState.FAILED -> HealthStatus.failed("Module lifecycle failed")
                 else -> HealthStatus.ok("State: $state")
             }
-            ModuleHealth(descriptor, state, status)
+            ModuleHealth(record.descriptor, state, status)
         }
-    }
 
-    fun stateOf(moduleId: String): ModuleState? = synchronized(lock) { records[moduleId]?.state }
+    private fun cleanupForRemoval(record: Record): List<Throwable> =
+        synchronized(record.lifecycleLock) {
+            val failures = mutableListOf<Throwable>()
 
-    fun descriptors(): List<ModuleDescriptor> = synchronized(lock) { records.values.map { it.descriptor } }
-
-    private fun cleanupForRemoval(record: Record): List<Throwable> {
-        val failures = mutableListOf<Throwable>()
-
-        val needsStop = synchronized(lock) {
-            records[record.descriptor.id] === record &&
-                (record.state == ModuleState.STARTED || record.startAttempted)
-        }
-        if (needsStop) {
-            runCatching { record.module.onStop() }
-                .onSuccess {
+            val needsStop = synchronized(lock) {
+                records[record.descriptor.id] === record &&
+                    (record.state == ModuleState.STARTED || record.startAttempted)
+            }
+            if (needsStop) {
+                val stopResult = runCatching { record.module.onStop() }
+                if (stopResult.isSuccess) {
                     synchronized(lock) {
                         if (records[record.descriptor.id] === record) {
                             record.startAttempted = false
                             record.state = ModuleState.STOPPED
                         }
                     }
-                }
-                .onFailure {
+                } else {
                     synchronized(lock) {
                         if (records[record.descriptor.id] === record) record.state = ModuleState.FAILED
                     }
-                    failures += it
+                    failures += stopResult.exceptionOrNull()!!
+                    return@synchronized failures
                 }
-            if (failures.isNotEmpty()) return failures
-        }
+            }
 
-        val needsUnload = synchronized(lock) {
-            records[record.descriptor.id] === record && record.loadCompleted
-        }
-        if (needsUnload) {
-            runCatching { record.module.onUnload() }
-                .onSuccess {
+            val needsUnload = synchronized(lock) {
+                records[record.descriptor.id] === record && record.loadCompleted
+            }
+            if (needsUnload) {
+                val unloadResult = runCatching { record.module.onUnload() }
+                if (unloadResult.isSuccess) {
                     synchronized(lock) {
                         if (records[record.descriptor.id] === record) {
                             record.loadCompleted = false
                             record.state = ModuleState.REGISTERED
                         }
                     }
-                }
-                .onFailure {
+                } else {
                     synchronized(lock) {
                         if (records[record.descriptor.id] === record) record.state = ModuleState.FAILED
                     }
-                    failures += it
+                    failures += unloadResult.exceptionOrNull()!!
                 }
-        }
+            }
 
-        return failures
-    }
+            failures
+        }
 
     private fun resolveOrder(): List<Record> = synchronized(lock) {
         val visiting = mutableSetOf<String>()
