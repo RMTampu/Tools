@@ -22,6 +22,11 @@ data class CapabilityRequirement(
     val minVersion: Int = 1
 )
 
+data class CapabilityDeclaration(
+    val id: String,
+    val version: Int
+)
+
 data class EngineLifecycleRequirements(
     val lazyLoad: Boolean = true,
     val releasable: Boolean = true,
@@ -37,7 +42,7 @@ data class EngineDescriptor(
     val maxAndroidApi: Int? = null,
     val supportedAbi: Set<String> = setOf("arm64-v8a"),
     val requiredCapabilities: Set<CapabilityRequirement> = emptySet(),
-    val providedCapabilityIds: Set<String> = emptySet(),
+    val providedCapabilities: Set<CapabilityDeclaration> = emptySet(),
     val componentIds: Set<String> = emptySet(),
     val actionIds: Set<String> = emptySet(),
     val eventIds: Set<String> = emptySet(),
@@ -46,7 +51,10 @@ data class EngineDescriptor(
     val entryPoint: String,
     val lifecycle: EngineLifecycleRequirements = EngineLifecycleRequirements(),
     val origin: EngineOrigin = EngineOrigin.COMPILED_APK
-)
+) {
+    val providedCapabilityIds: Set<String>
+        get() = providedCapabilities.mapTo(linkedSetOf()) { it.id }
+}
 
 data class EngineEnvironment(
     val androidApi: Int,
