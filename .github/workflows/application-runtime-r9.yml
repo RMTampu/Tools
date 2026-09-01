@@ -57,6 +57,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
+
       - name: Download exact static candidate
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0
         with:
@@ -64,6 +65,7 @@ jobs:
           path: candidate
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ needs.locate-static.outputs.run_id }}
+
       - name: Restore canonical static evidence and locate exact APKs
         shell: bash
         run: |
@@ -71,13 +73,19 @@ jobs:
           test -d candidate/evidence
           test -d candidate/candidate-apks
           test ! -e candidate/verification
-          rm -rf verification/evidence; mkdir -p verification/evidence
+          rm -rf verification/evidence
+          mkdir -p verification/evidence
           cp -R candidate/evidence/. verification/evidence/
           DEBUG_APK="$GITHUB_WORKSPACE/candidate/candidate-apks/toolbox-app-debug.apk"
           RELEASE_APK="$GITHUB_WORKSPACE/candidate/candidate-apks/toolbox-app-release.apk"
           TEST_APK="$GITHUB_WORKSPACE/candidate/candidate-apks/toolbox-app-debug-androidTest.apk"
-          test -s "$DEBUG_APK"; test -s "$RELEASE_APK"; test -s "$TEST_APK"
-          echo "DEBUG_APK=$DEBUG_APK" >> "$GITHUB_ENV"; echo "RELEASE_APK=$RELEASE_APK" >> "$GITHUB_ENV"; echo "TEST_APK=$TEST_APK" >> "$GITHUB_ENV"
+          test -s "$DEBUG_APK"
+          test -s "$RELEASE_APK"
+          test -s "$TEST_APK"
+          echo "DEBUG_APK=$DEBUG_APK" >> "$GITHUB_ENV"
+          echo "RELEASE_APK=$RELEASE_APK" >> "$GITHUB_ENV"
+          echo "TEST_APK=$TEST_APK" >> "$GITHUB_ENV"
+
       - name: Verify downloaded artifact provenance before runtime
         shell: bash
         run: |
@@ -92,31 +100,62 @@ jobs:
               if actual!=expected:raise SystemExit(f'{key} digest mismatch')
           print('EXACT_STATIC_CANDIDATE_PROVENANCE_PASS')
           PY
-      - name: Qualify attached Android 11 ARM64 runtime
+
+      - name: Qualify and bind attached Android 11 ARM64 runtime
         run: GITHUB_SHA="$PROOF_SHA" python3 verification/scripts/runtime_environment_gate.py
+
       - name: Run instrumentation against exact debug APK
         shell: bash
         run: |
           set -euo pipefail
+          test -n "${ANDROID_SERIAL:-}"
           mkdir -p verification/evidence/diagnostics
-          adb install -r -t "$DEBUG_APK"; adb install -r -t "$TEST_APK"
-          adb shell am instrument -w io.toolbox.app.debug.test/androidx.test.runner.AndroidJUnitRunner | tee verification/evidence/diagnostics/instrumentation-debug.txt
+          adb -s "$ANDROID_SERIAL" install -t "$DEBUG_APK"
+          adb -s "$ANDROID_SERIAL" install -t "$TEST_APK"
+          adb -s "$ANDROID_SERIAL" shell am instrument -w io.toolbox.app.debug.test/androidx.test.runner.AndroidJUnitRunner | tee verification/evidence/diagnostics/instrumentation-debug.txt
           GITHUB_SHA="$PROOF_SHA" python3 verification/scripts/instrumentation_gate.py --report verification/evidence/diagnostics/instrumentation-debug.txt --apk "$DEBUG_APK" --test-apk "$TEST_APK" --provenance verification/evidence/artifacts/provenance.json
+
+      - name: Isolate post-instrumentation state
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${ANDROID_SERIAL:-}"
+          adb -s "$ANDROID_SERIAL" uninstall io.toolbox.app.debug.test | grep -Fx 'Success'
+          adb -s "$ANDROID_SERIAL" uninstall io.toolbox.app.debug | grep -Fx 'Success'
+          test -z "$(adb -s "$ANDROID_SERIAL" shell pm path io.toolbox.app.debug.test 2>/dev/null | tr -d '\r')"
+          test -z "$(adb -s "$ANDROID_SERIAL" shell pm path io.toolbox.app.debug 2>/dev/null | tr -d '\r')"
+
       - name: Runtime gate exact debug APK
         run: GITHUB_SHA="$PROOF_SHA" python3 verification/scripts/runtime_gate.py --apk "$DEBUG_APK" --package io.toolbox.app.debug --variant debug
+
+      - name: Isolate debug runtime before release
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${ANDROID_SERIAL:-}"
+          adb -s "$ANDROID_SERIAL" uninstall io.toolbox.app.debug | grep -Fx 'Success'
+          test -z "$(adb -s "$ANDROID_SERIAL" shell pm path io.toolbox.app.debug 2>/dev/null | tr -d '\r')"
+          test -z "$(adb -s "$ANDROID_SERIAL" shell pm path io.toolbox.app 2>/dev/null | tr -d '\r')"
+
       - name: Runtime gate exact release APK
         run: GITHUB_SHA="$PROOF_SHA" python3 verification/scripts/runtime_gate.py --apk "$RELEASE_APK" --package io.toolbox.app --variant release
+
       - name: Final ASSET_SAFE_100 closure
         run: GITHUB_SHA="$PROOF_SHA" python3 verification/scripts/asset_final_gate.py
+
       - name: Cross-domain X1-X5 closure
         run: GITHUB_SHA="$PROOF_SHA" python3 verification/scripts/cross_domain_gate.py
+
       - name: R1-R9 final APPLICATION_SAFE_100 closure
         run: GITHUB_SHA="$PROOF_SHA" python3 verification/scripts/application_safe_100_gate.py
+
       - name: Prepare exact final APK distribution set
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p final-apks; cp "$DEBUG_APK" final-apks/ToolBox-debug.apk; cp "$RELEASE_APK" final-apks/ToolBox-release.apk
+          mkdir -p final-apks
+          cp "$DEBUG_APK" final-apks/ToolBox-debug.apk
+          cp "$RELEASE_APK" final-apks/ToolBox-release.apk
           python3 - <<'PY'
           import hashlib,json
           from pathlib import Path
@@ -126,6 +165,7 @@ jobs:
           Path('final-apks/SHA256SUMS').write_text('\n'.join(f'{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}' for p in ps)+'\n')
           Path('final-apks/APPLICATION_SAFE_100.json').write_text(json.dumps(safe,indent=2,sort_keys=True)+'\n')
           PY
+
       - name: Upload final verified APKs
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -133,12 +173,17 @@ jobs:
           path: final-apks/
           if-no-files-found: error
           retention-days: 30
+
       - name: Cleanup installed candidates
         if: always()
         shell: bash
         run: |
-          adb uninstall io.toolbox.app.debug >/dev/null 2>&1 || true
-          adb uninstall io.toolbox.app >/dev/null 2>&1 || true
+          if [ -n "${ANDROID_SERIAL:-}" ]; then
+            adb -s "$ANDROID_SERIAL" uninstall io.toolbox.app.debug.test >/dev/null 2>&1 || true
+            adb -s "$ANDROID_SERIAL" uninstall io.toolbox.app.debug >/dev/null 2>&1 || true
+            adb -s "$ANDROID_SERIAL" uninstall io.toolbox.app >/dev/null 2>&1 || true
+          fi
+
       - name: Publish final application assurance evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
