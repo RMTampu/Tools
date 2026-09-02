@@ -4,12 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: Connection check or ONE user-authorized final APK test
+        description: Connection check, frozen candidate preflight, or ONE user-authorized final APK test
         required: true
         default: connection-only
         type: choice
         options:
           - connection-only
+          - candidate-preflight
           - test-existing-artifact
       final_gate_authorization:
         description: test-existing-artifact only; choose approved-once ONLY after explicit user approval for this one execution attempt
@@ -89,26 +90,16 @@ jobs:
           expected_source_git_sha='${{ inputs.expected_source_git_sha }}'
           expected_apk_sha256='${{ inputs.expected_apk_sha256 }}'
 
-          if [[ "$mode" == "connection-only" ]]; then
+          if [[ "$mode" == "connection-only" || "$mode" == "candidate-preflight" ]]; then
             if [[ "$authorization" != "locked" ]]; then
-              echo "::error::connection-only must keep final_gate_authorization=locked. Do not consume a Final Gate approval on a connection check."
+              echo "::error::$mode must keep final_gate_authorization=locked. Preflight must never consume a Final Gate approval."
               exit 1
             fi
           fi
 
-          if [[ "$mode" == "test-existing-artifact" ]]; then
-            if [[ "$authorization" != "approved-once" ]]; then
-              echo "::error::Firebase Final Gate is LOCKED. Explicit user approval is required for exactly one execution attempt."
-              exit 1
-            fi
-
-            if [[ -z "$approval_reference" ]]; then
-              echo "::error::approval_reference is required for test-existing-artifact. It must identify the explicit user approval for THIS attempt."
-              exit 1
-            fi
-
+          if [[ "$mode" != "connection-only" ]]; then
             if [[ -z "$source_run_id" ]]; then
-              echo "::error::source_run_id is required in test-existing-artifact mode"
+              echo "::error::source_run_id is required for frozen-candidate validation"
               exit 1
             fi
 
@@ -123,8 +114,20 @@ jobs:
             fi
           fi
 
+          if [[ "$mode" == "test-existing-artifact" ]]; then
+            if [[ "$authorization" != "approved-once" ]]; then
+              echo "::error::Firebase Final Gate is LOCKED. Explicit user approval is required for exactly one execution attempt."
+              exit 1
+            fi
+
+            if [[ -z "$approval_reference" ]]; then
+              echo "::error::approval_reference is required for test-existing-artifact. It must identify the explicit user approval for THIS attempt."
+              exit 1
+            fi
+          fi
+
       - name: Validate exact source workflow run identity
-        if: ${{ inputs.mode == 'test-existing-artifact' }}
+        if: ${{ inputs.mode != 'connection-only' }}
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -135,18 +138,27 @@ jobs:
           repo = os.environ['GITHUB_REPOSITORY']
           run_id = '${{ inputs.source_run_id }}'
           expected_sha = '${{ inputs.expected_source_git_sha }}'.lower()
+          headers = {
+              'Accept': 'application/vnd.github+json',
+              'Authorization': f'Bearer {os.environ["GH_TOKEN"]}',
+              'X-GitHub-Api-Version': '2022-11-28',
+              'User-Agent': 'toolbox-final-gate-source-binding',
+          }
           req = urllib.request.Request(
               f'https://api.github.com/repos/{repo}/actions/runs/{run_id}',
-              headers={
-                  'Accept': 'application/vnd.github+json',
-                  'Authorization': f'Bearer {os.environ["GH_TOKEN"]}',
-                  'X-GitHub-Api-Version': '2022-11-28',
-                  'User-Agent': 'toolbox-final-gate-source-binding',
-              },
+              headers=headers,
+          )
+          main_req = urllib.request.Request(
+              f'https://api.github.com/repos/{repo}/branches/main',
+              headers=headers,
           )
           with urllib.request.urlopen(req, timeout=30) as response:
               run = json.load(response)
+          with urllib.request.urlopen(main_req, timeout=30) as response:
+              main_branch = json.load(response)
+          current_main_sha = str(main_branch.get('commit', {}).get('sha', '')).lower()
           checks = {
+              'current_main_head': current_main_sha == expected_sha,
               'head_sha': str(run.get('head_sha', '')).lower() == expected_sha,
               'status': run.get('status') == 'completed',
               'conclusion': run.get('conclusion') == 'success',
@@ -157,8 +169,8 @@ jobs:
           }
           failed = [name for name, ok in checks.items() if not ok]
           if failed:
-              raise SystemExit(f'Frozen source workflow run identity mismatch: {failed}; run={run_id} head={run.get("head_sha")}')
-          print(f'FROZEN_SOURCE_RUN_BINDING = PASS run={run_id} sha={expected_sha}')
+              raise SystemExit(f'Frozen source workflow run identity mismatch: {failed}; run={run_id} run_head={run.get("head_sha")} current_main={current_main_sha} expected={expected_sha}')
+          print(f'FROZEN_SOURCE_RUN_BINDING = PASS run={run_id} sha={expected_sha} current_main={current_main_sha}')
           PY
 
       - name: Authenticate to Google Cloud with GitHub OIDC
@@ -243,7 +255,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Download APK artifact from prior gated run
-        if: ${{ inputs.mode == 'test-existing-artifact' }}
+        if: ${{ inputs.mode != 'connection-only' }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
           name: ${{ inputs.artifact_name }}
@@ -252,7 +264,7 @@ jobs:
           run-id: ${{ inputs.source_run_id }}
 
       - name: Validate APK artifact identity
-        if: ${{ inputs.mode == 'test-existing-artifact' }}
+        if: ${{ inputs.mode != 'connection-only' }}
         id: apk
         shell: bash
         run: |
