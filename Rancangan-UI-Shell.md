@@ -173,3 +173,96 @@ Tujuan revisi ini adalah:
 Invariant utama:
 
 > **Satu panel kontekstual boleh mempunyai banyak fungsi, tetapi pengguna harus selalu dapat mengetahui konteks saat ini dan kembali ke level sebelumnya dengan jelas.**
+
+## 9. Mode Awal Edge — Sumber yang Dapat Dimasukkan ke Layar
+
+Saat UI Editor aktif dan belum ada object yang sedang diedit, isi awal Edge berfokus pada hal yang dapat dimasukkan ke layar.
+
+Contoh:
+
+```text
+EDGE — Tambah ke Layar
+├─ Komponen
+├─ Template
+├─ Kit
+├─ Asset
+├─ Recent
+└─ Favorite
+```
+
+Item yang kompatibel dapat langsung digunakan melalui drag and drop ke layar. Pengguna tidak perlu masuk ke menu property hanya untuk menambahkan object.
+
+Komponen bawaan ToolBox, hasil import, template, dan kit yang sudah lolos validasi dapat muncul dalam katalog yang sama dengan penanda sumber bila diperlukan.
+
+## 10. Tap Object → Edge Menjadi Menu Edit Lanjutan
+
+Saat `Edit ON` dan pengguna mengetuk object yang sudah berada di layar, Edge tidak tetap menampilkan katalog penambahan. Edge langsung berubah menjadi menu edit kontekstual untuk object tersebut.
+
+Contoh urutan menu untuk sebuah object:
+
+```text
+EDGE — Object Terpilih
+├─ Pilih Tampilan / Style
+├─ Ubah Ukuran
+├─ Posisi
+├─ Isi / Konten
+├─ Warna
+├─ Font
+├─ Spacing
+├─ Border
+├─ State
+├─ Binding
+├─ Event
+└─ Lainnya sesuai Property Contract
+```
+
+Menu disusun vertikal. Fungsi visual dan manipulasi yang paling sering digunakan ditempatkan di bagian atas, sedangkan fungsi teknis dan yang lebih jarang digunakan berada lebih bawah.
+
+Isi menu tidak dipaksakan sama untuk semua object. Edge hanya menampilkan kemampuan yang benar-benar didukung oleh Property/Event/Capability Contract object aktif.
+
+## 11. Pilih Tampilan / Style sebagai Galeri Visual
+
+`Pilih Tampilan / Style` membuka galeri visual dari tampilan yang kompatibel dengan jenis object terpilih.
+
+Contoh untuk kolom status atau kolom input:
+
+```text
+Object > Pilih Tampilan
+
+[ Preview Default ] [ Preview Neon ]
+[ Preview Minimal ] [ Preview Rounded ]
+[ Preview Kit A   ] [ Preview Kit B   ]
+```
+
+Pilihan dapat berasal dari:
+
+- style bawaan ToolBox;
+- component style project;
+- template yang tersimpan;
+- kit/import yang sudah dikonversi dan divalidasi.
+
+Tap pada preview menerapkan perubahan ke Working State untuk preview langsung pada object yang sama. Perubahan tetap tunduk pada manual Save dan Undo/Redo.
+
+Istilah dibedakan:
+
+```text
+Tema Aplikasi
+= berlaku luas pada project
+
+Tampilan / Style Object
+= visual untuk object tertentu
+```
+
+## 12. Pola Interaksi Utama UI Editor
+
+Pola penggunaan utama menjadi sangat sederhana:
+
+```text
+Drag dari Edge
+→ menambah sesuatu ke layar
+
+Tap object di layar
+→ Edge berubah menjadi menu edit object
+```
+
+Edge tetap mempertahankan Back, breadcrumb/context title, dan context history agar pengguna dapat kembali ke katalog atau konteks sebelumnya tanpa memulai ulang navigasi panel.
