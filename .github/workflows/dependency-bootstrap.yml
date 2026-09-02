@@ -2,17 +2,6 @@ name: ToolBox Dependency Trust Bootstrap
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'settings.gradle.kts'
-      - 'build.gradle.kts'
-      - 'gradle.properties'
-      - 'gradle/**'
-      - 'toolbox-kernel/build.gradle.kts'
-      - 'toolbox-app/build.gradle.kts'
-      - 'verification/application_scope.json'
-      - '.github/workflows/dependency-bootstrap.yml'
 
 permissions:
   contents: write
@@ -76,6 +65,7 @@ jobs:
           test -s "$ANDROID_SDK_ROOT/platforms/android-35/android.jar"
           test -s "$ANDROID_SDK_ROOT/platforms/android-35/source.properties"
           test -s "$ANDROID_SDK_ROOT/build-tools/34.0.0/source.properties"
+          test -x "$ANDROID_SDK_ROOT/build-tools/34.0.0/aapt2"
           test -s "$ANDROID_SDK_ROOT/cmdline-tools/20.0/source.properties"
           grep -F 'Pkg.Revision=20.0' "$ANDROID_SDK_ROOT/cmdline-tools/20.0/source.properties"
 
@@ -106,8 +96,11 @@ jobs:
           --refresh-dependencies
           --write-locks
           --write-verification-metadata sha256
+          -Pandroid.aapt2FromMavenOverride="$ANDROID_SDK_ROOT/build-tools/34.0.0/aapt2"
           :toolbox-kernel:dependencies
           :toolbox-app:dependencies
+          :toolbox-app:lintAnalyzeDebug
+          :toolbox-app:lintAnalyzeRelease
 
       - name: Resolve replica B from clean Gradle home
         shell: bash
@@ -119,8 +112,11 @@ jobs:
           --refresh-dependencies
           --write-locks
           --write-verification-metadata sha256
+          -Pandroid.aapt2FromMavenOverride="$ANDROID_SDK_ROOT/build-tools/34.0.0/aapt2"
           :toolbox-kernel:dependencies
           :toolbox-app:dependencies
+          :toolbox-app:lintAnalyzeDebug
+          :toolbox-app:lintAnalyzeRelease
 
       - name: Validate both generated trust states
         shell: bash
@@ -285,6 +281,7 @@ jobs:
                   'androidCommandLineTools': '14742923',
                   'dependencyVerification': 'sha256',
                   'refreshDependencies': True,
+                  'proposalScope': 'dependencies+lintAnalyzeDebug+lintAnalyzeRelease',
               },
               'observedToolchainSha256': {
                   'javaRelease': sha256(java_home / 'release'),
@@ -362,4 +359,8 @@ jobs:
           git config user.name 'toolbox-trust-bootstrap[bot]'
           git config user.email 'toolbox-trust-bootstrap[bot]@users.noreply.github.com'
           git commit -m 'Record converged dependency trust candidate'
-          git push origin HEAD:main
+          if [[ "$GITHUB_REF_NAME" == "main" ]]; then
+            echo "::error::Dependency trust bootstrap proposals must be generated on a dedicated branch; refusing direct main mutation."
+            exit 1
+          fi
+          git push origin "HEAD:${GITHUB_REF_NAME}"
