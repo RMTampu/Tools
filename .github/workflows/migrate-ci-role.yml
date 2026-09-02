@@ -1,0 +1,35 @@
+name: One-time CI Role Migration
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/migrate-ci-role.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 0
+
+      - name: Convert workflows to reusable caller-source CI
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -c "from pathlib import Path; import re; files=['kernel-ci.yml','prebuild-source-gate.yml','dependency-bootstrap.yml']; root=Path('.github/workflows'); [(lambda p: p.write_text(re.sub(r'^on:\\n.*?^permissions:', 'on:\\n  workflow_call:\\n\\npermissions:', p.read_text(), count=1, flags=re.M|re.S)))(root/f) for f in files]"
+          python3 -c "from pathlib import Path; import re; root=Path('.github/workflows'); repl='on:\\n  workflow_call:\\n    secrets:\\n      SIGNING_KEY:\\n        required: true\\n      KEY_STORE_PASSWORD:\\n        required: true\\n      KEY_ALIAS:\\n        required: true\\n      KEY_PASSWORD:\\n        required: true\\n\\npermissions:'; [(lambda p: p.write_text(re.sub(r'^on:\\n.*?^permissions:', repl, p.read_text(), count=1, flags=re.M|re.S)))(root/f) for f in ['apk-candidate.yml','signing-identity-bootstrap.yml']]"
+          grep -A3 '^on:' .github/workflows/kernel-ci.yml
+          grep -A12 '^on:' .github/workflows/apk-candidate.yml
+          rm -f .github/workflows/migrate-ci-role.yml
+          git config user.name 'Tools CI Migration Bot'
+          git config user.email 'actions@github.com'
+          git add -A
+          git commit -m 'Make Tools workflows reusable from private callers'
+          git push origin HEAD:main
