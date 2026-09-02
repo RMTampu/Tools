@@ -1,10 +1,7 @@
 name: ToolBox Application Prebuild Source Gate
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_call:
 
 permissions:
   contents: read
@@ -15,19 +12,33 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - name: Checkout
+      - name: Checkout caller source
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+
+      - name: Record source provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "SOURCE_REPOSITORY=$GITHUB_REPOSITORY"
+          echo "SOURCE_COMMIT_SHA=$GITHUB_SHA"
+          echo "SOURCE_REF=$GITHUB_REF"
+          echo "CI_REPOSITORY=RMTampu/Tools"
 
       - name: Run dependency trust gate
         shell: bash
         run: python3 verification/scripts/dependency_trust_gate.py
 
       - name: Run application prebuild source gate
-        id: prebuild
         shell: bash
         run: python3 verification/scripts/prebuild_gate.py
 
-      - name: Upload prebuild source evidence
+      - name: Run asset prebuild gate
+        shell: bash
+        run: python3 verification/scripts/asset_prebuild_gate.py
+
+      - name: Upload prebuild evidence
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
@@ -35,5 +46,6 @@ jobs:
           path: |
             verification/evidence/dependency-trust.json
             verification/evidence/prebuild.json
+            verification/evidence/asset-prebuild.json
           if-no-files-found: error
           retention-days: 14
