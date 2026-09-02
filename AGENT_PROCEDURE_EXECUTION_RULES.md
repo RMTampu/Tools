@@ -212,11 +212,23 @@ Contoh input yang dapat membatalkan proof:
 - generated output;
 - build input;
 - tool configuration;
-- aturan/prosedur;
+- aturan/prosedur teknis yang mengubah requirement, acceptance criteria, input, atau metode pembuktian wajib;
 - artifact antara;
 - environment yang termasuk dalam contract proof.
 
-Seluruh status PASS setelah titik yang terdampak dianggap tidak valid sampai rule/gate terkait dijalankan ulang.
+### 10.1 Perubahan Dokumentasi Tidak Otomatis Membatalkan Proof
+
+Perubahan dokumentasi/editorial **bukan** input proof dan tidak membatalkan status PASS, test, atau build yang sudah sah, selama tidak mengubah requirement teknis, contract, acceptance criteria, input build, konfigurasi, atau metode pembuktian wajib.
+
+Contoh perubahan yang tidak membatalkan proof:
+
+- ejaan, tata bahasa, format Markdown, atau struktur tampilan;
+- tautan, navigasi, atau penjelasan yang tidak mengubah makna teknis;
+- pencatatan status/evidence yang hanya merekam hasil yang telah ada.
+
+Jika perubahan mengubah makna teknis, agen wajib melakukan impact analysis dan hanya menjalankan ulang rule/gate yang benar-benar terdampak. Build APK atau test runtime ulang hanya diperlukan bila perubahan tersebut memengaruhi input kandidat, contract build, artifact, atau claim yang sedang dibuktikan.
+
+Seluruh status PASS setelah titik yang benar-benar terdampak dianggap tidak valid sampai rule/gate terkait dijalankan ulang.
 
 ---
 
