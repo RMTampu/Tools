@@ -1,26 +1,41 @@
-# ToolBox — Public Build/Test Engine
+# ToolBox — Public Research / Test / Staging
 
-`RMTampu/Tools` adalah repository **public Build/Test/CI/Firebase engine**.
+`RMTampu/Tools` adalah repository **Public Research / Test / Staging**.
 
 ```text
 RMTampu/ToolBox (PRIVATE)
-= product master + source + asset + rancangan + product verification state
+= product master + source + asset + final integration + build + signing + Firebase/final test + release
 
 RMTampu/Tools (PUBLIC)
-= reusable workflow + validator/orchestration + test tooling + Firebase bridge
+= research + prototype + component development + mock/simulator + public testing + READY_PRIVATE staging
 ```
 
-## State setelah migrasi
+## Batas Repository
 
-- Product source aplikasi/kernel tidak disimpan di repository ini.
-- Product asset/resource tidak disimpan di repository ini.
-- Product Gradle workspace dan product verification state tidak disimpan di repository ini.
-- Master rancangan berada di private `RMTampu/ToolBox`.
-- Workflow reusable selalu bekerja terhadap **caller source**, bukan stale public product copy.
-- Private caller harus mem-pin workflow public ke commit SHA tervalidasi.
-- Source/asset private tidak boleh dipublikasikan melalui log atau artifact public.
-- Firebase Final Gate tetap LOCKED dan memerlukan approval eksplisit pengguna untuk setiap execution attempt.
+- Product source aplikasi/kernel Private tidak disimpan atau dibaca di repository ini.
+- Product asset/resource Private tidak disimpan atau dibaca di repository ini.
+- APK/artifact Private tidak boleh direlay melalui repository ini.
+- Public tidak boleh menerima credential untuk checkout/read Private.
+- Workflow Public hanya boleh bekerja terhadap component/source/data yang memang Public, mock, simulator, fixture, atau prototype.
+- Public tidak menjadi reusable CI untuk source Private.
+- Public tidak menjadi Firebase bridge untuk artifact Private.
+- Final build/signing/Firebase/release berada pada boundary Private.
 
-Repository ini dipertahankan sebagai CI engine karena jalur build/test dan integrasi eksternal seperti Firebase terhubung ke sini.
+## Jalur Resmi
 
-Baca `AGENTS.md` dan `REPOSITORY_INTEGRATION_POLICY.md` sebelum perubahan.
+```text
+PUBLIC
+RESEARCH
+-> DESIGN
+-> BUILD COMPONENT
+-> AUDIT / TEST / SIMULATOR
+-> PACKAGE
+-> READY_PRIVATE
+-> AUTO CLEANUP
+```
+
+Setelah `READY_PRIVATE`, hanya Promotion Package aman yang masuk ke Private. Public tidak mengetahui state final Private seperti `A`, `A+B`, atau `A+B+C`.
+
+Setiap Public job wajib memiliki Auto Cleanup otomatis setelah sukses/gagal sejauh platform memungkinkan.
+
+Baca `AGENTS.md`, `GLOBAL_PUBLIC_PRIVATE_DEVELOPMENT_RULES.md`, dan `REPOSITORY_INTEGRATION_POLICY.md` sebelum perubahan.
