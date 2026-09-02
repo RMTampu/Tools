@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "status": "DEPENDENCY_TRUST_ACCEPTED",
-  "candidateGitCommit": "160e5f02d42b6f62db3b2dbde231bc5be8e99507",
-  "candidateSourceGitSha": "4101ce6430271b8b81af0ef956f896ccf239062d",
-  "candidateSha256": "db60ebaa73d8a05575e9b66080ecbbdc8b5ba3f3a9047abd86b9b99c8d8cd788",
-  "workflowRunId": "33555654515",
+  "candidateGitCommit": "0269c5d00c679c81c91668cc79adf5f436f0bec2",
+  "candidateSourceGitSha": "d65c54616c300d73762cb8ead40c9885b9ffdba2",
+  "candidateSha256": "82125a947f23edc6469b5b19a4994da3a9a3922e2e7c0a15ec3956df5672a661",
+  "workflowRunId": "33573240006",
   "workflowArtifact": {
-    "id": 9819348614,
-    "digest": "sha256:42817eae9776ca437f8ac4ce383361629a11e59065ea1b12bfb7bf04bb68277f"
+    "id": 9825787916,
+    "digest": "sha256:f2ed7e34842f4346f201b373b3acc7a8d036d2d9c450b757da4db2421cb9ff46"
   },
   "identityMechanism": "Exact Gradle lock state plus SHA-256 dependency verification metadata",
   "canonicalVerificationSha256": "9728de8314127c24554bd841b1cf9037853352f2daa3b91360354feb31abe3e7",
@@ -33,14 +33,13 @@
     "independentCleanReplicas": 2,
     "lockfilesByteIdentical": true,
     "verificationMetadataCanonicalIdentical": true,
-    "candidateCommitChangedFileCount": 2,
+    "candidateCommitChangedFileCount": 1,
     "candidateCommitOnlyAllowedOutputs": true,
     "repositoryPolicyReviewed": true
   },
   "declaredLimitations": [
     "PGP signature verification is not used for this dependency state; accepted dependency identity is pinned by SHA-256 checksums and exact lock state.",
-    "The bot candidate commit is unsigned and is not used as the authenticity oracle; acceptance is bound to content digests, workflow run identity, clean-resolution convergence, repository policy, and the independent review record.",
-    "The proposal workflow originally computed canonicalVerificationSha256 over canonical JSON without its trailing newline. The corrected digest 9728de8314127c24554bd841b1cf9037853352f2daa3b91360354feb31abe3e7 is the SHA-256 recorded for verification-metadata.canonical.json in the original workflow artifact SHA256SUMS."
+    "The bot candidate commit is unsigned and is not used as the authenticity oracle; acceptance is bound to content digests, workflow run identity, clean-resolution convergence, repository policy, and the independent review record."
   ],
   "unresolvedFindings": []
 }
