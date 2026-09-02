@@ -2,6 +2,10 @@
 
 ## 1. Status Dokumen
 
+> **Scope Public wajib:** dokumen ini hanya berlaku untuk asset/resource milik component, prototype, mock, simulator, fixture, dan package yang memang Public di `RMTampu/Tools`.
+>
+> Dalam dokumen ini, istilah final artifact/package dan `ASSET_SAFE_100` adalah metode dan formula untuk scope Public. Claim yang boleh dikeluarkan oleh repository ini adalah `PUBLIC_ASSET_SAFE_100`, lalu `PACKAGE_VALIDATION` dan `READY_PRIVATE`; tidak pernah final build, signing, Firebase, atau release Private.
+
 Dokumen ini adalah aturan operasional wajib untuk seluruh pekerjaan yang menyentuh asset/resource pada repository `RMTampu/Tools`.
 
 Target dokumen ini adalah `ASSET_SAFE_100`: seluruh asset yang termasuk ruang lingkup harus terbukti benar terhadap spesifikasinya, berhasil masuk ke hasil build, dapat di-resolve dan digunakan pada seluruh konfigurasi/state yang didukung, serta tidak meninggalkan kelas kegagalan asset yang belum diperiksa.
@@ -19,7 +23,7 @@ Target utama:
 - Android 11
 - API 30
 - ABI utama `arm64-v8a`
-- Artifact aplikasi Android final
+- Artifact Android Public (component/prototype/mock/fixture), bukan artifact final Private
 
 Aturan asset harus mempertahankan kompatibilitas terhadap target tersebut.
 
