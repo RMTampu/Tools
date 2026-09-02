@@ -82,6 +82,7 @@ ToolBox Host
 │
 ├─ Shell UI
 │  ├─ Bubble
+│  ├─ Floating Window
 │  ├─ Edge Panel
 │  └─ Deck Panel
 │
@@ -216,34 +217,49 @@ Yang tetap ada adalah data persistent dan state kecil yang memang diperlukan unt
 
 # 6. Shell UI ToolBox
 
-Shell ToolBox terdiri dari tiga kontrol utama:
+Shell ToolBox terdiri dari kontrol berikut:
 
 ```text
-Bubble     = pusat perintah / mouse ToolBox
-Edge Panel = sumber asset/component
-Deck Panel = alat edit manual
+Bubble          = pusat akses cepat / command trigger
+Floating Window = pusat menu lengkap yang dipanggil Bubble
+Edge Panel      = sumber asset/component
+Deck Panel      = alat edit manual
 ```
 
-Ketiganya berada di atas halaman aktif dan tidak menjadi bagian dari project aplikasi yang sedang dibuat.
+Keempatnya berada di atas halaman aktif dan tidak menjadi bagian dari project aplikasi yang sedang dibuat.
 
 Shell mempunyai coordinate space sendiri dan tidak ikut berubah ketika viewport editor di-zoom atau di-pan.
 
 ---
 
-# 7. Bubble — Draggable Priority Overlay
+# 7. Bubble — Draggable Priority Overlay + Floating Window Trigger
 
-Bubble adalah **Top-Layer Draggable Floating Overlay** dengan perilaku:
+Bubble adalah **Top-Layer Draggable Floating Overlay** berbentuk ringkas/awan yang menjadi pusat akses cepat ToolBox.
+
+Bubble tetap sederhana dan hanya mempunyai empat akses cepat utama:
+
+```text
+Bubble Quick Access
+├─ Edit ON / OFF
+├─ Tool
+├─ Pengaturan
+└─ Floating Window
+```
+
+Bubble tidak digunakan untuk menumpuk seluruh menu ToolBox. Fungsi lanjutan dipindahkan ke Floating Window agar Bubble tetap ringan, cepat, dan tidak menutup area kerja secara berlebihan.
+
+Perilaku Bubble:
 
 - selalu berada di lapisan interaksi tertinggi dalam ToolBox;
 - dapat digeser bebas;
-- tidak boleh keluar dari batas layar yang valid;
+- tidak boleh keluar dari interactive bounds yang valid;
 - posisi terakhir dapat disimpan;
+- posisi dapat disimpan terpisah untuk portrait dan landscape;
 - sentuhan pada area Bubble mutlak diterima Bubble terlebih dahulu;
 - object UI di bawah Bubble tidak menerima sentuhan;
 - untuk mengakses object yang tertutup, Bubble digeser;
 - tidak menggunakan touch-through sebagai perilaku default;
-- tidak memerlukan overlay lintas-aplikasi selama penggunaannya hanya di dalam ToolBox;
-- dapat membuka pusat perintah, pengaturan, mode edit, binding, navigasi ke tool terkait, dan fungsi sistem ToolBox.
+- tidak memerlukan overlay lintas-aplikasi selama penggunaannya hanya di dalam ToolBox.
 
 Nama konsep teknis:
 
@@ -253,46 +269,75 @@ atau:
 
 > **Draggable topmost overlay view with touch interception and bounded movement.**
 
-Bubble sendiri dapat diedit melalui pengaturan khusus UI Editor untuk kontrol ToolBox.
+## 7.1 Floating Window Menu
 
-Properti yang dapat dikustomisasi mencakup paling tidak:
+Tombol `Floating Window` pada Bubble membuka **Context-Aware Floating Menu Window**.
+
+Floating Window:
+
+- merupakan panel mengambang terpisah, bukan perluasan permanen Bubble;
+- dapat berisi menu Main, Tool, Object, Screen, System, dan kelompok lain sesuai konteks;
+- isi berubah mengikuti Edit ON/OFF, object terpilih, screen aktif, tool aktif, dan keadaan project;
+- muncul di arah yang mempunyai ruang valid paling besar;
+- Bubble di kanan cenderung membuka window ke kiri;
+- Bubble di kiri cenderung membuka window ke kanan;
+- Bubble dekat bawah cenderung membuka window ke atas;
+- selalu di-clamp agar tidak keluar interactive bounds;
+- dapat digeser jika menutupi area penting, tetapi tetap tunduk pada safe bounds;
+- mempunyai ukuran minimum/maksimum agar tetap dapat disentuh dan tidak menutup seluruh workspace;
+- tap di luar Floating Window menutup window dan sentuhan penutup tersebut **dikonsumsi**, tidak diteruskan ke UI aplikasi di bawahnya;
+- jika keyboard/IME muncul, window menyesuaikan viewport agar tidak terjebak di belakang keyboard;
+- posisi/state yang relevan dapat dipertahankan per orientasi.
+
+Floating Window adalah pusat menu lanjut. Bubble hanya menjadi pintu akses cepat.
+
+## 7.2 Safe Constraints Bubble dan Floating Window
+
+Bubble dan Floating Window dapat dikustomisasi melalui pengaturan kontrol ToolBox, paling tidak untuk:
 
 - posisi;
-- ukuran;
+- ukuran dalam rentang aman;
 - bentuk;
 - transparansi;
 - pola buka menu;
-- perilaku drag;
 - posisi default.
 
 Selalu tersedia safe constraints:
 
-- ukuran tidak boleh menjadi nol;
-- Bubble tidak boleh sepenuhnya keluar layar;
-- konfigurasi yang membuat Bubble tidak dapat diakses harus dapat dipulihkan;
-- tersedia mekanisme reset layout shell ke kondisi aman.
+- ukuran tidak boleh menjadi nol atau terlalu kecil untuk disentuh;
+- Bubble/Floating Window tidak boleh sepenuhnya keluar layar;
+- konfigurasi yang membuat kontrol tidak dapat diakses harus dapat dipulihkan;
+- rotasi/orientasi melakukan auto-clamp ke posisi aman terdekat;
+- tersedia `Pulihkan Tata Letak Kontrol`;
+- tersedia emergency shell recovery jika konfigurasi membuat kontrol tidak terjangkau.
 
 ---
 
 # 8. Edge Panel
 
-Dalam kondisi tertutup, Edge Panel hanya tampil sebagai **garis/handle tipis**.
+Dalam kondisi tertutup, Edge Panel tampil sebagai **handle tipis**. Visual handle boleh tipis, tetapi touch target transparannya dibuat sedikit lebih besar agar mudah diketuk tanpa memperbesar tampilan.
 
 Fungsi utama Edge Panel adalah menyediakan asset/component untuk dimasukkan ke halaman dengan drag and drop.
 
-Prinsip:
+Edge mendukung **Dual Interaction Handle + Long-Press Reposition Mode + Anchor Snap Relocation**:
 
 ```text
-Edge Handle
-↓ tarik
-Edge Panel terbuka
-↓
-pilih asset/component
-↓
-drag & drop
-↓
-object/instance dibuat
+Tap
+→ buka / tutup
+
+Drag biasa
+→ buka / tutup secara progresif
+
+Long Press
+→ mode pindah posisi
+→ anchor valid muncul
+→ geser pendek atau pilih anchor
+→ snap ke posisi baru
 ```
+
+Pengguna tidak perlu menyeret handle sepanjang layar sampai titik tujuan. Setelah long-press, perpindahan cukup melalui gerakan pendek ke arah anchor atau pemilihan anchor yang tersedia.
+
+Saat long-press berhasil, sistem memberi feedback visual dan haptic ringan. Gesture Resolver membedakan tap, drag, dan long-press menggunakan threshold yang stabil agar satu gesture tidak mengeksekusi dua fungsi.
 
 Isi penuh panel dimuat secara lazy. Handle tetap ringan ketika panel tertutup.
 
@@ -301,18 +346,20 @@ Isi penuh panel dimuat secara lazy. Handle tetap ringan ketika panel tertutup.
 Dalam portrait:
 
 - Edge berada di kiri atau kanan;
-- dapat dipindahkan kiri ↔ kanan;
-- area gesture hanya sebesar handle yang diperlukan;
-- jangan mengambil seluruh sisi layar untuk gesture exclusion.
+- anchor posisi utama: kiri ↔ kanan;
+- long-press menampilkan anchor valid sehingga perpindahan cukup dengan gerakan pendek;
+- area gesture exclusion sistem tidak boleh mengambil seluruh sisi layar;
+- posisi terakhir portrait dapat disimpan.
 
 ## 8.2 Landscape
 
 Dalam landscape:
 
-- Edge berpindah menjadi panel horizontal;
+- Edge menjadi panel horizontal;
 - posisi default berada di bawah;
-- dapat dipindahkan bawah ↔ atas;
-- alasan utama adalah kebutuhan ruang horizontal yang lebih besar untuk menampilkan asset/component.
+- anchor posisi utama: bawah ↔ atas;
+- alasan utama adalah kebutuhan ruang horizontal yang lebih besar untuk menampilkan asset/component;
+- posisi terakhir landscape dapat disimpan.
 
 ---
 
@@ -336,26 +383,48 @@ Contoh fungsi:
 - style;
 - property yang dideklarasikan Component Contract.
 
+Deck menggunakan pola interaksi yang sama dengan Edge:
+
+```text
+Tap
+→ buka / tutup
+
+Drag biasa
+→ buka / tutup secara progresif
+
+Long Press
+→ mode pindah posisi
+→ anchor valid muncul
+→ geser pendek atau pilih anchor
+→ snap ke posisi baru
+```
+
+Mode pindah posisi tidak mengharuskan pengguna menyeret Deck jauh ke lokasi tujuan. Gerakan pendek setelah long-press cukup untuk memilih arah/anchor perpindahan.
+
 ## 9.1 Portrait
 
-- Deck berada di bawah;
-- default tertutup;
-- ada bulatan/kait kecil di sudut untuk menariknya terbuka;
-- isi Deck baru dimaterialisasi penuh ketika diperlukan.
+- Deck default berada di bawah dan tertutup;
+- handle/kait tetap mudah disentuh walaupun visualnya kecil;
+- Deck dapat dipindahkan **bawah ↔ atas** agar saat mengedit bagian bawah layar, Deck dapat dipindah ke atas dan tidak menutupi object;
+- perpindahan dilakukan melalui Long-Press Reposition + Anchor Snap;
+- isi Deck baru dimaterialisasi penuh ketika diperlukan;
+- posisi terakhir portrait dapat disimpan.
 
 ## 9.2 Landscape
 
-Saat Edge pindah ke bawah/atas, Deck berpindah ke sisi agar area horizontal bawah dapat dipakai Edge.
+Saat Edge memakai sektor bawah/atas, Deck berpindah ke sisi.
 
-Dengan demikian Edge dan Deck **bertukar sektor kerja** sesuai orientasi.
+Anchor posisi utama Deck pada landscape adalah sisi kiri ↔ kanan, sehingga pengguna tetap dapat memilih sisi yang tidak menutupi area edit penting.
+
+Dengan demikian Edge dan Deck **bertukar sektor kerja** sesuai orientasi tanpa memaksa satu posisi tetap.
 
 ---
 
-# 10. Edit Kontrol ToolBox
+# 10. Aturan Interaksi Shell ToolBox
 
-Bubble, Edge Handle, Edge Panel, Deck Handle, dan Deck Panel dapat diedit sebagai **kontrol ToolBox**, bukan sebagai object aplikasi.
+Bubble, Floating Window, Edge Handle, Edge Panel, Deck Handle, dan Deck Panel adalah **kontrol ToolBox**, bukan object aplikasi.
 
-Mode ini terpisah dari edit project:
+Mode edit kontrol ToolBox terpisah dari edit project:
 
 ```text
 Edit Project UI
@@ -364,6 +433,38 @@ Edit ToolBox Controls
 ```
 
 Konfigurasi shell disimpan sebagai editor/tool settings, tidak ikut masuk ke definisi aplikasi yang dibuild.
+
+Aturan interaksi shell:
+
+- tap pada Edge/Deck handle = toggle buka/tutup;
+- drag biasa pada Edge/Deck handle = buka/tutup secara progresif;
+- long-press pada Edge/Deck handle = mode reposition;
+- setelah long-press, anchor valid muncul dan perpindahan dilakukan dengan short-drag atau tap anchor;
+- snap anchor dapat memberikan haptic feedback ringan;
+- animasi buka/tutup/reposition singkat dan interruptible; input baru membatalkan animasi lama;
+- touch target handle boleh lebih besar daripada visual handle;
+- tap di luar overlay yang digunakan untuk menutup overlay dikonsumsi dan tidak touch-through;
+- shell melakukan collision avoidance agar Bubble, Floating Window, Edge, dan Deck tidak saling menutup tanpa kontrol;
+- panel dapat mengubah arah buka, bergeser, atau mengecil secara aman bila ruang terbatas;
+- shell sadar status bar, navigation bar, cutout, gesture area, keyboard/IME, dan viewport aktif;
+- state posisi disimpan per orientasi;
+- jika posisi lama tidak valid setelah rotasi/resolusi berubah, kontrol di-clamp atau snap ke anchor aman terdekat;
+- `Pulihkan Tata Letak Kontrol` mengembalikan konfigurasi aman;
+- emergency shell recovery tersedia jika seluruh kontrol menjadi tidak terjangkau.
+
+Prioritas visual/interaksi untuk keadaan khusus:
+
+```text
+System / Safety Dialog
+↓
+Floating Window
+↓
+Bubble / Edge / Deck
+↓
+Project UI
+```
+
+Bubble tetap top-priority terhadap UI project pada keadaan normal, tetapi dialog sistem/safety yang wajib diselesaikan tidak boleh tertutup oleh shell.
 
 ---
 
@@ -511,7 +612,7 @@ Working State RAM
 ↓
 Dirty Flag
 ↓
-Bubble → Save
+Bubble → Floating Window → Save
 ↓
 Transactional Commit
 ```
@@ -1642,13 +1743,15 @@ Masing-masing dapat memiliki z-order.
 Shell ToolBox tetap berada di atas layer project:
 
 ```text
-Bubble / Edge / Deck
-───────────────────
+Bubble / Floating Window / Edge / Deck
+──────────────────────────────────────
 App Modal
 App Overlay
 App Content
 App Background
 ```
+
+System/Safety Dialog yang wajib diselesaikan mempunyai prioritas di atas Shell.
 
 Saat Edit OFF, topmost eligible object menerima input.
 
@@ -1721,6 +1824,8 @@ Input Contract dapat mencakup:
 
 Gesture Resolver memastikan satu gesture tidak mengeksekusi dua action yang bertentangan.
 
+Shell Gesture Resolver secara khusus membedakan tap, drag, dan long-press pada Edge/Deck handle sebelum menyerahkan event ke workspace.
+
 Saat Edit ON, input aplikasi diblok dan dialihkan menjadi input editor.
 
 Focus routing menggunakan Stable ID.
@@ -1742,9 +1847,9 @@ Layout harus sadar terhadap:
 
 Object dapat memilih safe-area-aware atau edge-to-edge sesuai contract.
 
-Bubble/Edge/Deck tetap berada dalam interactive bounds yang valid.
+Bubble/Floating Window/Edge/Deck tetap berada dalam interactive bounds yang valid.
 
-Edge handle tidak mengambil exclusion area lebih besar dari yang diperlukan.
+Edge/Deck handle tidak mengambil exclusion area lebih besar dari yang diperlukan, dan touch target yang diperluas tidak boleh secara agresif memblok gesture sistem sepanjang sisi layar.
 
 ---
 
@@ -1762,7 +1867,7 @@ ToolBox Shell Coordinate Space
 
 Zoom/pan tidak mengubah layout project.
 
-Bubble/Edge/Deck tetap pada posisi shell, tidak ikut ter-zoom bersama design canvas.
+Bubble/Floating Window/Edge/Deck tetap pada posisi shell, tidak ikut ter-zoom bersama design canvas.
 
 ---
 
@@ -2341,11 +2446,16 @@ Konteks editor disimpan ringan:
 - activeTool;
 - zoom;
 - pan/scroll;
-- shell position;
-- panel state;
+- Bubble position per orientation;
+- Floating Window state/position;
+- Edge anchor/state per orientation;
+- Deck anchor/state per orientation;
+- panel open/closed state;
 - editor mode.
 
 Tidak mempertahankan full View hierarchy untuk sekadar mengingat posisi kerja.
+
+Jika state shell yang tersimpan tidak lagi valid karena ukuran layar, orientation, inset, atau IME berubah, state tersebut di-clamp/snap ke konfigurasi aman terdekat.
 
 ---
 
@@ -3220,7 +3330,7 @@ Invariant yang tidak boleh dilanggar oleh desain:
 1. **Satu project valid selalu mempunyai revision konsisten.**
 2. **Manual Save tidak berubah menjadi autosave tersembunyi.**
 3. **Edit Mode tidak membuat clone screen.**
-4. **Bubble/Edge/Deck tidak menjadi bagian runtime aplikasi hasil build.**
+4. **Bubble/Floating Window/Edge/Deck tidak menjadi bagian runtime aplikasi hasil build.**
 5. **Stable ID tidak bergantung pada label visual.**
 6. **Tool tidak bergantung langsung pada implementasi tool lain.**
 7. **Registry memuat metadata, bukan semua runtime engine.**
@@ -3303,7 +3413,7 @@ ubah object
 ↓
 Working State + Undo/Redo RAM
 ↓
-Bubble → Save
+Bubble → Floating Window → Save
 ↓
 Transactional Commit
 ↓
@@ -3478,7 +3588,7 @@ Detail implementasi seperti:
 - framework UI tertentu;
 - library tertentu;
 - bentuk final ikon;
-- urutan visual final menu Bubble;
+- urutan visual final menu Bubble/Floating Window;
 - warna akhir tiap control;
 - nama package internal;
 
@@ -3492,7 +3602,7 @@ Dengan demikian rancangan tetap stabil tanpa mengunci implementasi pada satu tek
 
 ToolBox pada kondisi matang mempunyai karakter berikut:
 
-> Satu aplikasi host ringan yang menjadi rumah bagi tool-tool independen; halaman adalah wujud tool aktif; Bubble, Edge, dan Deck menjadi shell kontrol; UI aplikasi selalu live kecuali Bubble mengaktifkan Edit Mode; editing dilakukan pada screen yang sama tanpa cloning; project berada di storage milik pengguna; Save dilakukan manual dan transactional; semua hubungan memakai Stable ID dan typed contracts; registries hanya memuat metadata; tool/engine hidup hanya ketika diperlukan; asset dimuat secara adaptif; dependency dan diagnostics bekerja incremental; recovery menjaga revision yang sudah tersimpan; project eksternal berada di trust boundary deklaratif; repair/update memakai staging, validation, health check, rollback, dan safe mode; build menggunakan Canonical Build Model yang terikat exact revision dan hanya dikirim ke GitHub setelah Build Contract Validator menyatakan READY TO BUILD.
+> Satu aplikasi host ringan yang menjadi rumah bagi tool-tool independen; halaman adalah wujud tool aktif; Bubble menjadi pusat akses cepat dan pemicu Floating Window, Edge menjadi sumber asset/component, dan Deck menjadi editor property manual; UI aplikasi selalu live kecuali Bubble mengaktifkan Edit Mode; editing dilakukan pada screen yang sama tanpa cloning; project berada di storage milik pengguna; Save dilakukan manual dan transactional; semua hubungan memakai Stable ID dan typed contracts; registries hanya memuat metadata; tool/engine hidup hanya ketika diperlukan; asset dimuat secara adaptif; dependency dan diagnostics bekerja incremental; recovery menjaga revision yang sudah tersimpan; project eksternal berada di trust boundary deklaratif; repair/update memakai staging, validation, health check, rollback, dan safe mode; build menggunakan Canonical Build Model yang terikat exact revision dan hanya dikirim ke GitHub setelah Build Contract Validator menyatakan READY TO BUILD.
 
 ---
 
@@ -3509,8 +3619,8 @@ Bentuk keseluruhan ToolBox dapat diringkas:
                 │                       │                       │
         ┌───────▼────────┐      ┌──────▼───────┐      ┌───────▼────────┐
         │   Shell UI     │      │ Tool Registry │      │ Core Services   │
-        │ Bubble/Edge/   │      │ + Contracts   │      │ Storage/Diag/   │
-        │ Deck           │      │               │      │ Recovery        │
+        │ Bubble/Float/  │      │ + Contracts   │      │ Storage/Diag/   │
+        │ Edge/Deck      │      │               │      │ Recovery        │
         └───────┬────────┘      └──────┬────────┘      └───────┬────────┘
                 │                      │                        │
                 └──────────────┬───────┴───────────────┬────────┘
