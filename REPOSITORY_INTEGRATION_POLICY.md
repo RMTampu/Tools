@@ -14,10 +14,10 @@ Setiap project memiliki:
 
 ```text
 PRIVATE MASTER
-= SINGLE SOURCE OF TRUTH + VAULT + FINAL PROCESSING
+= SINGLE SOURCE OF TRUTH + VAULT + FINAL PROCESSING + PRIVATE EXECUTION
 
 PUBLIC RESEARCH/STAGING
-= RESEARCH + ITERATION + MOCK/SIMULATOR + TEST + READY_PRIVATE PACKAGING
+= RESEARCH + ITERATION + MOCK/SIMULATOR + PUBLIC TEST + READY_PRIVATE PACKAGING
 ```
 
 Repository backup/shared boleh ada, tetapi tidak otomatis menjadi master.
@@ -30,9 +30,10 @@ Dilarang:
 
 - checkout Private dari workflow/repo Public;
 - memberikan credential Public untuk membaca Private;
-- menyalin/mirror source, kernel, asset, config, state, database, dump, atau artifact Private ke Public;
+- menyalin/mirror source, kernel, asset, config, state, database, dump, APK, atau artifact Private ke Public;
 - membangun final product Private di Public;
-- memakai Public sebagai bridge untuk mengeksekusi isi Private.
+- memakai Public sebagai bridge/reusable runner/CI engine untuk mengeksekusi isi Private;
+- mengirim artifact kandidat Private ke Public untuk diteruskan ke Firebase atau final test.
 
 Contract/interface yang memang diklasifikasikan aman untuk Public bukan isi Private yang diekspor; contract tersebut harus dikelola sebagai boundary publik tersendiri.
 
@@ -56,7 +57,11 @@ PREFLIGHT
 -> REGRESSION
 -> VERIFY
 -> COMMIT
--> FINAL BUILD
+-> BUILD APK
+-> SIGN CANDIDATE
+-> VERIFY SIGNATURE
+-> FIREBASE / FINAL RUNTIME TEST
+-> PASS
 -> RELEASE
 ```
 
@@ -107,7 +112,27 @@ FAIL -> `ROLLBACK`.
 
 State final sebelumnya harus tetap dapat dipulihkan.
 
-## 8. Kegagalan di Private
+## 8. Private Execution Boundary
+
+Seluruh pekerjaan yang memerlukan isi Private berjalan di boundary Private.
+
+Untuk aplikasi final, urutan resmi adalah:
+
+```text
+COMMITTED PRIVATE STATE
+-> BUILD APK
+-> SIGN CANDIDATE
+-> VERIFY SIGNATURE
+-> FIREBASE / FINAL RUNTIME TEST
+-> PASS
+-> RELEASE
+```
+
+APK yang dipakai untuk final test harus sudah ditandatangani dan diverifikasi. Artifact release harus identik secara identity/hash/signature dengan candidate yang memperoleh final PASS.
+
+GitHub Actions diperbolehkan untuk build/test Private hanya jika workflow, source, asset, secret, artifact, log, dan seluruh jalur eksekusinya tetap berada pada boundary Private dan tidak menggunakan repository Public sebagai executor/relay.
+
+## 9. Kegagalan di Private
 
 **Dilarang keras trial-and-error berulang di Private.**
 
@@ -115,7 +140,7 @@ Jika gagal:
 
 ```text
 STOP
--> ROLLBACK
+-> ROLLBACK bila diperlukan
 -> SANITIZED_FAILURE_REPORT
 -> PUBLIC
 -> FIX/RETEST
@@ -125,7 +150,7 @@ STOP
 
 Yang boleh keluar ke Public hanya error/compatibility information yang telah disanitasi.
 
-## 9. Sanitized Failure Report
+## 10. Sanitized Failure Report
 
 Boleh memuat:
 
@@ -141,11 +166,12 @@ Dilarang memuat:
 - secret/token;
 - path sensitif;
 - database/state;
+- APK/artifact Private;
 - internal dump;
 - konfigurasi internal;
 - detail kernel yang membuka isi Private.
 
-## 10. Shared Component
+## 11. Shared Component
 
 Komponen lintas project harus berstatus eksplisit `GLOBAL/SHARED_COMPONENT` dan memiliki:
 
@@ -158,7 +184,7 @@ Komponen lintas project harus berstatus eksplisit `GLOBAL/SHARED_COMPONENT` dan 
 
 Dilarang mengambil komponen repo lain secara acak.
 
-## 11. Public Auto Cleanup
+## 12. Public Auto Cleanup
 
 Setiap Public job wajib memiliki cleanup otomatis setelah selesai/gagal sejauh platform memungkinkan.
 
@@ -174,21 +200,23 @@ Target cleanup:
 
 Cleanup tidak pernah dianggap pengganti larangan Private -> Public.
 
-## 12. Build dan Test Boundary
+## 13. Build dan Test Boundary
 
 Public boleh build/test hanya terhadap komponen/data Public, mock, simulator, fixture, atau prototype.
 
-Final application build/test/release dilakukan di Private Master atau jalur final private yang tidak menyalurkan isi Private ke repository Public.
+Public tidak boleh build/test aplikasi final yang membutuhkan source, asset, state, artifact, credential, atau internal contract Private.
+
+Final application build, signing, signature verification, Firebase/final runtime test, dan release dilakukan pada mesin/jalur Private.
 
 Dependency/toolchain harus dikunci dan environment Public/Private dibuat sedekat mungkin untuk aspek yang mempengaruhi kompatibilitas.
 
-## 13. Project Isolation
+## 14. Project Isolation
 
 Setiap transfer wajib mempunyai sumber, tujuan, Project ID, Component ID/version, dan tujuan integrasi yang jelas.
 
 Asset, source, config, state, keputusan, dan pembahasan project lain tidak boleh dicampurkan tanpa instruksi eksplisit pengguna.
 
-## 14. Repository Role Registry
+## 15. Repository Role Registry
 
 Peran repo harus dinyatakan di `AGENTS.md` repo masing-masing.
 
@@ -201,14 +229,17 @@ Role yang diperbolehkan antara lain:
 
 Nama aplikasi/repo tidak boleh menjadi syarat agar aturan global berlaku.
 
-## 15. Invariant
+## 16. Invariant
 
 ```text
 PRIVATE_CONTENT_TO_PUBLIC = 0
 PUBLIC_PRIVATE_READ_ACCESS = 0
+PRIVATE_EXECUTION_THROUGH_PUBLIC = 0
 PRIVATE_FINAL_BUILD_IN_PUBLIC = 0
+PRIVATE_ARTIFACT_RELAY_THROUGH_PUBLIC = 0
 PRIVATE_TRIAL_AND_ERROR = 0
 UNSANITIZED_FAILURE_REPORT = 0
 UNDECLARED_CROSS_PROJECT_TRANSFER = 0
 PUBLIC_JOB_AUTO_CLEANUP = REQUIRED
+PRIVATE_FINAL_ORDER = BUILD -> SIGN -> VERIFY_SIGNATURE -> FINAL_TEST -> PASS -> RELEASE
 ```
