@@ -266,3 +266,75 @@ Tap object di layar
 ```
 
 Edge tetap mempertahankan Back, breadcrumb/context title, dan context history agar pengguna dapat kembali ke katalog atau konteks sebelumnya tanpa memulai ulang navigasi panel.
+
+## 13. Posisi — Dua Mode Layout
+
+Fungsi `Posisi` mempunyai dua mode yang jelas agar pengguna dapat memilih antara layout yang mengikuti aturan layar dan peletakan bebas.
+
+```text
+POSISI
+├─ Mode Terikat Layout
+└─ Mode Posisi Bebas
+```
+
+### 13.1 Mode Terikat Layout
+
+Mode ini menjadi mode default untuk UI normal dan responsive.
+
+Object mengikuti aturan parent/container, anchor, alignment, margin, spacing, safe area, orientation/adaptive layout, serta constraint yang berlaku. Pengguna tetap dapat drag object secara visual, tetapi ToolBox sebisa mungkin menerjemahkan hasil drag menjadi hubungan layout yang benar daripada sekadar menyimpan koordinat absolut.
+
+Kontrol yang dapat ditampilkan antara lain:
+
+```text
+Anchor Horizontal
+[ Kiri ] [ Tengah ] [ Kanan ]
+
+Anchor Vertikal
+[ Atas ] [ Tengah ] [ Bawah ]
+
+Jarak dari tepi
+Snap / Guide
+```
+
+Istilah constraint teknis tidak perlu ditampilkan pada jalur visual biasa.
+
+### 13.2 Mode Posisi Bebas
+
+Mode ini digunakan ketika pengguna ingin meletakkan object di luar aturan layout normal.
+
+Object dapat:
+
+- dipindah bebas dengan drag;
+- memakai nilai X/Y;
+- menumpuk dengan object lain;
+- melewati grid/anchor normal;
+- berada di luar batas container normal bila kebutuhan desain memang demikian.
+
+Floating Position Editor menampilkan kontrol yang relevan, misalnya:
+
+```text
+Mode
+[ Terikat Layout ] [ Bebas ]
+
+X
+[──────●──────] 120 dp
+
+Y
+[────●────────] 240 dp
+```
+
+Pada mode bebas, kontrol anchor/constraint yang tidak relevan disembunyikan.
+
+### 13.3 Batas Layout dan Batas Render Dibedakan
+
+`Mode Posisi Bebas` boleh melanggar aturan layout, tetapi tidak berarti semua posisi otomatis valid untuk hasil aplikasi.
+
+```text
+Aturan Layout
+≠
+Batas Render / Interactive Screen
+```
+
+Jika object berada di luar area yang dapat dirender atau disentuh secara efektif, ToolBox memberi indikator/diagnostic seperti `Di luar area layar` dan tidak menyembunyikan risiko tersebut.
+
+Perubahan posisi tetap berlangsung pada Working State, dapat di-Undo/Redo, dan baru menjadi project persistent setelah Save.
