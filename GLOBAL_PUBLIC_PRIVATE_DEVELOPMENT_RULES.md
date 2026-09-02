@@ -14,7 +14,7 @@ Setiap project memiliki identitas dan Private Master sendiri. Tidak boleh mencam
 
 Setiap project memiliki `PRIVATE MASTER` sebagai Single Source of Truth, Vault, dan Final Processing Environment.
 
-Private Master menyimpan kernel/core final, source sensitif, seluruh asset asli, konfigurasi final, state integrasi, versioning resmi, build final, dan release final.
+Private Master menyimpan kernel/core final, source sensitif, seluruh asset asli, konfigurasi final, state integrasi, versioning resmi, build final, signing identity/reference, final-test evidence, dan release final.
 
 **LARANGAN KERAS: isi Private tidak boleh keluar ke Public.**
 
@@ -22,11 +22,11 @@ Public dilarang menerima source/kernel Private, asset Private, konfigurasi inter
 
 ## 3. Public Research
 
-Public hanya untuk riset, desain, prototype, pengembangan komponen, audit, debugging, mock/simulator, unit/contract/dependency/failure test, packaging, dan staging sebelum Private.
+Public digunakan untuk riset, desain, prototype, pengembangan komponen, audit, debugging, mock/simulator, unit/contract/dependency/failure test, packaging, dan staging sebelum Private.
 
 Public bukan master aplikasi final dan tidak boleh membutuhkan akses baca ke Private.
 
-Public hanya boleh bekerja dengan contract/interface yang memang aman dipublikasikan, mock, simulator, test harness, fixture/dummy data, dan komponen public yang sedang dikembangkan.
+Public hanya boleh bekerja dengan contract/interface yang memang aman dipublikasikan, mock, simulator, test harness, fixture/dummy data, dan komponen Public yang sedang dikembangkan.
 
 ## 4. Pertumbuhan Bertahap
 
@@ -83,27 +83,46 @@ Jika PASS: `COMMIT_NEW_FINAL_STATE`.
 
 Jika FAIL: `ROLLBACK` ke state sebelumnya.
 
-## 9. Larangan Trial-and-Error di Private
+## 9. Private Execution Machine
+
+Mesin Private adalah satu-satunya jalur yang boleh mengeksekusi isi Private untuk final processing.
+
+Jalur final resmi:
+
+`PREFLIGHT -> SNAPSHOT -> INTEGRATE -> REGRESSION -> VERIFY -> COMMIT -> BUILD_APK -> SIGN_CANDIDATE -> VERIFY_SIGNATURE -> FIREBASE/FINAL_RUNTIME_TEST -> PASS -> RELEASE`
+
+Aturan:
+
+- build APK yang memakai source/asset Private wajib berjalan pada boundary Private;
+- signing candidate wajib berjalan pada boundary Private;
+- Firebase/final runtime execution terhadap APK kandidat Private wajib dimulai dari boundary Private;
+- APK yang diuji final harus merupakan candidate yang sudah ditandatangani dan diverifikasi signature-nya;
+- release hanya boleh memakai artifact kandidat yang identitas/hash/signature-nya sama dengan artifact yang memperoleh final PASS;
+- Public tidak boleh menjadi bridge, reusable runner, caller target, artifact relay, atau CI engine untuk mengeksekusi isi Private.
+
+GitHub Actions boleh digunakan sebagai mesin Private jika workflow dan seluruh input/output Private tetap berada pada repository/jalur Private dan tidak disalurkan ke Public.
+
+## 10. Larangan Trial-and-Error di Private
 
 **DILARANG KERAS melakukan trial-and-error berulang di Private.**
 
-Jika kegagalan terjadi di Private:
+Jika kegagalan final/integrasi terjadi di Private:
 
-`STOP -> ROLLBACK -> SANITIZED_FAILURE_REPORT -> PUBLIC -> FIX -> RETEST -> READY_PRIVATE -> PRIVATE`
+`STOP -> ROLLBACK bila diperlukan -> SANITIZED_FAILURE_REPORT -> PUBLIC -> FIX -> RETEST -> READY_PRIVATE -> PRIVATE`
 
 Dilarang pola:
 
-`Private gagal -> edit di Private -> build lagi -> gagal -> edit lagi`.
+`Private gagal -> edit berulang di Private -> build lagi -> gagal -> edit lagi`.
 
-Private dipakai sesedikit mungkin. Public menghabiskan iterasi.
+Private dipakai untuk final processing dengan sesedikit mungkin iterasi. Public menghabiskan iterasi pengembangan.
 
-## 10. Sanitized Failure Report
+## 11. Sanitized Failure Report
 
 Informasi yang keluar dari Private ke Public hanya boleh berupa laporan aman, misalnya error ID, contract mismatch, unsupported version, lifecycle failure, dependency mismatch, atau generic validation result.
 
-Laporan dilarang membawa source/asset Private, secret, token, konfigurasi internal, path sensitif, dump internal, database/state, atau detail kernel yang membuka isi Private.
+Laporan dilarang membawa source/asset Private, secret, token, konfigurasi internal, path sensitif, dump internal, database/state, APK/artifact Private, atau detail kernel yang membuka isi Private.
 
-## 11. Auto Cleanup Public
+## 12. Auto Cleanup Public
 
 Setiap pekerjaan yang memakai mesin Public WAJIB memiliki Auto Cleanup otomatis, berjalan setelah job berhasil maupun gagal tanpa menunggu perintah pengguna.
 
@@ -119,7 +138,7 @@ Bersihkan sejauh platform memungkinkan:
 
 Cleanup tidak menggantikan aturan keamanan. Data Private tidak boleh pernah masuk Public sejak awal.
 
-## 12. Isolasi Project dan Shared Component
+## 13. Isolasi Project dan Shared Component
 
 Setiap pekerjaan harus memiliki minimal `PROJECT_ID`, target master, component ID/version, contract, target platform, dan compatibility.
 
@@ -127,11 +146,11 @@ Dilarang mengambil isi repo/project lain hanya karena terlihat cocok.
 
 Komponen lintas project harus dinyatakan eksplisit sebagai `GLOBAL/SHARED_COMPONENT` dan tetap memiliki source resmi, version, contract, dependency, compatibility, dan test.
 
-## 13. Dependency dan Environment Lock
+## 14. Dependency dan Environment Lock
 
 Public dan Private harus memakai versi toolchain/dependency yang dikunci dan sedekat mungkin untuk aspek yang mempengaruhi hasil. Perbedaan environment harus terdeteksi sebelum final processing.
 
-## 14. Jalur Resmi
+## 15. Jalur Resmi
 
 Public:
 
@@ -139,26 +158,27 @@ Public:
 
 Private:
 
-`PREFLIGHT -> SNAPSHOT -> INTEGRATE -> REGRESSION -> VERIFY -> COMMIT -> FINAL_BUILD -> RELEASE`
+`PREFLIGHT -> SNAPSHOT -> INTEGRATE -> REGRESSION -> VERIFY -> COMMIT -> BUILD_APK -> SIGN_CANDIDATE -> VERIFY_SIGNATURE -> FIREBASE/FINAL_RUNTIME_TEST -> PASS -> RELEASE`
 
 Jika gagal di Private:
 
-`ROLLBACK -> SANITIZED_FAILURE_REPORT -> PUBLIC`
+`STOP -> ROLLBACK bila diperlukan -> SANITIZED_FAILURE_REPORT -> PUBLIC`
 
-## 15. Larangan Sistem
+## 16. Larangan Sistem
 
 Dilarang menyediakan atau menggunakan:
 
 - checkout Private dari Public
 - token/credential Public untuk membaca Private
-- mirror kernel/source/asset Private di Public
+- mirror kernel/source/asset/artifact Private di Public
 - registry Public yang menyimpan isi Private
+- Public runner/workflow sebagai mesin build/test/Firebase untuk isi Private
 - transfer bebas antar project
 - debug/trial-and-error berulang di Private
 - log yang membocorkan data Private
 - ketergantungan Public pada isi Private
 
-## 16. Konteks Percakapan Project
+## 17. Konteks Percakapan Project
 
 Perintah `Buka [Nama Project]` mengaktifkan hanya konteks project tersebut. Asset, keputusan, masalah, dan pembahasan project lain tidak boleh ikut terbawa.
 
@@ -168,11 +188,12 @@ Prioritas konteks:
 
 `Pesan pengguna saat ini -> Project yang secara eksplisit dibuka -> Konteks umum`.
 
-## 17. Prinsip Final
+## 18. Prinsip Final
 
 - Private Master selalu menjadi sumber kebenaran final.
 - Isi Private tidak pernah keluar ke Public.
-- Public menghabiskan iterasi; Private menghabiskan sesedikit mungkin kuota.
-- Kegagalan Private wajib kembali ke Public setelah rollback dan sanitasi laporan.
+- Public menghabiskan iterasi pengembangan; Private melakukan final processing dengan iterasi minimum.
+- Build, signing, Firebase/final runtime test, dan release untuk isi Private berada pada mesin Private.
+- Kegagalan Private wajib kembali ke Public melalui laporan yang sudah disanitasi bila perbaikan komponen diperlukan.
 - Asset dan pembahasan antar project wajib terisolasi.
 - Pekerjaan manual berulang yang dapat diotomatisasi wajib diotomatisasi.
