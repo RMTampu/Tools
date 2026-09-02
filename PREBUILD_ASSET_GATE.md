@@ -2,6 +2,12 @@
 
 ## 1. Status Dokumen
 
+> **Scope Public wajib:** dokumen ini hanya berlaku untuk component, prototype, mock, simulator, fixture, dan package yang memang Public di `RMTampu/Tools`.
+>
+> Istilah build, artifact, runtime, dan final pada dokumen ini berarti hasil validasi **scope Public**. Dokumen ini tidak memberi izin untuk membawa, membangun, menandatangani, menguji, atau merilis isi Private.
+>
+> Terminal yang sah di Public adalah: `PUBLIC_ASSET_SAFE_100 → PACKAGE_VALIDATION → READY_PRIVATE`.
+
 Dokumen ini adalah rantai gate wajib untuk seluruh pekerjaan asset/resource sebelum build, saat build, sesudah build, dan pengujian pada repository `RMTampu/Tools`.
 
 Dokumen ini tidak menggantikan `ASSET_SAFE_100_RULES.md`. Dokumen ini menentukan urutan wajib kapan setiap kelompok aturan harus dijalankan.
@@ -19,7 +25,7 @@ Seluruh gate WAJIB dijalankan sesuai `AGENT_PROCEDURE_EXECUTION_RULES.md`. Keter
 
 # 2. Larangan Build Sebelum Rangkaian Selesai
 
-**DILARANG MEMULAI BUILD APK / PRODUCTION BUILD / FINAL RESOURCE PACKAGING sebelum seluruh gate yang berada sebelum tahap BUILD selesai dan berstatus PASS.**
+**DILARANG MEMULAI build component/prototype Public, build APK prototype Public, atau public resource packaging sebelum seluruh gate yang berada sebelum tahap BUILD selesai dan berstatus PASS.**
 
 Tidak ada agen, workflow, script, atau proses otomatis yang boleh melewati gate sebelumnya hanya agar build dapat dimulai.
 
@@ -61,13 +67,13 @@ GATE 5  — PREBUILD ASSET CLOSURE
    ↓
 ================ BUILD BOUNDARY ================
    ↓
-GATE 6  — BUILD
+GATE 6  — PUBLIC BUILD / PACKAGE
    ↓
-GATE 7  — FINAL ARTIFACT / PACKAGE VERIFICATION
+GATE 7  — PUBLIC ARTIFACT / PACKAGE VERIFICATION
    ↓
-GATE 8  — RUNTIME / EMULATOR / INTEGRATION TESTING
+GATE 8  — PUBLIC RUNTIME / EMULATOR / INTEGRATION TESTING
    ↓
-GATE 9  — FINAL ACCEPTANCE
+GATE 9  — PUBLIC ASSET ACCEPTANCE → READY_PRIVATE
 ```
 
 Pemetaan internal `ASSET_SAFE_100_PROCESS.md` ke rantai tersebut:
@@ -119,7 +125,7 @@ Tahap penyiapan seluruh asset yang dibutuhkan oleh scope kerja.
 
 Gate ini wajib menjalankan `ASSET_SAFE_S1` dari `ASSET_SAFE_100_PROCESS.md`, termasuk requirement/intent, semantic role, provenance origin, expected transformation path, dan environment dependency awal yang berlaku.
 
-Gate ini belum boleh melakukan final build.
+Gate ini belum boleh melakukan build Public.
 
 Gate 1 hanya PASS jika:
 
@@ -170,7 +176,7 @@ Gate ini harus menutup bila relevan:
 - known asset-affecting build-input universe;
 - prebuild adversarial/boundary challenge yang diwajibkan.
 
-Gate ini harus PASS sebelum pembuktian jalur komunikasi dianggap final.
+Gate ini harus PASS sebelum pembuktian jalur komunikasi dianggap lengkap.
 
 Gate 3 hanya PASS jika:
 
@@ -271,7 +277,7 @@ BUILD_UNLOCKED = FALSE
 
 ---
 
-# 10. Gate 6 — Build
+# 10. Gate 6 — Public Build / Package
 
 Build hanya dilakukan melalui GitHub Actions sesuai `AGENTS.md`.
 
@@ -281,26 +287,26 @@ Build harus menggunakan input yang sama dengan input yang telah dibuktikan pada 
 
 Jika input build berbeda dari premise prebuild yang telah PASS, proof wajib diinvalidasi dari gate paling awal yang terdampak.
 
-Build yang dimulai tanpa `PREBUILD_ASSET_GATE = PASS` atau `ASSET_SAFE_S5 = PASS` adalah pelanggaran aturan repository dan hasilnya tidak boleh digunakan sebagai bukti final.
+Build yang dimulai tanpa `PREBUILD_ASSET_GATE = PASS` atau `ASSET_SAFE_S5 = PASS` adalah pelanggaran aturan repository dan hasilnya tidak boleh digunakan sebagai bukti Public atau Promotion Package.
 
 ---
 
-# 11. Gate 7 — Final Artifact / Package Verification
+# 11. Gate 7 — Public Artifact / Package Verification
 
-Setelah build, artifact final wajib diverifikasi untuk memastikan hasil package mempertahankan asset yang sudah dibuktikan sebelum build.
+Setelah build, artifact Public wajib diverifikasi untuk memastikan hasil package mempertahankan asset yang sudah dibuktikan sebelum build.
 
 Gate ini wajib menjalankan `ASSET_SAFE_S7` dari `ASSET_SAFE_100_PROCESS.md`.
 
-Selain final package equivalence dari `ASSET_SAFE_100_RULES.md`, Gate 7 wajib menutup bila relevan:
+Selain package equivalence dalam scope Public dari `ASSET_SAFE_100_RULES.md`, Gate 7 wajib menutup bila relevan:
 
-- provenance continuity sampai artifact final;
+- provenance continuity sampai artifact Public;
 - transformation refinement/translation validation;
 - compiled semantic identity;
 - physical package representation;
 - compression/seekability/alignment/storage contract;
 - module/split/delivery location;
 - independent package inspection untuk evidence kritis;
-- evidence binding ke artifact identity final.
+- evidence binding ke artifact identity Public.
 
 Build sukses tidak otomatis berarti gate ini PASS.
 
@@ -312,9 +318,9 @@ ASSET_SAFE_S7 = PASS
 
 ---
 
-# 12. Gate 8 — Runtime / Emulator / Integration Testing
+# 12. Gate 8 — Public Runtime / Emulator / Integration Testing
 
-Artifact yang sudah lolos verifikasi package kemudian diuji melalui runtime/emulator/integration sesuai kebutuhan dan aturan repository.
+Artifact Public yang sudah lolos verifikasi package kemudian diuji melalui runtime/emulator/integration sesuai kebutuhan dan aturan repository.
 
 Gate ini wajib menjalankan `ASSET_SAFE_S8` dari `ASSET_SAFE_100_PROCESS.md`.
 
@@ -340,13 +346,13 @@ ASSET_SAFE_S8 = PASS
 
 ---
 
-# 13. Gate 9 — Final Acceptance
+# 13. Gate 9 — Public Asset Acceptance
 
-Final acceptance hanya boleh diberikan bila seluruh gate yang diwajibkan oleh scope telah selesai dan seluruh bukti yang diperlukan tersedia.
+Public Asset Acceptance hanya boleh diberikan bila seluruh gate yang diwajibkan oleh scope telah selesai dan seluruh bukti yang diperlukan tersedia.
 
 Gate ini wajib menjalankan `ASSET_SAFE_S9` dari `ASSET_SAFE_100_PROCESS.md`.
 
-Sebelum final acceptance wajib dilakukan:
+Sebelum Public Asset Acceptance wajib dilakukan:
 
 - mutation proof seluruh defined fault classes;
 - adversarial/boundary/metamorphic challenge yang berlaku;
@@ -358,9 +364,9 @@ Sebelum final acceptance wajib dilakukan:
 - audit claim → invariant → evidence → premise traceability;
 - audit bahwa seluruh evidence terikat ke artifact/input aktif.
 
-Tidak boleh menyatakan asset/build selesai hanya karena APK berhasil dikompilasi atau runtime test tidak crash.
+Tidak boleh menyatakan asset/build Public selesai hanya karena APK prototype berhasil dikompilasi atau runtime test tidak crash.
 
-Final acceptance hanya boleh menghasilkan `ASSET_SAFE_100` jika:
+Public Asset Acceptance hanya boleh menghasilkan `PUBLIC_ASSET_SAFE_100` jika formula `ASSET_SAFE_100` terpenuhi untuk scope Public:
 
 ```text
 ASSET_SAFE_S0 = PASS
@@ -397,7 +403,7 @@ Dilarang:
 - mengubah UNKNOWN menjadi PASS;
 - menjadikan keberhasilan compiler sebagai pengganti proof pre-build;
 - mengabaikan gate karena perubahan dianggap kecil;
-- menggunakan artifact dari build yang melanggar rantai sebagai final artifact;
+- menggunakan artifact dari build yang melanggar rantai sebagai artifact Public yang sah;
 - mengurangi prosedur karena context/memory agen tidak cukup;
 - menggunakan ringkasan sebagai pengganti aturan sumber;
 - melanjutkan dari state prosedur yang tidak diketahui;
@@ -407,7 +413,7 @@ Dilarang:
 - mengabaikan provenance/transformation/materialization proof yang berlaku;
 - menganggap asset sudah dieksekusi berarti semua property contract telah dibuktikan;
 - mengabaikan environment dependency yang termasuk supported domain;
-- menerima unresolved material defeater untuk final `ASSET_SAFE_100`.
+- menerima unresolved material defeater untuk `PUBLIC_ASSET_SAFE_100`.
 
 ---
 
@@ -421,10 +427,12 @@ PREPARE
 → AUDIT
 → ROUTE PROOF
 → PREBUILD CLOSURE
-→ BUILD
-→ PACKAGE VERIFY
-→ RUNTIME TEST
-→ FINAL ACCEPTANCE
+→ PUBLIC BUILD / PACKAGE
+→ PUBLIC PACKAGE VERIFY
+→ PUBLIC RUNTIME TEST
+→ PUBLIC ASSET ACCEPTANCE
+→ PACKAGE_VALIDATION
+→ READY_PRIVATE
 ```
 
 Jika satu tahap tidak terbukti selesai, tahap berikutnya tetap tertutup.
