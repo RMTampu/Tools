@@ -1,28 +1,26 @@
 # ToolBox — Public Build/Test Engine
 
-`RMTampu/Tools` sekarang adalah repository **public build/test/CI engine** untuk ToolBox dan project private terkait.
+`RMTampu/Tools` adalah repository **public Build/Test/CI/Firebase engine**.
 
 ```text
 RMTampu/ToolBox (PRIVATE)
-= master source + asset + rancangan + product state
+= product master + source + asset + rancangan + product verification state
 
 RMTampu/Tools (PUBLIC)
-= reusable workflow + validator + build/test tooling + Firebase bridge
+= reusable workflow + validator/orchestration + test tooling + Firebase bridge
 ```
 
-Repository ini tetap dipakai karena sudah terhubung dengan jalur build/test dan layanan eksternal seperti Firebase.
+## State setelah migrasi
 
-Source/product copy lama yang masih ada di sini selama migrasi adalah `LEGACY_MIGRATION_COPY`, bukan source of truth baru.
+- Product source aplikasi/kernel tidak disimpan di repository ini.
+- Product asset/resource tidak disimpan di repository ini.
+- Product Gradle workspace dan product verification state tidak disimpan di repository ini.
+- Master rancangan berada di private `RMTampu/ToolBox`.
+- Workflow reusable selalu bekerja terhadap **caller source**, bukan stale public product copy.
+- Private caller harus mem-pin workflow public ke commit SHA tervalidasi.
+- Source/asset private tidak boleh dipublikasikan melalui log atau artifact public.
+- Firebase Final Gate tetap LOCKED dan memerlukan approval eksplisit pengguna untuk setiap execution attempt.
 
-## Aturan utama
+Repository ini dipertahankan sebagai CI engine karena jalur build/test dan integrasi eksternal seperti Firebase terhubung ke sini.
 
-- APK tetap dibangun hanya melalui GitHub Actions.
-- Private project menjadi caller untuk reusable workflow public bila jalur tersebut tersedia.
-- Workflow shared harus dipin ke tag/commit SHA yang tervalidasi.
-- Build candidate harus dapat ditelusuri ke source commit private dan CI workflow ref.
-- Source/asset private tidak boleh dicetak ke log atau dipublikasikan sebagai artifact public.
-- Firebase Final Gate tetap membutuhkan approval eksplisit pengguna per execution attempt.
-
-Baca `AGENTS.md` dan `REPOSITORY_INTEGRATION_POLICY.md` sebelum bekerja.
-
-Master rancangan dan pengembangan ToolBox berada di private `RMTampu/ToolBox`.
+Baca `AGENTS.md` dan `REPOSITORY_INTEGRATION_POLICY.md` sebelum perubahan.
