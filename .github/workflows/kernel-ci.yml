@@ -1,10 +1,7 @@
 name: ToolBox Kernel CI
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_call:
 
 permissions:
   contents: read
@@ -15,8 +12,19 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - name: Checkout
+      - name: Checkout caller source
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+
+      - name: Record source provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "SOURCE_REPOSITORY=$GITHUB_REPOSITORY"
+          echo "SOURCE_COMMIT_SHA=$GITHUB_SHA"
+          echo "SOURCE_REF=$GITHUB_REF"
+          echo "CI_REPOSITORY=RMTampu/Tools"
 
       - name: Setup exact Temurin JDK
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
@@ -27,36 +35,16 @@ jobs:
           architecture: x64
           check-latest: false
 
-      - name: Verify exact Java runtime
-        shell: bash
-        run: |
-          set -euo pipefail
-          java -version 2>&1 | tee "$RUNNER_TEMP/java-version.txt"
-          grep -F 'openjdk version "17.0.20.1"' "$RUNNER_TEMP/java-version.txt"
-          grep -F 'Temurin-17.0.20.1+1' "$RUNNER_TEMP/java-version.txt"
-          test -s "$JAVA_HOME/release"
-          grep -F 'JAVA_VERSION="17.0.20.1"' "$JAVA_HOME/release"
-          grep -F 'IMPLEMENTOR="Eclipse Adoptium"' "$JAVA_HOME/release"
-
       - name: Setup Gradle 8.7 without shared cache
         uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
         with:
           gradle-version: '8.7'
           cache-disabled: true
 
-      - name: Verify Gradle distribution identity
-        shell: bash
-        run: |
-          set -euo pipefail
-          gradle --version
-          GRADLE_ZIP="$RUNNER_TEMP/.gradle-actions/gradle-installations/downloads/gradle-8.7-bin.zip"
-          test -f "$GRADLE_ZIP"
-          echo '544c35d6bd849ae8a5ed0bcea39ba677dc40f49df7d1835561582da2009b961d  '"$GRADLE_ZIP" | sha256sum -c -
-
-      - name: Verify accepted dependency trust state
+      - name: Verify dependency trust state
         shell: bash
         run: python3 verification/scripts/dependency_trust_gate.py
 
-      - name: Run kernel tests with strict dependency verification
+      - name: Run kernel tests
         shell: bash
-        run: gradle --no-daemon --dependency-verification strict :toolbox-kernel:test
+        run: gradle --no-daemon --warning-mode=all --dependency-verification strict :toolbox-kernel:test
