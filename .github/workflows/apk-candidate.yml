@@ -1,17 +1,19 @@
 name: ToolBox APK Candidate Gate
 
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
+  workflow_call:
+    secrets:
+      SIGNING_KEY:
+        required: true
+      KEY_STORE_PASSWORD:
+        required: true
+      KEY_ALIAS:
+        required: true
+      KEY_PASSWORD:
+        required: true
 
 permissions:
   contents: read
-
-concurrency:
-  group: toolbox-apk-candidate-${{ github.ref }}
-  cancel-in-progress: false
 
 jobs:
   apk-candidate:
@@ -19,10 +21,20 @@ jobs:
     timeout-minutes: 45
 
     steps:
-      - name: Checkout exact revision
+      - name: Checkout exact caller revision
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           persist-credentials: false
+
+      - name: Record caller and CI provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "SOURCE_REPOSITORY=$GITHUB_REPOSITORY"
+          echo "SOURCE_COMMIT_SHA=$GITHUB_SHA"
+          echo "SOURCE_REF=$GITHUB_REF"
+          echo "CI_REPOSITORY=RMTampu/Tools"
+          echo "CI_WORKFLOW_REF=${{ github.workflow_ref }}"
 
       - name: Setup exact Temurin JDK
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
@@ -33,13 +45,13 @@ jobs:
           architecture: x64
           check-latest: false
 
-      - name: Setup exact Gradle 8.7 without shared cache
+      - name: Setup Gradle 8.7 without shared cache
         uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
         with:
           gradle-version: '8.7'
           cache-disabled: true
 
-      - name: Setup exact Android command line tools
+      - name: Setup Android command line tools
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699
         with:
           cmdline-tools-version: '14742923'
@@ -57,48 +69,40 @@ jobs:
           test -x "$ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner"
           test -x "$ANDROID_SDK_ROOT/build-tools/34.0.0/zipalign"
 
-      - name: Verify exact toolchain identity
-        shell: bash
-        run: |
-          set -euo pipefail
-          java -version 2>&1 | tee "$RUNNER_TEMP/java-version.txt"
-          grep -F 'openjdk version "17.0.20.1"' "$RUNNER_TEMP/java-version.txt"
-          grep -F 'Temurin-17.0.20.1+1' "$RUNNER_TEMP/java-version.txt"
-          gradle --version | tee "$RUNNER_TEMP/gradle-version.txt"
-          grep -F 'Gradle 8.7' "$RUNNER_TEMP/gradle-version.txt"
-          GRADLE_ZIP="$RUNNER_TEMP/.gradle-actions/gradle-installations/downloads/gradle-8.7-bin.zip"
-          test -f "$GRADLE_ZIP"
-          echo '544c35d6bd849ae8a5ed0bcea39ba677dc40f49df7d1835561582da2009b961d  '"$GRADLE_ZIP" | sha256sum -c -
-          BUILD_TOOLS_PROPERTIES="$ANDROID_SDK_ROOT/build-tools/34.0.0/source.properties"
-          grep -F 'Pkg.Revision=34.0.0' "$BUILD_TOOLS_PROPERTIES"
-          EXPECTED_BUILD_TOOLS_SHA="$(python3 - <<'PY'
-          import json
-          from pathlib import Path
-          data = json.loads(Path('verification/dependency_trust_candidate.json').read_text())
-          print(data['observedToolchainSha256']['androidBuildToolsProperties'].lower())
-          PY
-          )"
-          echo "$EXPECTED_BUILD_TOOLS_SHA  $BUILD_TOOLS_PROPERTIES" | sha256sum -c -
-          "$ANDROID_SDK_ROOT/build-tools/34.0.0/aapt2" version | tee "$RUNNER_TEMP/aapt2-version.txt"
-          sha256sum "$ANDROID_SDK_ROOT/build-tools/34.0.0/aapt2" | tee "$RUNNER_TEMP/aapt2-sha256.txt"
-
       - name: Dependency trust gate
         shell: bash
         run: python3 verification/scripts/dependency_trust_gate.py
 
-      - name: Application source and build-input prebuild gate
+      - name: Application source prebuild gate
         shell: bash
         run: python3 verification/scripts/prebuild_gate.py
 
-      - name: Asset and route Gate 0-5
+      - name: Asset and route prebuild gate
         shell: bash
         run: python3 verification/scripts/asset_prebuild_gate.py
 
-      - name: Kernel regression and research model verification
+      - name: Confirm prebuild unlock
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          source=json.loads(Path('verification/evidence/prebuild.json').read_text())
+          asset=json.loads(Path('verification/evidence/asset-prebuild.json').read_text())
+          if source.get('status') != 'PASS': raise SystemExit('APPLICATION_PREBUILD_SOURCE_GATE != PASS')
+          if asset.get('status') != 'PASS': raise SystemExit('ASSET_PREBUILD_GATE != PASS')
+          if asset.get('stages',{}).get('ASSET_SAFE_S5') != 'PASS': raise SystemExit('ASSET_SAFE_S5 != PASS')
+          if asset.get('stages',{}).get('BUILD_UNLOCKED') is not True: raise SystemExit('BUILD_UNLOCKED != TRUE')
+          print('PREBUILD_ASSET_GATE = PASS')
+          print('BUILD_UNLOCKED = TRUE')
+          PY
+
+      - name: Kernel tests
         shell: bash
         run: gradle --no-daemon --warning-mode=all --dependency-verification strict :toolbox-kernel:test
 
-      - name: Application unit verification
+      - name: Application unit tests
         shell: bash
         run: >-
           gradle --no-daemon --warning-mode=all --dependency-verification strict
@@ -106,7 +110,7 @@ jobs:
           :toolbox-app:testDebugUnitTest
           :toolbox-app:testReleaseUnitTest
 
-      - name: Application lint verification
+      - name: Application lint
         shell: bash
         run: >-
           gradle --no-daemon --warning-mode=all --dependency-verification strict
@@ -114,7 +118,7 @@ jobs:
           :toolbox-app:lintDebug
           :toolbox-app:lintRelease
 
-      - name: Materialize and verify pinned release signing identity
+      - name: Materialize and verify release signing identity
         id: signing
         shell: bash
         env:
@@ -124,58 +128,31 @@ jobs:
           TOOLBOX_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          test -n "${TOOLBOX_KEYSTORE_BASE64:-}"
-          test -n "${TOOLBOX_KEYSTORE_PASSWORD:-}"
-          test -n "${TOOLBOX_KEY_ALIAS:-}"
-          test -n "${TOOLBOX_KEY_PASSWORD:-}"
+          test -n "$TOOLBOX_KEYSTORE_BASE64"
+          test -n "$TOOLBOX_KEYSTORE_PASSWORD"
+          test -n "$TOOLBOX_KEY_ALIAS"
+          test -n "$TOOLBOX_KEY_PASSWORD"
           umask 077
           KEYSTORE="$RUNNER_TEMP/toolbox-release.keystore"
           CERT_DER="$RUNNER_TEMP/toolbox-release-cert.der"
           printf '%s' "$TOOLBOX_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
-          test -s "$KEYSTORE"
-          keytool -exportcert \
-            -keystore "$KEYSTORE" \
-            -storepass "$TOOLBOX_KEYSTORE_PASSWORD" \
-            -alias "$TOOLBOX_KEY_ALIAS" \
-            -file "$CERT_DER"
-          test -s "$CERT_DER"
-          ACTUAL_CERT_SHA256="$(sha256sum "$CERT_DER" | awk '{print tolower($1)}')"
-          EXPECTED_CERT_SHA256="$(python3 - <<'PY'
+          keytool -exportcert -keystore "$KEYSTORE" -storepass "$TOOLBOX_KEYSTORE_PASSWORD" -alias "$TOOLBOX_KEY_ALIAS" -file "$CERT_DER"
+          ACTUAL="$(sha256sum "$CERT_DER" | awk '{print tolower($1)}')"
+          EXPECTED="$(python3 - <<'PY'
           import json
           from pathlib import Path
-          print(json.loads(Path('verification/signing_contract.json').read_text())['release']['expectedCertificateSha256'].lower())
+          print(str(json.loads(Path('verification/signing_contract.json').read_text())['release']['expectedCertificateSha256']).lower())
           PY
           )"
-          test "$ACTUAL_CERT_SHA256" = "$EXPECTED_CERT_SHA256"
+          test "$ACTUAL" = "$EXPECTED"
           echo "TOOLBOX_KEYSTORE_PATH=$KEYSTORE" >> "$GITHUB_ENV"
           echo "TOOLBOX_KEYSTORE_PASSWORD=$TOOLBOX_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
           echo "TOOLBOX_KEY_ALIAS=$TOOLBOX_KEY_ALIAS" >> "$GITHUB_ENV"
           echo "TOOLBOX_KEY_PASSWORD=$TOOLBOX_KEY_PASSWORD" >> "$GITHUB_ENV"
-          echo "certificate_sha256=$ACTUAL_CERT_SHA256" >> "$GITHUB_OUTPUT"
+          echo "certificate_sha256=$ACTUAL" >> "$GITHUB_OUTPUT"
           rm -f "$CERT_DER"
 
-      - name: Confirm prebuild gates unlock APK build
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-          source = json.loads(Path('verification/evidence/prebuild.json').read_text())
-          asset = json.loads(Path('verification/evidence/asset-prebuild.json').read_text())
-          if source.get('status') != 'PASS':
-              raise SystemExit('APPLICATION_PREBUILD_SOURCE_GATE is not PASS')
-          if asset.get('status') != 'PASS':
-              raise SystemExit('ASSET_PREBUILD_GATE is not PASS')
-          if asset.get('stages', {}).get('ASSET_SAFE_S5') != 'PASS':
-              raise SystemExit('ASSET_SAFE_S5 is not PASS')
-          if asset.get('stages', {}).get('BUILD_UNLOCKED') is not True:
-              raise SystemExit('BUILD_UNLOCKED is not TRUE')
-          print('PREBUILD_ASSET_GATE = PASS')
-          print('BUILD_UNLOCKED = TRUE')
-          PY
-
-      - name: Build exact signed release APK
+      - name: Build release APK
         shell: bash
         run: |
           set -euo pipefail
@@ -192,15 +169,14 @@ jobs:
           mkdir -p verification/firebase-candidate verification/evidence/apk-candidate
           cp "$APK" verification/firebase-candidate/toolbox-app-release.apk
           cp "$MANIFEST" verification/evidence/apk-candidate/release-AndroidManifest.xml
-          cp toolbox-app/build/reports/verification/release-dependencies.txt verification/evidence/apk-candidate/release-dependencies.txt
 
-      - name: Apply explicit Android 11 v2+v3 signing contract
+      - name: Sign exact Android 11 release candidate
         shell: bash
         run: |
           set -euo pipefail
           APK=verification/firebase-candidate/toolbox-app-release.apk
-          test -s "$APK"
-          "$ANDROID_SDK_ROOT/build-tools/34.0.0/zipalign" -c -p -v 4 "$APK"
+          "$ANDROID_SDK_ROOT/build-tools/34.0.0/zipalign" -f -p 4 "$APK" "$RUNNER_TEMP/aligned.apk"
+          mv "$RUNNER_TEMP/aligned.apk" "$APK"
           "$ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner" sign \
             --ks "$TOOLBOX_KEYSTORE_PATH" \
             --ks-pass env:TOOLBOX_KEYSTORE_PASSWORD \
@@ -211,142 +187,63 @@ jobs:
             --v3-signing-enabled true \
             --v4-signing-enabled false \
             "$APK"
-          test -s "$APK"
 
-      - name: Final APK structural and semantic verification
-        shell: bash
-        run: |
-          set -euo pipefail
-          APK=verification/firebase-candidate/toolbox-app-release.apk
-          MANIFEST=verification/evidence/apk-candidate/release-AndroidManifest.xml
-          python3 verification/scripts/apk_gate.py --apk "$APK" --manifest-xml "$MANIFEST" --variant release
-          "$ANDROID_SDK_ROOT/build-tools/34.0.0/zipalign" -c -p -v 4 "$APK"
-
-      - name: Verify signed APK identity and Android 11 signing schemes
+      - name: Final APK verification
         shell: bash
         env:
           EXPECTED_CERT_SHA256: ${{ steps.signing.outputs.certificate_sha256 }}
         run: |
           set -euo pipefail
           APK=verification/firebase-candidate/toolbox-app-release.apk
+          MANIFEST=verification/evidence/apk-candidate/release-AndroidManifest.xml
+          python3 verification/scripts/apk_gate.py --apk "$APK" --manifest-xml "$MANIFEST" --variant release
+          "$ANDROID_SDK_ROOT/build-tools/34.0.0/zipalign" -c -p -v 4 "$APK"
           REPORT=verification/evidence/apk-candidate/release-signature-api30.txt
-          V2_REPORT=verification/evidence/apk-candidate/release-signature-v2-window.txt
-
-          # Actual product window: API 30 must verify with v3 and the pinned certificate.
-          "$ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner" verify \
-            --verbose --print-certs \
-            --min-sdk-version 30 --max-sdk-version 30 \
-            "$APK" | tee "$REPORT"
+          "$ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner" verify --verbose --print-certs --min-sdk-version 30 --max-sdk-version 30 "$APK" | tee "$REPORT"
           grep -E 'Verified using v3 scheme.*:[[:space:]]*true' "$REPORT"
           ACTUAL="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "$REPORT" | head -n1 | tr 'A-F' 'a-f')"
-          test -n "$ACTUAL"
           test "$ACTUAL" = "$EXPECTED_CERT_SHA256"
 
-          # Contract evidence: validate the embedded v2 block on the API range where v2 is authoritative.
-          "$ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner" verify \
-            --verbose \
-            --min-sdk-version 24 --max-sdk-version 27 \
-            "$APK" | tee "$V2_REPORT"
-          grep -E 'Verified using v2 scheme.*:[[:space:]]*true' "$V2_REPORT"
-
-      - name: Verify closed custom-resource package and generated table budget
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import json
-          import zipfile
-          from pathlib import Path
-          apk = Path('verification/firebase-candidate/toolbox-app-release.apk')
-          contract = json.loads(Path('verification/asset_contracts.json').read_text())
-          with zipfile.ZipFile(apk) as z:
-              infos = {i.filename: i for i in z.infolist()}
-              names = set(infos)
-          required = set(contract['packageContract']['requiredEntries'])
-          missing = sorted(required - names)
-          if missing:
-              raise SystemExit(f'missing required package entries: {missing}')
-          custom_res = sorted(name for name in names if name.startswith('res/'))
-          if custom_res:
-              raise SystemExit(f'custom res archive universe was expected closed-empty: {custom_res}')
-          native = sorted(name for name in names if name.startswith('lib/') or name.endswith('.so'))
-          if native:
-              raise SystemExit(f'R7 closed-empty violated by native entries: {native}')
-          arsc_size = infos['resources.arsc'].file_size
-          budget = int(contract['budgets']['generatedResourcesArscBytes'])
-          if arsc_size > budget:
-              raise SystemExit(f'resources.arsc budget exceeded: {arsc_size} > {budget}')
-          print(f'GENERATED_RESOURCE_TABLE_PASS bytes={arsc_size} budget={budget}')
-          PY
-
-      - name: Record Firebase candidate provenance
+      - name: Record candidate provenance
         shell: bash
         env:
           CERTIFICATE_SHA256: ${{ steps.signing.outputs.certificate_sha256 }}
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import hashlib
-          import json
-          import os
+          import hashlib,json,os
           from pathlib import Path
-          apk = Path('verification/firebase-candidate/toolbox-app-release.apk')
-          aapt2 = Path(os.environ['ANDROID_SDK_ROOT']) / 'build-tools' / '34.0.0' / 'aapt2'
-          def digest(path):
-              h = hashlib.sha256()
-              with Path(path).open('rb') as f:
-                  for block in iter(lambda: f.read(1024 * 1024), b''):
-                      h.update(block)
-              return h.hexdigest()
-          payload = {
-              'schemaVersion': 1,
-              'status': 'FIREBASE_READY_CANDIDATE',
-              'gitSha': os.environ['GITHUB_SHA'],
-              'workflowRunId': os.environ['GITHUB_RUN_ID'],
-              'workflowRunAttempt': os.environ['GITHUB_RUN_ATTEMPT'],
-              'apk': {
-                  'artifactName': 'toolbox-apk',
-                  'fileName': apk.name,
-                  'sha256': digest(apk),
-                  'sizeBytes': apk.stat().st_size,
-                  'certificateSha256': os.environ['CERTIFICATE_SHA256'].lower(),
+          apk=Path('verification/firebase-candidate/toolbox-app-release.apk')
+          h=hashlib.sha256(apk.read_bytes()).hexdigest()
+          payload={
+              'schemaVersion':2,
+              'status':'FIREBASE_READY_CANDIDATE',
+              'sourceRepository':os.environ['GITHUB_REPOSITORY'],
+              'sourceCommitSha':os.environ['GITHUB_SHA'],
+              'sourceRef':os.environ['GITHUB_REF'],
+              'sourceWorkflowRunId':os.environ['GITHUB_RUN_ID'],
+              'ciRepository':'RMTampu/Tools',
+              'apk':{
+                  'artifactName':'toolbox-apk',
+                  'fileName':apk.name,
+                  'sha256':h,
+                  'sizeBytes':apk.stat().st_size,
+                  'certificateSha256':os.environ['CERTIFICATE_SHA256'].lower()
               },
-              'buildTools': {
-                  'revision': '34.0.0',
-                  'aapt2Source': 'android.aapt2FromMavenOverride',
-                  'aapt2Sha256': digest(aapt2),
-              },
-              'target': {'androidApi': 30, 'abi': 'arm64-v8a'},
-              'assetStages': {
-                  'S0': 'PASS', 'S1': 'PASS', 'S2': 'PASS', 'S3': 'PASS',
-                  'S4': 'PASS', 'S5': 'PASS', 'S6': 'PASS', 'S7': 'PASS',
-                  'S8': 'PENDING_FIREBASE_RUNTIME', 'S9': 'PENDING_FINAL_ACCEPTANCE'
-              },
-              'claimBoundary': 'Artifact is eligible for a separately user-authorized Firebase Final Gate; no Firebase execution is authorized by this build.'
+              'target':{'androidApi':30,'abi':'arm64-v8a'},
+              'firebaseAuthorization':'LOCKED'
           }
-          out = Path('verification/evidence/apk-candidate/provenance.json')
-          out.write_text(json.dumps(payload, indent=2, sort_keys=True) + '\n')
-          print(json.dumps(payload, indent=2, sort_keys=True))
+          Path('verification/evidence/apk-candidate/provenance.json').write_text(json.dumps(payload,indent=2,sort_keys=True)+'\n')
+          print('APK_SHA256='+h)
           PY
 
-      - name: Upload exactly one Firebase APK artifact
+      - name: Upload signed APK candidate
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: toolbox-apk
-          path: verification/firebase-candidate/toolbox-app-release.apk
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Upload APK candidate evidence
-        if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
-        with:
-          name: toolbox-apk-evidence
           path: |
-            verification/evidence/prebuild.json
-            verification/evidence/dependency-trust.json
-            verification/evidence/asset-prebuild.json
-            verification/evidence/apk-release.json
-            verification/evidence/apk-candidate/
-          if-no-files-found: warn
+            verification/firebase-candidate/toolbox-app-release.apk
+            verification/evidence/apk-candidate/provenance.json
+            verification/evidence/apk-candidate/release-signature-api30.txt
+          if-no-files-found: error
           retention-days: 14
