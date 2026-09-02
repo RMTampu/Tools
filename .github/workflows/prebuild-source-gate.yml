@@ -9,7 +9,7 @@ permissions:
 jobs:
   application-prebuild-source-gate:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Checkout caller source
@@ -25,6 +25,22 @@ jobs:
           echo "SOURCE_COMMIT_SHA=$GITHUB_SHA"
           echo "SOURCE_REF=$GITHUB_REF"
           echo "CI_REPOSITORY=RMTampu/Tools"
+          echo "CI_WORKFLOW_REF=${{ github.workflow_ref }}"
+
+      - name: Setup Android command line tools
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699
+        with:
+          cmdline-tools-version: '14742923'
+          packages: ''
+          log-accepted-android-sdk-licenses: 'false'
+
+      - name: Install Android 11 framework input
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager 'platforms;android-30'
+          test -s "$ANDROID_SDK_ROOT/platforms/android-30/android.jar"
+          echo "ANDROID_JAR=$ANDROID_SDK_ROOT/platforms/android-30/android.jar" >> "$GITHUB_ENV"
 
       - name: Run dependency trust gate
         shell: bash
