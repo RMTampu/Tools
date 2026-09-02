@@ -198,7 +198,7 @@ Komponen bawaan ToolBox, hasil import, template, dan kit yang sudah lolos valida
 
 Saat `Edit ON` dan pengguna mengetuk object yang sudah berada di layar, Edge tidak tetap menampilkan katalog penambahan. Edge langsung berubah menjadi menu edit kontekstual untuk object tersebut.
 
-Contoh urutan menu untuk sebuah object:
+Urutan menu edit object yang disepakati:
 
 ```text
 EDGE — Object Terpilih
@@ -207,13 +207,21 @@ EDGE — Object Terpilih
 ├─ Posisi
 ├─ Isi / Konten
 ├─ Warna
-├─ Font
-├─ Spacing
-├─ Border
+├─ Jarak
+├─ Bentuk
+├─ Border / Garis
+├─ Font & Teks
+├─ Opacity
+├─ Rotasi & Transform
+├─ Alignment
+├─ Layer
 ├─ State
-├─ Binding
-├─ Event
-└─ Lainnya sesuai Property Contract
+├─ Animasi
+├─ Auto Connect Binding
+├─ Event / Aksi
+├─ Accessibility
+├─ Kunci
+└─ Lainnya
 ```
 
 Menu disusun vertikal. Fungsi visual dan manipulasi yang paling sering digunakan ditempatkan di bagian atas, sedangkan fungsi teknis dan yang lebih jarang digunakan berada lebih bawah.
@@ -338,3 +346,626 @@ Batas Render / Interactive Screen
 Jika object berada di luar area yang dapat dirender atau disentuh secara efektif, ToolBox memberi indikator/diagnostic seperti `Di luar area layar` dan tidak menyembunyikan risiko tersebut.
 
 Perubahan posisi tetap berlangsung pada Working State, dapat di-Undo/Redo, dan baru menjadi project persistent setelah Save.
+
+## 14. Ubah Ukuran — Floating Resize Editor
+
+Saat pengguna memilih `Ubah Ukuran`, ToolBox membuka Floating Resize Editor dan mengaktifkan resize handle pada object terpilih.
+
+```text
+Tap Object
+↓
+Edge → Ubah Ukuran
+↓
+Floating Resize Editor
++
+Resize Handle pada Object
+```
+
+Kontrol utama:
+
+```text
+Lebar
+[────────●────────] 240 dp
+
+Tinggi
+[──────●──────────] 56 dp
+
+Mode Lebar  [ Fixed / Content / Fill ]
+Mode Tinggi [ Fixed / Content / Fill ]
+
+Kunci Rasio [ ON/OFF ]
+Snap        [ ON/OFF ]
+Reset
+```
+
+Cara edit yang tersedia:
+
+- drag sisi object untuk mengubah satu dimensi;
+- drag sudut object untuk mengubah lebar dan tinggi bersamaan;
+- slider untuk perubahan cepat;
+- nilai angka untuk presisi;
+- lock ratio untuk menjaga proporsi;
+- snapping terhadap grid/guide/object bila aktif.
+
+Perubahan selama satu gesture resize diperlakukan sebagai satu transaction Undo.
+
+`Fixed`, `Content`, dan `Fill` adalah mode ukuran yang berbeda. ToolBox tidak boleh diam-diam merusak constraint responsive hanya karena pengguna menyeret object.
+
+Untuk Grid/List/Icon Container, preset seperti `4×4`, `5×5`, `6×6`, dan `Custom` adalah **preset struktur/kepadatan grid**, bukan ukuran fixed ikon tunggal. Ukuran cell dihitung dari area yang tersedia. Ukuran icon dan spacing dapat tetap mempunyai slider sendiri.
+
+## 15. Isi / Konten
+
+`Isi / Konten` membuka floating editor yang isinya mengikuti jenis component.
+
+Contoh Button:
+
+```text
+Teks
+Ikon
+Posisi Ikon
+Jarak Ikon
+```
+
+Contoh Input:
+
+```text
+Hint
+Nilai Awal
+Prefix
+Suffix
+Ikon Awal
+Ikon Akhir
+```
+
+Contoh Image:
+
+```text
+Ganti Gambar
+Fit: Cover / Contain / Fill
+Crop / Posisi Gambar
+```
+
+Asset seperti gambar atau ikon dapat diganti melalui pilihan visual dan, bila relevan, drag and drop langsung ke object atau target editor.
+
+## 16. Warna — Floating Color Editor
+
+Menu `Warna` membuka Floating Color Editor.
+
+Pilihan utama:
+
+```text
+Tema / Design Token
+Palet
+Custom
+Gradient
+Transparan
+Warna Terakhir
+Favorit
+```
+
+Custom color mendukung kontrol visual dan presisi:
+
+```text
+Hue
+Saturation
+Brightness
+Opacity
+HEX
+RGB
+```
+
+Slider dipakai untuk perubahan cepat dan nilai dapat diedit secara presisi.
+
+Gradient dapat mendukung Linear/Radial, color stop, dan angle bila component mendukungnya.
+
+Target warna mengikuti kemampuan object. Contoh Button dapat mempunyai Background/Text/Border/Icon/Pressed; Input dapat mempunyai Background/Text/Hint/Border/Cursor/Selection/Error.
+
+State warna hanya menyimpan override ketika benar-benar diubah. Design Token tetap menjadi pilihan utama untuk menjaga konsistensi theme.
+
+## 17. Jarak — Padding, Margin, Spacing
+
+`Jarak` menangani Padding, Margin, dan Spacing dalam satu Floating Editor.
+
+```text
+Padding
+Atas / Kanan / Bawah / Kiri
+[ slider + angka ]
+
+Margin
+Atas / Kanan / Bawah / Kiri
+[ slider + angka ]
+
+Spacing
+[────────●────────] 10 dp
+```
+
+Tersedia mode link semua sisi. Jika link aktif, semua sisi berubah bersama. Jika dilepas, tiap sisi dapat diedit terpisah.
+
+`Spacing` terutama digunakan pada container seperti Row, Column, atau Grid untuk mengatur jarak antar-child.
+
+## 18. Bentuk
+
+`Bentuk` menggunakan Floating Editor visual.
+
+Preset dasar:
+
+```text
+Persegi
+Rounded
+Pill / Capsule
+Lingkaran
+```
+
+Radius menggunakan slider + angka. Sudut dapat diedit sebagai `Semua Sudut` atau `Terpisah` untuk masing-masing corner.
+
+Untuk bentuk seperti lingkaran, ToolBox dapat menjaga rasio 1:1 bila diperlukan.
+
+Path bebas/skew ekstrem tidak dimasukkan sebagai fungsi dasar; kebutuhan seperti itu dapat menjadi capability/vector tool khusus.
+
+## 19. Border / Garis
+
+Kontrol Border:
+
+```text
+Ketebalan
+[ slider + angka ]
+
+Warna
+Gaya: Solid / Dashed / Dotted
+Sisi: Semua / Atas / Kanan / Bawah / Kiri
+Link Semua Sisi
+```
+
+Jika renderer/component mendukung, tersedia posisi border `Inside / Center / Outside`.
+
+Pilihan yang tidak didukung component tidak ditampilkan.
+
+## 20. Font & Teks
+
+Floating Text Editor dapat memuat:
+
+```text
+Font + Preview
+Ukuran (sp) + slider
+Weight
+Normal / Italic
+Alignment
+Line Height
+Letter Spacing
+Case
+Overflow
+Max Lines
+```
+
+Font dapat berasal dari bawaan, project, atau hasil import yang kompatibel.
+
+Tersedia `Gunakan Style Tema` untuk memakai typography Design Token. Jika pengguna melakukan perubahan manual, ToolBox membuat override object yang jelas.
+
+## 21. Opacity / Transparansi
+
+Opacity memakai slider 0–100% dan preset umum seperti 100%, 75%, 50%, 25%, 0%.
+
+Nilai dapat dimasukkan secara presisi.
+
+Invariant:
+
+```text
+Opacity 0%
+≠
+Object Hidden
+```
+
+Opacity hanya memengaruhi transparansi visual. Visibility/Hidden adalah property terpisah.
+
+## 22. Rotasi & Transform
+
+Kontrol dasar:
+
+```text
+Rotasi [ slider 0–360° ]
+Preset [ 0° / 90° / 180° / 270° ]
+Flip Horizontal
+Flip Vertical
+Scale
+Kunci Rasio
+```
+
+`Ubah Ukuran` dan `Scale` dibedakan:
+
+```text
+Ubah Ukuran
+= mengubah dimensi layout
+
+Scale
+= transform visual
+```
+
+Free skew/distort tidak menjadi fungsi dasar.
+
+## 23. Alignment / Perataan
+
+Jika satu object dipilih, Alignment bekerja terhadap parent/container:
+
+```text
+Horizontal: Kiri / Tengah / Kanan
+Vertikal: Atas / Tengah / Bawah
+```
+
+Jika multi-select:
+
+```text
+Align Kiri / Tengah / Kanan
+Align Atas / Tengah / Bawah
+Distribusi Horizontal / Vertikal
+Jarak Sama
+Ukuran Sama: Lebar / Tinggi / Keduanya
+```
+
+Dapat tersedia pilihan menggunakan object terakhir sebagai acuan.
+
+Multi-select alignment menjadi satu transaction Undo. Pada Mode Terikat Layout, ToolBox menyesuaikan constraint/anchor; pada Mode Bebas, posisi object yang diubah.
+
+## 24. Layer / Urutan Tumpukan
+
+Floating Layer Editor menyediakan:
+
+```text
+Paling Depan
+Maju 1
+Mundur 1
+Paling Belakang
+```
+
+Tersedia mini hierarchy/list object sekitar untuk memilih object yang tertutup dan drag item untuk reorder bila valid.
+
+Kelompok dasar:
+
+```text
+BACKGROUND / Latar
+CONTENT / Konten
+OVERLAY
+MODAL / Dialog
+```
+
+Perpindahan group divalidasi terhadap parent/component contract dan tidak boleh dilakukan sembarangan bila tidak kompatibel.
+
+## 25. State / Keadaan Object
+
+State yang ditampilkan hanya yang didukung component, misalnya:
+
+```text
+Normal
+Pressed
+Focused
+Selected
+Disabled
+Error
+Loading
+```
+
+Saat state dipilih, object pada layar masuk preview state tersebut dan editor mengubah property untuk state itu.
+
+State tidak membuat clone object. State hanya menyimpan property delta dari base/Normal.
+
+Tersedia `Ikuti Normal` dan `Reset State` agar override dapat dihapus dan kembali mengikuti base.
+
+## 26. Animasi
+
+Floating Animation Editor menyediakan preset dasar seperti:
+
+```text
+Fade
+Slide
+Scale
+Rotate
+```
+
+Kontrol:
+
+```text
+Trigger
+Duration
+Delay
+Easing
+Preview
+```
+
+Jenis tertentu membuka property tambahan, misalnya arah/jarak untuk Slide atau nilai From/To untuk Scale.
+
+Flow animasi kompleks dapat diteruskan ke editor lanjutan/Logic Tool. Animasi disimpan deklaratif, bukan frame-by-frame.
+
+### 26.1 Asset Animasi Tambahan
+
+Animasi dapat diperluas dengan asset yang tervalidasi, termasuk format/capability yang didukung ToolBox seperti:
+
+- Lottie/declarative animation;
+- Animated Vector;
+- Animated WebP/GIF;
+- motion preset dari kit;
+- animasi buatan pengguna.
+
+Asset eksternal tidak boleh membawa arbitrary executable code ke host.
+
+### 26.2 Mode Animasi Saat Edit
+
+Tersedia toggle khusus editor:
+
+```text
+Mode Animasi Saat Edit
+[ ON ] [ OFF ]
+
+[ Preview Sekali ]
+```
+
+`ON` berarti animasi berjalan pada screen yang sedang diedit sesuai trigger/loop yang didefinisikan.
+
+`OFF` berarti animasi tidak dijalankan selama Edit ON agar object mudah dipilih dan diedit, tetapi definisi animasi tetap tersimpan dan tetap dipakai pada aplikasi/runtime.
+
+`Preview Sekali` dapat menjalankan animasi yang dipilih walaupun mode edit animation sedang OFF, lalu kembali ke kondisi statis.
+
+## 27. Auto Connect Binding
+
+Binding dirancang sederhana bagi pengguna dan ketat di belakang layar.
+
+Setiap component mempunyai **Default Binding Profile** yang memakai Binding ID/contract dari **Global Binding Registry**. Asset/component tidak membuat binding sendiri berdasarkan nama visual.
+
+Di Edge hanya ada satu aksi utama:
+
+```text
+BINDING
+
+[ AUTO CONNECT BINDING ]
+
+Status: Belum Terkoneksi / Terkoneksi / Bermasalah
+```
+
+Saat ditekan:
+
+```text
+Auto Connect Binding
+↓
+baca Default Binding Profile component
+↓
+match dengan Global Binding Registry
+↓
+cari target/action/data/component kompatibel
+↓
+auto-connect semua koneksi yang deterministik
+↓
+validasi hasil
+```
+
+Tidak dilakukan penyambungan manual satu-per-satu sebagai alur utama.
+
+Jika koneksi berhasil, isi Edge mengikuti fungsi/binding aktif dan menampilkan fungsi nyata yang tersedia, bukan daftar Binding ID teknis yang panjang.
+
+Jika hanya satu target valid, koneksi dilakukan otomatis. Jika tidak ada target valid, dilaporkan. Jika lebih dari satu target sama-sama valid dan tidak ada aturan deterministik, ToolBox tidak menebak; status menjadi issue/ambigu.
+
+### 27.1 Popup Masalah Binding
+
+Jika sebagian binding gagal, ToolBox tetap mempertahankan bagian yang berhasil dan menampilkan popup alasan yang jelas.
+
+Contoh:
+
+```text
+Auto Connect Binding                          ⧉ Copy
+
+✓ 7 berhasil
+⚠ 2 bermasalah
+
+action.shareProject
+Tidak ada action kompatibel
+
+data.user.avatar
+Tidak ditemukan data source bertipe IMAGE
+
+[ Lihat Detail ] [ Tutup ]
+```
+
+Popup dapat melaporkan antara lain:
+
+- Binding ID tidak dikenal;
+- component target tidak ditemukan;
+- action belum tersedia;
+- data type mismatch;
+- capability belum tersedia;
+- permission/capability requirement belum didukung;
+- contract version mismatch;
+- ambiguous target;
+- required binding tidak mempunyai target;
+- binding deprecated;
+- binding tidak terpakai/orphan.
+
+### 27.2 Tombol Copy Report
+
+Tombol `⧉ Copy` berada di sudut kanan atas popup error dan menyalin **laporan lengkap**, bukan hanya teks yang terlihat.
+
+Format laporan minimal dapat memuat:
+
+```text
+AUTO CONNECT BINDING REPORT
+
+Project
+Screen
+Component
+Result Summary
+Binding ID
+Reason
+Stable Error Code
+Related Target/Capability
+```
+
+Kode error harus stabil, misalnya:
+
+```text
+BINDING_TARGET_NOT_FOUND
+ACTION_NOT_AVAILABLE
+DATA_TYPE_MISMATCH
+CONTRACT_VERSION_MISMATCH
+AMBIGUOUS_TARGET
+```
+
+Tujuannya agar laporan mudah ditempel ke chat, GitHub issue, audit, atau debugging agent.
+
+## 28. Global Binding Registry, Asset Authoring Contract, dan Binding Usage Ledger
+
+Tiga fondasi digunakan bersama:
+
+```text
+Global Binding Registry
+= daftar Binding ID dan contract resmi
+
+Asset Authoring Contract
+= aturan/list pembuatan asset terhadap kemampuan aplikasi
+
+Application Binding Usage Ledger
+= rekap binding/action yang benar-benar digunakan aplikasi
+```
+
+Asset Authoring Contract minimal dapat memuat:
+
+- supported components;
+- supported events;
+- supported actions;
+- supported properties;
+- supported data types;
+- supported Binding IDs;
+- supported capabilities;
+- required compatibility versions;
+- deprecated bindings;
+- unsupported/forbidden bindings.
+
+Contract ini digunakan saat asset dasar dibuat di GitHub agar asset tidak dibuat berdasarkan tebakan atau kemiripan nama.
+
+Setiap aplikasi mempunyai Binding Usage Ledger sendiri. Contoh ToolBox dapat merekap Binding ID, versi, component/asset pemakai, screen/tool pemakai, status aktif/tidak terpakai, asset yang memperkenalkannya, dan status compatibility/deprecation.
+
+Saat asset baru atau update asset di-import, ToolBox membandingkan manifest binding asset dengan Global Binding Registry dan Binding Usage Ledger aplikasi.
+
+Jika asset memperkenalkan action/binding yang belum tersedia di aplikasi, ToolBox wajib melaporkannya secara eksplisit dan tidak menyambungkan secara diam-diam.
+
+Contoh:
+
+```text
+BINDING BARU DITEMUKAN
+
+Asset: project_toolbar_v3
+Binding: action.shareProject
+Status: BELUM TERSEDIA DI TOOLBOX
+```
+
+Pengguna kemudian dapat melihat detail, menambahkan ke rancangan, mengganti binding bila valid, menonaktifkan fungsi terkait, atau membatalkan import sesuai konteks.
+
+## 29. Event / Aksi
+
+Event/Aksi tetap visual dan sederhana.
+
+Floating Editor menampilkan event yang benar-benar dimiliki component, misalnya Button dapat mempunyai Tap/Long Press, Input dapat mempunyai Text Change/Focus/Enter/Valid/Error.
+
+Saat `Pilih Aksi` ditekan, ToolBox membaca Action Registry dan hanya menampilkan action yang kompatibel.
+
+Contoh kelompok:
+
+```text
+Navigasi
+Data
+UI
+Logic
+Tool
+```
+
+Koneksi sederhana dibuat otomatis di belakang layar dari pilihan pengguna. Pengguna tidak perlu mengedit Binding ID teknis.
+
+Jika action membutuhkan input, hanya sumber data/input yang tipe contract-nya kompatibel yang ditampilkan.
+
+Flow kompleks seperti branch, async, retry, success/failure, atau multi-step diarahkan ke Logic Tool.
+
+Masalah action memakai popup diagnostic yang konsisten dan mempunyai `⧉ Copy` untuk menyalin laporan lengkap.
+
+## 30. Accessibility
+
+Sebagian besar metadata accessibility diisi otomatis dari component type, text, icon/asset metadata, dan action/binding yang digunakan.
+
+Kontrol yang dapat ditampilkan:
+
+```text
+Label
+Deskripsi
+Role
+Focusable
+Urutan Fokus
+Status
+```
+
+Icon-only interactive control wajib mempunyai accessible label yang sesuai.
+
+Jika ditemukan masalah, ToolBox memberi diagnostic dengan Stable Error Code dan dukungan `⧉ Copy` report.
+
+Accessibility warning ringan tidak harus menghentikan editing, tetapi masalah penting masuk Diagnostics dan Build Contract Validator sesuai severity.
+
+## 31. Kunci / Lock
+
+Lock adalah perlindungan editor, bukan security boundary.
+
+Pilihan:
+
+```text
+Kunci Semua
+Kunci Posisi
+Kunci Ukuran
+Kunci Style
+Kunci Konten
+Kunci Binding
+Kunci Event/Aksi
+```
+
+Object yang terkunci tetap dapat dipilih dan diinspeksi. Saat Edit ON, indikator lock dapat tampil sebagai editor overlay dan tidak ikut ke aplikasi hasil build.
+
+Jika pengguna mencoba mengubah bagian yang terkunci, ToolBox memberi pilihan `Buka Kunci` atau `Batal`.
+
+Multi-select dapat mendukung `Kunci Semua Terpilih`.
+
+## 32. Lainnya
+
+Menu `Lainnya` berisi fungsi manajemen object yang lebih jarang digunakan:
+
+```text
+Copy
+Duplicate
+Replace Component
+Reset ke Default
+Simpan sebagai Component
+Simpan sebagai Template
+Hapus
+```
+
+Copy/Paste dan Duplicate menghasilkan Stable ID baru untuk object hasil duplikasi/paste sesuai aturan identity project.
+
+Replace Component hanya mempertahankan property/binding yang benar-benar kompatibel.
+
+Reset menghapus override dan kembali ke default/style contract yang sah.
+
+Delete tetap dapat di-Undo selama history tersedia. Operasi berisiko seperti Delete/Reset dapat meminta konfirmasi singkat.
+
+## 33. Prinsip Umum Floating Editor Fungsi Object
+
+Fungsi object di atas mengikuti pola umum:
+
+```text
+Tap Object
+↓
+Edge menampilkan fungsi yang relevan
+↓
+Tap satu fungsi
+↓
+Floating Editor khusus fungsi terbuka
+↓
+edit dengan tap / slider / drag / angka / preview visual
+↓
+perubahan masuk Working State
+↓
+Undo/Redo tetap tersedia
+↓
+Manual Save untuk commit persistent
+```
+
+Floating Editor tidak menjadi source of truth kedua. Ia hanya menjadi surface editor terhadap model/property contract object aktif.
