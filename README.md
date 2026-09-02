@@ -1,21 +1,28 @@
-# ToolBox
+# ToolBox — Public Build/Test Engine
 
-ToolBox is the core extensible kernel for an Android 11 (API 30) arm64 tool workbench.
+`RMTampu/Tools` sekarang adalah repository **public build/test/CI engine** untuk ToolBox dan project private terkait.
 
-This repository starts with a small, UI-independent kernel. Engines and tools plug into the kernel through stable contracts instead of modifying the kernel foundation.
+```text
+RMTampu/ToolBox (PRIVATE)
+= master source + asset + rancangan + product state
 
-## Core goals
+RMTampu/Tools (PUBLIC)
+= reusable workflow + validator + build/test tooling + Firebase bridge
+```
 
-- Stable kernel lifecycle
-- Dynamic module/engine registration
-- Service and capability registries
-- Command and event routing
-- Health checks and failure isolation
-- No Android permissions required by the kernel itself
-- Android 11 / API 30 baseline
+Repository ini tetap dipakai karena sudah terhubung dengan jalur build/test dan layanan eksternal seperti Firebase.
 
-## Modules
+Source/product copy lama yang masih ada di sini selama migrasi adalah `LEGACY_MIGRATION_COPY`, bukan source of truth baru.
 
-- `toolbox-kernel`: pure Kotlin core contracts and runtime
+## Aturan utama
 
-UI, editors, engines, storage adapters, package/update handlers, and other tools are intended to be added as modules above this kernel.
+- APK tetap dibangun hanya melalui GitHub Actions.
+- Private project menjadi caller untuk reusable workflow public bila jalur tersebut tersedia.
+- Workflow shared harus dipin ke tag/commit SHA yang tervalidasi.
+- Build candidate harus dapat ditelusuri ke source commit private dan CI workflow ref.
+- Source/asset private tidak boleh dicetak ke log atau dipublikasikan sebagai artifact public.
+- Firebase Final Gate tetap membutuhkan approval eksplisit pengguna per execution attempt.
+
+Baca `AGENTS.md` dan `REPOSITORY_INTEGRATION_POLICY.md` sebelum bekerja.
+
+Master rancangan dan pengembangan ToolBox berada di private `RMTampu/ToolBox`.
