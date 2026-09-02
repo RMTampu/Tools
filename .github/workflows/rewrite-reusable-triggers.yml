@@ -1,0 +1,64 @@
+name: One-time Rewrite Reusable Triggers
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/rewrite-reusable-triggers.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  rewrite:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 0
+
+      - name: Rewrite triggers
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path('.github/workflows')
+
+          def rewrite(name, replacement):
+              path = root / name
+              text = path.read_text()
+              text2, n = re.subn(r'^on:\n.*?^permissions:', replacement + '\n\npermissions:', text, count=1, flags=re.M | re.S)
+              if n != 1:
+                  raise SystemExit('trigger rewrite failed: ' + name)
+              path.write_text(text2)
+
+          rewrite('kernel-ci.yml', 'on:\n  workflow_call:')
+          rewrite('prebuild-source-gate.yml', 'on:\n  workflow_call:')
+          rewrite('dependency-bootstrap.yml', 'on:\n  workflow_call:')
+
+          signing = '''on:
+  workflow_call:
+    secrets:
+      SIGNING_KEY:
+        required: true
+      KEY_STORE_PASSWORD:
+        required: true
+      KEY_ALIAS:
+        required: true
+      KEY_PASSWORD:
+        required: true'''
+          rewrite('apk-candidate.yml', signing)
+          rewrite('signing-identity-bootstrap.yml', signing)
+          PY
+
+          rm -f .github/workflows/rewrite-reusable-triggers.yml
+          git config user.name 'Tools CI Migration Bot'
+          git config user.email 'actions@github.com'
+          git add -A
+          git commit -m 'Make public build and test workflows reusable'
+          git push origin HEAD:main
