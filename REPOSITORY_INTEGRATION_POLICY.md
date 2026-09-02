@@ -1,170 +1,214 @@
-# ToolBox Repository Integration Policy
+# GLOBAL REPOSITORY INTEGRATION POLICY
 
-## 1. Status dan Tujuan
+## 1. Status
 
-Dokumen ini menetapkan pembagian tanggung jawab resmi antara repository private `RMTampu/ToolBox` dan repository public `RMTampu/Tools`.
+Dokumen ini menetapkan aturan integrasi lintas repository untuk semua project.
 
-Keputusan ini menggantikan konsep lama yang menempatkan `RMTampu/Tools` sebagai pusat source/product ToolBox.
+Wajib dibaca setelah `AGENTS.md` dan `GLOBAL_PUBLIC_PRIVATE_DEVELOPMENT_RULES.md`.
 
-```text
-RMTampu/ToolBox (PRIVATE)
-= MASTER SOURCE / PRODUCT TRUTH
+Jika dokumen lama atau workflow lama bertentangan dengan aturan global, aturan global menang.
 
-RMTampu/Tools (PUBLIC)
-= BUILD / TEST / CI EXECUTION TOOLING
-```
+## 2. Model Repository
 
-Repository lain yang dipakai khusus backup final tetap terpisah dan tidak menjadi source of truth pengembangan.
-
-## 2. Peran `RMTampu/ToolBox` — Private Master
-
-`RMTampu/ToolBox` adalah pusat pengembangan ToolBox dan sumber kebenaran utama untuk source aplikasi/kernel aktif, asset/resource pengembangan, project configuration/dependency lock, manifest/contract/registry input produk, dokumen rancangan master, keputusan arsitektur, aturan pengembangan product source, dan metadata build candidate.
-
-Perubahan produk harus dibuat dan disimpan di repository private ini terlebih dahulu. Source/asset private tidak boleh dipindahkan ke repository public hanya agar CI lebih mudah.
-
-## 3. Peran `RMTampu/Tools` — Public Build/Test Engine
-
-`RMTampu/Tools` dipertahankan karena sudah menjadi jalur build/test dan terhubung dengan layanan eksternal seperti Firebase.
-
-Repository ini berfungsi sebagai reusable GitHub Actions workflow, build/test orchestration, validator/verifier CI, Firebase/Test Lab bridge sesuai authorization policy, CI helper scripts yang tidak mengandung source/asset private, dan public execution contract untuk project private yang memanggilnya.
-
-`RMTampu/Tools` BUKAN lagi master source ToolBox dan BUKAN tempat menentukan rancangan produk terbaru. Source/product copy lama yang masih tertinggal selama migrasi adalah `LEGACY_MIGRATION_COPY`, bukan sumber kebenaran.
-
-## 4. Arah Kerja Resmi
+Setiap project memiliki:
 
 ```text
-RMTampu/ToolBox private
-        │ caller workflow / explicit CI request
-        ▼
-RMTampu/Tools public
-        │ reusable workflow + validator + test tooling
-        ▼
-Build / Test / Verification
-        │
-        ▼
-Result kembali ke caller/private project
+PRIVATE MASTER
+= SINGLE SOURCE OF TRUTH + VAULT + FINAL PROCESSING
+
+PUBLIC RESEARCH/STAGING
+= RESEARCH + ITERATION + MOCK/SIMULATOR + TEST + READY_PRIVATE PACKAGING
 ```
 
-Aturan penting:
+Repository backup/shared boleh ada, tetapi tidak otomatis menjadi master.
 
-1. source yang dibuild adalah commit/ref dari caller private `RMTampu/ToolBox`;
-2. workflow `RMTampu/Tools` harus dipin ke tag atau commit SHA yang tervalidasi;
-3. build tidak boleh diam-diam memakai source lama yang tersimpan di repository public;
-4. workflow public tidak boleh mengubah master source private tanpa aksi write terpisah yang memang diminta pengguna;
-5. setiap hasil harus dapat ditelusuri ke `SOURCE_COMMIT_SHA` dan `CI_WORKFLOW_REF`;
-6. source/asset private tidak boleh dicetak ke log atau dimasukkan ke artifact public.
+## 3. Batas Mutlak Private -> Public
 
-## 5. Model Reusable Workflow
+**Isi Private dilarang keras keluar ke Public.**
 
-Default yang aman adalah private repository menjadi caller dan public `Tools` menyediakan reusable workflow.
+Dilarang:
+
+- checkout Private dari workflow/repo Public;
+- memberikan credential Public untuk membaca Private;
+- menyalin/mirror source, kernel, asset, config, state, database, dump, atau artifact Private ke Public;
+- membangun final product Private di Public;
+- memakai Public sebagai bridge untuk mengeksekusi isi Private.
+
+Contract/interface yang memang diklasifikasikan aman untuk Public bukan isi Private yang diekspor; contract tersebut harus dikelola sebagai boundary publik tersendiri.
+
+## 4. Arah Integrasi Resmi
 
 ```text
-ToolBox/.github/workflows/build.yml
-        │
-        └─ uses: RMTampu/Tools/.github/workflows/<workflow>@<PINNED_REF>
+PUBLIC
+RESEARCH
+-> BUILD COMPONENT
+-> AUDIT/TEST/SIMULATOR
+-> PACKAGE
+-> READY_PRIVATE
+
+                promotion package only
+                         |
+                         v
+PRIVATE MASTER
+PREFLIGHT
+-> SNAPSHOT
+-> INTEGRATE
+-> REGRESSION
+-> VERIFY
+-> COMMIT
+-> FINAL BUILD
+-> RELEASE
 ```
 
-Source private di-checkout dari caller repository. Secret private diberikan hanya jika workflow benar-benar memerlukannya; permission dibuat minimum.
+Public tidak mengetahui atau mengambil state final Private.
 
-Jika integrasi eksternal mengharuskan workflow dieksekusi langsung dari `RMTampu/Tools`, jalur tersebut harus menjadi bridge eksplisit, least-privilege, dan tidak boleh mengekspos source/asset private.
+## 5. Promotion Package
 
-## 6. Asset dan Resource Private
+Perpindahan Public -> Private hanya melalui paket yang telah dinyatakan `READY_PRIVATE`.
 
-Master asset/resource ToolBox berada di `RMTampu/ToolBox` atau repository private asset khusus yang kemudian ditetapkan.
+Minimal metadata:
+
+- Project ID;
+- Component ID/version;
+- Contract version;
+- dependency/toolchain lock/digest;
+- target platform;
+- hash/checksum;
+- compatibility;
+- test status;
+- promotion manifest.
+
+Private wajib memverifikasi identitas dan hash sebelum integrasi.
+
+## 6. Private Preflight
+
+Sebelum proses berat, periksa:
+
+`PACKAGE -> MANIFEST -> HASH -> CONTRACT -> DEPENDENCY -> COMPATIBILITY -> ENVIRONMENT`
+
+Jika satu saja gagal: `STOP`.
+
+Jangan menggunakan build/integrasi berat untuk mencari tahu kesalahan yang seharusnya dapat ditemukan oleh preflight.
+
+## 7. Transaction dan Rollback
+
+Sebelum integrasi:
 
 ```text
-MASTER TOOLBOX ASSET
-→ RMTampu/ToolBox
+CURRENT_FINAL
+-> SNAPSHOT
+-> INTEGRATE
+-> VERIFY
 ```
 
-Asset private tidak dimirror ke `RMTampu/Tools` kecuali diklasifikasikan public. CI memakai asset dari checkout caller/private workspace. Perubahan lokasi repository tidak mengubah logical identity asset. Source copy lama hanya boleh dihapus setelah salinan private diverifikasi.
+PASS -> `COMMIT_NEW_FINAL_STATE`.
 
-## 7. Dokumen dan Aturan
+FAIL -> `ROLLBACK`.
 
-Dokumen rancangan master berada di `RMTampu/ToolBox`.
+State final sebelumnya harus tetap dapat dipulihkan.
 
-`RMTampu/Tools` boleh menyimpan salinan aturan/prosedur yang diperlukan build/test, tetapi salinan tersebut adalah **CI execution copy**, bukan master arsitektur produk.
+## 8. Kegagalan di Private
 
-Jika dokumen lama menyebut `RMTampu/Tools` sebagai repository pusat ToolBox, interpretasi tersebut sudah tidak berlaku.
+**Dilarang keras trial-and-error berulang di Private.**
 
-Urutan otoritas:
+Jika gagal:
 
 ```text
-Instruksi pengguna terbaru
-→ AGENTS.md repository terkait
-→ REPOSITORY_INTEGRATION_POLICY.md
-→ policy test/build khusus
-→ dokumen lain
+STOP
+-> ROLLBACK
+-> SANITIZED_FAILURE_REPORT
+-> PUBLIC
+-> FIX/RETEST
+-> READY_PRIVATE
+-> PRIVATE
 ```
 
-## 8. Build dan Test
+Yang boleh keluar ke Public hanya error/compatibility information yang telah disanitasi.
 
-Build APK tetap hanya melalui GitHub Actions. `RMTampu/Tools` adalah definisi mesin CI bersama, sedangkan commit source berasal dari project private yang memanggilnya.
+## 9. Sanitized Failure Report
 
-Setiap build wajib merekam minimal:
+Boleh memuat:
+
+- Error ID;
+- contract mismatch;
+- unsupported version;
+- dependency mismatch;
+- lifecycle/validation status generik.
+
+Dilarang memuat:
+
+- source/asset Private;
+- secret/token;
+- path sensitif;
+- database/state;
+- internal dump;
+- konfigurasi internal;
+- detail kernel yang membuka isi Private.
+
+## 10. Shared Component
+
+Komponen lintas project harus berstatus eksplisit `GLOBAL/SHARED_COMPONENT` dan memiliki:
+
+- source resmi;
+- version;
+- contract;
+- dependency;
+- compatibility;
+- test evidence.
+
+Dilarang mengambil komponen repo lain secara acak.
+
+## 11. Public Auto Cleanup
+
+Setiap Public job wajib memiliki cleanup otomatis setelah selesai/gagal sejauh platform memungkinkan.
+
+Target cleanup:
+
+- workflow run/log;
+- artifact sementara;
+- cache;
+- workspace;
+- branch/ref sementara;
+- debug output;
+- temporary test data.
+
+Cleanup tidak pernah dianggap pengganti larangan Private -> Public.
+
+## 12. Build dan Test Boundary
+
+Public boleh build/test hanya terhadap komponen/data Public, mock, simulator, fixture, atau prototype.
+
+Final application build/test/release dilakukan di Private Master atau jalur final private yang tidak menyalurkan isi Private ke repository Public.
+
+Dependency/toolchain harus dikunci dan environment Public/Private dibuat sedekat mungkin untuk aspek yang mempengaruhi kompatibilitas.
+
+## 13. Project Isolation
+
+Setiap transfer wajib mempunyai sumber, tujuan, Project ID, Component ID/version, dan tujuan integrasi yang jelas.
+
+Asset, source, config, state, keputusan, dan pembahasan project lain tidak boleh dicampurkan tanpa instruksi eksplisit pengguna.
+
+## 14. Repository Role Registry
+
+Peran repo harus dinyatakan di `AGENTS.md` repo masing-masing.
+
+Role yang diperbolehkan antara lain:
+
+- `PRIVATE_MASTER`
+- `PUBLIC_RESEARCH_STAGING`
+- `PRIVATE_BACKUP`
+- `GLOBAL_SHARED_COMPONENT`
+
+Nama aplikasi/repo tidak boleh menjadi syarat agar aturan global berlaku.
+
+## 15. Invariant
 
 ```text
-SOURCE_REPOSITORY
-SOURCE_COMMIT_SHA
-SOURCE_REF
-CI_REPOSITORY = RMTampu/Tools
-CI_WORKFLOW_REF
-DEPENDENCY_LOCK_ID / DIGEST bila berlaku
+PRIVATE_CONTENT_TO_PUBLIC = 0
+PUBLIC_PRIVATE_READ_ACCESS = 0
+PRIVATE_FINAL_BUILD_IN_PUBLIC = 0
+PRIVATE_TRIAL_AND_ERROR = 0
+UNSANITIZED_FAILURE_REPORT = 0
+UNDECLARED_CROSS_PROJECT_TRANSFER = 0
+PUBLIC_JOB_AUTO_CLEANUP = REQUIRED
 ```
-
-Satu hasil build tidak boleh dipromosikan jika identitas source atau workflow tidak diketahui.
-
-## 9. Firebase Final Gate
-
-Keberadaan integrasi Firebase pada `RMTampu/Tools` tidak memberikan izin otomatis menjalankan Firebase.
-
-```text
-FIREBASE DEFAULT = LOCKED
-1 EXPLICIT USER APPROVAL = 1 FIREBASE EXECUTION ATTEMPT
-```
-
-Tidak boleh auto-run atau auto-retry. Firebase final target tetap Android 11 / API 30 / ARM64 sesuai policy aktif.
-
-## 10. Secret dan Credential Boundary
-
-Credential untuk private source/asset, signing, Firebase, atau backup wajib least-privilege, dipisahkan menurut fungsi, tidak disimpan di source, tidak dicetak ke log, tidak dimasukkan ke APK/patch/artifact/cache public, dan tidak diteruskan bila tidak dibutuhkan.
-
-## 11. Backup Repository
-
-Repository private backup aplikasi tetap kosong sampai ada project `FINAL READY`. Backup final bukan workspace build/development source.
-
-Format utama per app final:
-
-```text
-App.apk
-App.patch
-```
-
-beserta manifest/checksum untuk verification. Delete project lokal/private source tidak otomatis menghapus backup final remote.
-
-## 12. Migration Safety
-
-```text
-COPY TO PRIVATE
-→ VERIFY CONTENT / IDENTITY / REFERENCES
-→ UPDATE MASTER/CI ROLE
-→ UPDATE WORKFLOW ROUTING
-→ AUDIT DELTA
-→ BARU HAPUS COPY YANG MEMANG HARUS DIPINDAHKAN
-```
-
-Tidak boleh menghapus source/asset lama sebelum salinan tujuan terbukti tersedia dan dapat dirujuk dengan benar. Perubahan lokasi repository membatalkan proof yang bergantung pada path/repository identity dan bagian tersebut harus divalidasi ulang.
-
-## 13. Invariant Akhir
-
-```text
-PRODUCT_MASTER = RMTampu/ToolBox
-CI_ENGINE      = RMTampu/Tools
-PUBLIC_PRIVATE_SOURCE_LEAK = 0
-SILENT_BUILD_FROM_STALE_PUBLIC_SOURCE = 0
-UNPINNED_SHARED_WORKFLOW = 0
-UNKNOWN_BUILD_SOURCE = 0
-UNAUTHORIZED_FIREBASE_RUN = 0
-```
-
-Setiap agen wajib mempertahankan invariant tersebut.
