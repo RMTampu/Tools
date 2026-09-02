@@ -4,38 +4,38 @@
 
 Setiap agen yang membaca, mengubah, membangun, menguji, memvalidasi, atau mengaudit repository `RMTampu/Tools` WAJIB membaca file ini terlebih dahulu.
 
-Untuk menjaga seluruh aturan lama tanpa kehilangan coverage, agen juga WAJIB membaca `AGENTS_LEGACY_RULES.md` untuk pekerjaan yang menyentuh gate, asset, application safety, Android target, build, test, Firebase, atau prosedur yang dirujuk di sana.
+Untuk pekerjaan gate, asset, application safety, Android target, build, test, Firebase, atau prosedur, baca juga `AGENTS_LEGACY_RULES.md` dan file aturan khusus yang dirujuk di sana.
 
-**Perubahan peran repository ini tidak membatalkan aturan safety/gate lama.** Hanya identitas dan pembagian tanggung jawab repository yang berubah.
+Perubahan peran repository tidak membatalkan aturan safety/gate. Hanya lokasi product master dan pembagian tanggung jawab repository yang berubah.
 
 ## 2. Identitas Repository Terkini
 
 ```text
 RMTampu/ToolBox (PRIVATE)
-= MASTER SOURCE / PRODUCT / ASSET / RANCANGAN
+= MASTER SOURCE / PRODUCT / ASSET / RANCANGAN / PRODUCT VERIFICATION STATE
 
 RMTampu/Tools (PUBLIC)
-= BUILD / TEST / CI EXECUTION ENGINE
+= BUILD / TEST / CI EXECUTION ENGINE / FIREBASE BRIDGE
 ```
 
-`RMTampu/Tools` bukan lagi pusat source/rancangan produk ToolBox. Source/product copy lama yang masih ada di repository ini selama migrasi adalah `LEGACY_MIGRATION_COPY`.
+Migrasi product source/asset dari public `Tools` telah selesai. Repository ini **tidak boleh** kembali menjadi penyimpanan product source, product asset/resource, product Gradle workspace, master rancangan, atau product verification state.
 
-Baca dan patuhi `REPOSITORY_INTEGRATION_POLICY.md` untuk seluruh pekerjaan lintas repository.
+Baca dan patuhi `REPOSITORY_INTEGRATION_POLICY.md` untuk pekerjaan lintas repository.
 
 ## 3. Peran yang Dipertahankan di Tools
 
-Repository ini tetap menjadi tempat untuk:
+Repository ini hanya dipakai untuk:
 
 - reusable GitHub Actions workflow;
-- build orchestration;
-- test orchestration;
+- build/test orchestration;
 - validator/verifier CI;
-- CI helper scripts;
+- CI helper/tooling yang tidak berisi product source/asset private;
 - Firebase/Test Lab bridge;
 - development/basic/intermediate/regression test tooling;
-- final-gate execution tooling setelah authorization yang sah.
+- final-gate execution tooling setelah authorization yang sah;
+- CI execution copies dari rule/procedure yang memang dibutuhkan.
 
-Tools tetap dipertahankan karena sudah terhubung ke berbagai layanan build/test termasuk Firebase.
+Tools tetap dipertahankan karena sudah terhubung ke jalur build/test dan layanan eksternal seperti Firebase.
 
 ## 4. Alur Resmi Private → Public CI
 
@@ -43,28 +43,26 @@ Tools tetap dipertahankan karena sudah terhubung ke berbagai layanan build/test 
 RMTampu/ToolBox private
 → caller workflow / explicit CI request
 → pinned reusable workflow di RMTampu/Tools
-→ build/test/verification
+→ build/test/verification terhadap caller source
 → result kembali ke caller/private project
 ```
 
 Wajib:
 
-- build source berasal dari exact private source commit/ref yang diminta;
-- reusable workflow dipin ke ref/tag/commit tervalidasi;
-- jangan diam-diam build source lama yang tersimpan di Tools;
+- build source berasal dari exact private caller commit/ref;
+- reusable workflow dipin ke commit SHA tervalidasi;
+- checkout harus mengambil caller source, bukan source lokal public;
 - jangan menulis source/asset private ke log/artifact public;
-- catat `SOURCE_REPOSITORY`, `SOURCE_COMMIT_SHA`, `SOURCE_REF`, `CI_REPOSITORY`, dan `CI_WORKFLOW_REF`;
+- provenance minimal mencatat `SOURCE_REPOSITORY`, `SOURCE_COMMIT_SHA`, `SOURCE_REF`, `CI_REPOSITORY`, `CI_WORKFLOW_REF`;
 - secret/credential least-privilege dan hanya diberikan ke job yang memerlukannya.
 
-## 5. Aturan Build
+## 5. Aturan Build dan Gate
 
-APK Android hanya dibangun melalui GitHub Actions.
+APK Android hanya dibangun melalui GitHub Actions. Termux bukan lingkungan build dan package/tool tambahan tidak boleh diinstal di Termux tanpa izin eksplisit pengguna.
 
-Termux bukan lingkungan build dan package/tool tambahan tidak boleh diinstal di Termux tanpa izin eksplisit pengguna.
+Build tidak boleh dipakai untuk mencari tahu apakah prebuild gate seharusnya PASS.
 
-Build tidak boleh digunakan untuk mencari tahu apakah prebuild gate seharusnya PASS.
-
-Seluruh aturan prebuild/application/asset yang berlaku tetap mengikuti file sumber aktif, termasuk:
+Sumber prosedur aktif mencakup:
 
 - `AGENT_PROCEDURE_EXECUTION_RULES.md`;
 - `PREBUILD_ASSET_GATE.md`;
@@ -78,73 +76,30 @@ Seluruh aturan prebuild/application/asset yang berlaku tetap mengikuti file sumb
 
 ## 6. Android Target dan Test Routing
 
-Target release ToolBox tetap:
-
-```text
-Android 11
-API 30
-arm64-v8a
-```
-
-GitHub development test environment boleh fleksibel sesuai `TEST_ROUTING_POLICY.md`.
-
-Hasil non-API30/non-ARM64 tidak boleh diklaim sebagai final Android 11 ARM64 runtime proof.
+Target release ToolBox tetap Android 11 / API 30 / `arm64-v8a`. GitHub development test environment boleh fleksibel sesuai `TEST_ROUTING_POLICY.md`. Hasil non-API30/non-ARM64 tidak boleh diklaim sebagai final Android 11 ARM64 runtime proof.
 
 ## 7. Firebase Final Gate
-
-Firebase tetap:
 
 ```text
 FIREBASE DEFAULT STATE = LOCKED
 1 EXPLICIT USER APPROVAL = 1 FIREBASE EXECUTION ATTEMPT
 ```
 
-Dilarang auto-run, auto-retry, memakai approval lama, atau fallback final target ke API/ABI lain.
-
-Setelah GitHub development evidence PASS, agen harus berhenti sebelum Firebase dan meminta approval eksplisit pengguna untuk satu execution attempt.
+Dilarang auto-run, auto-retry, memakai approval lama, atau fallback final target ke API/ABI lain. Setelah GitHub development evidence PASS, berhenti sebelum Firebase dan minta approval eksplisit pengguna untuk satu execution attempt.
 
 ## 8. Asset Boundary
 
-Master asset ToolBox berada di private `RMTampu/ToolBox`.
-
-Public Tools tidak boleh menjadi penyimpanan master asset private.
-
-Jika runtime/CI membutuhkan asset private, gunakan checkout/input dari caller private atau mekanisme scoped yang sesuai policy. Jangan menyalin asset private ke public hanya untuk mempermudah build.
-
-Perubahan path/repository asset membatalkan proof yang bergantung pada route/path dan wajib diaudit ulang.
+Master asset ToolBox berada di private `RMTampu/ToolBox`. Public Tools tidak boleh menyimpan master maupun salinan product asset private. CI mengambil asset dari caller/private workspace atau mekanisme scoped yang disetujui. Perubahan path/repository asset membatalkan proof route/path yang terdampak.
 
 ## 9. Dokumentasi
 
-Dokumen rancangan master berada di private `RMTampu/ToolBox`.
+Master rancangan berada di private `RMTampu/ToolBox`. Dokumen di Tools hanya boleh menjadi aturan/prosedur/kontrak eksekusi CI yang memang diperlukan. Tidak boleh ada master rancangan produk di repository public ini.
 
-Dokumen aturan/prosedur di Tools adalah **CI execution copies** bila diperlukan oleh build/test.
+## 10. Repository Change Safety
 
-Bila ada wording lama di dokumen Tools yang seolah menempatkan Tools sebagai pusat produk, interpretasinya digantikan oleh:
-
-```text
-PRODUCT_MASTER = RMTampu/ToolBox
-CI_ENGINE      = RMTampu/Tools
-```
-
-Untuk isi teknis/gate yang tidak terkait pembagian repository, aturan lama tetap berlaku penuh sampai secara eksplisit direvisi.
-
-## 10. Migration Safety
-
-Urutan wajib:
-
-```text
-COPY TO PRIVATE
-→ VERIFY
-→ UPDATE REFERENCES / ROUTING
-→ AUDIT DELTA
-→ DELETE SOURCE COPY hanya jika memang harus dipindahkan
-```
-
-Jangan menghapus asset/source lama sebelum salinan private dan reference-nya diverifikasi.
+Perubahan workflow shared, toolchain, dependency handling, source routing, secret routing, artifact routing, atau Firebase bridge membatalkan proof terkait dan wajib diaudit ulang. Workflow shared final harus tetap pinned dan fail-closed.
 
 ## 11. Urutan Otoritas
-
-Jika ada konflik:
 
 ```text
 Instruksi pengguna terbaru
@@ -155,13 +110,15 @@ Instruksi pengguna terbaru
 → dokumentasi lain
 ```
 
-`AGENTS_LEGACY_RULES.md` mempertahankan detail aturan sebelumnya; ia bukan sumber untuk menentukan repository master setelah migrasi.
+`AGENTS_LEGACY_RULES.md` mempertahankan aturan teknis lintas generasi tetapi tidak boleh mengubah pembagian repository terkini.
 
 ## 12. Invariant
 
 ```text
 PRODUCT_MASTER = RMTampu/ToolBox
 CI_ENGINE = RMTampu/Tools
+PRODUCT_SOURCE_IN_PUBLIC = 0
+PRODUCT_ASSET_IN_PUBLIC = 0
 PRIVATE_SOURCE_LEAK = 0
 SILENT_STALE_PUBLIC_BUILD = 0
 UNPINNED_FINAL_CI_WORKFLOW = 0
