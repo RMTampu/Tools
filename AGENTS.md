@@ -1,355 +1,169 @@
-# AGENTS.md — ToolBox
+# AGENTS.md — ToolBox Public Build/Test Engine
 
 ## 1. Wajib Dibaca Sebelum Bekerja
 
-Setiap agen yang akan membaca, membuat, mengubah, menghapus, membangun, menguji, atau mengaudit isi repository ini WAJIB membaca `AGENTS.md` terlebih dahulu.
+Setiap agen yang membaca, mengubah, membangun, menguji, memvalidasi, atau mengaudit repository `RMTampu/Tools` WAJIB membaca file ini terlebih dahulu.
 
-Aturan di file ini berlaku untuk seluruh repository `RMTampu/Tools`, termasuk semua subfolder dan modul, kecuali ada `AGENTS.md` yang lebih spesifik di subfolder tersebut.
+Untuk menjaga seluruh aturan lama tanpa kehilangan coverage, agen juga WAJIB membaca `AGENTS_LEGACY_RULES.md` untuk pekerjaan yang menyentuh gate, asset, application safety, Android target, build, test, Firebase, atau prosedur yang dirujuk di sana.
 
-## 2. Identitas Proyek
+**Perubahan peran repository ini tidak membatalkan aturan safety/gate lama.** Hanya identitas dan pembagian tanggung jawab repository yang berubah.
 
-- Nama proyek: **ToolBox**
-- Repository: **RMTampu/Tools**
-- Target utama: **Android 11 / API 30**
-- Arsitektur target: **arm64**
-- Fondasi utama: **extensible core/kernel**
-- Modul inti saat ini: `toolbox-kernel`
-- Prinsip utama: **kernel stabil, engine/tools berkembang melalui extension point tanpa membangun ulang fondasi inti**
-
-## 3. Target Kematangan Rancangan
-
-Rancangan harus matang terhadap kemampuan dasar yang diminta sebelum implementasi besar dimulai.
-
-Target proyek adalah rancangan **100% matang** terhadap ruang lingkup yang telah ditetapkan. Jika ada keterbatasan nyata, rancangan harus tetap mendekati **99%** dan keterbatasannya harus diketahui sebelum implementasi, bukan ditemukan setelah fondasi selesai dibangun.
-
-Tidak boleh menghilangkan komponen dasar hanya agar rancangan terlihat sederhana. Kesederhanaan hanya berlaku pada cara penggunaan dan penjelasan, bukan dengan mengurangi fondasi yang diperlukan.
-
-## 4. Stabilitas Kernel
-
-`toolbox-kernel` adalah fondasi inti dan harus dijaga tetap kecil, stabil, modular, dan independen dari UI.
-
-Engine, tool, editor, adapter, registry, renderer, storage implementation, update handler, dan fitur lain harus ditambahkan melalui kontrak atau extension point yang jelas.
-
-Penambahan engine/tool baru yang masih termasuk kemampuan dasar ToolBox tidak boleh memaksa pembangunan ulang kernel hanya karena extension point penting belum dirancang.
-
-Jika perubahan membutuhkan modifikasi kontrak inti, agen harus terlebih dahulu memastikan perubahan tersebut benar-benar diperlukan dan tidak dapat diselesaikan melalui extension point yang sudah ada.
-
-## 5. Prinsip Modularitas
-
-Gunakan pemisahan yang jelas antara:
-
-- kernel/core contracts
-- runtime/lifecycle
-- service registry
-- capability registry
-- engine registry
-- tool registry
-- command routing
-- event routing
-- state management
-- health checking
-- failure isolation
-- persistence adapter
-- update/evolution layer
-- UI/workbench layer
-
-Kernel tidak boleh bergantung pada implementasi UI tertentu.
-
-## 6. Otomatisasi dan Pekerjaan Berulang
-
-Jangan membebankan pekerjaan manual yang sama kepada pengguna secara berulang.
-
-Hal yang dapat diotomatisasi harus ditangani melalui otomatisasi, konfigurasi tersimpan, cache, registry, state persistence, atau mekanisme sekali konfigurasi.
-
-Konfigurasi satu kali diperbolehkan. Setelah itu sistem harus dapat mengingat atau menggunakannya kembali tanpa meminta pengguna mengulang proses yang sama.
-
-## 7. Aturan Build
-
-APK Android hanya dibangun melalui **GitHub Actions**.
-
-Termux hanya berfungsi sebagai relay/perantara bila diperlukan.
-
-Dilarang menggunakan Termux sebagai lingkungan build aplikasi.
-
-Dilarang menginstal package/tool tambahan di Termux tanpa izin eksplisit pengguna.
-
-Jika dibutuhkan build, test APK, emulator, artifact, atau proses CI, gunakan workflow GitHub Actions.
-
-## 8. Kompatibilitas
-
-Semua keputusan teknis untuk aplikasi Android harus mempertahankan kompatibilitas dengan target **Android 11 / API 30 / arm64**.
-
-Gunakan versi dependency yang stabil dan kompatibel dengan target tersebut. Jangan menaikkan requirement platform tanpa kebutuhan yang jelas.
-
-Perubahan dependency tidak boleh dilakukan hanya karena versi yang lebih baru tersedia.
-
-## 9. Penguncian Target Produk Android 11 ARM64 dan Fleksibilitas Test GitHub
-
-Target distribusi utama ToolBox dikunci ke **Android 11 / API 30 / ARM64 (`arm64-v8a`)**.
-
-Penguncian target ini berlaku pada hasil release/build target, dependency compatibility, native library yang dikirim, engine compatibility contract, runtime compatibility contract, dan final target qualification. Tujuannya adalah memastikan produk yang dirilis tetap ditujukan ke Android 11 ARM64 tanpa membuat pengujian development di GitHub menjadi buntu.
-
-Aturan target produk:
-
-- ABI release utama adalah `arm64-v8a` / AArch64 64-bit.
-- Jangan membawa `armeabi-v7a`, `x86`, atau `x86_64` pada release utama kecuali ada kebutuhan yang secara eksplisit disetujui.
-- Modul yang memakai NDK/native code harus membatasi ABI release ke `arm64-v8a`.
-- Dependency native wajib menyediakan binary `arm64-v8a` yang kompatibel dengan Android 11.
-- Dependency yang hanya dapat berjalan pada API Android di atas target utama tidak boleh menjadi bagian wajib fungsi inti.
-- Native library `.so` harus diperiksa agar ABI release-nya benar dan tidak bergantung pada arsitektur lain.
-- Engine baru wajib mendeklarasikan metadata kompatibilitas minimal: `engineId`, `engineVersion`, `minAndroidApi`, `maxAndroidApi` bila diperlukan, `supportedAbi`, `requiredCapabilities`, dan `entryPoint`.
-- Engine yang tidak mendukung `arm64-v8a` atau tidak kompatibel dengan Android 11 harus ditolak untuk target release utama.
-- Runtime harus memeriksa Android API, ABI perangkat, dan kompatibilitas engine sebelum proses load.
-- Tidak boleh ada fallback diam-diam pada **artifact/release target** ke ABI atau target platform lain.
-- Paket engine native harus menempatkan binary ARM64 pada jalur yang jelas seperti `native/arm64-v8a/`.
-- GitHub Actions wajib melakukan verifikasi struktural/kontraktual terhadap ABI, dependency, isi APK, sdk compatibility, native package, dan target Android 11 ARM64 bila relevan.
-- Build release harus dinyatakan gagal jika dependency/native binary yang diwajibkan tidak menyediakan ARM64, engine mengklaim ARM64 tetapi binary tidak sesuai, requirement API inti melebihi target yang ditetapkan, atau artifact release kehilangan compatibility dengan Android 11 ARM64.
-
-**Penguncian target produk TIDAK berarti semua emulator/runtime test GitHub wajib Android 11 ARM64.**
-
-Untuk development/basic/intermediate/regression testing di GitHub:
-
-- environment test bersifat fleksibel;
-- API 30 diprioritaskan bila tersedia dan stabil, tetapi bukan hard requirement GitHub;
-- API lain yang relevan boleh digunakan;
-- x86_64 atau ABI emulator lain boleh digunakan untuk behavior yang tidak architecture-specific;
-- environment aktual wajib dicatat;
-- hasil non-API30/non-ARM64 tidak boleh diklaim sebagai final Android 11 ARM64 runtime proof.
-
-Satu-satunya jalur yang **dikunci keras** ke Android 11 / API 30 / ARM64 untuk final target test adalah Firebase Test Lab sesuai `TEST_ROUTING_POLICY.md`, dan Firebase hanya boleh dijalankan setelah persetujuan eksplisit pengguna yang berlaku satu kali.
-
-Kernel tetap platform-aware dan extensible; target release utama tetap Android 11 / API 30 / ARM64, sementara development test environment GitHub boleh fleksibel sesuai aturan routing.
-
-## 10. Kualitas Implementasi
-
-Sebelum menyatakan pekerjaan selesai, periksa minimal:
-
-1. struktur dan dependency tetap konsisten;
-2. kontrak publik tidak rusak tanpa alasan;
-3. tidak ada duplikasi fungsi inti;
-4. tidak ada pekerjaan manual berulang yang sebenarnya dapat diotomatisasi;
-5. error dapat dilokalisasi dan tidak menjatuhkan seluruh kernel jika seharusnya bisa diisolasi;
-6. perubahan dapat diuji;
-7. target Android 11 / arm64 tetap terpenuhi pada target produk/release;
-8. fondasi tetap dapat menerima engine/tool baru tanpa perubahan besar yang tidak perlu.
-
-## 11. Testing dan Final-Gate Authorization
-
-Setiap fitur baru harus mempunyai cara verifikasi yang jelas.
-
-Untuk perubahan pada core/kernel, prioritaskan unit test yang independen dari Android runtime jika memungkinkan.
-
-Untuk bagian Android, integrasi, UI, emulator, runtime, regression, atau debugging, jalankan pengujian melalui GitHub Actions sesuai `TEST_ROUTING_POLICY.md`.
-
-Jangan menyatakan PASS hanya berdasarkan keberhasilan kompilasi jika fitur membutuhkan pengujian runtime.
-
-Untuk setiap pekerjaan yang melibatkan pemilihan environment test, runtime verification, final candidate, atau Firebase Test Lab, agen WAJIB membaca dan mematuhi `TEST_ROUTING_POLICY.md` sebelum menjalankan test terkait.
-
-Aturan wajib:
+## 2. Identitas Repository Terkini
 
 ```text
-GITHUB TEST ENVIRONMENT = FLEXIBLE
-FIREBASE FINAL TARGET = ANDROID 11 / API 30 / ARM64 ONLY
-FIREBASE DEFAULT STATE = LOCKED
+RMTampu/ToolBox (PRIVATE)
+= MASTER SOURCE / PRODUCT / ASSET / RANCANGAN
+
+RMTampu/Tools (PUBLIC)
+= BUILD / TEST / CI EXECUTION ENGINE
 ```
 
-Selama development, GitHub Actions adalah route default. Environment GitHub non-API30/non-ARM64 boleh digunakan untuk development/basic/intermediate/regression proof sesuai scope, tetapi tidak boleh diklaim sebagai final Android 11 ARM64 proof.
+`RMTampu/Tools` bukan lagi pusat source/rancangan produk ToolBox. Source/product copy lama yang masih ada di repository ini selama migrasi adalah `LEGACY_MIGRATION_COPY`.
 
-Setelah seluruh affected GitHub verification PASS dan pekerjaan executable/runtime mencapai `DEVELOPMENT_PASS`, agen WAJIB berhenti sebelum Firebase dan bertanya secara eksplisit kepada pengguna apakah kandidat tersebut diizinkan masuk Firebase Final Gate.
+Baca dan patuhi `REPOSITORY_INTEGRATION_POLICY.md` untuk seluruh pekerjaan lintas repository.
 
-Tidak ada transisi otomatis dari GitHub PASS ke Firebase.
+## 3. Peran yang Dipertahankan di Tools
 
-Persetujuan Firebase dari pengguna mengikuti formula:
+Repository ini tetap menjadi tempat untuk:
+
+- reusable GitHub Actions workflow;
+- build orchestration;
+- test orchestration;
+- validator/verifier CI;
+- CI helper scripts;
+- Firebase/Test Lab bridge;
+- development/basic/intermediate/regression test tooling;
+- final-gate execution tooling setelah authorization yang sah.
+
+Tools tetap dipertahankan karena sudah terhubung ke berbagai layanan build/test termasuk Firebase.
+
+## 4. Alur Resmi Private → Public CI
 
 ```text
+RMTampu/ToolBox private
+→ caller workflow / explicit CI request
+→ pinned reusable workflow di RMTampu/Tools
+→ build/test/verification
+→ result kembali ke caller/private project
+```
+
+Wajib:
+
+- build source berasal dari exact private source commit/ref yang diminta;
+- reusable workflow dipin ke ref/tag/commit tervalidasi;
+- jangan diam-diam build source lama yang tersimpan di Tools;
+- jangan menulis source/asset private ke log/artifact public;
+- catat `SOURCE_REPOSITORY`, `SOURCE_COMMIT_SHA`, `SOURCE_REF`, `CI_REPOSITORY`, dan `CI_WORKFLOW_REF`;
+- secret/credential least-privilege dan hanya diberikan ke job yang memerlukannya.
+
+## 5. Aturan Build
+
+APK Android hanya dibangun melalui GitHub Actions.
+
+Termux bukan lingkungan build dan package/tool tambahan tidak boleh diinstal di Termux tanpa izin eksplisit pengguna.
+
+Build tidak boleh digunakan untuk mencari tahu apakah prebuild gate seharusnya PASS.
+
+Seluruh aturan prebuild/application/asset yang berlaku tetap mengikuti file sumber aktif, termasuk:
+
+- `AGENT_PROCEDURE_EXECUTION_RULES.md`;
+- `PREBUILD_ASSET_GATE.md`;
+- `ASSET_SAFE_100_RULES.md`;
+- `ASSET_SAFE_100_METHODS.md`;
+- `ASSET_SAFE_100_PROCESS.md`;
+- `ASSET_ROUTE_PROOF_METHODS.md`;
+- `ASSET_ROUTE_PROOF_PROCESS.md`;
+- `APPLICATION_SAFE_100_PROCESS.md`;
+- `APP_SAFE_R1_LOGIC_INPUT.md` sampai `APP_SAFE_R9_VERIFICATION_COMPLETENESS.md`.
+
+## 6. Android Target dan Test Routing
+
+Target release ToolBox tetap:
+
+```text
+Android 11
+API 30
+arm64-v8a
+```
+
+GitHub development test environment boleh fleksibel sesuai `TEST_ROUTING_POLICY.md`.
+
+Hasil non-API30/non-ARM64 tidak boleh diklaim sebagai final Android 11 ARM64 runtime proof.
+
+## 7. Firebase Final Gate
+
+Firebase tetap:
+
+```text
+FIREBASE DEFAULT STATE = LOCKED
 1 EXPLICIT USER APPROVAL = 1 FIREBASE EXECUTION ATTEMPT
 ```
 
-Setelah satu Firebase execution attempt dimulai, izin dianggap habis/consumed, terlepas dari PASS, FAIL, timeout, cancellation, atau execution error. Setiap run/retry berikutnya membutuhkan pertanyaan dan persetujuan pengguna baru.
+Dilarang auto-run, auto-retry, memakai approval lama, atau fallback final target ke API/ABI lain.
 
-Dilarang:
+Setelah GitHub development evidence PASS, agen harus berhenti sebelum Firebase dan meminta approval eksplisit pengguna untuk satu execution attempt.
 
-- auto-run Firebase setelah GitHub PASS;
-- auto-retry Firebase;
-- memakai approval lama untuk run baru;
-- memakai approval satu kandidat untuk kandidat lain;
-- menganggap persetujuan umum/percakapan lama sebagai izin Firebase;
-- fallback Firebase ke API/ABI selain Android 11/API30/ARM64.
+## 8. Asset Boundary
 
-Jika pengguna tidak menyetujui atau jawaban ambigu, Firebase tetap `LOCKED` dan development evidence yang sah boleh tetap berstatus `DEVELOPMENT_PASS`.
+Master asset ToolBox berada di private `RMTampu/ToolBox`.
 
-## 12. Perubahan Repository
+Public Tools tidak boleh menjadi penyimpanan master asset private.
 
-Sebelum mengubah file yang sudah ada:
+Jika runtime/CI membutuhkan asset private, gunakan checkout/input dari caller private atau mekanisme scoped yang sesuai policy. Jangan menyalin asset private ke public hanya untuk mempermudah build.
 
-1. baca file terkait;
-2. pahami dependensi dan kontrak yang digunakan;
-3. hindari perubahan di luar kebutuhan tugas;
-4. jangan menghapus komponen yang belum terbukti tidak diperlukan;
-5. pertahankan kompatibilitas dengan struktur yang sudah dipakai.
+Perubahan path/repository asset membatalkan proof yang bergantung pada route/path dan wajib diaudit ulang.
 
-Jangan melakukan refactor besar yang tidak berhubungan langsung dengan tugas aktif.
+## 9. Dokumentasi
 
-## 13. Dokumentasi Keputusan
+Dokumen rancangan master berada di private `RMTampu/ToolBox`.
 
-Keputusan arsitektur penting harus terdokumentasi agar agen berikutnya tidak mengulang analisis dari awal.
+Dokumen aturan/prosedur di Tools adalah **CI execution copies** bila diperlukan oleh build/test.
 
-Jika repository kemudian memiliki `ARCHITECTURE.md`, `DECISIONS.md`, `PROJECT.md`, `TASK.md`, atau `ACCEPTANCE-TESTS.md`, agen wajib menggunakannya sebagai sumber konteks proyek bersama `AGENTS.md`.
-
-Untuk keputusan test environment dan Firebase authorization, `TEST_ROUTING_POLICY.md` adalah sumber interpretasi wajib di bawah `AGENTS.md`.
-
-Jika terdapat konflik, instruksi pengguna terbaru memiliki prioritas tertinggi, kemudian `AGENTS.md`, kemudian `TEST_ROUTING_POLICY.md` untuk test routing/authorization, lalu dokumentasi proyek lainnya.
-
-## 14. Larangan Asumsi
-
-Jangan menganggap fitur sudah selesai hanya karena file, interface, atau class sudah ada.
-
-Jangan menebak kondisi build, test, workflow, artifact, runtime, Firebase authorization, atau final-gate status. Periksa kondisi aktual sebelum membuat kesimpulan.
-
-Jangan menyatakan implementasi matang jika masih ada komponen dasar yang diketahui belum tersedia.
-
-Jangan menganggap Firebase diizinkan hanya karena konfigurasi Firebase/GCP sudah tersedia.
-
-## 15. Definisi Selesai
-
-Sebuah tugas development dapat dianggap selesai jika:
-
-- fungsi utama yang diminta tersedia;
-- integrasi dengan fondasi tidak merusak struktur inti;
-- tidak meninggalkan pekerjaan manual berulang yang seharusnya otomatis;
-- memiliki cara pengujian;
-- lulus pengujian development yang relevan;
-- dokumentasi penting diperbarui jika keputusan arsitektur berubah;
-- tidak menutup kemampuan ekspansi ToolBox yang sudah menjadi bagian dari tujuan dasarnya.
-
-Selesai pada tingkat development tidak otomatis berarti Firebase Final Gate sudah dijalankan atau `APPLICATION_SAFE_100` sudah final.
-
-## 16. Aturan Asset — ASSET_SAFE_100
-
-Untuk setiap pekerjaan yang membaca, menambah, mengubah, menghapus, memindahkan, menghasilkan, mengemas, memvalidasi, menguji, atau mengaudit asset/resource aplikasi, agen WAJIB membaca dan mematuhi `ASSET_SAFE_100_RULES.md` sebelum melakukan pekerjaan tersebut.
-
-`ASSET_SAFE_100_RULES.md` adalah sumber aturan khusus asset untuk repository ini. Agen tidak boleh menyederhanakan, mengurangi, mengganti, atau melewati gate wajib di dalamnya hanya agar build/test menjadi PASS.
-
-Kesalahan alat seperti emulator, CI runner, compiler, toolchain, atau validator tidak boleh diklasifikasikan sebagai kegagalan asset tanpa bukti bahwa asset itu sendiri adalah penyebabnya. Status asset hanya boleh dinyatakan `ASSET_SAFE_100` apabila seluruh invariant wajib dalam `ASSET_SAFE_100_RULES.md` telah terpenuhi.
-
-## 17. Rantai Wajib Asset → Build → Test
-
-Sebelum melakukan build yang melibatkan asset/resource aplikasi, agen WAJIB membaca dan menjalankan `PREBUILD_ASSET_GATE.md` secara berurutan.
-
-**Build APK / production build / final resource packaging DILARANG DIMULAI sebelum seluruh gate pre-build yang diwajibkan dalam `PREBUILD_ASSET_GATE.md` selesai dan berstatus PASS.**
-
-Gate tidak boleh dilompati, dianggap PASS tanpa bukti, atau dilewati hanya untuk melihat apakah build berhasil. Jika perubahan asset atau input terkait membatalkan proof yang sudah ada, agen wajib kembali ke gate paling awal yang terdampak sebelum build dapat dibuka kembali.
-
-## 18. Aturan Kapasitas Agen dan Eksekusi Bertahap
-
-Untuk setiap pekerjaan yang dikendalikan oleh prosedur, gate, audit, validasi, build, atau test, agen WAJIB membaca dan mematuhi `AGENT_PROCEDURE_EXECUTION_RULES.md`.
-
-Agen tidak diwajibkan menyimpan seluruh aturan repository di memory sekaligus. Namun seluruh aturan yang berlaku untuk langkah aktif WAJIB tersedia, dibaca, dipahami, dan dijalankan lengkap pada saat langkah tersebut dieksekusi.
-
-Jika context, memory, tool output, atau kapasitas pemrosesan tidak memadai untuk menjalankan seluruh prosedur secara lengkap sekaligus, agen WAJIB memecah eksekusi menjadi gate, sub-gate, rule group, individual rule, atau individual check yang lebih kecil.
-
-**Keterbatasan kapasitas hanya boleh mengubah ukuran unit eksekusi. Keterbatasan tersebut DILARANG digunakan untuk mengurangi aturan, coverage, invariant, proof, evidence, atau syarat PASS.**
-
-Jika detail aturan aktif tidak tersedia, state prosedur tidak diketahui, evidence hilang, atau agen tidak dapat memastikan bahwa langkah telah dijalankan lengkap, status default adalah `NOT_PROVEN`, bukan PASS. Agen wajib membaca kembali sumber dan merekonstruksi state sebelum melanjutkan.
-
-## 19. Aturan Hasil Riset Asset Route Proof
-
-Untuk setiap pekerjaan yang menyentuh jalur consumer → asset, asset → asset, reference, dependency, alias, dynamic lookup, resource resolution, configuration → variant, fallback, authority/capability, contextual route, atau transitive asset route, agen WAJIB membaca dan mematuhi:
-
-- `ASSET_ROUTE_PROOF_METHODS.md`;
-- `ASSET_ROUTE_PROOF_PROCESS.md`.
-
-`ASSET_ROUTE_PROOF_METHODS.md` adalah korpus aktif metode hasil riset yang sudah diterima, disaring, digabungkan, dan diaudit agar tidak kontra. Metode yang ditolak, lebih lemah, redundant, atau tidak menambah jaminan tidak boleh dipakai untuk menggantikan metode aktif tersebut.
-
-`ASSET_ROUTE_PROOF_PROCESS.md` menentukan urutan eksekusi wajib untuk Gate 4 pada `PREBUILD_ASSET_GATE.md`.
-
-Jika scope build mempunyai asset route/reference/resolution, Gate 4 DILARANG dinyatakan PASS sebelum proses tersebut menghasilkan:
+Bila ada wording lama di dokumen Tools yang seolah menempatkan Tools sebagai pusat produk, interpretasinya digantikan oleh:
 
 ```text
-ROUTE_PROOF_PASS
+PRODUCT_MASTER = RMTampu/ToolBox
+CI_ENGINE      = RMTampu/Tools
 ```
 
-Build tetap tertutup sampai `ROUTE_PROOF_PASS` terintegrasi dengan seluruh syarat Gate 5 dan `PREBUILD_ASSET_GATE = PASS`.
+Untuk isi teknis/gate yang tidak terkait pembagian repository, aturan lama tetap berlaku penuh sampai secara eksplisit direvisi.
 
-## 20. Aturan Hasil Riset ASSET_SAFE_100 Terintegrasi
+## 10. Migration Safety
 
-Untuk setiap pekerjaan asset/resource yang akan masuk ke rantai build/test atau akan dinilai dengan status `ASSET_SAFE_100`, agen WAJIB membaca dan mematuhi:
-
-- `ASSET_SAFE_100_METHODS.md`;
-- `ASSET_SAFE_100_PROCESS.md`.
-
-`ASSET_SAFE_100_METHODS.md` hanya memuat metode hasil riset yang sudah diterima setelah penyaringan, penggabungan metode yang tumpang tindih, dominance filtering, dan audit kontra terhadap aturan aktif. Metode yang ditolak, lebih lemah, redundant, atau tidak menambah jaminan tidak boleh dipakai untuk menggantikan metode aktif.
-
-`ASSET_SAFE_100_PROCESS.md` memetakan seluruh metode tersebut ke Gate 0–9 pada `PREBUILD_ASSET_GATE.md`. Dokumen tersebut tidak boleh digunakan untuk membuat urutan paralel atau melewati build boundary yang sudah ditetapkan.
-
-Final status `ASSET_SAFE_100` hanya boleh diberikan jika seluruh syarat dari:
+Urutan wajib:
 
 ```text
-ASSET_SAFE_100_RULES.md
-AND ASSET_SAFE_100_METHODS.md
-AND ASSET_SAFE_100_PROCESS.md
+COPY TO PRIVATE
+→ VERIFY
+→ UPDATE REFERENCES / ROUTING
+→ AUDIT DELTA
+→ DELETE SOURCE COPY hanya jika memang harus dipindahkan
 ```
 
-terpenuhi untuk scope yang berlaku.
+Jangan menghapus asset/source lama sebelum salinan private dan reference-nya diverifikasi.
 
-Jika route/reference/resolution termasuk scope, final status juga memerlukan `ROUTE_PROOF_PASS` sesuai `ASSET_ROUTE_PROOF_PROCESS.md`.
+## 11. Urutan Otoritas
 
-Build tetap dilarang sampai seluruh bagian prebuild pada `ASSET_SAFE_100_PROCESS.md` dan seluruh Gate 0–5 pada `PREBUILD_ASSET_GATE.md` selesai serta PASS.
-
-## 21. Rantai Wajib APPLICATION_SAFE_100 — R1 sampai R9
-
-Untuk setiap pekerjaan aplikasi yang akan dibangun, diuji, diaudit, atau dinilai bebas dari kelas crash/hang/bug/error yang termasuk closed application scope, agen WAJIB membaca dan menjalankan `APPLICATION_SAFE_100_PROCESS.md`.
-
-Domain metode yang menjadi sumber wajib adalah:
-
-1. `APP_SAFE_R1_LOGIC_INPUT.md`
-2. `APP_SAFE_R2_CONCURRENCY_RESOURCE.md`
-3. `APP_SAFE_R3_LIFECYCLE_STATE_RECOVERY.md`
-4. `APP_SAFE_R4_PERSISTENCE_STORAGE_VERSION.md`
-5. `APP_SAFE_R5_SECURITY_NETWORK_BOUNDARY.md`
-6. `APP_SAFE_R6_BUILD_DEPENDENCY_INSTALL.md`
-7. `APP_SAFE_R7_NATIVE_PLUGIN_RUNTIME.md`
-8. `APP_SAFE_R8_UI_DEVICE_POWER.md`
-9. `APP_SAFE_R9_VERIFICATION_COMPLETENESS.md`
-
-Urutan ownership dan final closure adalah:
+Jika ada konflik:
 
 ```text
-R1 -> R2 -> R3 -> R4 -> R5 -> R6 -> R7 -> R8 -> R9
+Instruksi pengguna terbaru
+→ AGENTS.md repository terkait
+→ REPOSITORY_INTEGRATION_POLICY.md
+→ TEST_ROUTING_POLICY.md untuk test/Firebase
+→ AGENTS_LEGACY_RULES.md dan rule/procedure files aktif
+→ dokumentasi lain
 ```
 
-Urutan operasional lengkap, termasuk pembagian proof prebuild, build boundary, runtime proof, cross-domain challenge, dan final acceptance, hanya boleh mengikuti `APPLICATION_SAFE_100_PROCESS.md` **dengan test environment serta Firebase authorization selalu mengikuti `TEST_ROUTING_POLICY.md`**.
+`AGENTS_LEGACY_RULES.md` mempertahankan detail aturan sebelumnya; ia bukan sumber untuk menentukan repository master setelah migrasi.
 
-**APK / production build / final resource packaging DILARANG DIMULAI sebelum `APPLICATION_PREBUILD_PASS`.**
-
-`APPLICATION_PREBUILD_PASS` tidak boleh diberikan sebelum seluruh prebuild closure R1–R8 selesai dan PASS. Bila asset/resource termasuk scope, `PREBUILD_ASSET_GATE = PASS` juga wajib sebelum application build boundary dibuka.
-
-Build aplikasi tetap hanya melalui GitHub Actions.
-
-Final status `APPLICATION_SAFE_100` hanya boleh diberikan jika:
+## 12. Invariant
 
 ```text
-APP_SAFE_R1_PASS
-AND APP_SAFE_R2_PASS
-AND APP_SAFE_R3_PASS
-AND APP_SAFE_R4_PASS
-AND APP_SAFE_R5_PASS
-AND APP_SAFE_R6_PASS
-AND APP_SAFE_R7_PASS
-AND APP_SAFE_R8_PASS
-AND APP_SAFE_R9_PASS
-AND REQUIRED_ASSET_SAFE_100_IF_APPLICABLE
-AND UNKNOWN = 0
-AND MISSING = 0
-AND UNPROVEN = 0
-AND SKIPPED = 0
-AND INDETERMINATE = 0
-AND STALE_EVIDENCE = 0
-AND FAULT_ESCAPE = 0
+PRODUCT_MASTER = RMTampu/ToolBox
+CI_ENGINE = RMTampu/Tools
+PRIVATE_SOURCE_LEAK = 0
+SILENT_STALE_PUBLIC_BUILD = 0
+UNPINNED_FINAL_CI_WORKFLOW = 0
+UNAUTHORIZED_FIREBASE_RUN = 0
 ```
-
-Agen DILARANG mengurangi salah satu domain R1–R9, mengubah urutan final closure, menggunakan keberhasilan build sebagai pengganti proof, atau menganggap R9 PASS bila salah satu domain R1–R8 masih tidak lengkap.
-
-Jika final acceptance membutuhkan target-specific Android 11 ARM64 runtime evidence, evidence tersebut hanya boleh dibuat melalui Firebase Final Gate setelah approval eksplisit pengguna untuk satu execution attempt. Jika approval belum diberikan, status target-specific proof tetap belum final; agen tidak boleh menjalankan Firebase sendiri.
-
-Jika kapasitas context/memory tidak cukup untuk memuat seluruh R1–R9 sekaligus, agen wajib menjalankan domain/sub-gate secara bertahap sesuai `AGENT_PROCEDURE_EXECUTION_RULES.md`; ukuran unit kerja boleh diperkecil tetapi aturan, coverage, fault model, proof, dan evidence tidak boleh dikurangi.
