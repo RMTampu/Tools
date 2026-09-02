@@ -13,8 +13,9 @@ Invariant terpenting:
 ```text
 PRIVATE_CONTENT_TO_PUBLIC = FORBIDDEN
 PUBLIC = RESEARCH / ITERATION / STAGING
-PRIVATE = MASTER / VAULT / FINAL PROCESSING
+PRIVATE = MASTER / VAULT / FINAL PROCESSING / FINAL EXECUTION
 PUBLIC_PRIVATE_READ_ACCESS = FORBIDDEN
+PRIVATE_EXECUTION_THROUGH_PUBLIC = FORBIDDEN
 PUBLIC_JOB_AUTO_CLEANUP = REQUIRED
 ```
 
@@ -33,7 +34,7 @@ Repository ini bukan Private Master project mana pun dan bukan tempat final proc
 Untuk ToolBox saat ini:
 
 ```text
-RMTampu/ToolBox (PRIVATE) = PRIVATE MASTER
+RMTampu/ToolBox (PRIVATE) = PRIVATE MASTER + FINAL EXECUTION
 RMTampu/Tools (PUBLIC)    = RESEARCH / TEST / STAGING
 RMTampu/Backup (PRIVATE)  = BACKUP ROLE bila digunakan
 ```
@@ -47,11 +48,12 @@ Repository Public dilarang:
 - checkout repository Private;
 - menerima token/credential untuk membaca Private;
 - menerima source/kernel/asset/config/state Private;
-- menerima artifact yang mengandung isi Private;
+- menerima APK/artifact yang mengandung isi Private;
 - menjadi reusable CI yang mengeksekusi source Private;
+- menjadi artifact relay/Firebase bridge untuk Private;
 - menyimpan mirror/snapshot/legacy copy isi Private.
 
-Semua workflow lama yang memerlukan source Private di Public **tidak boleh digunakan** dan harus dianggap legacy/incompatible dengan Rule 0.
+Semua workflow lama yang memerlukan source/artifact Private di Public **tidak boleh digunakan** dan harus dianggap legacy/incompatible dengan Rule 0.
 
 ## 4. Fungsi Public yang Diizinkan
 
@@ -121,7 +123,7 @@ GitHub Actions di Public hanya boleh membangun/menguji **komponen Public, mock, 
 
 Dilarang menggunakan Public untuk final build aplikasi yang source/asset finalnya berada di Private.
 
-Final build/test/release dilakukan di jalur Private project masing-masing.
+Final build, signing, signature verification, Firebase/final runtime test, dan release dilakukan di jalur Private project masing-masing.
 
 Termux tidak digunakan sebagai lingkungan build aplikasi dan package/tool tambahan tidak boleh diinstal tanpa izin eksplisit pengguna.
 
@@ -133,7 +135,7 @@ Hasil simulator/non-target tidak boleh diklaim sebagai final runtime proof. Fina
 
 ## 10. Firebase / External Test Bridge
 
-Tidak boleh menggunakan Public sebagai jalur untuk mengirim source/asset/artifact Private ke layanan eksternal.
+Tidak boleh menggunakan Public sebagai jalur untuk mengirim source/asset/APK/artifact Private ke layanan eksternal.
 
 Jika layanan eksternal digunakan untuk final verification, jalur harus dimulai dari Private/approved private processing dan tetap mengikuti authorization policy.
 
@@ -166,6 +168,24 @@ Aturan teknis yang tersedia tetap berlaku bila relevan dan tidak bertentangan de
 - `APPLICATION_SAFE_100_PROCESS.md`;
 - rule/procedure domain R1–R9 bila tersedia.
 
+### 12.1 Scope Wajib untuk Dokumen Assurance Public
+
+Jika dokumen R6–R9, Asset Safe, Prebuild Asset Gate, atau dokumen assurance legacy menyebut:
+
+- final build;
+- final APK/package;
+- signing;
+- install final;
+- Firebase;
+- final acceptance;
+- release;
+
+maka pada repository Public klausul tersebut hanya boleh dibaca sebagai **metode, contract, model, prototype, atau research requirement terhadap scope Public**.
+
+Klausul tersebut **tidak pernah** memberi izin untuk membawa atau mengeksekusi isi Private di Public.
+
+Final execution terhadap integrated Private state tetap dilakukan di Private.
+
 Aturan legacy tidak boleh menghidupkan kembali alur Private -> Public.
 
 ## 13. Urutan Otoritas
@@ -187,7 +207,10 @@ PUBLIC_ROLE = RESEARCH_TEST_STAGING
 PRIVATE_CONTENT_IN_PUBLIC = 0
 PUBLIC_PRIVATE_READ_ACCESS = 0
 PRIVATE_SOURCE_BUILD_IN_PUBLIC = 0
+PRIVATE_EXECUTION_THROUGH_PUBLIC = 0
 PUBLIC_FINAL_PRODUCT_BUILD = 0
+PUBLIC_FINAL_SIGNING = 0
+PUBLIC_FIREBASE_PRIVATE_ARTIFACT = 0
 PUBLIC_JOB_AUTO_CLEANUP = REQUIRED
 UNAUTHORIZED_FIREBASE_RUN = 0
 ```
