@@ -969,3 +969,77 @@ Manual Save untuk commit persistent
 ```
 
 Floating Editor tidak menjadi source of truth kedua. Ia hanya menjadi surface editor terhadap model/property contract object aktif.
+
+## 34. Editor Terpadu dan Pilihan Sumber Edit
+
+Lima kemampuan editor utama — UI, Logic, Data, Binding, dan Asset — tidak ditampilkan sebagai lima pilihan editor terpisah pada level utama. Semuanya digabung di bawah satu entry bernama **Editor**.
+
+```text
+ToolBox
+└─ Editor
+```
+
+Di dalam Editor, hanya capability/editor yang diperlukan untuk konteks aktif yang dimuat. Penggabungan nama dan shell tidak berarti seluruh runtime lima editor harus aktif bersamaan.
+
+Saat `Editor` dibuka, pengguna terlebih dahulu memilih sumber yang akan diedit:
+
+```text
+PILIH SUMBER EDIT
+
+1. Proyek Tersimpan
+2. Aplikasi Terinstal
+3. Edit ToolBox
+```
+
+### 34.1 Proyek Tersimpan
+
+Daftar hanya menampilkan **nama proyek**, bukan struktur folder mentah.
+
+Contoh:
+
+```text
+ToolBox
+Home-Run
+Project A
+Project B
+Project C
+```
+
+Di belakang layar, setiap proyek tetap mempunyai folder project masing-masing untuk UI, asset, manifest, data, binding ledger, dan file lain sesuai Project Store. Saat Save, UI dan asset disimpan pada project yang sedang aktif sehingga lima proyek tetap terpisah sebagai lima project package/folder, walaupun pengguna memilihnya melalui nama proyek.
+
+### 34.2 Aplikasi Terinstal
+
+Pilihan ini menampilkan aplikasi terinstal yang dapat menjadi target Editor.
+
+Full edit hanya diberikan bila aplikasi menyediakan contract/capability yang kompatibel dengan ToolBox. ToolBox tidak menganggap semua APK terinstal otomatis dapat diedit penuh hanya karena aplikasi tersebut terlihat pada daftar sistem.
+
+### 34.3 Edit ToolBox — Self Edit
+
+Pilihan `Edit ToolBox` membuka ToolBox sendiri sebagai target Editor.
+
+Self-edit dibatasi pada surface/capability yang memang dinyatakan editable, seperti UI declarative, style, layout, asset, binding, dan flow yang diizinkan. Kernel/core tidak boleh menjadi target perubahan visual langsung.
+
+Alur aman:
+
+```text
+Edit ToolBox
+↓
+Working State
+↓
+Validate
+↓
+Save
+↓
+Recovery tetap tersedia
+```
+
+Dengan rancangan ini, entry utama tetap sederhana:
+
+```text
+EDITOR
+├─ Proyek Tersimpan
+├─ Aplikasi Terinstal
+└─ Edit ToolBox
+```
+
+Satu Editor menjadi pintu masuk bersama, sementara UI/Logic/Data/Binding/Asset tetap dipisahkan pada capability/runtime internal dan hanya bagian yang diperlukan yang aktif.
