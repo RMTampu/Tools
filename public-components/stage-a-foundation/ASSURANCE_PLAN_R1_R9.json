@@ -3,13 +3,13 @@
   "domains": {
     "R1": {"applicability":"APPLICABLE","methods":["M01","M02","M03","M10","M11","M14","M18","M19","M25","M26"],"proof":["contract invariants","boundary/self tests","cross-product property tests","host JVM tests","mutation challenge"]},
     "R2": {"applicability":"APPLICABLE","methods":["M01","M02","M03","M05","M08","M12","M13","M20"],"proof":["thread-safe registry/recovery","8000 concurrent admission","bounded diagnostics","normalized PSS/memory-class resource policy","idle zero-work Stage A profile"]},
-    "R3": {"applicability":"APPLICABLE","methods":["M02","M04","M11","M12","M15","M16","M18","M20"],"proof":["recovery states","bootstrap","process restart durable witness","Safe UI restricted mapping"]},
+    "R3": {"applicability":"APPLICABLE","methods":["M02","M04","M11","M12","M15","M16","M18","M20"],"proof":["recovery states","bootstrap","process restart durable witness","Safe UI restricted mapping","terminal quarantine action"]},
     "R4": {"applicability":"APPLICABLE","methods":["M01","M02","M03","M09","M11","M12","M14","M20"],"proof":["Android AtomicFile production adapter","versioned SHA-256 codec","process-restart round trip","corruption rejection"]},
     "R5": {"applicability":"APPLICABLE","methods":["M01","M03","M05","M20"],"proof":["Android permission provider","special access fail-closed unsupported","no network authority","forbidden API scan"]},
-    "R6": {"applicability":"APPLICABLE","methods":["M01","M02","M03","M04","M07","M08","M09","M21","M22","M23"],"proof":["pinned JDK/SDK/build-tools/actions","manual API30 test APK build/sign/install","source hashes","CI provenance"]},
+    "R6": {"applicability":"APPLICABLE","methods":["M01","M02","M03","M04","M07","M08","M09","M21","M22","M23"],"proof":["pinned JDK/SDK/build-tools/actions","manual API30 test APK build/sign/install","22 production-source hashes","CI provenance"]},
     "R7": {"applicability":"N_A_SCOPE_PROVEN","methods":["M01"],"proof":["no native/JNI/plugin/reflection/dynamic code in Stage A production source"]},
-    "R8": {"applicability":"APPLICABLE","methods":["M01","M02","M03","M05","M20","M21","M22"],"proof":["platform-widget Safe UI production source","API30 emulator rendering witness","restricted-state contract","no Component Registry dependency"]},
-    "R9": {"applicability":"APPLICABLE","methods":["M01","M02","M03","M04","M06","M09","M12","M16","M17","M18","M19","M20","M21","M22","M24"],"proof":["stage traceability","component revalidation","host runtime witness","cross-domain simulator","mutation","source/provenance binding","unknown/skipped closure"]}
+    "R8": {"applicability":"APPLICABLE","methods":["M01","M02","M03","M05","M20","M21","M22"],"proof":["platform-widget Safe UI production source","production SafeUi action policy and Android adapter","API30 emulator render/action witness","restricted-state contract","unproven authority remains unavailable","no Component Registry dependency"]},
+    "R9": {"applicability":"APPLICABLE","methods":["M01","M02","M03","M04","M06","M09","M12","M16","M17","M18","M19","M20","M21","M22","M24"],"proof":["stage traceability","component revalidation","host runtime witness including SafeUi actions","cross-domain simulator","authority mutation challenge","22-source/provenance binding","unknown/skipped closure"]}
   },
   "projectId": "ToolBox",
   "publicClaimBoundary": {"api30HostRuntimeClaimed":true,"finalAndroid11Arm64RuntimeClaimed":false,"finalApplicationSafe100Claimed":false,"firebaseUsed":false,"stageAReadyPrivateAllowedAfterAllProofPass":true},
