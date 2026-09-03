@@ -22,6 +22,19 @@ permission.storage.read
 
 Label pengguna tidak menjadi Stable ID.
 
+Batas input wajib:
+
+```text
+MAX_STABLE_ID_LENGTH = 128
+MAX_VERSION_LENGTH = 64
+MAX_EXTERNAL_REF_LENGTH = 256
+MAX_COLLECTION_SIZE = 256
+MAX_BUNDLE_ENTRIES = 512
+MAX_REGISTRY_ENTRIES = 4096
+```
+
+Input di luar batas tersebut harus fail-closed dengan `RESOURCE_LIMIT`. Batas ini adalah bagian dari contract R1/R2 dan tidak boleh dihapus tanpa impact analysis serta pengulangan evidence R1–R9 yang terdampak.
+
 ## Tool Contract
 
 Input metadata:
@@ -115,12 +128,13 @@ Satu `ToolBundle` diterbitkan secara atomik ke `ProductRegistry`.
 Sebelum commit registry wajib memeriksa:
 
 1. seluruh Stable ID valid;
-2. tidak ada ID duplikat;
+2. tidak ada ID duplikat, termasuk duplikat lintas domain dalam bundle yang sama;
 3. provider ID sesuai tool bundle;
 4. daftar ID yang dideklarasikan Tool sama dengan isi bundle;
-5. permission/capability reference tersedia pada bundle atau registry yang sudah committed;
+5. permission/capability/event reference tersedia pada bundle atau registry yang sudah committed;
 6. dependency Tool tersedia bila diwajibkan;
-7. tidak ada state parsial bila validasi gagal.
+7. seluruh batas ukuran/resource terpenuhi;
+8. tidak ada state parsial bila validasi gagal.
 
 ## Lookup
 
@@ -130,6 +144,7 @@ Lookup hanya exact Stable ID. Nama/label mirip tidak boleh digunakan untuk konek
 
 ```text
 CONTRACT_INVALID
+RESOURCE_LIMIT
 DUPLICATE_ID
 PROVIDER_MISMATCH
 DEPENDENCY_MISSING
@@ -142,7 +157,11 @@ Failure publication tidak boleh menghapus entry registry yang sebelumnya valid.
 
 ## Thread safety
 
-Publication dan snapshot wajib thread-safe. Concurrent bundle publication tidak boleh menghasilkan partial registry state.
+Publication dan snapshot wajib thread-safe. Concurrent bundle publication tidak boleh menghasilkan partial registry state. Registry menggunakan satu synchronization boundary untuk publication/read/snapshot sehingga mutation publication terserialisasi.
+
+## Persistence / lifecycle boundary
+
+Registry Public ini bersifat in-memory dan tidak memiliki persistence, database, file state, Android lifecycle owner, process-death restore, recovery journal, atau rollback engine. Domain tersebut bukan bagian dari component contract ini dan hanya boleh ditambahkan melalui contract baru yang kembali menjalani assurance yang relevan.
 
 ## Executable boundary
 
@@ -153,6 +172,8 @@ Contract ini menyimpan metadata saja. Ia tidak mempunyai API untuk:
 - arbitrary reflection execution;
 - Android permission grant;
 - filesystem/network authority;
+- database/persistent storage authority;
+- UI/hardware/power authority;
 - Firebase/build/signing.
 
 Runtime Private menentukan adapter/execution policy setelah Promotion Package lulus preflight.
