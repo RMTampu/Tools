@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "contractId": "toolbox.stage.receiver.v1",
-  "contractVersion": "1.0.0",
+  "contractVersion": "1.1.0",
   "projectId": "ToolBox",
   "stageId": "A",
   "privacy": {
@@ -45,6 +45,30 @@
       "shape": "diagnostic.quarantine.v1",
       "required": true,
       "lifecycle": "non-sensitive-terminal-quarantine"
+    },
+    {
+      "slotId": "S07",
+      "shape": "module.registration.v1",
+      "required": true,
+      "lifecycle": "before-build-graph-resolution"
+    },
+    {
+      "slotId": "S08",
+      "shape": "app.dependency.binding.v1",
+      "required": true,
+      "lifecycle": "before-compile"
+    },
+    {
+      "slotId": "S09",
+      "shape": "source.placement.v1",
+      "required": true,
+      "lifecycle": "before-compile"
+    },
+    {
+      "slotId": "S10",
+      "shape": "module.descriptor.v1",
+      "required": true,
+      "lifecycle": "before-build-graph-resolution"
     }
   ],
   "compatibility": {
@@ -58,6 +82,8 @@
     "receiver.slot.missing",
     "receiver.slot.duplicate",
     "receiver.lifecycle.order.invalid",
-    "receiver.binding.incompatible"
+    "receiver.binding.incompatible",
+    "receiver.source.placement.invalid",
+    "receiver.module.graph.invalid"
   ]
 }
