@@ -35,13 +35,13 @@ Build final tertandatangan dilakukan di repo private atau jalur private yang tid
 
 Jika pengguna memberi perintah kerja seperti lanjutkan, kerjakan, perbaiki, buat, build, test, cek sampai selesai, atau instruksi sejenis, agen wajib mengeksekusi pekerjaan sampai satu unit kerja penuh tuntas.
 
-Agen tidak boleh berhenti hanya dengan menjawab, menjelaskan rencana, membuat file, melakukan commit, atau mengirim workflow. Laporan akhir baru boleh diberikan setelah ada hasil nyata.
+Agen tidak boleh berhenti hanya dengan menjawab, menjelaskan rencana, membuat file status, membuat checkpoint, melakukan commit dokumentasi, atau mengirim workflow. Laporan akhir baru boleh diberikan setelah ada hasil nyata pada source/asset/test/build.
 
 Agen wajib:
 
 1. membaca MD dan file terkait sebelum mengubah repository;
-2. menentukan pekerjaan aktif dan hasil akhir yang harus dicapai;
-3. melakukan perubahan yang diperlukan;
+2. menentukan pekerjaan aktif dan hasil akhir teknis yang harus dicapai;
+3. melakukan perubahan implementasi yang diperlukan pada source, asset, test, workflow, atau konfigurasi nyata;
 4. menjalankan test/build/check yang relevan;
 5. jika memakai GitHub Actions, memantau run aktif sampai selesai;
 6. membaca log run aktif, bukan hanya melihat status commit;
@@ -52,6 +52,24 @@ Agen wajib:
 Agen dilarang membuat pengguna harus mengetik cek, lanjutkan, ulang, atau perintah serupa hanya agar agen meneruskan pekerjaan yang sama.
 
 Selama pekerjaan belum tuntas, agen wajib tetap memantau proses aktif dan melanjutkan tindakan yang diperlukan.
+
+## Larangan Laporan Palsu
+
+Checkpoint, file status, audit singkat, ringkasan MD, atau klaim PASS dokumen tidak boleh dianggap sebagai penyelesaian pekerjaan implementasi.
+
+Jika pengguna meminta "lanjutkan pekerjaan", "kerjakan tahap", "pematangan publik", "build", "test", atau perintah kerja sejenis, hasil yang sah minimal harus berisi salah satu dari ini:
+
+- perubahan source aplikasi;
+- perubahan asset aplikasi;
+- perubahan test yang memverifikasi fitur;
+- perubahan workflow/build konfigurasi yang dibutuhkan;
+- hasil run test/build yang sudah dipantau sampai selesai;
+- artifact hasil build/test;
+- blocker nyata yang mencegah semua aksi teknis di atas.
+
+Agen tidak boleh membuat file seperti STATUS, CHECKPOINT, PROOF, atau laporan sejenis sebagai pengganti pekerjaan teknis.
+
+Membuat atau memperbarui Markdown hanya boleh menjadi pekerjaan utama jika pengguna secara eksplisit meminta perubahan dokumen/aturan/MD. Jika pengguna meminta implementasi atau pematangan aplikasi, Markdown hanya boleh menjadi pendukung, bukan hasil utama.
 
 ## Batas Berhenti yang Sah
 
@@ -67,7 +85,7 @@ Jika berhenti karena blocker, agen wajib menjelaskan blocker secara singkat, men
 
 ## Batas Tahap Publik
 
-Untuk pekerjaan di repo publik, pekerjaan dianggap tuntas hanya jika asset/source/test/dokumentasi yang diminta sudah matang, dicek, dan siap untuk tahap berikutnya.
+Untuk pekerjaan di repo publik, pekerjaan dianggap tuntas hanya jika asset/source/test/dokumentasi pendukung yang diminta sudah matang, dicek, dan siap untuk tahap berikutnya.
 
 Jika tujuan akhirnya adalah build final, signing, atau Firebase final test, pekerjaan publik berhenti pada kondisi siap masuk jalur private. Setelah itu agen wajib meminta izin atau credential yang diperlukan untuk jalur private.
 
