@@ -2,7 +2,7 @@
 
 ## Aturan Utama
 
-Instruksi pengguna terbaru menetapkan bahwa pola kerja pola lama antar repository dihapus.
+Instruksi pengguna terbaru menetapkan bahwa pola kerja pemisahan pengembangan antar repository sudah dihapus.
 
 ToolBox dikerjakan pada repo utama publik yang diarahkan pengguna. Repo private hanya dipakai untuk build final, signing, verifikasi signature, Firebase/final runtime test, dan release bila diperlukan.
 
@@ -10,7 +10,7 @@ ToolBox dikerjakan pada repo utama publik yang diarahkan pengguna. Repo private 
 
 Agen wajib membaca file ini sebelum mengubah repository.
 
-Jika ada file lama yang masih menyebut pola pola lama antar repository, pola lama antar repository, pola lama antar repository, pola lama antar repository, dummy receiver, atau pola lama antar repository, bagian itu dianggap tidak berlaku dan harus dibersihkan saat file terkait disentuh.
+Jika ada file lama yang masih menyebut pola pemisahan pengembangan antar repository, bagian itu dianggap tidak berlaku dan harus dibersihkan saat file terkait disentuh.
 
 ## Peran Repository
 
