@@ -2,7 +2,7 @@
 
 ## Status
 
-Dokumen ini menggantikan aturan lama Public-Private pola lama antar repository.
+Dokumen ini menggantikan aturan lama yang memisahkan pengembangan ToolBox antar repository.
 
 Mulai sekarang ToolBox memakai pola sederhana: repo utama publik untuk pengembangan dan pematangan aplikasi, repo private hanya untuk build final, signing, credential, Firebase/final runtime test, dan release sensitif.
 
@@ -60,4 +60,4 @@ Target utama tetap Android 11 / API 30 / arm64-v8a.
 
 Sederhana: pengembangan di repo publik, rahasia build/sign/final test di private.
 
-Tidak ada lagi mekanisme promosi tahap pola lama antar repository.
+Tidak ada lagi mekanisme promosi tahap antar repository.
