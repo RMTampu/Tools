@@ -16,6 +16,8 @@ import java.util.Set;
  * any committed map is changed, so a rejected ToolBundle cannot leave partial state.
  */
 public final class ProductRegistry {
+    public static final int MAX_REGISTRY_ENTRIES = 4096;
+
     private final Object lock = new Object();
     private final LinkedHashMap<String, Contracts.ToolContract> tools = new LinkedHashMap<>();
     private final LinkedHashMap<String, Contracts.ComponentContract> components = new LinkedHashMap<>();
@@ -85,6 +87,7 @@ public final class ProductRegistry {
         Contracts.ToolContract tool = bundle.tool();
 
         requireUniqueBundleGlobalIds(bundle);
+        requireRegistryCapacity(bundle.allIds().size());
         requireNewGlobalId(tool.id());
         requireUniqueNewIds(bundle.components(), "component");
         requireUniqueNewIds(bundle.actions(), "action");
@@ -136,6 +139,23 @@ public final class ProductRegistry {
         });
 
         bundle.events().forEach(event -> requireProvider(tool.id(), event.providerToolId(), event.id()));
+    }
+
+    private void requireRegistryCapacity(int incomingEntries) {
+        int current = currentEntryCountLocked();
+        if (incomingEntries > MAX_REGISTRY_ENTRIES - current) {
+            throw new ContractException(
+                    "RESOURCE_LIMIT",
+                    "Registry capacity exceeded: current=" + current
+                            + " incoming=" + incomingEntries
+                            + " max=" + MAX_REGISTRY_ENTRIES
+            );
+        }
+    }
+
+    private int currentEntryCountLocked() {
+        return tools.size() + components.size() + actions.size()
+                + capabilities.size() + events.size() + permissions.size();
     }
 
     private static void requireUniqueBundleGlobalIds(Contracts.ToolBundle bundle) {
