@@ -129,6 +129,11 @@ def validate(contract, wiring, acceptance, contract_digest):
     for sid, (_, provider, _) in EXPECTED_SLOTS.items():
         need(binding_map[sid]["providerId"] == provider, "provider mismatch")
 
+    need(binding_map["S04"]["values"] == {
+        "ActionsAccessor": "safeUiActions",
+        "ModelAccessor": "safeUiModel",
+        "RendererClass": "io.toolbox.stagea.android.AndroidSafeUi",
+    }, "safe-ui production behavior declaration")
     need(binding_map["S07"]["values"] == {"ModuleIds": "toolbox-runtime-safety-contracts,toolbox-stage-a-foundation"}, "module registration declaration")
     need(binding_map["S08"]["values"] == {"ModuleIds": "toolbox-runtime-safety-contracts,toolbox-stage-a-foundation"}, "app dependency declaration")
     need(binding_map["S09"]["values"] == {"SourceGroups": "runtime-contracts-reuse,runtime-safety-import,stage-a-foundation-import,stage-a-android-host-import"}, "source placement declaration")
@@ -187,6 +192,10 @@ def self_test(contract, wiring, acceptance, digest):
     must_reject("wrong-provider", contract, w, acceptance)
 
     w = copy.deepcopy(wiring)
+    del w["bindings"][3]["values"]["ActionsAccessor"]
+    must_reject("safe-ui-actions-accessor-missing", contract, w, acceptance)
+
+    w = copy.deepcopy(wiring)
     w["bindings"][8]["values"]["SourceGroups"] += ",undeclared-private-group"
     must_reject("undeclared-source-group", contract, w, acceptance)
 
@@ -219,7 +228,7 @@ def main():
             "schemaVersion": 1,
             "status": "PASS",
             "claim": "PUBLIC_STAGE",
-            "verifier": "independent-stage-a-wiring-oracle-v2",
+            "verifier": "independent-stage-a-wiring-oracle-v3",
             "contractSha256": digest,
             "wiringManifestSha256": sha(WIRING_PATH),
             "acceptanceSchemaSha256": sha(ACCEPTANCE_PATH),
@@ -227,6 +236,7 @@ def main():
             "requiredSlotCoverage": len(EXPECTED_SLOTS),
             "runtimeSlotCount": 6,
             "buildAndPlacementSlotCount": 4,
+            "safeUiProductionActionsBound": True,
             "mutationEscape": 0,
             "mutations": mutations,
             "privateContentUsed": False,
@@ -241,6 +251,7 @@ def main():
         return 2
     print("STAGE_A_INDEPENDENT_WIRING_VERIFY = PASS")
     print("STAGE_A_RECEIVER_SLOT_COUNT = 10")
+    print("STAGE_A_SAFE_UI_ACTIONS_BOUND = 1")
     print("STAGE_A_WIRING_MUTATION_ESCAPE = 0")
     print("PRIVATE_CONTENT_USED = 0")
     print("PUBLIC_FIREBASE_ACCESS = 0")
