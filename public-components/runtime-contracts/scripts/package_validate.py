@@ -6,12 +6,13 @@ import json
 import os
 from pathlib import Path
 import struct
-import sys
 import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
 BUILD = ROOT / "build"
-JAR = BUILD / "package" / "toolbox-runtime-contracts-0.1.0.jar"
+PACKAGE = BUILD / "package"
+JAR = PACKAGE / "toolbox-runtime-contracts-0.1.0.jar"
+SOURCE_ZIP = PACKAGE / "toolbox-runtime-contracts-0.1.0-sources.zip"
 SUMMARY = BUILD / "test-summary.txt"
 PROMOTION = BUILD / "promotion"
 MANIFEST = PROMOTION / "promotion-manifest.json"
@@ -27,6 +28,23 @@ def sha256(path: Path) -> str:
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             h.update(block)
     return h.hexdigest()
+
+
+def write_deterministic_source_zip(files: list[Path]) -> dict[str, str]:
+    PACKAGE.mkdir(parents=True, exist_ok=True)
+    hashes: dict[str, str] = {}
+    with zipfile.ZipFile(SOURCE_ZIP, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+        for path in sorted(files, key=lambda p: p.as_posix()):
+            relative = path.relative_to(ROOT).as_posix()
+            data = path.read_bytes()
+            hashes[relative] = hashlib.sha256(data).hexdigest()
+            info = zipfile.ZipInfo(relative, date_time=(1980, 1, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.external_attr = 0o100644 << 16
+            archive.writestr(info, data)
+    if not SOURCE_ZIP.is_file() or SOURCE_ZIP.stat().st_size == 0:
+        fail("source archive missing or empty")
+    return hashes
 
 
 if not JAR.is_file() or JAR.stat().st_size == 0:
@@ -45,6 +63,11 @@ for required in (
         fail(f"required evidence missing: {required}")
 
 source_root = ROOT / "src" / "main" / "java"
+source_files = sorted(source_root.rglob("*.java"))
+contract_doc = ROOT / "CONTRACT.md"
+if not source_files or not contract_doc.is_file():
+    fail("promotable source or contract documentation missing")
+
 forbidden_tokens = (
     "DexClassLoader",
     "PathClassLoader",
@@ -58,7 +81,7 @@ forbidden_tokens = (
     "TOOLBOX_SOURCE_TOKEN",
     "SIGNING_KEY",
 )
-for source in source_root.rglob("*.java"):
+for source in source_files:
     text = source.read_text(encoding="utf-8")
     for token in forbidden_tokens:
         if token in text:
@@ -87,13 +110,24 @@ with zipfile.ZipFile(JAR) as archive:
         if major > 55:
             fail(f"class requires newer than Java 11: {name} major={major}")
 
+source_hashes = write_deterministic_source_zip([contract_doc, *source_files])
+with zipfile.ZipFile(SOURCE_ZIP) as archive:
+    archived = sorted(name for name in archive.namelist())
+    expected = sorted(source_hashes)
+    if archived != expected:
+        fail("source archive file list mismatch")
+    for relative, expected_hash in source_hashes.items():
+        actual_hash = hashlib.sha256(archive.read(relative)).hexdigest()
+        if actual_hash != expected_hash:
+            fail(f"source archive hash mismatch: {relative}")
+
 PROMOTION.mkdir(parents=True, exist_ok=True)
 dependency_digest = hashlib.sha256(b"runtimeDependencies=0;javaRelease=11").hexdigest()
 source_sha = os.environ.get("GITHUB_SHA", "LOCAL_NOT_GITHUB")
 workflow_run = os.environ.get("GITHUB_RUN_ID", "LOCAL_NOT_GITHUB")
 
 payload = {
-    "schemaVersion": 1,
+    "schemaVersion": 2,
     "status": "READY_PRIVATE",
     "projectId": "ToolBox",
     "componentId": "public.runtime-contracts",
@@ -122,6 +156,13 @@ payload = {
         "sizeBytes": JAR.stat().st_size,
         "classMajorMax": 55,
     },
+    "sourceArchive": {
+        "fileName": SOURCE_ZIP.name,
+        "sha256": sha256(SOURCE_ZIP),
+        "sizeBytes": SOURCE_ZIP.stat().st_size,
+        "filesSha256": source_hashes,
+        "promotionAllowed": True,
+    },
     "testStatus": {
         "unit": "PASS",
         "failure": "PASS",
@@ -135,9 +176,10 @@ payload = {
         "test-output.txt",
         "simulator-output.txt",
     ],
-    "promotionScope": "PUBLIC_COMPONENT_ONLY",
+    "promotionScope": "PUBLIC_COMPONENT_SOURCE_AND_BINARY",
     "privateContentIncluded": False,
 }
 MANIFEST.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 print(f"PACKAGE_VALIDATION = PASS jar_sha256={payload['artifact']['sha256']}")
+print(f"SOURCE_SNAPSHOT = PASS source_sha256={payload['sourceArchive']['sha256']}")
 print("PROMOTION_STATUS = READY_PRIVATE")
