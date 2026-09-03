@@ -2,7 +2,7 @@
 
 ## Status
 
-Dokumen ini menggantikan aturan lama Public-Private lintas repo.
+Dokumen ini menggantikan aturan lama Public-Private pola lama antar repository.
 
 Mulai sekarang ToolBox memakai pola sederhana: repo utama publik untuk pengembangan dan pematangan aplikasi, repo private hanya untuk build final, signing, credential, Firebase/final runtime test, dan release sensitif.
 
@@ -36,25 +36,9 @@ Repo private hanya dipakai untuk hal yang tidak boleh terlihat publik:
 
 Repo private bukan tempat memecah tahap pengembangan atau mengulang trial-and-error fitur.
 
-## 3. Aturan Lintas Repo Lama Dihapus
+## 3. Aturan Lama Dihapus
 
-Aturan berikut tidak berlaku lagi:
-
-- Public Research / Test / Staging sebagai repo terpisah;
-- Private Master sebagai source of truth pengembangan;
-- Promotion Package;
-- Stage Capsule;
-- STAGE_READY_PRIVATE;
-- COMPONENT_READY_PRIVATE;
-- Private Receiver Contract;
-- Dummy Private Host;
-- Receiver Adapter;
-- Public Handoff Acceptance Contract;
-- No-Private-Implementation Gate lintas repo;
-- wiring manifest antar repo;
-- rehearsal khusus untuk mencocokkan receiver private.
-
-Jika istilah lama itu muncul di dokumen lain sebagai aturan kerja, bagian tersebut harus dihapus atau diganti dengan aturan ini.
+Semua pola kerja lama yang memisahkan pengembangan aplikasi ke beberapa repository sudah dihapus. Jika dokumen lain masih memuat aturan semacam itu, bagian tersebut tidak berlaku dan harus diganti dengan aturan ini.
 
 ## 4. Build
 
@@ -76,4 +60,4 @@ Target utama tetap Android 11 / API 30 / arm64-v8a.
 
 Sederhana: pengembangan di repo publik, rahasia build/sign/final test di private.
 
-Tidak ada lagi mekanisme promosi tahap lintas repo.
+Tidak ada lagi mekanisme promosi tahap pola lama antar repository.
