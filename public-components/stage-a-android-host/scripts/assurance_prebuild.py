@@ -19,8 +19,10 @@ assert handoff["privateImplementationRequired"] is False
 assert handoff["privateWiringOnly"] is True
 assert set(handoff["productionAdapters"])==expected_adapters and len(handoff["productionAdapters"])==9
 assert any("safeUiActions" in item for item in handoff["privateWiringRequirements"])
+assert any("same ProductRegistry instance" in item for item in handoff["privateWiringRequirements"])
 assert "SAFE_UI_ACTIONS_USE_PUBLIC_PRODUCTION_ADAPTER_ONLY" in contract["invariants"]
 assert "SAFE_UI_UNPROVEN_AUTHORITY_STAYS_UNAVAILABLE" in contract["invariants"]
+assert contract["privateWiring"]["productRegistry"]=="same ProductRegistry instance"
 assert "safeUiActions" in contract["privateWiring"]["safeUi"] and "forbidden" in contract["privateWiring"]["safeUi"]
 assert set(plan["domains"])=={f"R{i}" for i in range(1,10)}
 assert plan["domains"]["R7"]["applicability"]=="N_A_SCOPE_PROVEN"
@@ -40,16 +42,19 @@ assert "Debug.getPss()" in (ROOT/"src/main/java/io/toolbox/stagea/android/Androi
 assert "getMemoryClass()" in (ROOT/"src/main/java/io/toolbox/stagea/android/AndroidResourcePolicyProvider.java").read_text()
 assert "NORMALIZED_BUDGET" in (ROOT/"src/main/java/io/toolbox/stagea/android/NormalizedResourceMath.java").read_text()
 assert "implements AndroidSafeUi.Actions" in (ROOT/"src/main/java/io/toolbox/stagea/android/AndroidSafeUiActions.java").read_text()
-assert "safeUiActions()" in (ROOT/"src/main/java/io/toolbox/stagea/android/AndroidStageAHost.java").read_text()
+host_source=(ROOT/"src/main/java/io/toolbox/stagea/android/AndroidStageAHost.java").read_text()
+assert "safeUiActions()" in host_source and "ProductRegistry productRegistry()" in host_source
 assert "usesCleartextTraffic=\"false\"" in (ROOT/"AndroidManifest.xml").read_text()
 hashes={p.relative_to(REPO).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}
 evidence={"schemaVersion":1,"projectId":"ToolBox","stageId":"A","componentId":"public.stage-a-android-host",
           "status":"PASS","productionSourceCount":9,"productionAdapterUniverse":"PASS","androidApiContract":30,"externalRuntimeDependencies":0,
           "resourceMapping":"PSS_NORMALIZED_TO_ANDROID_MEMORY_CLASS","stageAWorkloadProfile":"IDLE_ZERO_WORK_NO_SPECULATIVE_HEAVY_THRESHOLD",
-          "durableStore":"ANDROID_ATOMIC_FILE_PLUS_SHA256_VERSIONED_CODEC","safeUi":"ANDROID_PLATFORM_WIDGETS_WITH_PUBLIC_PRODUCTION_ACTIONS",
-          "safeUiActions":"PUBLIC_PRODUCTION_ADAPTER_FAIL_CLOSED","r7":"N_A_SCOPE_PROVEN","privateContentIncluded":0,"networkAuthority":0,"firebaseUsed":0,"sourceHashes":hashes}
+          "durableStore":"ANDROID_ATOMIC_FILE_PLUS_SHA256_VERSIONED_CODEC","sharedProductRegistryAccessor":"PUBLIC_PRODUCTION_HOST_ACCESSOR",
+          "safeUi":"ANDROID_PLATFORM_WIDGETS_WITH_PUBLIC_PRODUCTION_ACTIONS","safeUiActions":"PUBLIC_PRODUCTION_ADAPTER_FAIL_CLOSED",
+          "r7":"N_A_SCOPE_PROVEN","privateContentIncluded":0,"networkAuthority":0,"firebaseUsed":0,"sourceHashes":hashes}
 (OUT/"android-host-prebuild-evidence.json").write_text(json.dumps(evidence,indent=2,sort_keys=True)+"\n")
 print("STAGE_A_ANDROID_HOST_PREBUILD = PASS")
 print("ANDROID_HOST_PRODUCTION_SOURCE_COUNT=9")
 print("ANDROID_HOST_PRODUCTION_ADAPTER_UNIVERSE=PASS")
+print("ANDROID_HOST_SHARED_PRODUCT_REGISTRY_ACCESSOR=PASS")
 print("ANDROID_HOST_SAFE_UI_ACTIONS=PUBLIC_PRODUCTION")
