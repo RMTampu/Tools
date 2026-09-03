@@ -18,6 +18,9 @@ on:
       - 'AGENT_PROCEDURE_EXECUTION_RULES.md'
       - 'APPLICATION_SAFE_100_PROCESS.md'
       - 'APP_SAFE_R*.md'
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
