@@ -1,0 +1,23 @@
+{
+  "componentId": "public.stage-a-android-host",
+  "componentVersion": "0.1.0",
+  "contractId": "toolbox.stage.a.android-host",
+  "contractVersion": "1.0.0",
+  "externalRuntimeDependencies": 0,
+  "firebase": false,
+  "privateContentRequired": false,
+  "productionSourceCount": 8,
+  "projectId": "ToolBox",
+  "promotionRole": "PART_OF_CONSOLIDATED_STAGE_A_ONLY",
+  "purpose": "Production-ready Android API30 host adapters for Stage A public contracts so Private integration is wiring-only.",
+  "schemaVersion": 1,
+  "stageId": "A",
+  "target": {
+    "android": "11",
+    "minSdk": 30,
+    "productTarget": "Android 11 / API 30 / arm64-v8a",
+    "publicRuntimeWitnessAbi": "x86_64",
+    "releaseAbi": "arm64-v8a",
+    "targetSdk": 30
+  }
+}

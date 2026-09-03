@@ -1,0 +1,34 @@
+{
+  "changeInvalidation": {
+    "heavyWorkAdded": "replace idle workload profile with measured benchmark-backed profile and rerun R2/R9",
+    "permissionKindSpecialAccessAdded": "add explicit special-access adapter and tests"
+  },
+  "contractId": "toolbox.stage.a.android-host",
+  "contractVersion": "1.0.0",
+  "invariants": [
+    "APP_PRIVATE_DURABLE_STATE_ONLY",
+    "ATOMIC_OLD_VALID_OR_NEW_VALID_WRITE",
+    "VERSIONED_CHECKSUM_STATE_FORMAT",
+    "CORRUPT_STATE_FAILS_CLOSED",
+    "RECOVERY_STATE_SURVIVES_PROCESS_RESTART",
+    "PERMISSION_STATE_FROM_ANDROID_PLATFORM_AND_REGISTRY",
+    "SPECIAL_ACCESS_WITHOUT_SPECIFIC_ADAPTER_IS_UNSUPPORTED",
+    "RESOURCE_MEMORY_UNITS_ARE_NORMALIZED_RATIO_NOT_BYTES",
+    "RESOURCE_MEMORY_INPUT_USES_PSS_AND_MEMORY_CLASS",
+    "ANDROID_LOW_MEMORY_FORCES_REJECT_PRESSURE",
+    "STAGE_A_IDLE_WORK_PROFILE_HAS_ZERO_CURRENT_WORK",
+    "HEAVY_WORK_PROFILE_REQUIRES_MEASURED_CAPACITY",
+    "SAFE_UI_USES_PLATFORM_WIDGETS_NOT_COMPONENT_REGISTRY",
+    "SAFE_UI_RESTRICTED_STATES_ONLY",
+    "NO_NETWORK_AUTHORITY",
+    "NO_FIREBASE_AUTHORITY",
+    "NO_NATIVE_PLUGIN_DYNAMIC_CODE"
+  ],
+  "privateWiring": {
+    "applicationBootstrap": "AndroidStageAHost.bootstrap before kernel heavy startup",
+    "kernelStateStore": "thin delegate to AndroidAtomicStateStore",
+    "productRegistry": "same ProductRegistry instance",
+    "safeUi": "render when SafeUiModel visible/restricted"
+  },
+  "schemaVersion": 1
+}

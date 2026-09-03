@@ -1,0 +1,28 @@
+{
+  "componentId": "public.stage-a-android-host",
+  "firebase": false,
+  "handoffType": "STAGE_A_ANDROID_HOST_PRODUCTION_ADAPTERS",
+  "privateImplementationRequired": false,
+  "privateWiringOnly": true,
+  "productionAdapters": [
+    "AndroidAtomicStateStore",
+    "AndroidRecoveryStateStore",
+    "AndroidPermissionStateProvider",
+    "AndroidResourcePolicyProvider",
+    "AndroidSafeUi",
+    "AndroidStageAHost",
+    "StateFileCodec",
+    "NormalizedResourceMath"
+  ],
+  "privateWiringRequirements": [
+    "Delegate existing KernelStateStore port to AndroidAtomicStateStore without changing durable semantics.",
+    "Use the same ProductRegistry instance for product metadata and AndroidStageAHost.",
+    "Call AndroidStageAHost.bootstrap before normal kernel startup; restricted SafeUiModel blocks normal execution.",
+    "Stage A idle workload profile is valid only while Stage A introduces no heavy action workload.",
+    "Do not claim x86_64 Public emulator as final arm64 runtime evidence."
+  ],
+  "projectId": "ToolBox",
+  "requiredStageStatus": "STAGE_A_READY_PRIVATE",
+  "schemaVersion": 1,
+  "stageId": "A"
+}

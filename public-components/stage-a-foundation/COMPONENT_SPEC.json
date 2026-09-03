@@ -1,51 +1,24 @@
 {
-  "schemaVersion": 1,
-  "projectId": "ToolBox",
-  "stageId": "A",
   "componentId": "public.stage-a-foundation",
-  "componentVersion": "0.1.0",
+  "componentVersion": "0.2.0",
   "contractId": "toolbox.stage.a.foundation",
-  "contractVersion": "1.0.0",
-  "scope": "PUBLIC_STAGE_CLOSURE",
-  "target": {
-    "productTarget": "Android 11 / API 30",
-    "javaRelease": 11,
-    "abiSpecificCode": false
-  },
-  "purpose": [
-    "stage-level registry integration surrogate",
-    "fail-closed execution admission",
-    "recovery bootstrap and durable-store contract",
-    "diagnostic mapping and bounded health aggregation",
-    "safe UI state contract"
-  ],
-  "runtimeAuthority": {
-    "androidLifecycle": false,
-    "persistentStorageImplementation": false,
-    "network": false,
-    "permissionGrant": false,
-    "nativeOrPluginLoading": false,
-    "dynamicCodeLoading": false,
-    "androidUiImplementation": false,
-    "signing": false,
-    "firebase": false
-  },
+  "contractVersion": "1.1.0",
   "dependencies": [
-    {
-      "componentId": "public.runtime-contracts",
-      "componentVersion": "0.1.0",
-      "contractId": "toolbox.runtime.metadata",
-      "contractVersion": "1.0.0"
-    },
-    {
-      "componentId": "public.runtime-safety-contracts",
-      "componentVersion": "0.1.0",
-      "contractId": "toolbox.runtime.safety",
-      "contractVersion": "1.0.0"
-    }
+    {"componentId":"public.runtime-contracts","componentVersion":"0.1.0","contractId":"toolbox.runtime.metadata","contractVersion":"1.0.0"},
+    {"componentId":"public.runtime-safety-contracts","componentVersion":"0.1.0","contractId":"toolbox.runtime.safety","contractVersion":"1.0.0"},
+    {"componentId":"public.stage-a-android-host","componentVersion":"0.1.0","contractId":"toolbox.stage.a.android-host","contractVersion":"1.0.0"}
   ],
-  "promotionBoundary": "STAGE_READY_PRIVATE_ONLY",
+  "finalApplicationSafe100Claimed": false,
   "privateContentRequired": false,
+  "privateImplementationRequired": false,
   "privateIntegrationClaimed": false,
-  "finalApplicationSafe100Claimed": false
+  "privateWiringOnly": true,
+  "productionSourceCount": 20,
+  "projectId": "ToolBox",
+  "promotionBoundary": "STAGE_READY_PRIVATE_ONLY",
+  "purpose": ["stage-level registry integration surrogate","fail-closed execution admission","production-ready Android durable recovery/state adapters","production-ready Android permission/resource host adapters","diagnostic mapping and bounded health aggregation","production-ready minimal Safe UI"],
+  "schemaVersion": 1,
+  "scope": "PUBLIC_STAGE_CLOSURE",
+  "stageId": "A",
+  "target": {"abiSpecificCode":false,"finalReleaseAbi":"arm64-v8a","javaRelease":11,"productTarget":"Android 11 / API 30","publicAndroidHostRuntimeWitness":"API 30 x86_64"}
 }
