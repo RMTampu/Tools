@@ -89,6 +89,10 @@ jobs:
         shell: bash
         run: python3 public-components/runtime-contracts/scripts/package_validate.py
 
+      - name: Bind sanitized integration handoff to Promotion Manifest
+        shell: bash
+        run: python3 public-components/runtime-contracts/scripts/bind_integration_handoff.py
+
       - name: Verify READY_PRIVATE manifest binding
         shell: bash
         run: |
@@ -118,7 +122,22 @@ jobs:
           assert hand['workflowRunId']==os.environ['GITHUB_RUN_ID']
           assert hand['privateContentIncluded'] is False
           assert hand['privateTrustManifestOwnedByPublic'] is False
+          assert hand['phaseArtifactSourceParityRequired'] is True
+          assert hand['alternateArtifactsRequirePrivateTrustBinding'] is True
+          assert hand['unboundRegressionArtifactFailsClosed'] is True
+          assert hand['r6HandoffAssurance']=='PASS'
+          assert hand['r9HandoffCompleteness']=='PASS'
+          bound=data['integrationHandoff']
+          assert bound['status']=='PASS'
+          assert bound['claim']=='PRIVATE_INTEGRATION_HANDOFF_CONTRACT'
+          assert bound['phaseArtifactSourceParityRequired'] is True
+          assert bound['alternateArtifactsRequirePrivateTrustBinding'] is True
+          assert bound['unboundRegressionArtifactFailsClosed'] is True
+          assert bound['r6HandoffAssurance']=='PASS'
+          assert bound['r9HandoffCompleteness']=='PASS'
+          assert bound['privateContentIncluded'] is False
           print('PRIVATE_INTEGRATION_HANDOFF_BINDING = PASS')
+          print('R6_R9_HANDOFF_BINDING = PASS')
           print('READY_PRIVATE_BINDING = PASS')
           PY
 
@@ -141,6 +160,7 @@ jobs:
             public-components/runtime-contracts/build/integration-handoff-evidence.json
             public-components/runtime-contracts/PRIVATE_INTEGRATION_REQUIREMENTS.json
             public-components/runtime-contracts/SANITIZED_PRIVATE_FAILURE_2026-09-03.md
+            public-components/runtime-contracts/R6_PRIVATE_HANDOFF_ASSURANCE_ADDENDUM.md
           if-no-files-found: error
           retention-days: 7
 
