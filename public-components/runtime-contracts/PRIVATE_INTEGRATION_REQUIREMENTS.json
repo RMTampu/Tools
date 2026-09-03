@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "projectId": "ToolBox",
+  "componentId": "public.runtime-contracts",
+  "componentVersion": "0.1.0",
+  "contractId": "toolbox.runtime.metadata",
+  "contractVersion": "1.0.0",
+  "integrationBoundary": "PRIVATE_HOST_ONLY",
+  "runtimeModel": "METADATA_ONLY",
+  "javaRelease": 11,
+  "externalRuntimeDependencies": 0,
+  "hostRequirements": {
+    "dependencyTrustInputUniverseRefreshRequired": true,
+    "dependencyTrustHashEvidenceRefreshRequired": true,
+    "refreshBeforeRegressionOrBuild": true,
+    "failClosedIfTrustStateNotProven": true,
+    "privateHostOwnsTrustManifest": true,
+    "publicMustNotKnowPrivateInputList": true
+  },
+  "forbiddenAssumptions": [
+    "promotion package automatically updates host dependency trust state",
+    "public repository may inspect or modify private trust inputs",
+    "stale host dependency evidence may be reused after integration input changes"
+  ]
+}
