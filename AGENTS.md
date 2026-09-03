@@ -53,6 +53,16 @@ Agen dilarang membuat pengguna harus mengetik cek, lanjutkan, ulang, atau perint
 
 Selama pekerjaan belum tuntas, agen wajib tetap memantau proses aktif dan melanjutkan tindakan yang diperlukan.
 
+## Gap Bukan Blocker
+
+Ketiadaan source, asset, test, workflow, konfigurasi build, struktur module, atau baseline implementasi bukan blocker jika pekerjaan yang diminta memang mencakup pembuatan atau pematangan bagian tersebut.
+
+Jika agen menemukan "belum ada source", "belum ada build.gradle", "belum ada settings.gradle", "belum ada registry", "belum ada test", atau gap sejenis, agen wajib membuat atau memperbaiki bagian yang hilang selama masih berada dalam scope pekerjaan dan tidak membutuhkan secret/izin khusus.
+
+Agen dilarang berhenti dengan alasan repository belum memiliki fondasi aplikasi jika pengguna meminta membangun atau mematangkan fondasi tersebut.
+
+Jawaban "belum bisa dikerjakan karena belum ada baseline" hanya sah jika baseline wajib berasal dari pengguna, mengandung rahasia, atau tidak boleh dibuat aman oleh agen. Jika baseline dapat dibuat dari rancangan dan aturan publik, agen wajib membuatnya.
+
 ## Larangan Laporan Palsu
 
 Checkpoint, file status, audit singkat, ringkasan MD, atau klaim PASS dokumen tidak boleh dianggap sebagai penyelesaian pekerjaan implementasi.
