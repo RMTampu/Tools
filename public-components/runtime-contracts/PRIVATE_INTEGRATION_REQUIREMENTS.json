@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "projectId": "ToolBox",
   "componentId": "public.runtime-contracts",
   "componentVersion": "0.1.0",
@@ -15,11 +15,21 @@
     "refreshBeforeRegressionOrBuild": true,
     "failClosedIfTrustStateNotProven": true,
     "privateHostOwnsTrustManifest": true,
-    "publicMustNotKnowPrivateInputList": true
+    "publicMustNotKnowPrivateInputList": true,
+    "toolchainArtifactSourceParityRequired": true,
+    "trustGenerationAndRegressionSourceParityRequired": true,
+    "alternateBuildToolArtifactsMustBeBoundBeforeRegression": true,
+    "regressionMustFailClosedOnUnboundBuildToolArtifact": true
   },
+  "allowedPrivateResolutionStrategies": [
+    "use the same already-trusted build-tool artifact source across trust generation and regression",
+    "or bind every alternate build-tool artifact identity into the Private trust state before regression"
+  ],
   "forbiddenAssumptions": [
     "promotion package automatically updates host dependency trust state",
     "public repository may inspect or modify private trust inputs",
-    "stale host dependency evidence may be reused after integration input changes"
+    "stale host dependency evidence may be reused after integration input changes",
+    "dependency trust success proves regression may resolve undeclared build-tool artifacts",
+    "trust generation may use one artifact source while regression silently uses another"
   ]
 }
