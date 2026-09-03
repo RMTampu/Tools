@@ -1,7 +1,7 @@
-name: ToolBox Application Prebuild Source Gate
+name: ToolBox Public Prebuild Research Gate
 
 on:
-  workflow_call:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -12,20 +12,30 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - name: Checkout caller source
+      - name: Enforce Public repository boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "RMTampu/Tools" || {
+            echo '::error::Workflow ini hanya boleh mengeksekusi source Public RMTampu/Tools.'
+            exit 1
+          }
+
+      - name: Checkout Public research source
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           persist-credentials: false
 
-      - name: Record source provenance
+      - name: Record Public provenance
         shell: bash
         run: |
           set -euo pipefail
           echo "SOURCE_REPOSITORY=$GITHUB_REPOSITORY"
           echo "SOURCE_COMMIT_SHA=$GITHUB_SHA"
           echo "SOURCE_REF=$GITHUB_REF"
-          echo "CI_REPOSITORY=RMTampu/Tools"
-          echo "CI_WORKFLOW_REF=${{ github.workflow_ref }}"
+          echo "EXECUTION_REPOSITORY=$GITHUB_REPOSITORY"
+          echo "EXECUTION_WORKFLOW_REF=${{ github.workflow_ref }}"
+          echo 'SCOPE=PUBLIC_RESEARCH_TEST_STAGING'
 
       - name: Setup Android command line tools
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699
@@ -54,14 +64,23 @@ jobs:
         shell: bash
         run: python3 verification/scripts/asset_prebuild_gate.py
 
-      - name: Upload prebuild evidence
+      - name: Upload Public research evidence
         if: always()
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
-          name: application-prebuild-source-evidence
+          name: public-prebuild-research-evidence
           path: |
             verification/evidence/dependency-trust.json
             verification/evidence/prebuild.json
             verification/evidence/asset-prebuild.json
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 1
+
+      - name: Auto Cleanup Public workspace
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          rm -rf verification/evidence
+          rm -rf "$RUNNER_TEMP"/toolbox-public-* 2>/dev/null || true
+          echo 'PUBLIC_WORKSPACE_AUTO_CLEANUP = DONE'
