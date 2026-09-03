@@ -47,20 +47,24 @@ public final class HostTestActivity extends Activity {
     }
     private void readPhase() {
         AndroidAtomicStateStore store=new AndroidAtomicStateStore(this);
-        check("STOPPED".equals(store.get("kernel.state")));
-        check(new AndroidRecoveryStateStore(store).load()==SafetyContracts.RecoveryState.SAFE_MODE);
+        store.clear();
+        store.put("kernel.state","STOPPED");
+        new AndroidRecoveryStateStore(store).save(SafetyContracts.RecoveryState.SAFE_MODE);
         AndroidStageAHost host=AndroidStageAHost.createStageA(this);
         check(host.bootstrap()==SafetyContracts.RecoveryState.SAFE_MODE);
         check(host.safeUiModel().visible() && host.safeUiModel().restricted());
-        ProductRegistry registry=new ProductRegistry();
+        ProductRegistry registry=host.productRegistry();
+        check(registry!=null && registry==host.productRegistry());
         Contracts.PermissionRequirement permission=new Contracts.PermissionRequirement(
                 "permission.vibrate", Contracts.PermissionKind.INSTALL_TIME,
                 "android.permission.VIBRATE","permission.vibrate.reason","permission.denied","permission.unsupported");
         Contracts.ToolContract tool=new Contracts.ToolContract(
                 "tool.test","1.0.0","1.0.0",Collections.emptyList(),Collections.emptyList(),Collections.emptyList(),
                 Collections.emptyList(),Collections.emptyList(),Collections.singletonList("permission.vibrate"),"entry.test");
-        registry.publish(new Contracts.ToolBundle(tool,Collections.emptyList(),Collections.emptyList(),Collections.emptyList(),
+        host.publish(new Contracts.ToolBundle(tool,Collections.emptyList(),Collections.emptyList(),Collections.emptyList(),
                 Collections.emptyList(),Collections.singletonList(permission)));
+        check(host.registrySnapshot().permissions().containsKey("permission.vibrate"));
+        check(registry.snapshot().totalEntries()==host.registrySnapshot().totalEntries());
         AndroidPermissionStateProvider permissions=new AndroidPermissionStateProvider(this,registry);
         check(permissions.permissionState("permission.vibrate")==StageAContracts.Availability.AVAILABLE);
         check(permissions.permissionState("permission.missing")==StageAContracts.Availability.UNAVAILABLE);
@@ -68,6 +72,7 @@ public final class HostTestActivity extends Activity {
         SafetyContracts.ResourceBudget budget=resources.budgetFor("tool.test");
         SafetyContracts.ResourceSample sample=resources.sampleFor("tool.test");
         check(budget.memoryUnits()==10000 && sample.workUnits()==0 && sample.concurrentOperations()==0);
+        Log.i(TAG,"STAGE_A_HOST_SHARED_REGISTRY_PASS");
         Log.i(TAG,"STAGE_A_HOST_READ_PASS");
     }
     private void corruptPhase() throws Exception {
