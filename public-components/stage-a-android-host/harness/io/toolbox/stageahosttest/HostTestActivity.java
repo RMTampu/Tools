@@ -8,7 +8,6 @@ import android.view.View;
 import io.toolbox.contracts.runtime.Contracts;
 import io.toolbox.contracts.runtime.ProductRegistry;
 import io.toolbox.contracts.safety.SafetyContracts;
-import io.toolbox.stagea.SafeUiPolicy;
 import io.toolbox.stagea.StageAContracts;
 import io.toolbox.stagea.android.AndroidAtomicStateStore;
 import io.toolbox.stagea.android.AndroidPermissionStateProvider;
@@ -82,20 +81,28 @@ public final class HostTestActivity extends Activity {
         Log.i(TAG,"STAGE_A_HOST_CORRUPTION_REJECT_PASS");
     }
     private void uiPhase() {
-        StageAContracts.SafeUiModel model=SafeUiPolicy.modelFor(SafetyContracts.RecoveryState.QUARANTINED);
-        final int[] calls={0};
-        View view=AndroidSafeUi.render(this,model,"Pemeriksaan keselamatan diperlukan.",new AndroidSafeUi.Actions(){
-            public String verifyIntegrity(){calls[0]++; return "Integritas diperiksa.";}
-            public String retryBootstrap(){calls[0]++; return "Bootstrap dijadwalkan ulang.";}
-            public String enterReadOnly(){calls[0]++; return "Mode baca-saja aktif.";}
-            public String exportSanitizedDiagnostics(){calls[0]++; return "Diagnostik aman siap.";}
-            public boolean canRestoreKnownGood(){return false;}
-            public String restoreKnownGood(){calls[0]++; return "Pemulihan tidak tersedia.";}
-            public boolean canQuarantine(){return false;}
-            public String quarantine(){calls[0]++; return "Karantina tidak tersedia.";}
-        });
-        check(view!=null && model.visible() && model.restricted());
+        AndroidAtomicStateStore store=new AndroidAtomicStateStore(this);
+        store.clear();
+        new AndroidRecoveryStateStore(store).save(SafetyContracts.RecoveryState.SAFE_MODE);
+        AndroidStageAHost host=AndroidStageAHost.createStageA(this);
+        check(host.bootstrap()==SafetyContracts.RecoveryState.SAFE_MODE);
+        StageAContracts.SafeUiModel model=host.safeUiModel();
+        check(model.visible() && model.restricted());
+        AndroidSafeUi.Actions actions=host.safeUiActions();
+        check(actions.verifyIntegrity().contains("health="));
+        check(actions.retryBootstrap().contains("SAFE_MODE"));
+        check(actions.enterReadOnly().contains("Mode aman"));
+        check(actions.exportSanitizedDiagnostics().contains("count="));
+        check(!actions.canRestoreKnownGood());
+        check(actions.restoreKnownGood().contains("belum memiliki authority"));
+        check(actions.canQuarantine());
+        View view=AndroidSafeUi.render(this,model,"Pemeriksaan keselamatan diperlukan.",actions);
+        check(view!=null);
         setContentView(view);
+        check(actions.quarantine().contains("QUARANTINED"));
+        check(host.safeUiModel().recoveryState()==SafetyContracts.RecoveryState.QUARANTINED);
+        check(!actions.canQuarantine());
+        Log.i(TAG,"STAGE_A_HOST_SAFE_UI_ACTIONS_PASS");
         Log.i(TAG,"STAGE_A_HOST_SAFE_UI_PASS");
     }
     private void dummyPhase(DummyReceiver receiver,String marker) {
