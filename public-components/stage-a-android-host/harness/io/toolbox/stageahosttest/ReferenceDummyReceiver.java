@@ -3,7 +3,6 @@ package io.toolbox.stageahosttest;
 import android.app.Activity;
 
 import io.toolbox.contracts.safety.SafetyContracts;
-import io.toolbox.stagea.StageAContracts;
 import io.toolbox.stagea.android.AndroidAtomicStateStore;
 import io.toolbox.stagea.android.AndroidStageAHost;
 
@@ -14,14 +13,15 @@ final class ReferenceDummyReceiver implements DummyReceiver {
         AndroidAtomicStateStore clean = new AndroidAtomicStateStore(activity);
         clean.clear();
 
+        ContractDrivenDummyIntegrationPlane plane = new ContractDrivenDummyIntegrationPlane();
         AndroidStageAHost host = AndroidStageAHost.createStageA(activity);
-        require(host.bootstrap() == SafetyContracts.RecoveryState.NORMAL);
-        StageAContracts.SafeUiModel ui = host.safeUiModel();
-        require(!ui.visible() && !ui.restricted());
-        require(host.registrySnapshot() != null);
-        require(host.durableStateStore() != null);
-        require(host.diagnostics() != null);
-        require(host.health() != null);
+        plane.bindProvider(host);
+        require(plane.registry() == host.productRegistry());
+        require(plane.bootstrap() == SafetyContracts.RecoveryState.NORMAL);
+        plane.markKernelReady();
+        require(!plane.routeRestrictedBeforeNormal());
+        plane.verifyClosed();
+        require(plane.registry() == host.productRegistry());
     }
 
     private static void require(boolean value) {
