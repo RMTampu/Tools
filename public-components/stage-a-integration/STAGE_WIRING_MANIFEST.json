@@ -9,7 +9,7 @@
       "providerId": "stage-a.registry",
       "values": {
         "HostClass": "io.toolbox.stagea.android.AndroidStageAHost",
-        "RegistryAccessor": "registrySnapshot"
+        "RegistryAccessor": "productRegistry"
       }
     },
     {
