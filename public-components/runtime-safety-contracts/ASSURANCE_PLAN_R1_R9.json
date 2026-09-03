@@ -1,0 +1,139 @@
+{
+  "schemaVersion": 1,
+  "framework": "APPLICATION_SAFE_100 Public component scope",
+  "projectId": "ToolBox",
+  "componentId": "public.runtime-safety-contracts",
+  "componentVersion": "0.1.0",
+  "contractId": "toolbox.runtime.safety",
+  "contractVersion": "1.0.0",
+  "scopeLock": {
+    "publicComponentOnly": true,
+    "privateContentIncluded": false,
+    "privateExecutionThroughPublic": false,
+    "publicFirebaseAccess": false,
+    "finalApplicationSafe100Claimed": false
+  },
+  "domains": {
+    "R1": {
+      "status": "APPLICABLE",
+      "methodsApplicable": ["M01","M02","M03","M04","M10","M11","M12","M14","M16","M17","M18","M19","M21","M25","M26"],
+      "proof": [
+        "executable validation and failure codes",
+        "boundary and negative tests",
+        "finite recovery transition exhaustive reference comparison",
+        "deterministic generative resource-guard differential tests",
+        "illegal transition and malformed input fault tests"
+      ]
+    },
+    "R2": {
+      "status": "APPLICABLE",
+      "methodsApplicable": ["M01","M02","M03","M04","M05","M06","M07","M08","M12","M13","M16","M18","M19","M20"],
+      "proof": [
+        "single-monitor synchronized mutable-state ownership",
+        "bounded diagnostic buffer with explicit overflow policy",
+        "bounded resource budgets and samples",
+        "forced concurrent recording and fatal-transition tests",
+        "source synchronization oracle and mutation challenges"
+      ]
+    },
+    "R3": {
+      "status": "APPLICABLE",
+      "methodsApplicable": ["M01","M02","M04","M12","M15","M16","M17","M18","M19","M20"],
+      "proof": [
+        "closed five-state recovery model",
+        "closed seven-event transition universe",
+        "exhaustive state-event reference comparison",
+        "safe-mode and terminal quarantine behavior",
+        "idempotent pressure/safe-mode/quarantine semantics"
+      ],
+      "scopeExclusions": [
+        "no Activity/Fragment/View/Compose lifecycle",
+        "no process-death persistence",
+        "no navigation/Intent",
+        "no IPC/Binder",
+        "no Service/Receiver/Worker",
+        "no durable journal/checkpoint/rollback implementation"
+      ]
+    },
+    "R4": {
+      "status": "N_A_SCOPE_PROVEN",
+      "methodsN/A": "M01..M20",
+      "reason": "component owns no database, file, DataStore, serialization, migration, cache persistence, journal, backup, restore, or durable recovery state"
+    },
+    "R5": {
+      "status": "APPLICABLE",
+      "methodsApplicable": ["M01","M02","M05","M17","M18","M20"],
+      "proof": [
+        "caller-supplied metadata is validated and bounded",
+        "source/package scan forbids network/filesystem/process/classloader/Firebase/signing authority",
+        "hostile malformed and oversized input tests fail closed"
+      ],
+      "scopeExclusions": [
+        "no authentication/authorization service",
+        "no permission grant authority",
+        "no network/TLS/remote endpoint",
+        "no secret/credential",
+        "no third-party SDK runtime dependency"
+      ]
+    },
+    "R6": {
+      "status": "APPLICABLE",
+      "methodsApplicable": ["M01","M02","M03","M04","M05","M06","M07","M08","M09","M12","M16","M20","M21","M22","M23"],
+      "proof": [
+        "pinned GitHub Actions and exact JDK/Python",
+        "javac --release 11 with warnings enabled",
+        "zero external runtime dependencies",
+        "deterministic reproducible JAR",
+        "namespace and class-major validation",
+        "package mutation challenge",
+        "source/artifact/workflow provenance binding"
+      ],
+      "scopeExclusions": [
+        "no APK manifest/variant/signing/install in Public component scope",
+        "no shrinker/obfuscation/native ABI packaging"
+      ]
+    },
+    "R7": {
+      "status": "N_A_SCOPE_PROVEN",
+      "methodsN/A": "M01..M23",
+      "reason": "no native/JNI, plugin engine, classloader, reflection execution, dynamic code, or third-party runtime library"
+    },
+    "R8": {
+      "status": "N_A_SCOPE_PROVEN",
+      "methodsN/A": "M01..M22",
+      "reason": "no UI, renderer, WebView, Android hardware API, background scheduling, wake lock, or power primitive"
+    },
+    "R9": {
+      "status": "APPLICABLE",
+      "methodsApplicable": ["M01","M02","M03","M04","M05","M06","M07","M09","M10","M11","M12","M13","M14","M15","M16","M17","M18","M19","M20","M21","M22","M24"],
+      "proof": [
+        "closed fault universe for R1/R2/R3/R5/R6",
+        "method-to-evidence trace",
+        "cross-domain recovery plus resource-pressure challenges",
+        "reference oracle diversity",
+        "mutation/fault injection",
+        "exact revision/workflow/artifact binding",
+        "zero unknown/skipped/not-proven/stale/fault-escape before READY_PRIVATE"
+      ],
+      "methodsN/A": ["M08","M23"],
+      "nAReason": "no universal property requiring formal proof allocation beyond finite exhaustive transition enumeration; production observability belongs to integrated Private product"
+    }
+  },
+  "crossDomainInteractions": [
+    "R1+R3 invalid recovery event must fail closed without state mutation",
+    "R2+R3 resource pressure drives deterministic degraded state without unbounded work",
+    "R2+R5 hostile diagnostic volume remains bounded by drop-oldest policy",
+    "R5+R6 promotable source cannot gain executable external authority",
+    "R1/R2/R3/R5+R6 evidence must bind to the exact Promotion Package"
+  ],
+  "promotionInvariant": {
+    "r1ToR8PrebuildClassificationRequired": true,
+    "buildTestRequired": true,
+    "simulatorRequired": true,
+    "failureMutationRequired": true,
+    "r9EvidenceCompletenessRequired": true,
+    "packageValidationRequired": true,
+    "autoCleanupRequired": true,
+    "readyPrivateOnlyAfterAllPass": true
+  }
+}
