@@ -12,14 +12,14 @@ handoff=json.loads((ROOT/"PRIVATE_INTEGRATION_REQUIREMENTS.json").read_text())
 assert spec["projectId"]=="ToolBox" and spec["stageId"]=="A"
 assert spec["componentId"]=="public.stage-a-android-host"
 assert spec["target"]["minSdk"]==30 and spec["target"]["targetSdk"]==30
-assert spec["privateContentRequired"] is False and spec["firebase"] is False
+assert spec["privateContentRequired"] is False and spec["firebase"] is False and spec["productionSourceCount"]==9
 assert handoff["handoffType"]=="STAGE_A_ANDROID_HOST_PRODUCTION_ADAPTERS"
 assert handoff["privateImplementationRequired"] is False
 assert handoff["privateWiringOnly"] is True
 assert set(plan["domains"])=={f"R{i}" for i in range(1,10)}
 assert plan["domains"]["R7"]["applicability"]=="N_A_SCOPE_PROVEN"
 sources=sorted((ROOT/"src/main/java/io/toolbox/stagea/android").glob("*.java"))
-assert len(sources)==8, len(sources)
+assert len(sources)==9, len(sources)
 forbidden=[r"\bjava\.net\.",r"\bjavax\.net\.",r"\bcom\.google\.firebase\b",r"\bDexClassLoader\b",
            r"\bURLClassLoader\b",r"\bjava\.lang\.reflect\b",r"\bRuntime\.getRuntime\b",r"\bProcessBuilder\b",
            r"\bSystem\.load(?:Library)?\b",r"RMTampu/ToolBox"]
@@ -31,13 +31,16 @@ assert "android.util.AtomicFile" in (ROOT/"src/main/java/io/toolbox/stagea/andro
 assert "Debug.getPss()" in (ROOT/"src/main/java/io/toolbox/stagea/android/AndroidResourcePolicyProvider.java").read_text()
 assert "getMemoryClass()" in (ROOT/"src/main/java/io/toolbox/stagea/android/AndroidResourcePolicyProvider.java").read_text()
 assert "NORMALIZED_BUDGET" in (ROOT/"src/main/java/io/toolbox/stagea/android/NormalizedResourceMath.java").read_text()
+assert "implements AndroidSafeUi.Actions" in (ROOT/"src/main/java/io/toolbox/stagea/android/AndroidSafeUiActions.java").read_text()
+assert "safeUiActions()" in (ROOT/"src/main/java/io/toolbox/stagea/android/AndroidStageAHost.java").read_text()
 assert "usesCleartextTraffic=\"false\"" in (ROOT/"AndroidManifest.xml").read_text()
 hashes={p.relative_to(REPO).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}
 evidence={"schemaVersion":1,"projectId":"ToolBox","stageId":"A","componentId":"public.stage-a-android-host",
-          "status":"PASS","productionSourceCount":8,"androidApiContract":30,"externalRuntimeDependencies":0,
+          "status":"PASS","productionSourceCount":9,"androidApiContract":30,"externalRuntimeDependencies":0,
           "resourceMapping":"PSS_NORMALIZED_TO_ANDROID_MEMORY_CLASS","stageAWorkloadProfile":"IDLE_ZERO_WORK_NO_SPECULATIVE_HEAVY_THRESHOLD",
-          "durableStore":"ANDROID_ATOMIC_FILE_PLUS_SHA256_VERSIONED_CODEC","safeUi":"ANDROID_PLATFORM_WIDGETS_NO_COMPONENT_REGISTRY",
-          "r7":"N_A_SCOPE_PROVEN","privateContentIncluded":0,"networkAuthority":0,"firebaseUsed":0,"sourceHashes":hashes}
+          "durableStore":"ANDROID_ATOMIC_FILE_PLUS_SHA256_VERSIONED_CODEC","safeUi":"ANDROID_PLATFORM_WIDGETS_WITH_PUBLIC_PRODUCTION_ACTIONS",
+          "safeUiActions":"PUBLIC_PRODUCTION_ADAPTER_FAIL_CLOSED","r7":"N_A_SCOPE_PROVEN","privateContentIncluded":0,"networkAuthority":0,"firebaseUsed":0,"sourceHashes":hashes}
 (OUT/"android-host-prebuild-evidence.json").write_text(json.dumps(evidence,indent=2,sort_keys=True)+"\n")
 print("STAGE_A_ANDROID_HOST_PREBUILD = PASS")
-print("ANDROID_HOST_PRODUCTION_SOURCE_COUNT=8")
+print("ANDROID_HOST_PRODUCTION_SOURCE_COUNT=9")
+print("ANDROID_HOST_SAFE_UI_ACTIONS=PUBLIC_PRODUCTION")
