@@ -88,17 +88,21 @@ def validate_jar(path: Path) -> list[str]:
     return violations
 
 
+def write_entry(destination: zipfile.ZipFile, name: str, data: bytes) -> None:
+    info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 2))
+    info.compress_type = zipfile.ZIP_DEFLATED
+    info.external_attr = 0o100644 << 16
+    destination.writestr(info, data)
+
+
 def rewrite_jar(source: Path, destination: Path, transform) -> None:
     with zipfile.ZipFile(source) as src, zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED) as dst:
-        for info in src.infolist():
-            data = src.read(info.filename)
-            name, data, keep = transform(info.filename, data)
+        for source_info in src.infolist():
+            data = src.read(source_info.filename)
+            name, data, keep = transform(source_info.filename, data)
             if not keep:
                 continue
-            new_info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 2))
-            new_info.compress_type = zipfile.ZIP_DEFLATED
-            new_info.external_attr = 0o100644 << 16
-            dst.writestr(new_info, data)
+            write_entry(dst, name, data)
 
 
 if not JAR.is_file() or JAR.stat().st_size == 0:
@@ -141,10 +145,10 @@ with tempfile.TemporaryDirectory(prefix="runtime-safety-package-mutation-") as t
 
     foreign = temp_root / "foreign-class.jar"
     with zipfile.ZipFile(JAR) as src, zipfile.ZipFile(foreign, "w", compression=zipfile.ZIP_DEFLATED) as dst:
-        for info in src.infolist():
-            dst.writestr(info, src.read(info.filename))
-        data = src.read("io/toolbox/contracts/safety/ResourceGuard.class")
-        dst.writestr("escape/Foreign.class", data)
+        foreign_data = src.read("io/toolbox/contracts/safety/ResourceGuard.class")
+        for source_info in src.infolist():
+            write_entry(dst, source_info.filename, src.read(source_info.filename))
+        write_entry(dst, "escape/Foreign.class", foreign_data)
     if "PACKAGE_NAMESPACE_ESCAPE" not in validate_jar(foreign):
         fail("foreign-namespace mutation escaped")
 
