@@ -2,7 +2,6 @@ package io.toolbox.stageahosttest;
 
 import android.app.Activity;
 import android.os.Bundle;
-import android.os.Process;
 import android.util.Log;
 import android.view.View;
 
@@ -44,7 +43,6 @@ public final class HostTestActivity extends Activity {
         store.put("kernel.state","STOPPED");
         new AndroidRecoveryStateStore(store).save(SafetyContracts.RecoveryState.SAFE_MODE);
         Log.i(TAG,"STAGE_A_HOST_WRITE_PASS");
-        Process.killProcess(Process.myPid());
     }
     private void readPhase() {
         AndroidAtomicStateStore store=new AndroidAtomicStateStore(this);
