@@ -69,11 +69,13 @@ jobs:
           from pathlib import Path
           path=Path('public-components/runtime-contracts/build/promotion/promotion-manifest.json')
           data=json.loads(path.read_text())
+          assert data['schemaVersion']==2
           assert data['status']=='READY_PRIVATE'
           assert data['sourceRepository']=='RMTampu/Tools'
           assert data['sourceCommitSha']==os.environ['GITHUB_SHA']
           assert data['privateContentIncluded'] is False
           assert data['testStatus']['packageValidation']=='PASS'
+          assert data['sourceArchive']['promotionAllowed'] is True
           print('READY_PRIVATE_BINDING = PASS')
           PY
 
@@ -83,6 +85,7 @@ jobs:
           name: public-runtime-contracts-ready-private
           path: |
             public-components/runtime-contracts/build/package/toolbox-runtime-contracts-0.1.0.jar
+            public-components/runtime-contracts/build/package/toolbox-runtime-contracts-0.1.0-sources.zip
             public-components/runtime-contracts/build/promotion/promotion-manifest.json
             public-components/runtime-contracts/build/test-summary.txt
             public-components/runtime-contracts/build/test-output.txt
