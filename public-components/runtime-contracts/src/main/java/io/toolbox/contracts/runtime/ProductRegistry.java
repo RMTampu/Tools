@@ -84,6 +84,7 @@ public final class ProductRegistry {
     private void validate(Contracts.ToolBundle bundle) {
         Contracts.ToolContract tool = bundle.tool();
 
+        requireUniqueBundleGlobalIds(bundle);
         requireNewGlobalId(tool.id());
         requireUniqueNewIds(bundle.components(), "component");
         requireUniqueNewIds(bundle.actions(), "action");
@@ -135,6 +136,22 @@ public final class ProductRegistry {
         });
 
         bundle.events().forEach(event -> requireProvider(tool.id(), event.providerToolId(), event.id()));
+    }
+
+    private static void requireUniqueBundleGlobalIds(Contracts.ToolBundle bundle) {
+        LinkedHashSet<String> seen = new LinkedHashSet<>();
+        requireUniqueBundleId(seen, bundle.tool().id());
+        bundle.components().forEach(value -> requireUniqueBundleId(seen, value.id()));
+        bundle.actions().forEach(value -> requireUniqueBundleId(seen, value.id()));
+        bundle.capabilities().forEach(value -> requireUniqueBundleId(seen, value.id()));
+        bundle.events().forEach(value -> requireUniqueBundleId(seen, value.id()));
+        bundle.permissions().forEach(value -> requireUniqueBundleId(seen, value.id()));
+    }
+
+    private static void requireUniqueBundleId(Set<String> seen, String id) {
+        if (!seen.add(id)) {
+            throw new ContractException("DUPLICATE_ID", "Duplicate Stable ID across bundle domains: " + id);
+        }
     }
 
     private void requireUniqueNewIds(Collection<? extends Contracts.Identified> values, String domain) {
