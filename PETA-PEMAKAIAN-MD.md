@@ -4,11 +4,11 @@
 
 Peta ini AKTIF dan wajib digunakan melalui [AGENTS.md](AGENTS.md) untuk menentukan MD yang harus dibaca dan diterapkan pada pekerjaan `RMTampu/Tools`.
 
-Terdaftar **29 MD**, termasuk peta ini, berdasarkan 28 MD pada snapshot penyusunan [eb5ec83](https://github.com/RMTampu/Tools/commit/eb5ec83d9590254b46bf49324259aa515cfaa6e3). Cocokkan kembali register dengan tree exact commit pekerjaan bila repository berubah.
+Terdaftar **31 MD**, termasuk peta ini, berdasarkan inventaris pada [c68badc](https://github.com/RMTampu/Tools/commit/c68badcecc6c50d471d8057589e27b8b01c5764f). Register awal 29 MD dipertahankan sebagai riwayat di §7. Cocokkan kembali register dengan tree exact commit pekerjaan bila repository berubah.
 
 Peta hanya memuat dokumen Public. Ia bukan salinan rancangan/state/baseline Private, bukan blueprint produk baru, dan bukan izin mengakses Private.
 
-Boundary tetap mengikuti Rule 0: Public untuk research, komponen Public, dummy/mock/simulator mandiri, test dan package sampai `READY_PRIVATE`. Tidak boleh menerima salinan/ekstraksi/penyamaran isi Private. Semua akses, pengecekan, dan pengujian Firebase/Test Lab dilarang di Public, termasuk dummy/prototype.
+Boundary tetap mengikuti Rule 0: Public untuk research, komponen Public, dummy/mock/simulator mandiri, test/package komponen hingga `COMPONENT_READY_PRIVATE`, kemudian closure seluruh tahap hingga `STAGE_READY_PRIVATE`. Tidak boleh menerima salinan/ekstraksi/penyamaran isi Private. Semua akses, pengecekan, dan pengujian Firebase/Test Lab dilarang di Public, termasuk dummy/prototype.
 
 Tidak semua MD wajib dibaca pada setiap tugas. Baca sumber awal selalu, lalu seluruh sumber domain yang berlaku sebelum pekerjaan bergantung padanya. Dokumen kompatibilitas/sejarah tetap punya kegunaan tanpa menjadi prosedur eksekusi lama.
 
@@ -33,9 +33,9 @@ Sumber tambahan berikut dibaca setelah §2; rujukan wajib dari sumber harus teta
 | Audit/perbaikan MD atau tautan | File terkait → dokumen pemakai/rujukan → R1/R5/R9 dan domain teknis terdampak | Periksa kejelasan requirement, cakupan, otoritas, tautan dan boundary. Editorial tidak otomatis membatalkan proof atau memicu test runtime. |
 | Research/spec/contract komponen | README komponen → CONTRACT → APPLICATION → R1–R9 relevan → matriks assurance komponen | Turunkan metode menjadi requirement, invariant, failure case, oracle, dan acceptance sebelum implementasi. |
 | Implementasi/perbaikan runtime-contracts | README komponen → CONTRACT → ASSURANCE_R1_R9 → sumber R1–R9 yang dialokasikan → source/test/script relevan | Gunakan scope metadata-only yang didefinisikan contract; klasifikasi domain diperiksa ulang jika scope berubah, bukan menyalin N/A untuk komponen lain. |
-| Public test/simulator/packaging | Contract + matriks assurance → APPLICATION/metode terkait → workflow/script yang aktif | Ikuti gate Public dan evidence exact revision. `READY_PRIVATE` hanya bila syaratnya terbukti, bukan karena peta lengkap atau dokumen menyebut PASS. |
+| Public test/simulator/packaging | Contract + matriks assurance → APPLICATION/metode terkait → workflow/script yang aktif | Ikuti gate Public dan evidence exact revision. Bedakan `COMPONENT_READY_PRIVATE` dari `STAGE_READY_PRIVATE`; proof seluruh anggota/interaksi tahap wajib, bukan teks PASS atau peta lengkap. |
 | Asset/resource serta reference/route | PREBUILD_ASSET_GATE → ASSET_SAFE rules → methods → process → route methods/process bila berlaku | Ikuti Gate 0–9/S0–S9 dan sub-gate 4.0–4.13 sesuai sumber. Klaim dibatasi scope Public; tidak ada Firebase atau final execution Private. |
-| Failure yang disanitasi dan handoff | Laporan sanitized → CONTRACT dan requirement handoff → R1–R9 terdampak → test/package/evidence baru | Perbaiki requirement/komponen Public tanpa meminta input/state internal Private. Paket siap promosi tetap memerlukan Private preflight sendiri. |
+| Failure yang disanitasi dan handoff | Laporan sanitized → CONTRACT dan requirement handoff → R1–R9 terdampak → test/package/evidence baru | Perbaiki requirement/komponen Public tanpa meminta input/state internal Private. Komponen tetap ditahan sampai seluruh tahap siap; attempt baru setelah kegagalan memerlukan keputusan/izin baru. Jangan memicu Private per komponen. |
 | Audit routing lama atau usulan Firebase | AGENTS_LEGACY_RULES → TEST_ROUTING_POLICY → FIREBASE_TEST_LAB_BRIDGE → aturan global | Tentukan larangan, bukan jalur menjalankan Firebase. Riset API terbuka/mock tanpa koneksi boleh; approval Private bukan pengecualian Public. |
 
 Untuk komponen `public.runtime-contracts`, jalur konkret adalah:
@@ -46,7 +46,7 @@ Untuk komponen `public.runtime-contracts`, jalur konkret adalah:
 4. [Laporan sanitized 3 September 2026](public-components/runtime-contracts/SANITIZED_PRIVATE_FAILURE_2026-09-03.md) dan [PRIVATE_INTEGRATION_REQUIREMENTS.json](public-components/runtime-contracts/PRIVATE_INTEGRATION_REQUIREMENTS.json) bila pekerjaan terkait handoff/perbaikan failure tersebut.
 5. [Workflow Public](.github/workflows/runtime-contracts-ci.yml) beserta script yang dirujuk, hanya ketika memilih/meninjau/menjalankan pemeriksaan Public yang masuk izin tugas.
 
-Urutan kematangan tetap `SPEC → CONTRACT → DEPENDENCY → UNIT_TEST → SIMULATOR → FAILURE_TEST → PACKAGE_VALIDATION → READY_PRIVATE`. Urutan sumber di atas bukan gate baru dan tidak mengganti requirement proses.
+Urutan komponen: `SPEC → CONTRACT → DEPENDENCY → UNIT_TEST → SIMULATOR → FAILURE_TEST → PACKAGE_VALIDATION → COMPONENT_READY_PRIVATE`. Komponen menunggu; seluruh tahap harus ditutup menuju `STAGE_READY_PRIVATE` menurut aturan global §6. Untuk tahap A, lanjutkan ke README stage-a-foundation dan APPLICATION/R6/R9; status alias workflow bukan izin Private otomatis.
 
 ## 4. Register seluruh MD
 
@@ -69,7 +69,7 @@ R1–R9 bukan dokumen pasif. Pemilihan applicability harus didasarkan pada contr
 
 | Dokumen | Domain | Kapan dan bagaimana dipakai |
 |---|---|---|
-| [APPLICATION_SAFE_100_PROCESS.md](APPLICATION_SAFE_100_PROCESS.md) | Orkestrator assurance Public | Sebelum pekerjaan komponen: pilih domain/metode/evidence, jalur Public, dan batas klaim hingga `READY_PRIVATE`. |
+| [APPLICATION_SAFE_100_PROCESS.md](APPLICATION_SAFE_100_PROCESS.md) | Orkestrator assurance Public | Sebelum pekerjaan komponen: pilih domain/metode/evidence, jalur Public, kesiapan komponen dan closure tahap; terapkan metode kesiapan integrasi. |
 | [APP_SAFE_R1_LOGIC_INPUT.md](APP_SAFE_R1_LOGIC_INPUT.md) | Logic/input/exception | Requirement, validation, parsing, typed contract, dan failure: turunkan semantik, batas, oracle, serta positive/negative case. |
 | [APP_SAFE_R2_CONCURRENCY_RESOURCE.md](APP_SAFE_R2_CONCURRENCY_RESOURCE.md) | Concurrency/resource | Registry/shared state, capacity, queue atau resource: tutup ownership, interleaving, budget, dan failure sesuai scope. |
 | [APP_SAFE_R3_LIFECYCLE_STATE_RECOVERY.md](APP_SAFE_R3_LIFECYCLE_STATE_RECOVERY.md) | Lifecycle/recovery | Komponen yang mempunyai lifecycle/state/recovery: model transisi dan fault; N/A hanya dengan bukti domain tidak ada. |
@@ -100,6 +100,10 @@ R1–R9 bukan dokumen pasif. Pemilihan applicability harus didasarkan pada contr
 | [public-components/runtime-contracts/CONTRACT.md](public-components/runtime-contracts/CONTRACT.md) | Kontrak komponen aktif | Desain/implementasi/test/handoff komponen: gunakan input, batas resource, atomic publication, lookup, failure, dan authority yang disepakati. |
 | [public-components/runtime-contracts/ASSURANCE_R1_R9.md](public-components/runtime-contracts/ASSURANCE_R1_R9.md) | Alokasi metode/evidence aktif | Bersama sumber R1–R9 sebelum implementasi/test/closure: buktikan applicability/N/A dan traceability; jangan menyalin pengecualian scope ke komponen lain. |
 | [public-components/runtime-contracts/SANITIZED_PRIVATE_FAILURE_2026-09-03.md](public-components/runtime-contracts/SANITIZED_PRIVATE_FAILURE_2026-09-03.md) | Catatan failure + requirement perbaikan aman | Saat memperbaiki/menguji handoff dependency trust terkait: telusuri sebab generik, contract dan evidence koreksi; tidak meminta/menyimpan input internal Private. Setelah ditutup, tetap menjadi provenance regresi, bukan izin baru. |
+| [public-components/runtime-contracts/R6_PRIVATE_HANDOFF_ASSURANCE_ADDENDUM.md](public-components/runtime-contracts/R6_PRIVATE_HANDOFF_ASSURANCE_ADDENDUM.md) | Requirement handoff R6/R9 aman | Baca bersama CONTRACT/assurance saat menutup trust dan phase-source parity; proof Public bukan bukti host Private. |
+| [public-components/stage-a-foundation/README.md](public-components/stage-a-foundation/README.md) | Closure tahap A Public | Sebelum merakit/menguji tahap utuh: baca cakupan anggota, simulator, dependency dan package closure; sublangkah tidak memicu Private. |
+
+Urutan penerapan riset satu tahap/satu attempt: aturan global §6 → REPOSITORY_INTEGRATION_POLICY → APPLICATION bagian “Kesiapan Integrasi Satu Tahap” → R6 bagian “Penutupan R6 Sebelum Handoff Tahap” → R9 bagian “Closure Tahap dan Batas PASS” → sumber komponen/tahap dan evidence aktual. Jangan mengambil sumber/bukti Private untuk melengkapi peta Public.
 
 ## 5. Bukti pembacaan dan penerapan
 

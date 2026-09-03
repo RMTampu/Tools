@@ -42,6 +42,16 @@ Agen WAJIB:
 
 Peta ini hanya berisi material Public. Kewajiban membaca tidak memberi izin mengambil dokumen/source/state/artifact Private, menjalankan Firebase di Public, atau menjalankan build/test di luar izin tugas. Tugas baca-saja tetap tidak mengubah repository hanya untuk mencatat pembacaan.
 
+### Batas Tahap yang Wajib Diterapkan
+
+Baca dan terapkan `GLOBAL_PUBLIC_PRIVATE_DEVELOPMENT_RULES.md` §6.1–§6.3 dan `REPOSITORY_INTEGRATION_POLICY.md` sebelum memutuskan promosi/eksekusi. Satu tahap utuh mengikuti peta pengguna; sublangkah/komponen/check hanya unit kerja internal.
+
+`COMPONENT_READY_PRIVATE` = komponen matang dan ditahan di Public; **tidak memberi izin masuk Private**. `STAGE_READY_PRIVATE` = closure seluruh tahap dan prasyarat yang berlaku; baru menjadi syarat satu percobaan Private terencana setelah otorisasi. Tidak boleh mengubah cakupan tahap menjadi ukuran paket yang kebetulan sudah selesai.
+
+Hasil riset wajib diterapkan melalui `APPLICATION_SAFE_100_PROCESS.md` bagian “Kesiapan Integrasi Satu Tahap”, R6 untuk seluruh input build, dan R9 untuk kelengkapan/interaksi/binding bukti. Rencana wajib mencakup budget semua job/layanan, pencegahan dispatch ganda, reuse evidence, dan STOP tanpa auto-retry.
+
+Aturan MD ini wajib bagi agen; keberadaannya tidak membuktikan guard otomatis sudah terpasang. Periksa workflow/script aktual sebelum eksekusi. Jika guard/trigger bertentangan atau belum terbukti, STOP dan catat blocker implementasi; jangan menganggap teks status, marker file, atau flag true sebagai enforcement.
+
 ## 2. Identitas Repository
 
 `RMTampu/Tools` adalah **Public Research / Test / Staging Repository**.
@@ -83,7 +93,7 @@ Public digunakan untuk:
 - mock/simulator/test harness;
 - audit dan debugging komponen Public;
 - packaging Promotion Package;
-- staging hingga `READY_PRIVATE`.
+- staging komponen hingga `COMPONENT_READY_PRIVATE`, lalu closure seluruh tahap hingga `STAGE_READY_PRIVATE`.
 
 Public hanya memakai contract/interface yang memang aman dipublikasikan, fixture/dummy data, mock/simulator, dan komponen yang sedang dikembangkan di Public.
 
@@ -99,14 +109,14 @@ SPEC
 -> SIMULATOR
 -> FAILURE_TEST
 -> PACKAGE_VALIDATION
--> READY_PRIVATE
+-> COMPONENT_READY_PRIVATE
 ```
 
-`READY_PRIVATE` berarti komponen/paket sudah matang untuk diintegrasikan ke baseline APK/state final di Private, bukan aplikasi final sudah PASS. Setelah status itu tercapai, paket dapat dipromosikan ke Private Master. Public tidak melakukan integrasi sebenarnya terhadap state final Private.
+`COMPONENT_READY_PRIVATE` tidak mengizinkan paket dipromosikan sendiri. Seluruh komponen ditahan di Public sampai closure tahap menghasilkan `STAGE_READY_PRIVATE`; hanya tahap utuh yang dapat dipromosikan dengan otorisasi Private yang berlaku. Public tidak melakukan integrasi sebenarnya terhadap state final Private. Output lama `READY_PRIVATE` komponen tetap component-scoped, bukan izin Private.
 
 ## 6. Promotion Package
 
-Paket yang keluar dari Public menuju Private minimal memiliki metadata aman:
+Paket tahap mengikuti manifest closure pada aturan global §7; semua paket anggota harus tercakup. Tiap paket anggota minimal memiliki metadata aman:
 
 - Project ID;
 - Component ID/version;

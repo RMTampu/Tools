@@ -5,7 +5,7 @@
 Dokumen ini mengatur pengujian pada `RMTampu/Tools` sebagai repository Public Research/Test/Staging.
 
 ```text
-PUBLIC ROLE = RESEARCH / ITERATION / PUBLIC TEST / READY_PRIVATE STAGING
+PUBLIC ROLE = RESEARCH / ITERATION / PUBLIC TEST / WHOLE-STAGE STAGING
 PRIVATE FINAL EXECUTION = RMTampu/ToolBox
 ```
 
@@ -36,7 +36,7 @@ Public dilarang:
 
 Environment test Public boleh fleksibel sesuai contract pekerjaan, tetapi **tidak termasuk Firebase/Test Lab**.
 
-Untuk menguji penyambungan, Public WAJIB menggunakan dummy/mock/simulator mandiri dari contract aman sebagai pengganti baseline APK/state final Private. Dummy tidak boleh merupakan salinan, ekstraksi, atau penyamaran isi Private. Integrasi sebenarnya baru dilakukan di Private setelah `READY_PRIVATE` dan preflight PASS.
+Untuk menguji penyambungan, Public WAJIB menggunakan dummy/mock/simulator mandiri dari contract aman sebagai pengganti baseline APK/state final Private. Dummy tidak boleh merupakan salinan, ekstraksi, atau penyamaran isi Private. Integrasi sebenarnya hanya untuk tahap utuh setelah `STAGE_READY_PRIVATE`, otorisasi eksekusi, dan preflight Private PASS menurut aturan global §6.
 
 Untuk target Android:
 
@@ -52,10 +52,11 @@ Status Public yang diperbolehkan:
 ```text
 PUBLIC_DEVELOPMENT_IN_PROGRESS
 PUBLIC_DEVELOPMENT_PASS
-READY_PRIVATE
+COMPONENT_READY_PRIVATE
+STAGE_READY_PRIVATE
 ```
 
-`READY_PRIVATE` hanya berarti component/promotion package sudah matang untuk diintegrasikan ke baseline APK/state final di Private. Ia bukan bukti integrasi sebenarnya dan bukan final application PASS.
+`COMPONENT_READY_PRIVATE` berarti komponen matang tetapi tetap ditahan di Public. Output lama `READY_PRIVATE` komponen bermakna sama dan bukan izin Private. Seluruh anggota/interaksi/proof tahap harus ditutup sebelum `STAGE_READY_PRIVATE`; hanya tahap utuh dapat dipromosikan dengan otorisasi yang berlaku. Ini bukan final application PASS.
 
 Jalur kematangan:
 
@@ -67,7 +68,7 @@ SPEC
 -> SIMULATOR
 -> FAILURE_TEST
 -> PACKAGE_VALIDATION
--> READY_PRIVATE
+-> COMPONENT_READY_PRIVATE
 ```
 
 ## 5. Firebase
@@ -114,7 +115,7 @@ Setiap Public job wajib melakukan cleanup otomatis setelah sukses/gagal sejauh p
 ## 8. Final Rule
 
 ```text
-PUBLIC = RESEARCH / ITERATION / TEST / READY_PRIVATE
+PUBLIC = RESEARCH / ITERATION / TEST / COMPONENT READINESS / WHOLE-STAGE CLOSURE
 PRIVATE_CONTENT_IN_PUBLIC = 0
 PRIVATE_EXECUTION_THROUGH_PUBLIC = 0
 PUBLIC_FINAL_BUILD = 0

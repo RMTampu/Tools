@@ -2,6 +2,8 @@
 
 ## 1. Status Dokumen
 
+`READY_PRIVATE` pada formula asset/package di dokumen ini adalah nama legacy untuk kesiapan **komponen Public** (`COMPONENT_READY_PRIVATE`), bukan izin promosi/eksekusi Private. Asset/package menunggu closure seluruh tahap; hanya `STAGE_READY_PRIVATE` bersama otorisasi yang berlaku memenuhi syarat promosi tahap utuh menurut aturan global §6. Gate/sub-gate asset tidak menjadi batas attempt Private.
+
 > **Scope Public wajib:** dokumen ini hanya berlaku untuk component, prototype, mock, simulator, fixture, dan package yang memang Public di `RMTampu/Tools`.
 >
 > Istilah build, artifact, runtime, dan final pada dokumen ini berarti hasil validasi **scope Public**. Dokumen ini tidak memberi izin untuk membawa, membangun, menandatangani, menguji, atau merilis isi Private.

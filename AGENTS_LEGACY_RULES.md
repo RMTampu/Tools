@@ -20,7 +20,7 @@ PRIVATE_EXECUTION_THROUGH_PUBLIC = FORBIDDEN
 - mock/simulator/test harness;
 - unit/contract/dependency/failure test terhadap data/component Public;
 - audit/debugging Public;
-- packaging dan staging sampai `READY_PRIVATE`.
+- packaging komponen dan closure tahap sesuai aturan global §6.
 
 Public dilarang membaca, checkout, menerima, membangun, menandatangani, menguji final, atau merelay source/asset/state/APK/artifact Private.
 
@@ -64,10 +64,13 @@ SPEC
 -> SIMULATOR
 -> FAILURE_TEST
 -> PACKAGE_VALIDATION
--> READY_PRIVATE
+-> COMPONENT_READY_PRIVATE
+-> CLOSURE SELURUH TAHAP
+-> STAGE_READY_PRIVATE
+-> OTORISASI EKSEKUSI TAHAP
 ```
 
-Setelah `READY_PRIVATE`, hanya Promotion Package aman yang dipromosikan ke Private.
+Hanya Promotion Package tahap utuh dengan `STAGE_READY_PRIVATE` dan otorisasi yang berlaku boleh dipromosikan. Komponen tidak boleh dipromosikan sendiri; output legacy `READY_PRIVATE` tetap component-scoped. Ikuti aturan global §6, bukan pola promosi komponen lama.
 
 ## Auto Cleanup
 

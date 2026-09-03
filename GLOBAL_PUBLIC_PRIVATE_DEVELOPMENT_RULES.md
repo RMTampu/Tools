@@ -28,7 +28,7 @@ Public bukan master aplikasi final dan tidak boleh membutuhkan akses baca ke Pri
 
 Public hanya boleh bekerja dengan contract/interface yang memang aman dipublikasikan, mock, simulator, test harness, fixture/dummy data, dan komponen Public yang sedang dikembangkan.
 
-Batas akhir pekerjaan Public adalah `READY_PRIVATE`: komponen dan Promotion Package sudah matang untuk diintegrasikan ke baseline APK/state final di Private. Status ini bukan bukti bahwa integrasi sebenarnya atau aplikasi final sudah PASS.
+Batas akhir pekerjaan Public adalah kesiapan **satu tahap pembangunan utuh**: `STAGE_READY_PRIVATE`. Komponen dapat lebih dahulu mencapai `COMPONENT_READY_PRIVATE`, tetapi tetap ditahan di Public sampai seluruh tahap siap. Definisi dan syaratnya di §6; keduanya bukan integrasi sebenarnya atau aplikasi final PASS.
 
 ## 4. Pertumbuhan Bertahap
 
@@ -36,7 +36,7 @@ Project dapat berkembang bertahap:
 
 `A -> A+B -> A+B+C -> A+B+C+D -> ...`
 
-Komponen baru B/C/D dikembangkan dan dimatangkan di Public tanpa melihat isi state final Private. Setelah `READY_PRIVATE`, komponen dipromosikan ke Private dan baru di sana disambungkan ke state final sebenarnya.
+A/B/C/D pada pola tersebut adalah tahap pembangunan utuh sesuai peta pengguna. Seluruh komponen baru dalam satu tahap dimatangkan bersama di Public tanpa melihat isi Private; setelah `STAGE_READY_PRIVATE` dan otorisasi yang berlaku, tahap dipromosikan sebagai satu kesatuan untuk satu percobaan Private terencana. Sublangkah seperti A1/A2/A3/A4 bukan batas promosi. Baseline dan proof yang masih sah dipakai kembali; jangan membangun ulang bagian yang telah terbukti.
 
 ## 5. Contract sebagai Jembatan
 
@@ -52,15 +52,55 @@ Jika contract aman belum cukup untuk suatu pengujian, catat gap sebagai `NOT_PRO
 
 ## 6. Jalur Kematangan Komponen
 
-Sebelum boleh masuk Private, komponen wajib melewati:
+Untuk mencapai kesiapan komponen di Public, setiap komponen wajib melewati:
 
-`SPEC -> CONTRACT -> DEPENDENCY -> UNIT_TEST -> SIMULATOR -> FAILURE_TEST -> PACKAGE_VALIDATION -> READY_PRIVATE`
+`SPEC -> CONTRACT -> DEPENDENCY -> UNIT_TEST -> SIMULATOR -> FAILURE_TEST -> PACKAGE_VALIDATION -> COMPONENT_READY_PRIVATE`
 
-Belum `READY_PRIVATE` berarti dilarang masuk final integration.
+Kesiapan komponen saja tidak pernah mengizinkan integrasi Private.
+
+### 6.1 Kesiapan Komponen Tidak Sama dengan Kesiapan Tahap
+
+| Status | Makna | Izin masuk Private |
+| --- | --- | --- |
+| `COMPONENT_READY_PRIVATE` | Seluruh proof wajib komponen pada scope Public selesai; komponen ditahan di Public menunggu tahap lengkap. | Tidak mengizinkan promosi, integrasi, build, atau test Private tersendiri. |
+| `STAGE_READY_PRIVATE` | Seluruh cakupan tahap yang ditetapkan pengguna sudah ditutup menurut §6.2. | Syarat kesiapan satu tahap utuh; tetap memerlukan otorisasi dan gate yang berlaku. |
+
+Status lama `READY_PRIVATE` pada output/manifest komponen hanya dibaca sebagai kesiapan komponen, bukan izin Private. Jangan mengganti nama field/status mesin tanpa memeriksa consumer; jangan menaikkan status lama menjadi kesiapan tahap secara otomatis. Alias seperti `STAGE_A_READY_PRIVATE` sah sebagai kesiapan tahap A hanya jika identitas, cakupan, dan bukti tahap memenuhi §6.2; nama artifact atau teks PASS saja tidak cukup.
+
+### 6.2 Closure Tahap Utuh Sebelum Private
+
+Agen wajib memastikan:
+
+1. Identitas tahap dan seluruh requirement/sublangkah/komponen sesuai peta yang disetujui. Tidak boleh memperkecil cakupan agar paket parsial disebut satu tahap.
+2. Seluruh kontrak sambungan, versi, registry route, dependency, urutan/lifecycle, penanganan gagal, acceptance, dan batas resource yang diperlukan telah jelas. Keputusan teknis yang belum ditetapkan adalah blocker, bukan ruang untuk asumsi.
+3. Seluruh proof wajib Public, termasuk interaksi antar-komponen satu tahap, R1–R9 yang berlaku, asset/route proof, negative test, dan validasi paket sudah lengkap pada input yang terikat. N/A memerlukan alasan berbasis scope, bukan penghematan kuota.
+4. Promotion manifest tahap mengikat seluruh paket anggota dan evidence; paket parsial tidak membuka promosi.
+5. Penerima Private meninjau bukti prasyarat baseline/adapter/toolchain/trust yang masih sah tanpa mengekspor isinya. Bila kualifikasi baru diperlukan, nyatakan kebutuhan serta biayanya sebelum eksekusi; jangan menyembunyikannya sebagai persiapan gratis.
+6. Rencana satu attempt mencakup urutan integrasi, gate murah sebelum mahal, regression/build/signing/final test yang diperlukan, pemulihan, batas biaya/durasi, dan otorisasi yang berlaku.
+
+Pisahkan **prasyarat masuk yang harus sudah terbukti** dari **witness integrasi/runtime final yang baru dihasilkan pada attempt Private**. Witness final tersebut tetap pending/NOT_PROVEN sampai dijalankan; bukan syarat PASS melingkar untuk memasuki Private, dan bukan alasan menunda test yang sebenarnya bisa ditutup di Public. `STAGE_READY_PRIVATE` bukan final application PASS.
+
+### 6.3 Satu Tahap, Satu Percobaan Private Terencana
+
+Satu tahap utuh adalah satu batas promosi/integrasi. Komponen, sublangkah, gate, sub-gate, individual check, jumlah paket, pergantian agen, atau pergantian konteks tidak menambah jatah attempt.
+
+Sebelum dispatch, agen wajib menunjukkan stage ID, scope/package binding, prasyarat, daftar operasi/workflow/job, bukti yang dipakai ulang, estimasi total menit/biaya termasuk layanan dan penyimpanan, batas durasi, titik STOP, serta izin eksekusi tahap yang sesuai instruksi pengguna. Izin menyunting MD tidak mengizinkan eksekusi Private.
+
+Catat satu attempt ID beserta scope/input binding dan status belum dimulai/berjalan/menunggu approval/selesai/gagal/tidak diketahui. Cegah dispatch ganda dan pekerjaan bersamaan untuk attempt yang sama; bila status dispatch tidak pasti, periksa run yang ada, jangan mengirim ulang. Semua job, preflight, bootstrap, kualifikasi, build, dan verifikasi Private dihitung sebagai penggunaan nyata; memindahkannya ke workflow lain tidak membuatnya gratis atau membuka attempt baru.
+
+Satu attempt adalah satu rencana eksekusi tahap, bukan janji satu command/workflow. Jangan memanggil workflow gate terpisah jika gate yang sama sudah tercakup secara sah dalam jalur kandidat. Jangan mengurangi proof untuk menghemat kuota. Jika kuota atau prasyarat tidak cukup, STOP dan sampaikan pilihan sebelum memakai Private.
+
+Checkpoint persetujuan Firebase terhadap signed candidate tetap wajib. Menunggu persetujuan tidak mengizinkan rebuild, mengganti kandidat, atau mengulang pekerjaan yang sudah sah. Approval Firebase satu kali tetap terpisah dari izin integrasi/build tahap.
+
+Kegagalan/timeout/cancellation setelah pekerjaan Private dimulai tidak mengembalikan jatah attempt. Lakukan STOP dan pemulihan aman yang telah diotorisasi. Perbaikan Public harus menutup ulang cakupan tahap terdampak; attempt Private berikutnya memerlukan keputusan/izin baru, bukan auto-retry.
+
+Targetnya keberhasilan percobaan pertama. “100%” hanya berarti kelengkapan terhadap scope dan batas bukti yang disepakati, bukan jaminan bebas bug.
 
 ## 7. Promotion Package
 
-Paket promosi minimal membawa metadata aman:
+Promotion Package tahap memuat `PROJECT_ID`, `STAGE_ID`, versi cakupan tahap, daftar seluruh sublangkah/komponen wajib, daftar paket anggota beserta hash, contract/route/test-evidence binding, hasil closure Public, dan batas claim. Metadata Private seperti baseline internal dan bukti penerima disimpan pada catatan penerimaan Private, tidak disalin ke Public.
+
+Setiap paket anggota tetap minimal membawa metadata aman:
 
 - `PROJECT_ID`
 - `COMPONENT_ID`
@@ -77,7 +117,7 @@ Private wajib menolak paket yang identitas, hash, contract, dependency, atau com
 
 ## 8. Private Preflight dan Transaction
 
-Sebelum proses berat, Private menjalankan preflight murah terhadap package/manifest/hash/contract/dependency/compatibility/environment.
+Hanya setelah closure tahap dan izin eksekusi pada §6, Private menjalankan preflight murah terhadap kelengkapan tahap, package/manifest/hash/contract/dependency/compatibility/environment. Preflight termasuk biaya attempt, bukan alasan menjalankan satu attempt per komponen.
 
 Jika preflight gagal: **STOP**. Jangan menjalankan build/integrasi berat.
 
@@ -131,7 +171,7 @@ PUBLIC_FIREBASE_DUMMY_EXCEPTION = 0
 
 Jika kegagalan final/integrasi terjadi di Private:
 
-`STOP -> ROLLBACK bila diperlukan -> SANITIZED_FAILURE_REPORT -> PUBLIC -> FIX -> RETEST -> READY_PRIVATE -> PRIVATE`
+`STOP -> ROLLBACK bila diperlukan -> SANITIZED_FAILURE_REPORT -> PUBLIC FIX/RETEST -> TUTUP ULANG TAHAP TERDAMPAK -> STAGE_READY_PRIVATE -> TUNGGU KEPUTUSAN/IZIN ATTEMPT BARU`
 
 Dilarang pola:
 
@@ -159,6 +199,8 @@ Bersihkan sejauh platform memungkinkan:
 - debug output sementara
 - temporary test data
 
+Sebelum menghapus output sementara, pastikan paket tahap dan evidence Public yang diwajibkan telah tersimpan secara tahan lama dan dapat diverifikasi sesuai retention yang disetujui. Paket/evidence wajib bukan sampah job; jangan menghapus satu-satunya bukti atau memaksa rerun akibat cleanup.
+
 Cleanup tidak menggantikan aturan keamanan. Data Private tidak boleh pernah masuk Public sejak awal.
 
 ## 13. Isolasi Project dan Shared Component
@@ -171,13 +213,15 @@ Komponen lintas project harus dinyatakan eksplisit sebagai `GLOBAL/SHARED_COMPON
 
 ## 14. Dependency dan Environment Lock
 
-Public dan Private harus memakai versi toolchain/dependency yang dikunci dan sedekat mungkin untuk aspek yang mempengaruhi hasil. Perbedaan environment harus terdeteksi sebelum final processing.
+Public dan Private wajib mengunci seluruh input yang memengaruhi hasil serta membuktikan kompatibilitas aspek bersama melalui contract. Daftar perbedaan environment harus eksplisit; kemiripan environment bukan proof kesetaraan. Ikuti R6 untuk seluruh fase/perintah dan dependency, serta R9 untuk binding/freshness evidence. Bukti dan konfigurasi Private tetap di Private.
 
 ## 15. Jalur Resmi
 
 Public:
 
-`RESEARCH -> DESIGN -> BUILD_COMPONENT -> AUDIT -> TEST -> SIMULATOR -> PACKAGE -> READY_PRIVATE -> AUTO_CLEANUP`
+`RESEARCH -> DESIGN -> BUILD_COMPONENT -> AUDIT/TEST/SIMULATOR -> PACKAGE -> COMPONENT_READY_PRIVATE -> TUTUP SELURUH TAHAP -> STAGE_READY_PRIVATE`
+
+Auto Cleanup berlaku per job setelah paket/evidence wajib dipertahankan sesuai §12. Tidak membuka promosi komponen.
 
 Private:
 
@@ -216,7 +260,7 @@ Prioritas konteks:
 
 - Private Master selalu menjadi sumber kebenaran final.
 - Isi Private tidak pernah keluar ke Public.
-- Public menghabiskan iterasi pengembangan; Private melakukan final processing dengan iterasi minimum.
+- Public menghabiskan iterasi pengembangan; satu tahap utuh menjadi satu batas promosi dan satu percobaan Private terencana sesuai §6.3.
 - Integrasi baseline sebenarnya, build APK final, signing kandidat final, final runtime test, dan release berada pada mesin Private; seluruh akses/eksekusi Firebase/Test Lab juga hanya di Private.
 - Kegagalan Private wajib kembali ke Public melalui laporan yang sudah disanitasi bila perbaikan komponen diperlukan.
 - Asset dan pembahasan antar project wajib terisolasi.

@@ -33,6 +33,8 @@ PASS = required Public-scope evidence exists and is bound to the current revisio
 
 No status in this file means `FINAL_APPLICATION_SAFE_100`.
 
+`READY_PRIVATE` and `READY_PRIVATE_BINDING` are retained as legacy component-output names only. Their scope is `COMPONENT_READY_PRIVATE`: hold the component in Public. They do not authorize Private preflight, promotion, integration, or an attempt. Whole-stage closure and authorization follow `GLOBAL_PUBLIC_PRIVATE_DEVELOPMENT_RULES.md` §6. A marker/boolean without bound executable behavioral evidence is not proof; stage interactions require their own evidence.
+
 ---
 
 ## 3. R1 — Logic / Input

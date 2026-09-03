@@ -7,7 +7,7 @@ RMTampu/ToolBox (PRIVATE)
 = product master + source + asset + final integration + build + signing + Firebase/final test + release
 
 RMTampu/Tools (PUBLIC)
-= research + prototype + component development + mock/simulator + public testing + READY_PRIVATE staging
+= research + prototype + component development + mock/simulator + public testing + whole-stage readiness staging
 ```
 
 ## Batas Repository
@@ -30,13 +30,15 @@ RESEARCH
 -> BUILD COMPONENT
 -> AUDIT / TEST / SIMULATOR
 -> PACKAGE
--> READY_PRIVATE
--> AUTO CLEANUP
+-> COMPONENT_READY_PRIVATE (DITAHAN DI PUBLIC)
+-> CLOSURE SELURUH TAHAP
+-> STAGE_READY_PRIVATE
+-> AUTO CLEANUP (PAKET/EVIDENCE WAJIB DIPERTAHANKAN)
 ```
 
 Pengujian penyambungan Public memakai dummy/mock/simulator mandiri dari contract aman, bukan salinan/ekstraksi/penyamaran baseline APK atau isi Private, dan tanpa Firebase.
 
-Setelah `READY_PRIVATE`, hanya Promotion Package aman yang masuk ke Private untuk integrasi baseline sebenarnya. Status tersebut bukan final application PASS. Public tidak mengetahui state final Private seperti `A`, `A+B`, atau `A+B+C`.
+Hanya Promotion Package tahap utuh dengan `STAGE_READY_PRIVATE` dan otorisasi yang berlaku dapat masuk Private untuk satu percobaan terencana. Kesiapan komponen tidak membuka promosi. Status kesiapan bukan final application PASS. Public tidak mengetahui state final Private seperti `A`, `A+B`, atau `A+B+C`.
 
 Setiap Public job wajib memiliki Auto Cleanup otomatis setelah sukses/gagal sejauh platform memungkinkan.
 

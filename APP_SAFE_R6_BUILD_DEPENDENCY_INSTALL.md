@@ -8,7 +8,7 @@ Status riset: `PRACTICAL_SATURATION` terhadap ruang metode yang telah disapu.
 
 Test environment dan Firebase authorization selalu mengikuti `TEST_ROUTING_POLICY.md`.
 
-**Batas Firebase wajib:** seluruh akses/pengecekan/eksekusi Firebase/Test Lab hanya dari Private. Public tidak boleh memakainya, termasuk untuk dummy/prototype. Penyebutan Firebase dan approval di dokumen ini adalah requirement final Private, bukan izin Public; pengujian komponen Public memakai mock/simulator mandiri tanpa koneksi Firebase sampai `READY_PRIVATE`.
+**Batas Firebase wajib:** seluruh akses/pengecekan/eksekusi Firebase/Test Lab hanya dari Private. Public tidak boleh memakainya, termasuk untuk dummy/prototype. Penyebutan Firebase dan approval di dokumen ini adalah requirement final Private, bukan izin Public; pengujian komponen Public memakai mock/simulator mandiri tanpa koneksi Firebase sampai `COMPONENT_READY_PRIVATE` dan ditahan sampai closure tahap utuh menurut aturan global §6. Kesiapan komponen tidak memberi izin promosi/eksekusi Private.
 
 ---
 
@@ -137,6 +137,22 @@ Perubahan build script, dependency lock, repository, toolchain, plugin, manifest
 Perubahan kandidat setelah Firebase approval tetapi sebelum execution juga membatalkan approval sesuai `TEST_ROUTING_POLICY.md`.
 
 ---
+
+## Penutupan R6 Sebelum Handoff Tahap
+
+R6-M01–M09 dan M21–M23 wajib diterapkan sebagai satu inventaris lintas fase, bukan berhenti pada compile/unit test komponen.
+
+- Catat setiap fase/perintah yang benar-benar akan dipakai: resolve, compile, test, package, lint/shrink bila berlaku, candidate/sign/verify dan install. Hubungkan setiap fase ke source/generated input, konfigurasi/variant, JDK/compiler, Gradle/AGP, SDK/Build Tools/NDK, plugins, buildscript/classpath, dependency langsung/transitif, repository asal, lock, verification metadata, parameter/environment dan cache yang material.
+- Enumerasi konfigurasi/dependency yang baru dimuat pada fase tertentu atau execution-time. Satu task dependency report, satu configuration yang di-resolve, atau dry-run saja tidak membuktikan seluruh input fase berikutnya.
+- Bedakan tiga bukti: **version lock**, **integritas/trust byte**, dan **kompatibilitas/perilaku**. Checksum metadata yang baru dibangkitkan adalah kandidat untuk direview, bukan sumber kebenaran yang otomatis dipercaya. Jangan menambah checksum/version yang gagal hanya agar gate hijau; selidiki asal/perbedaan dan review melalui prosedur trust yang berlaku.
+- Bukti R6 Public hanya mencakup input Public dan contract bersama. Identitas baseline, build input, konfigurasi, cache, dan bukti toolchain Private tetap di Private. Penerima memeriksa compatibility serta freshness bukti sendiri; jangan mengasumsikan toolchain mirip berarti setara.
+- Uji negatif dependency/plugin baru yang tidak terinventaris, task-time resolution yang belum ditutup, versi/repository berubah, stale evidence, checksum salah, missing lock, dan verifier yang hanya menerima marker PASS.
+- Catat prasyarat yang sudah terbukti dan witness final yang baru tersedia setelah build. Reproducibility/clean-build challenge yang memerlukan eksekusi tambahan adalah biaya nyata: reuse qualification sah bila berlaku; bila belum cukup, nyatakan kebutuhan/kuota sebelum dispatch, bukan diam-diam menjalankan bootstrap/rebuild.
+- Evidence wajib mengikat fase/perintah/input/configuration/environment/result. R6 komponen PASS tidak boleh diwariskan menjadi R6 integrasi/Android final PASS tanpa bukti scope tambahan.
+
+Ikuti batas tahap dan satu attempt pada aturan global §6; tidak ada trigger Private per komponen atau per fase R6. Kebijakan ini tidak memilih versi toolchain baru atau mengubah kontrak produk.
+
+Rujukan: [Gradle dependency locking](https://docs.gradle.org/current/userguide/dependency_locking.html), [Gradle dependency verification](https://docs.gradle.org/current/userguide/dependency_verification.html), dan [Google — building secure systems](https://google.github.io/building-secure-and-reliable-systems/raw/ch14.html).
 
 ## 4. Development vs Final R6 Status
 

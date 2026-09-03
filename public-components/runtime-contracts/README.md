@@ -61,7 +61,7 @@ SPEC
 -> READY_PRIVATE
 ```
 
-`READY_PRIVATE` hanya berarti Promotion Package component siap dipertimbangkan oleh Private preflight. Ia bukan final application PASS.
+`READY_PRIVATE` pada output/manifest komponen adalah status legacy yang dibaca sebagai `COMPONENT_READY_PRIVATE`: komponen matang dan ditahan di Public. Ia tidak mengizinkan promosi/preflight/integrasi sendiri atau final PASS. Hanya closure tahap utuh `STAGE_READY_PRIVATE` dengan otorisasi yang berlaku membuka satu attempt Private menurut [aturan global](../../GLOBAL_PUBLIC_PRIVATE_DEVELOPMENT_RULES.md). Nama status mesin di pipeline ini dipertahankan untuk compatibility; bukan penaikan kesiapan tahap otomatis.
 
 ## Dependency
 
@@ -90,6 +90,7 @@ Awali dengan [AGENTS repository](../../AGENTS.md), aturan global Rule 0, dan [pe
 
 1. [CONTRACT.md](CONTRACT.md) — sumber input/output, batas resource, publication, failure, dan integration handoff.
 2. [ASSURANCE_R1_R9.md](ASSURANCE_R1_R9.md) bersama sumber R1–R9 yang dirujuk — applicability, metode, dan evidence sebelum pekerjaan bergantung padanya; matriks tidak menggantikan sumber metode.
-3. [SANITIZED_PRIVATE_FAILURE_2026-09-03.md](SANITIZED_PRIVATE_FAILURE_2026-09-03.md) dan [PRIVATE_INTEGRATION_REQUIREMENTS.json](PRIVATE_INTEGRATION_REQUIREMENTS.json) — saat memperbaiki/menguji handoff dependency trust terkait.
+3. [SANITIZED_PRIVATE_FAILURE_2026-09-03.md](SANITIZED_PRIVATE_FAILURE_2026-09-03.md), [PRIVATE_INTEGRATION_REQUIREMENTS.json](PRIVATE_INTEGRATION_REQUIREMENTS.json), dan [R6_PRIVATE_HANDOFF_ASSURANCE_ADDENDUM.md](R6_PRIVATE_HANDOFF_ASSURANCE_ADDENDUM.md) — saat memperbaiki/menguji handoff dependency trust terkait.
+4. [README stage-a-foundation](../stage-a-foundation/README.md) — saat komponen dimasukkan ke closure tahap utuh; jangan mempromosikan komponen secara mandiri.
 
 Catatan failure dipakai sebagai requirement/regresi yang aman, bukan izin membaca Private. Status dan evidence tetap harus cocok dengan exact revision; daftar dokumen ini tidak menyatakan test/package sudah PASS.

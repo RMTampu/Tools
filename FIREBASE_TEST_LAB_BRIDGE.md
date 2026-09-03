@@ -37,7 +37,7 @@ Public hanya boleh melakukan riset **tanpa akses operasional atau panggilan ke l
 
 Pengujian penyambungan di Public menggunakan dummy mandiri dari contract aman sebagai pengganti baseline APK/state final, bukan salinan/ekstraksi/penyamaran isi Private. Dummy/prototype tersebut **tidak boleh diuji melalui Firebase**.
 
-Hasil tersebut hanya evidence Public/research sampai `READY_PRIVATE`: paket siap diintegrasikan ke baseline sebenarnya di Private, bukan final ToolBox runtime proof.
+Hasil tersebut hanya evidence Public/research. Komponen mencapai `COMPONENT_READY_PRIVATE` dan ditahan sampai seluruh tahap `STAGE_READY_PRIVATE`; hanya tahap utuh dengan otorisasi yang berlaku dapat dipromosikan menurut aturan global §6. Tidak ada final ToolBox runtime proof dari dummy atau izin Private dari status komponen.
 
 ## 4. Authorization Principle
 

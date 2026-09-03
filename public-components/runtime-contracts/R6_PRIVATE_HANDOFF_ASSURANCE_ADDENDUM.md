@@ -45,7 +45,7 @@ Public handoff requirements:
 
 1. The Private host owns its actual dependency/build-tool trust universe.
 2. Adding this component invalidates affected stale host trust evidence.
-3. The host must refresh accepted trust state before regression/build.
+3. The host must review impacted trust state before regression/build; reuse still-valid evidence, and refresh only affected inputs through the authorized trust procedure. This is a prerequisite, not permission to run a separate Private bootstrap/attempt for each component.
 4. Trust generation and regression must use the same declared build-tool artifact source identity.
 5. If regression intentionally uses an alternate build-tool artifact source, every alternate artifact identity must be incorporated into the accepted Private trust state before regression.
 6. An unbound build-tool artifact request during regression must fail closed.

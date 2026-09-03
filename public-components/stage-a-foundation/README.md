@@ -21,7 +21,9 @@ Tahap A Public menggabungkan:
 - aggregated health;
 - integration surrogate yang memakai `ProductRegistry` yang sama.
 
-A1–A4 diperlakukan sebagai sublangkah internal. `COMPONENT_READY_PRIVATE` dependency tidak membuka integrasi Private. Hanya artifact Stage A yang menghasilkan `STAGE_A_READY_PRIVATE` yang menjadi handoff Tahap A.
+A1–A4 diperlakukan sebagai sublangkah internal. `COMPONENT_READY_PRIVATE` dependency tidak membuka integrasi Private. Handoff memerlukan artifact Stage A dengan `STAGE_A_READY_PRIVATE` **dan** manifest/evidence seluruh cakupan tahap yang disetujui menurut [aturan global §6](../../GLOBAL_PUBLIC_PRIVATE_DEVELOPMENT_RULES.md#6-jalur-kematangan-komponen). Alias ini berarti `STAGE_READY_PRIVATE` untuk A hanya bila syarat tersebut terbukti, bukan karena nama paket atau teks status. Izin, budget, prasyarat penerima, dan satu-attempt gate Private tetap wajib.
+
+Baca [peta MD](../../PETA-PEMAKAIAN-MD.md), [APPLICATION](../../APPLICATION_SAFE_100_PROCESS.md), [R6](../../APP_SAFE_R6_BUILD_DEPENDENCY_INSTALL.md) dan [R9](../../APP_SAFE_R9_VERIFICATION_COMPLETENESS.md) untuk kontrak/dummy, seluruh input fase, fault/mutation, evidence binding dan closure tahap. Jangan memperkecil tahap menjadi daftar implementasi yang kebetulan sudah tersedia.
 
 ## Boundary
 

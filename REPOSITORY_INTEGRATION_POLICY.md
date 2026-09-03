@@ -17,7 +17,7 @@ PRIVATE MASTER
 = SINGLE SOURCE OF TRUTH + VAULT + FINAL PROCESSING + PRIVATE EXECUTION
 
 PUBLIC RESEARCH/STAGING
-= RESEARCH + ITERATION + MOCK/SIMULATOR + PUBLIC TEST + READY_PRIVATE PACKAGING
+= RESEARCH + ITERATION + MOCK/SIMULATOR + PUBLIC TEST + WHOLE-STAGE PACKAGING
 ```
 
 Repository backup/shared boleh ada, tetapi tidak otomatis menjadi master.
@@ -37,7 +37,7 @@ Dilarang:
 
 Contract/interface yang memang diklasifikasikan aman untuk Public bukan isi Private yang diekspor; contract tersebut harus dikelola sebagai boundary publik tersendiri.
 
-Pengujian penyambungan di Public WAJIB menggunakan dummy/mock/simulator mandiri dari contract aman, bukan APK baseline atau salinan/ekstraksi/penyamaran isi Private. Integrasi ke baseline/state final yang sebenarnya hanya dilakukan setelah Promotion Package masuk Private dan preflight PASS.
+Pengujian penyambungan di Public WAJIB menggunakan dummy/mock/simulator mandiri dari contract aman, bukan APK baseline atau salinan/ekstraksi/penyamaran isi Private. Integrasi ke baseline/state final yang sebenarnya hanya dilakukan untuk tahap utuh setelah `STAGE_READY_PRIVATE`, otorisasi eksekusi, dan preflight PASS sesuai aturan global §6.
 
 ## 4. Arah Integrasi Resmi
 
@@ -47,7 +47,10 @@ RESEARCH
 -> BUILD COMPONENT
 -> AUDIT/TEST/SIMULATOR
 -> PACKAGE
--> READY_PRIVATE
+-> COMPONENT_READY_PRIVATE (DITAHAN DI PUBLIC)
+-> CLOSURE SELURUH TAHAP
+-> STAGE_READY_PRIVATE
+-> OTORISASI EKSEKUSI TAHAP
 
                 promotion package only
                          |
@@ -71,9 +74,11 @@ Public tidak mengetahui atau mengambil state final Private.
 
 ## 5. Promotion Package
 
-Perpindahan Public -> Private hanya melalui paket yang telah dinyatakan `READY_PRIVATE`. Status ini berarti paket matang untuk integrasi Private, bukan integrasi baseline atau aplikasi final sudah PASS.
+Perpindahan Public -> Private hanya melalui Promotion Package **tahap utuh** dengan `STAGE_READY_PRIVATE` dan otorisasi eksekusi yang berlaku. `COMPONENT_READY_PRIVATE` atau output lama `READY_PRIVATE` komponen tidak memberi izin promosi/integrasi. Kesiapan tahap bukan final PASS. Definisi dan batas satu attempt mengikuti aturan global §6.1–§6.3.
 
-Minimal metadata:
+Manifest tahap wajib mengikat Stage ID, versi scope, seluruh sublangkah/komponen wajib, paket anggota/hash, kontrak dan route, R1–R9 applicability/evidence, hasil interaksi antar-komponen, dan batas witness final yang masih direncanakan. Reference baseline/toolchain/adapter dan evidence penerima Private disimpan pada catatan penerimaan Private; tidak diekspor ke Public.
+
+Minimal metadata setiap paket anggota:
 
 - Project ID;
 - Component ID/version;
@@ -89,7 +94,7 @@ Private wajib memverifikasi identitas dan hash sebelum integrasi.
 
 ## 6. Private Preflight
 
-Sebelum proses berat, periksa:
+Sebelum dispatch, pastikan closure tahap lengkap, izin, budget, attempt ID, serta tidak ada attempt ganda. Status unknown/komponen parsial tidak boleh diteruskan. Dalam attempt tersebut, sebelum proses berat periksa:
 
 `PACKAGE -> MANIFEST -> HASH -> CONTRACT -> DEPENDENCY -> COMPATIBILITY -> ENVIRONMENT`
 
@@ -146,8 +151,9 @@ STOP
 -> SANITIZED_FAILURE_REPORT
 -> PUBLIC
 -> FIX/RETEST
--> READY_PRIVATE
--> PRIVATE
+-> CLOSURE ULANG TAHAP TERDAMPAK
+-> STAGE_READY_PRIVATE
+-> STOP / KEPUTUSAN DAN IZIN ATTEMPT BARU
 ```
 
 Yang boleh keluar ke Public hanya error/compatibility information yang telah disanitasi.
@@ -200,7 +206,7 @@ Target cleanup:
 - debug output;
 - temporary test data.
 
-Cleanup tidak pernah dianggap pengganti larangan Private -> Public.
+Paket tahap dan evidence wajib dipertahankan secara tahan lama sebelum output sementara dihapus sesuai aturan global §12. Cleanup tidak pernah dianggap pengganti larangan Private -> Public.
 
 ## 13. Build dan Test Boundary
 
@@ -212,7 +218,7 @@ Final application build, signing, signature verification, final runtime test, da
 
 Seluruh akses operasional Firebase/Test Lab hanya boleh dari Private. Public dilarang melakukan connection check, catalog/model lookup, preflight yang mengakses Firebase, upload/download, atau test matrix, termasuk terhadap dummy/prototype Public. Single-use approval hanya berlaku untuk final execution Private, bukan pengecualian Public. Riset dokumentasi API terbuka serta mock/fixture tanpa koneksi/panggilan Firebase tetap diperbolehkan sesuai aturan global §9.1.
 
-Dependency/toolchain harus dikunci dan environment Public/Private dibuat sedekat mungkin untuk aspek yang mempengaruhi kompatibilitas.
+Seluruh input dependency/toolchain/perintah per fase harus dikunci dan compatibility/perbedaan environment dibuktikan menurut R6. Kesamaan nama versi atau keberhasilan dummy tidak membuktikan seluruh input Private.
 
 ## 14. Project Isolation
 
@@ -245,6 +251,11 @@ FIREBASE_EXECUTION_BOUNDARY = PRIVATE_ONLY
 PUBLIC_FIREBASE_ACCESS = 0
 PUBLIC_FIREBASE_EXECUTION = 0
 PRIVATE_TRIAL_AND_ERROR = 0
+COMPONENT_READY_PRIVATE_AUTHORIZES_PRIVATE = FALSE
+SUBSTEP_IS_PRIVATE_INTEGRATION_BOUNDARY = FALSE
+PRIVATE_INTEGRATION_BOUNDARY = WHOLE_APPROVED_STAGE
+STAGE_READY_PRIVATE_AND_AUTHORIZATION = REQUIRED
+AUTO_RETRY_PRIVATE = FORBIDDEN
 UNSANITIZED_FAILURE_REPORT = 0
 UNDECLARED_CROSS_PROJECT_TRANSFER = 0
 PUBLIC_JOB_AUTO_CLEANUP = REQUIRED

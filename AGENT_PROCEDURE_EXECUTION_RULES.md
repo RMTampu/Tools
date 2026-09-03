@@ -16,7 +16,8 @@ SESUAIKAN CARA EKSEKUSI AGEN AGAR SELURUH PROSEDUR TETAP DIJALANKAN.
 Jika seluruh prosedur terlalu besar untuk dipertahankan secara lengkap sekaligus:
 
 ```text
-PECAH PROSESNYA.
+PECAH UNIT EKSEKUSI/PERIKSA DI DALAM TAHAP.
+JANGAN PECAH BATAS PROMOSI ATAU PERCOBAAN PRIVATE.
 JANGAN PECAH, KURANGI, ATAU MELEMAHKAN ATURANNYA.
 ```
 
@@ -94,7 +95,9 @@ Agen hanya boleh mengerjakan unit yang aturan lengkapnya sedang tersedia dan dip
 
 Setelah unit selesai, agen wajib menyimpan status dan evidence yang diperlukan sebelum melanjutkan ke unit berikutnya.
 
-Lebih baik menjalankan 10 langkah dalam 10 tahap lengkap daripada memaksa 10 langkah dalam satu tahap tetapi hanya 7 yang benar-benar diperiksa.
+Sepuluh pemeriksaan boleh dikerjakan dalam sepuluh unit eksekusi lengkap di dalam tahap pembangunan yang sama. Pemecahan ini mengelola konteks dan coverage, bukan membuka sepuluh promosi/percobaan Private. Seluruh pekerjaan Public tahap ditutup sebelum `STAGE_READY_PRIVATE` menurut aturan global §6.
+
+Istilah gate, sub-gate, rule, check, S-step, serta A-step pada prosedur assurance bukan Tahap Pembangunan A–K. Catat namespace/jenis unit agar label assurance A1 tidak disalahartikan sebagai sublangkah produk A1. Tahap produk mengikuti peta pengguna, bukan jumlah unit yang dapat ditangani agen.
 
 ---
 
@@ -105,6 +108,11 @@ Dalam prosedur bertahap, agen wajib mempertahankan state kerja yang cukup untuk 
 Minimal harus dapat ditentukan:
 
 ```text
+CURRENT_PRODUCT_STAGE_ID
+APPROVED_STAGE_SCOPE_REFERENCE
+CURRENT_PROCEDURE_NAMESPACE_AND_UNIT
+STAGE_CLOSURE_STATUS
+PRIVATE_ATTEMPT_ID_AND_STATE_IF_APPLICABLE
 CURRENT_GATE
 CURRENT_SUB_GATE
 CURRENT_RULE
@@ -128,7 +136,7 @@ Agen tidak boleh melanjutkan dari tebakan.
 
 ---
 
-## 7. Satu Tahap Harus Selesai Sebelum Tahap Berikutnya
+## 7. Unit Prosedur Berurutan Harus Memenuhi Syarat Sumber
 
 Untuk setiap rantai berurutan:
 
@@ -139,7 +147,7 @@ STEP N
 
 `STEP N+1` hanya boleh dimulai jika `STEP N = PASS` sesuai aturan sumber.
 
-Suatu tahap dianggap selesai hanya bila seluruh requirement wajib tahap itu telah diperiksa dan seluruh evidence yang diwajibkan tersedia.
+Suatu unit prosedur dianggap selesai hanya bila seluruh requirement wajib unit itu telah diperiksa dan seluruh evidence yang diwajibkan tersedia. Selesainya unit tidak mengizinkan promosi atau dispatch Private; batas tahap utuh tetap berlaku.
 
 Status berikut tidak boleh diperlakukan sebagai PASS:
 
@@ -157,7 +165,7 @@ INDETERMINATE_TOOL
 ASSUMED
 ```
 
-Jika satu saja requirement wajib masih berada pada status tersebut, tahap aktif belum PASS.
+Jika satu saja requirement wajib masih berada pada status tersebut, unit prosedur aktif belum PASS.
 
 ---
 

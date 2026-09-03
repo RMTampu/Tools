@@ -10,7 +10,7 @@ Status riset: `PRACTICAL_SATURATION` terhadap ruang metode assurance/V&V yang te
 
 Untuk seluruh keputusan test environment dan Firebase authorization, R9 WAJIB mengikuti `TEST_ROUTING_POLICY.md`. R9 tidak mempunyai kewenangan membuka Firebase sendiri.
 
-**Batas Firebase wajib:** seluruh akses/pengecekan/eksekusi Firebase/Test Lab hanya dari Private. Public tidak boleh memakainya, termasuk untuk dummy/prototype. Penyebutan Firebase dan approval di dokumen ini adalah requirement final Private, bukan izin Public; pengujian komponen Public memakai mock/simulator mandiri tanpa koneksi Firebase sampai `READY_PRIVATE`.
+**Batas Firebase wajib:** seluruh akses/pengecekan/eksekusi Firebase/Test Lab hanya dari Private. Public tidak boleh memakainya, termasuk untuk dummy/prototype. Penyebutan Firebase dan approval di dokumen ini adalah requirement final Private, bukan izin Public; pengujian komponen Public memakai mock/simulator mandiri tanpa koneksi Firebase sampai `COMPONENT_READY_PRIVATE` dan ditahan sampai closure tahap utuh menurut aturan global §6. Kesiapan komponen tidak memberi izin promosi/eksekusi Private.
 
 ---
 
@@ -118,7 +118,7 @@ Perubahan kandidat juga membatalkan unused Firebase approval yang terikat ke kan
 ### R9-M19 — Fail-Closed Unknown / Skipped / Inconclusive Handling
 Status `UNKNOWN`, `SKIPPED`, `NOT_RUN`, `NOT_LOADED`, `INCOMPLETE`, `INDETERMINATE_TOOL`, `ASSUMED`, and `NOT_PROVEN` tidak boleh dihitung PASS.
 
-Tool failure wajib diperbaiki/rerun atau claim tetap tertutup, **tetapi aturan ini tidak memberi izin auto-retry Firebase**. Setiap Firebase execution attempt baru membutuhkan explicit user approval baru.
+Tool failure harus didiagnosis dan proof diperoleh secara sah, atau claim tetap NOT_PROVEN. Ini tidak mengizinkan auto-retry Private/Firebase. Perbaikan Public ditutup kembali pada scope tahap; attempt Private baru memerlukan keputusan/izin baru menurut aturan global §6. Approval final Firebase tetap khusus kandidat.
 
 ### R9-M20 — Negative Assurance / Defeater Analysis
 Untuk setiap final claim, cari alasan yang dapat membuat claim salah: missing requirement, wrong oracle, common-mode tool bug, unsupported device class, hidden dynamic path, stale evidence, incorrect model abstraction, unexpected environment, unmodeled cross-domain interaction. Semua material defeater wajib resolved atau claim dibatasi.
@@ -159,7 +159,7 @@ FINAL_TARGET_WITNESS_REQUIRED = YES
 
 Tetapi R9 DILARANG mengubah kesimpulan tersebut menjadi permission Firebase.
 
-Pada scope Public, tutup proof komponen sampai `PACKAGE_VALIDATION -> READY_PRIVATE`, lalu kirim Promotion Package ke Private. Target-specific final witness tetap tanggung jawab Private; Public tidak menjalankan Firebase.
+Pada scope Public, tutup proof komponen sampai `PACKAGE_VALIDATION -> COMPONENT_READY_PRIVATE` dan tahan komponen di Public. Tutup seluruh anggota serta interaksi tahap sebelum `STAGE_READY_PRIVATE`; hanya tahap utuh dapat dipromosikan dengan otorisasi Private yang berlaku. Target-specific final witness tetap tanggung jawab Private; Public tidak menjalankan Firebase.
 
 Alur Firebase hanya di Private, setelah seluruh prerequisite kandidat menurut `TEST_ROUTING_POLICY.md` terpenuhi:
 
@@ -182,6 +182,18 @@ approval consumed
 Retry di Private memerlukan approval baru. Approval tidak memberi izin untuk menjalankan Firebase dari Public.
 
 ---
+
+## Closure Tahap dan Batas PASS
+
+Sebelum handoff, R9 wajib merekonsiliasi daftar requirement/sublangkah/komponen tahap yang disetujui dengan seluruh paket, kontrak, registry route, domain R1–R9, interaksi, test, evidence, dan keterbatasannya. Tidak cukup menjumlahkan PASS komponen. Kehilangan satu anggota/route wajib atau memperkecil scope agar paket parsial dianggap tahap adalah blocker.
+
+Pisahkan claim `PUBLIC_COMPONENT`, `PUBLIC_STAGE`, `PRIVATE_INTEGRATION`, dan `FINAL_TARGET`; masing-masing mengikat input/revision/environment sendiri. Output lama `READY_PRIVATE` komponen tidak mengesahkan `STAGE_READY_PRIVATE`. Claim final yang hanya dapat diuji di Private tetap pending, tidak dimasukkan ke PASS Public atau dijadikan syarat melingkar masuk Private.
+
+R9-M09–M17 wajib menolak bukti yang hanya berupa keberadaan file, pencarian teks PASS, test count, atau boolean yang ditulis tanpa menguji perilaku. Verifier harus dibuktikan menolak missing route, paket parsial, perubahan input, stale hash, failed oracle, status palsu, dan approval/attempt yang tidak sesuai. Catat expected result, actual result, input binding, serta negative-control evidence.
+
+Review akhir kesiapan meliputi bukti baseline/penerima yang tetap Private, rencana satu attempt, budget total, reuse evidence yang sah, dan pencegahan dispatch ganda menurut aturan global §6. Guard yang baru tertulis sebagai requirement bukan otomatis guard yang sudah bekerja; bila implementasinya belum terbukti, jangan dispatch atau klaim enforcement.
+
+“100%” hanya terhadap scope/fault model/batas bukti yang disetujui, bukan probabilitas keberhasilan pertama 100%. Bukti lama tidak diulang karena pergantian agen/editorial; invalidasi mengikuti dampak teknis, bukan label seluruh repo.
 
 ## 5. Metode yang Tidak Menjadi Proof Mandiri
 

@@ -8,7 +8,7 @@ Status riset: `PRACTICAL_SATURATION` terhadap ruang metode yang telah disapu.
 
 Test environment dan Firebase authorization selalu mengikuti `TEST_ROUTING_POLICY.md`.
 
-**Batas Firebase wajib:** seluruh akses/pengecekan/eksekusi Firebase/Test Lab hanya dari Private. Public tidak boleh memakainya, termasuk untuk dummy/prototype. Penyebutan Firebase dan approval di dokumen ini adalah requirement final Private, bukan izin Public; pengujian komponen Public memakai mock/simulator mandiri tanpa koneksi Firebase sampai `READY_PRIVATE`.
+**Batas Firebase wajib:** seluruh akses/pengecekan/eksekusi Firebase/Test Lab hanya dari Private. Public tidak boleh memakainya, termasuk untuk dummy/prototype. Penyebutan Firebase dan approval di dokumen ini adalah requirement final Private, bukan izin Public; pengujian komponen Public memakai mock/simulator mandiri tanpa koneksi Firebase sampai `COMPONENT_READY_PRIVATE` dan ditahan sampai closure tahap utuh menurut aturan global §6. Kesiapan komponen tidak memberi izin promosi/eksekusi Private.
 
 ---
 
