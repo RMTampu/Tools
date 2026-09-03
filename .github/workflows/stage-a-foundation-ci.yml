@@ -64,7 +64,7 @@ jobs:
         run: |
           set -euo pipefail
           sudo chmod 666 /dev/kvm || true
-          (yes no || true) | avdmanager create avd --force --name stage-a-api30 --package 'system-images;android-30;google_apis;x86_64' --device 'pixel_2'
+          printf 'no\n' | avdmanager create avd --force --name stage-a-api30 --package 'system-images;android-30;google_apis;x86_64' --device 'pixel_2'
           test -s "$HOME/.android/avd/stage-a-api30.ini"
           test -d "$HOME/.android/avd/stage-a-api30.avd"
           "$ANDROID_SDK_ROOT/emulator/emulator" -list-avds | grep -Fx 'stage-a-api30'
