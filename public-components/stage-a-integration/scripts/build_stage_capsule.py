@@ -105,19 +105,21 @@ def main():
         runtime = runtime_map(runtime_summary)
 
         require(independent_value.get("status") == "PASS" and independent_value.get("mutationEscape") == 0, "independent verifier not closed")
+        require(independent_value.get("safeUiProductionActionsBound") is True, "safe-ui production actions not independently bound")
         require(reproducibility_value.get("status") == "PASS" and reproducibility_value.get("semanticPayloadIdentical") is True, "reproducibility not closed")
         require(runtime.get("ANDROID_API") == "30" and runtime.get("ABI") == "x86_64", "wrong Public runtime environment")
         require(runtime.get("REFERENCE_DUMMY") == "PASS", "reference dummy not proven")
         require(runtime.get("ADVERSARIAL_CONFORMANT_DUMMY") == "PASS", "adversarial dummy not proven")
         require(runtime.get("HOST_PROCESS_RESTART_READ") == "PASS" and runtime.get("HOST_CORRUPTION_REJECTION") == "PASS", "host lifecycle/failure proof incomplete")
-        require(runtime.get("HOST_SAFE_UI_RENDER") == "PASS", "safe UI proof incomplete")
+        require(runtime.get("HOST_SAFE_UI_RENDER") == "PASS" and runtime.get("HOST_SAFE_UI_ACTIONS") == "PASS", "safe UI/action proof incomplete")
         require(runtime.get("NETWORK_CALLS") == "0" and runtime.get("FIREBASE_USED") == "0", "Public boundary violation")
         require(runtime.get("FINAL_ARM64_RUNTIME_CLAIMED") == "0", "Public cannot claim final arm64")
 
         require(promotion.get("status") == "STAGE_A_READY_PRIVATE", "promotion status")
         require(promotion.get("privateImplementationRequired") is False and promotion.get("privateWiringOnly") is True, "promotion wiring-only invariant")
+        require(promotion.get("assurance", {}).get("androidHostSafeUiActions") == "PASS", "promotion safe-ui action assurance missing")
         source = promotion.get("productionSourceArchive", {})
-        require(source.get("sourceCount") == 20, "production source count")
+        require(source.get("sourceCount") == 22, "production source count")
         require(source.get("sha256") == sha(production_zip), "production archive digest mismatch")
         require(source.get("simulatorSourceIncluded") is False and source.get("testSourceIncluded") is False and source.get("androidTestHarnessIncluded") is False, "production archive contamination")
         require(promotion.get("publicBoundaries", {}).get("privateContentIncluded") is False, "private content boundary")
@@ -146,6 +148,7 @@ def main():
             "abi": "x86_64",
             "runtimeSummarySha256": runtime_digest,
             "productionHostUsed": True,
+            "safeUiProductionActionsUsed": True,
             "privateContentUsed": False,
             "firebaseUsed": False,
         })
@@ -158,6 +161,7 @@ def main():
             "runtimeSummarySha256": runtime_digest,
             "restrictedSafeModeExercised": True,
             "productionHostUsed": True,
+            "safeUiProductionActionsUsed": True,
             "privateContentUsed": False,
             "firebaseUsed": False,
         })
@@ -168,12 +172,13 @@ def main():
             "apkSha256": sha(apk),
             "runtimeSummarySha256": runtime_digest,
             "productionSourceArchiveSha256": sha(production_zip),
-            "productionSourceCount": 20,
+            "productionSourceCount": 22,
             "referenceDummy": "PASS",
             "adversarialConformantDummy": "PASS",
             "processRestart": "PASS",
             "corruptionRejection": "PASS",
             "safeUi": "PASS",
+            "safeUiActions": "PASS",
             "manualFixAfterPackageApply": 0,
             "privateContentUsed": False,
             "firebaseUsed": False,
@@ -215,6 +220,8 @@ def main():
             "capsuleZipSha256": sha(CAPSULE_ZIP),
             "capsuleZipSize": CAPSULE_ZIP.stat().st_size,
             "productionSourceArchiveSha256": sha(production_zip),
+            "productionSourceCount": 22,
+            "safeUiProductionActions": "PASS",
             "memberCount": len(members),
             "privateContentIncluded": False,
             "firebaseUsed": False,
@@ -226,6 +233,8 @@ def main():
         return 2
     print("STAGE_A_SEALED_CAPSULE = PASS")
     print("STAGE_A_STATUS=STAGE_READY_PRIVATE")
+    print("PRODUCTION_SOURCE_COUNT=22")
+    print("SAFE_UI_PRODUCTION_ACTIONS=PASS")
     print("PRIVATE_IMPLEMENTATION_REQUIRED=0")
     print("PRIVATE_MANUAL_PATCH_REQUIRED=0")
     print("PRIVATE_CONTENT_INCLUDED=0")
