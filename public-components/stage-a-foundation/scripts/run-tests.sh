@@ -13,7 +13,7 @@ REPRO_JAR="$PACKAGE_DIR/toolbox-stage-a-foundation-0.1.0-repro.jar"
 mkdir -p "$BUILD"
 rm -rf "$MAIN_CLASSES" "$TEST_CLASSES" "$PACKAGE_DIR"
 rm -f "$BUILD/dependency-main-sources.txt" "$BUILD/stage-main-sources.txt" "$BUILD/test-sources.txt" "$BUILD/main-sources.txt"
-rm -f "$BUILD/self-test-output.txt" "$BUILD/property-test-output.txt" "$BUILD/simulator-output.txt" "$BUILD/test-summary.txt"
+rm -f "$BUILD/self-test-output.txt" "$BUILD/property-test-output.txt" "$BUILD/safe-ui-action-policy-output.txt" "$BUILD/simulator-output.txt" "$BUILD/test-summary.txt"
 mkdir -p "$MAIN_CLASSES" "$TEST_CLASSES" "$PACKAGE_DIR"
 cat > "$BUILD/dependency-main-sources.txt" <<EOF
 $REPO/public-components/runtime-contracts/src/main/java/io/toolbox/contracts/runtime/Contracts.java
@@ -31,6 +31,7 @@ javac --release 11 -Xlint:all -Werror -d "$MAIN_CLASSES" @"$BUILD/main-sources.t
 javac --release 11 -Xlint:all -Werror -cp "$MAIN_CLASSES" -d "$TEST_CLASSES" @"$BUILD/test-sources.txt"
 java -ea -cp "$MAIN_CLASSES:$TEST_CLASSES" io.toolbox.stagea.StageAFoundationSelfTest | tee "$BUILD/self-test-output.txt"
 java -ea -cp "$MAIN_CLASSES:$TEST_CLASSES" io.toolbox.stagea.StageAFoundationPropertyTest | tee "$BUILD/property-test-output.txt"
+java -ea -cp "$MAIN_CLASSES:$TEST_CLASSES" io.toolbox.stagea.SafeUiActionPolicyTest | tee "$BUILD/safe-ui-action-policy-output.txt"
 java -ea -cp "$MAIN_CLASSES:$TEST_CLASSES" io.toolbox.stagea.StageAIntegrationSimulator | tee "$BUILD/simulator-output.txt"
 grep -Fx 'PUBLIC_STAGE_A_FOUNDATION_TESTS = PASS' "$BUILD/self-test-output.txt"
 grep -Fx 'SELF_TEST_CASES=23' "$BUILD/self-test-output.txt"
@@ -39,6 +40,8 @@ grep -Fx 'AVAILABILITY_CROSS_PRODUCT_CASES=9' "$BUILD/property-test-output.txt"
 grep -Fx 'RESOURCE_BOUNDARY_CASES=111' "$BUILD/property-test-output.txt"
 grep -Fx 'CONCURRENT_ADMISSION_CASES=8000' "$BUILD/property-test-output.txt"
 grep -Fx 'DIAGNOSTIC_RETENTION_CASES=10' "$BUILD/property-test-output.txt"
+grep -Fx 'SAFE_UI_ACTION_POLICY_TEST = PASS' "$BUILD/safe-ui-action-policy-output.txt"
+grep -Fx 'SAFE_UI_ACTION_POLICY_CASES=13' "$BUILD/safe-ui-action-policy-output.txt"
 grep -Fx 'STAGE_A_INTEGRATION_SIMULATOR = PASS' "$BUILD/simulator-output.txt"
 grep -Fx 'REGISTRY_ROUTE=PASS' "$BUILD/simulator-output.txt"
 grep -Fx 'EXECUTION_GUARD_ROUTE=PASS' "$BUILD/simulator-output.txt"
@@ -66,12 +69,14 @@ DEPENDENCY_RUNTIME_CONTRACTS=PASS
 DEPENDENCY_RUNTIME_SAFETY_CONTRACTS=PASS
 SELF_TEST=PASS
 PROPERTY_TEST=PASS
+SAFE_UI_ACTION_POLICY=PASS
 REGISTRY_INTEGRATION_SIMULATOR=PASS
 RECOVERY_ROUTE=PASS
 SAFE_UI_CONTRACT_ROUTE=PASS
 HEALTH_DIAGNOSTIC_ROUTE=PASS
 REPRODUCIBLE_JAR=PASS
 SELF_TEST_CASES=23
+SAFE_UI_ACTION_POLICY_CASES=13
 AVAILABILITY_CROSS_PRODUCT_CASES=9
 RESOURCE_BOUNDARY_CASES=111
 CONCURRENT_ADMISSION_CASES=8000
