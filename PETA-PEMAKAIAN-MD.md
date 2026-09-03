@@ -14,7 +14,7 @@ Peta ini mengikuti aturan baru: ToolBox dikerjakan di repo publik utama, sedangk
 
 ## Aturan Pembersihan
 
-Jika ada Markdown lama yang masih membawa pola lintas repo seperti Public Research, Private Master, Promotion Package, Stage Capsule, receiver private, dummy private host, STAGE_READY_PRIVATE, COMPONENT_READY_PRIVATE, atau wiring antar repo, bagian itu tidak berlaku dan harus dibersihkan saat file tersebut disentuh.
+Jika ada Markdown lama yang masih membawa pola pemisahan pengembangan antar repository, bagian itu tidak berlaku dan harus dibersihkan saat file tersebut disentuh.
 
 ## Batas Rahasia
 
