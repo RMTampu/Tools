@@ -1,0 +1,100 @@
+name: ToolBox Public Runtime Contracts CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'public-components/runtime-contracts/**'
+      - '.github/workflows/runtime-contracts-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-runtime-contracts-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  public-runtime-contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Enforce Public boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "RMTampu/Tools"
+          echo 'PUBLIC_PRIVATE_READ_ACCESS=0'
+          echo 'PUBLIC_FINAL_BUILD=0'
+          echo 'PUBLIC_FIREBASE_PRIVATE_ARTIFACT=0'
+
+      - name: Checkout Public component source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+
+      - name: Setup exact Temurin JDK
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '17.0.20+1'
+          java-package: jdk
+          architecture: x64
+          check-latest: false
+
+      - name: Verify Java runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -version
+          javac -version
+
+      - name: Compile, unit/failure/concurrency test, simulator
+        shell: bash
+        run: bash public-components/runtime-contracts/scripts/run-tests.sh
+
+      - name: Validate Promotion Package
+        shell: bash
+        run: python3 public-components/runtime-contracts/scripts/package_validate.py
+
+      - name: Verify READY_PRIVATE manifest binding
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          path=Path('public-components/runtime-contracts/build/promotion/promotion-manifest.json')
+          data=json.loads(path.read_text())
+          assert data['status']=='READY_PRIVATE'
+          assert data['sourceRepository']=='RMTampu/Tools'
+          assert data['sourceCommitSha']==os.environ['GITHUB_SHA']
+          assert data['privateContentIncluded'] is False
+          assert data['testStatus']['packageValidation']=='PASS'
+          print('READY_PRIVATE_BINDING = PASS')
+          PY
+
+      - name: Upload Promotion Package
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        with:
+          name: public-runtime-contracts-ready-private
+          path: |
+            public-components/runtime-contracts/build/package/toolbox-runtime-contracts-0.1.0.jar
+            public-components/runtime-contracts/build/promotion/promotion-manifest.json
+            public-components/runtime-contracts/build/test-summary.txt
+            public-components/runtime-contracts/build/test-output.txt
+            public-components/runtime-contracts/build/simulator-output.txt
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Auto Cleanup Public workspace
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          rm -rf public-components/runtime-contracts/build
+          rm -rf "$RUNNER_TEMP"/toolbox-public-* 2>/dev/null || true
+          echo 'PUBLIC_JOB_AUTO_CLEANUP = DONE'
