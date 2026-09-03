@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}\")/.." && pwd)"
 REPO="$(cd "$ROOT/../.." && pwd)"
 BUILD="$ROOT/build"
 MAIN_CLASSES="$BUILD/classes"
@@ -10,7 +10,10 @@ PACKAGE_DIR="$BUILD/package"
 JAR="$PACKAGE_DIR/toolbox-stage-a-foundation-0.1.0.jar"
 REPRO_JAR="$PACKAGE_DIR/toolbox-stage-a-foundation-0.1.0-repro.jar"
 
-rm -rf "$BUILD"
+mkdir -p "$BUILD"
+rm -rf "$MAIN_CLASSES" "$TEST_CLASSES" "$PACKAGE_DIR"
+rm -f "$BUILD/dependency-main-sources.txt" "$BUILD/stage-main-sources.txt" "$BUILD/test-sources.txt" "$BUILD/main-sources.txt"
+rm -f "$BUILD/self-test-output.txt" "$BUILD/property-test-output.txt" "$BUILD/simulator-output.txt" "$BUILD/test-summary.txt"
 mkdir -p "$MAIN_CLASSES" "$TEST_CLASSES" "$PACKAGE_DIR"
 cat > "$BUILD/dependency-main-sources.txt" <<EOF
 $REPO/public-components/runtime-contracts/src/main/java/io/toolbox/contracts/runtime/Contracts.java
