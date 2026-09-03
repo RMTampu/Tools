@@ -1,7 +1,7 @@
-name: ToolBox Kernel CI
+name: ToolBox Public Kernel Research CI
 
 on:
-  workflow_call:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -12,19 +12,29 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - name: Checkout caller source
+      - name: Enforce Public repository boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "RMTampu/Tools" || {
+            echo '::error::Workflow ini hanya boleh mengeksekusi source Public RMTampu/Tools.'
+            exit 1
+          }
+
+      - name: Checkout Public research source
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           persist-credentials: false
 
-      - name: Record source provenance
+      - name: Record Public provenance
         shell: bash
         run: |
           set -euo pipefail
           echo "SOURCE_REPOSITORY=$GITHUB_REPOSITORY"
           echo "SOURCE_COMMIT_SHA=$GITHUB_SHA"
           echo "SOURCE_REF=$GITHUB_REF"
-          echo "CI_REPOSITORY=RMTampu/Tools"
+          echo "EXECUTION_REPOSITORY=$GITHUB_REPOSITORY"
+          echo 'SCOPE=PUBLIC_RESEARCH_TEST_STAGING'
 
       - name: Setup exact Temurin JDK
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
@@ -45,6 +55,15 @@ jobs:
         shell: bash
         run: python3 verification/scripts/dependency_trust_gate.py
 
-      - name: Run kernel tests
+      - name: Run Public kernel tests
         shell: bash
         run: gradle --no-daemon --warning-mode=all --dependency-verification strict :toolbox-kernel:test
+
+      - name: Auto Cleanup Public workspace
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          rm -rf toolbox-kernel/build .gradle
+          rm -rf "$RUNNER_TEMP"/toolbox-public-* 2>/dev/null || true
+          echo 'PUBLIC_WORKSPACE_AUTO_CLEANUP = DONE'
