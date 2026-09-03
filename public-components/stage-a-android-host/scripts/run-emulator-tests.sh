@@ -44,6 +44,9 @@ run_mode() {
   echo "$marker"
 }
 
+run_mode referenceDummy STAGE_A_REFERENCE_DUMMY_PASS
+run_mode adversarialDummy STAGE_A_ADVERSARIAL_DUMMY_PASS
+
 run_mode write STAGE_A_HOST_WRITE_PASS
 WRITE_PID="$(get_pid)"
 if [[ -z "$WRITE_PID" ]]; then
@@ -81,6 +84,8 @@ run_mode ui STAGE_A_HOST_SAFE_UI_PASS
 cat > "$ROOT/build/host-runtime-summary.txt" <<'EOF'
 ANDROID_API=30
 ABI=x86_64
+REFERENCE_DUMMY=PASS
+ADVERSARIAL_CONFORMANT_DUMMY=PASS
 HOST_DURABLE_WRITE=PASS
 HOST_PROCESS_STOP=PASS
 HOST_PROCESS_RESTART_READ=PASS
