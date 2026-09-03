@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "projectId": "ToolBox",
+  "stageId": "A",
+  "contractSha256": "7ed8b80e6eccd73e278fe582d60c1a1e726acb1a6f7389c06295c0f589595ebd",
+  "bindings": [
+    {
+      "slotId": "S01",
+      "providerId": "stage-a.registry",
+      "values": {
+        "HostClass": "io.toolbox.stagea.android.AndroidStageAHost",
+        "RegistryAccessor": "registrySnapshot"
+      }
+    },
+    {
+      "slotId": "S02",
+      "providerId": "stage-a.durable-state",
+      "values": {
+        "HostClass": "io.toolbox.stagea.android.AndroidStageAHost",
+        "StoreAccessor": "durableStateStore"
+      }
+    },
+    {
+      "slotId": "S03",
+      "providerId": "stage-a.bootstrap",
+      "values": {
+        "BootstrapMethod": "bootstrap",
+        "HostClass": "io.toolbox.stagea.android.AndroidStageAHost"
+      }
+    },
+    {
+      "slotId": "S04",
+      "providerId": "stage-a.safe-ui",
+      "values": {
+        "ModelAccessor": "safeUiModel",
+        "RendererClass": "io.toolbox.stagea.android.AndroidSafeUi"
+      }
+    },
+    {
+      "slotId": "S05",
+      "providerId": "stage-a.resource-profile",
+      "values": {
+        "ProfileFactory": "io.toolbox.stagea.android.AndroidResourcePolicyProvider.stageAIdle"
+      }
+    },
+    {
+      "slotId": "S06",
+      "providerId": "stage-a.diagnostics",
+      "values": {
+        "DiagnosticsAccessor": "diagnostics",
+        "HostClass": "io.toolbox.stagea.android.AndroidStageAHost"
+      }
+    }
+  ],
+  "moduleRegistration": [
+    "toolbox-runtime-contracts",
+    "toolbox-runtime-safety-contracts",
+    "toolbox-stage-a-foundation"
+  ],
+  "lifecycleOrder": [
+    "create-stage-a-host",
+    "bootstrap-stage-a-host",
+    "bind-durable-state",
+    "start-kernel",
+    "route-safe-ui-before-normal-ui"
+  ],
+  "constraints": {
+    "manualPatchAllowed": false,
+    "privateImplementationAllowed": false,
+    "newDependencyDecisionAllowed": false,
+    "sameProductRegistryRequired": true,
+    "safeUiRestrictedStatePreemptsNormalRoute": true
+  },
+  "acceptanceSchemaVersion": 1
+}
