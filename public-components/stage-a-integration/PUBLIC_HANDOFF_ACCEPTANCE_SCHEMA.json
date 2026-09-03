@@ -21,7 +21,8 @@
     "fullAssemblyEvidence",
     "reproducibilityEvidence",
     "independentVerifierEvidence",
-    "promotionManifest"
+    "promotionManifest",
+    "productionSourceArchive"
   ],
   "requiredClaims": {
     "privateImplementationRequired": false,
