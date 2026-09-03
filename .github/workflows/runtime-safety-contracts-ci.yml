@@ -1,0 +1,165 @@
+name: ToolBox Public Runtime Safety Contracts CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'public-components/runtime-safety-contracts/**'
+      - '.github/workflows/runtime-safety-contracts-ci.yml'
+      - 'AGENTS.md'
+      - 'GLOBAL_PUBLIC_PRIVATE_DEVELOPMENT_RULES.md'
+      - 'PETA-PEMAKAIAN-MD.md'
+      - 'REPOSITORY_INTEGRATION_POLICY.md'
+      - 'TEST_ROUTING_POLICY.md'
+      - 'AGENT_PROCEDURE_EXECUTION_RULES.md'
+      - 'APPLICATION_SAFE_100_PROCESS.md'
+      - 'APP_SAFE_R*.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-runtime-safety-contracts-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  public-runtime-safety-contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Enforce Public boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "RMTampu/Tools"
+          echo 'PUBLIC_PRIVATE_READ_ACCESS=0'
+          echo 'PRIVATE_CONTENT_INCLUDED=0'
+          echo 'PUBLIC_FINAL_BUILD=0'
+          echo 'PUBLIC_FIREBASE_ACCESS=0'
+
+      - name: Checkout Public component source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+
+      - name: Setup exact Temurin JDK
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '17.0.20+1'
+          java-package: jdk
+          architecture: x64
+          check-latest: false
+
+      - name: Setup exact Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13.7'
+          check-latest: false
+
+      - name: Verify pinned runtimes
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -version
+          javac -version
+          python --version
+          python3 --version
+
+      - name: R1-R8 prebuild assurance scope gate
+        shell: bash
+        run: python3 public-components/runtime-safety-contracts/scripts/assurance_prebuild.py
+
+      - name: Compile and execute runtime safety tests
+        shell: bash
+        run: bash public-components/runtime-safety-contracts/scripts/run-tests.sh
+
+      - name: R1/R2/R5/R6 mutation challenge
+        shell: bash
+        run: python3 public-components/runtime-safety-contracts/scripts/mutation_test.py | tee public-components/runtime-safety-contracts/build/mutation-output.txt
+
+      - name: R9 Public evidence completeness gate
+        shell: bash
+        run: python3 public-components/runtime-safety-contracts/scripts/assurance_finalize.py
+
+      - name: Validate Promotion Package
+        shell: bash
+        run: python3 public-components/runtime-safety-contracts/scripts/package_validate.py
+
+      - name: Verify READY_PRIVATE manifest binding
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path('public-components/runtime-safety-contracts')
+          manifest=json.loads((root/'build/promotion/promotion-manifest.json').read_text())
+          evidence=json.loads((root/'build/assurance/r1-r9-evidence.json').read_text())
+          handoff=json.loads((root/'PRIVATE_INTEGRATION_REQUIREMENTS.json').read_text())
+          assert manifest['status']=='READY_PRIVATE'
+          assert manifest['sourceRepository']=='RMTampu/Tools'
+          assert manifest['sourceCommitSha']==os.environ['GITHUB_SHA']
+          assert manifest['workflowRunId']==os.environ['GITHUB_RUN_ID']
+          assert manifest['assurance']['r1ToR9PublicAssurance']=='PASS'
+          assert manifest['assurance']['r9EvidenceCompleteness']=='PASS'
+          assert manifest['assurance']['finalApplicationSafe100Claimed'] is False
+          assert manifest['productionSourceArchive']['promotionAllowed'] is True
+          assert manifest['productionSourceArchive']['simulatorSourceIncluded'] is False
+          assert manifest['verificationJar']['privateProductionUseAllowed'] is False
+          assert manifest['testStatus']['mutationsKilled']==7
+          assert manifest['publicBoundaries']['privateContentIncluded'] is False
+          assert manifest['publicBoundaries']['privateExecutionThroughPublic'] is False
+          assert manifest['publicBoundaries']['firebaseUsed'] is False
+          assert evidence['status']=='PASS'
+          assert evidence['sourceCommitSha']==os.environ['GITHUB_SHA']
+          assert evidence['workflowRunId']==os.environ['GITHUB_RUN_ID']
+          assert evidence['closure']['unknown']==0
+          assert evidence['closure']['skipped']==0
+          assert evidence['closure']['notProven']==0
+          assert evidence['closure']['staleEvidence']==0
+          assert evidence['closure']['faultEscape']==0
+          assert handoff['integrationBoundary']=='PRIVATE_HOST_ONLY'
+          assert handoff['privateContentRequired'] is False
+          assert handoff['firebaseRequired'] is False
+          assert handoff['simulatorOnly']==['src/main/java/io/toolbox/contracts/safety/RuntimeSafetySimulator.java']
+          print('READY_PRIVATE_BINDING = PASS')
+          print('SIMULATOR_PRIVATE_PRODUCTION = 0')
+          print('PUBLIC_FIREBASE_ACCESS = 0')
+          PY
+
+      - name: Upload Promotion Package
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: public-runtime-safety-contracts-ready-private
+          path: |
+            public-components/runtime-safety-contracts/build/package/toolbox-runtime-safety-contracts-0.1.0.jar
+            public-components/runtime-safety-contracts/build/package/toolbox-runtime-safety-contracts-0.1.0-production-sources.zip
+            public-components/runtime-safety-contracts/build/promotion/promotion-manifest.json
+            public-components/runtime-safety-contracts/build/test-summary.txt
+            public-components/runtime-safety-contracts/build/test-output.txt
+            public-components/runtime-safety-contracts/build/boundary-output.txt
+            public-components/runtime-safety-contracts/build/property-output.txt
+            public-components/runtime-safety-contracts/build/simulator-output.txt
+            public-components/runtime-safety-contracts/build/mutation-output.txt
+            public-components/runtime-safety-contracts/build/assurance/r1-r9-summary.txt
+            public-components/runtime-safety-contracts/build/assurance/r1-r9-evidence.json
+            public-components/runtime-safety-contracts/COMPONENT_SPEC.json
+            public-components/runtime-safety-contracts/CONTRACT.json
+            public-components/runtime-safety-contracts/ASSURANCE_PLAN_R1_R9.json
+            public-components/runtime-safety-contracts/PRIVATE_INTEGRATION_REQUIREMENTS.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Auto Cleanup Public workspace
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          rm -rf public-components/runtime-safety-contracts/build
+          rm -rf public-components/runtime-safety-contracts/.assurance-state
+          rm -rf "$RUNNER_TEMP"/runtime-safety-* 2>/dev/null || true
+          echo 'PUBLIC_JOB_AUTO_CLEANUP = DONE'
