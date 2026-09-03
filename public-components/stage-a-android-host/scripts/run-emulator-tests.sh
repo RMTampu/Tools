@@ -4,24 +4,41 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD="$ROOT/build/android"
 APK="$BUILD/stage-a-host-test.apk"
 test -s "$APK"
-adb wait-for-device
-adb install -r "$APK"
+
+if ! timeout 30s adb wait-for-device; then
+  echo 'STAGE_A_HOST_ADB_WAIT = FAIL' >&2
+  exit 1
+fi
+if ! timeout 60s adb install -r "$APK"; then
+  echo 'STAGE_A_HOST_INSTALL = FAIL' >&2
+  exit 1
+fi
+
 run_mode() {
   local mode="$1" marker="$2"
-  adb logcat -c
-  adb shell am force-stop io.toolbox.stageahosttest || true
-  adb shell am start -W -n io.toolbox.stageahosttest/.HostTestActivity --es mode "$mode" >/dev/null || true
+  timeout 10s adb logcat -c
+  timeout 10s adb shell am force-stop io.toolbox.stageahosttest || true
+  if ! timeout 30s adb shell am start -W -n io.toolbox.stageahosttest/.HostTestActivity --es mode "$mode" >/dev/null; then
+    echo "STAGE_A_HOST_START_${mode^^} = FAIL" >&2
+    timeout 10s adb logcat -d -s ToolBoxStageAHost:V '*:S' >&2 || true
+    return 1
+  fi
   local found=0
   for _ in $(seq 1 30); do
-    if adb logcat -d -s ToolBoxStageAHost:I '*:S' | grep -F "$marker" >/dev/null; then found=1; break; fi
+    if timeout 5s adb logcat -d -s ToolBoxStageAHost:I '*:S' | grep -F "$marker" >/dev/null; then
+      found=1
+      break
+    fi
     sleep 1
   done
   if [[ "$found" != 1 ]]; then
-    adb logcat -d -s ToolBoxStageAHost:V '*:S' >&2 || true
+    echo "STAGE_A_HOST_MARKER_${mode^^} = FAIL" >&2
+    timeout 10s adb logcat -d -s ToolBoxStageAHost:V '*:S' >&2 || true
     return 1
   fi
   echo "$marker"
 }
+
 run_mode write STAGE_A_HOST_WRITE_PASS
 run_mode read STAGE_A_HOST_READ_PASS
 run_mode corrupt STAGE_A_HOST_CORRUPTION_REJECT_PASS
