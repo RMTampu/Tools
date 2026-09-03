@@ -96,7 +96,8 @@ jobs:
           booted=0
           for _ in $(seq 1 90); do
             kill -0 "$EMULATOR_PID" 2>/dev/null || { echo '::error::Emulator process exited during boot.'; tail -n 200 "$EMULATOR_LOG" >&2 || true; exit 1; }
-            if [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == "1" ]]; then booted=1; break; fi
+            boot_state="$(timeout 10s adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
+            if [[ "$boot_state" == "1" ]]; then booted=1; break; fi
             sleep 2
           done
           if [[ "$booted" != 1 ]]; then
@@ -104,10 +105,22 @@ jobs:
             tail -n 200 "$EMULATOR_LOG" >&2 || true
             exit 1
           fi
-          test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = "30"
-          adb shell getprop ro.product.cpu.abi | tr -d '\r' | tee public-components/stage-a-android-host/build/emulator-abi.txt
+          if ! sdk_level="$(timeout 10s adb shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r')"; then
+            echo '::error::Unable to read bounded API level from emulator.'
+            exit 1
+          fi
+          test "$sdk_level" = "30"
+          if ! emulator_abi="$(timeout 10s adb shell getprop ro.product.cpu.abi 2>/dev/null | tr -d '\r')"; then
+            echo '::error::Unable to read bounded emulator ABI.'
+            exit 1
+          fi
+          printf '%s\n' "$emulator_abi" | tee public-components/stage-a-android-host/build/emulator-abi.txt
           grep -Fx 'x86_64' public-components/stage-a-android-host/build/emulator-abi.txt
-          bash public-components/stage-a-android-host/scripts/run-emulator-tests.sh
+          if ! timeout 240s bash public-components/stage-a-android-host/scripts/run-emulator-tests.sh; then
+            echo '::error::Stage A Android host runtime witness failed or exceeded its bounded runtime.'
+            tail -n 200 "$EMULATOR_LOG" >&2 || true
+            exit 1
+          fi
       - name: Android host mutation challenge
         run: python3 public-components/stage-a-android-host/scripts/mutation_test.py
       - name: Android host R9 evidence completeness
@@ -153,7 +166,7 @@ jobs:
         if: always()
         shell: bash
         run: |
-          set +e; adb emu kill >/dev/null 2>&1 || true
+          set +e; timeout 10s adb emu kill >/dev/null 2>&1 || true
           rm -rf public-components/stage-a-foundation/build public-components/stage-a-android-host/build public-components/runtime-contracts/build public-components/runtime-safety-contracts/build
           rm -rf "$HOME/.android/avd/stage-a-api30.avd" "$HOME/.android/avd/stage-a-api30.ini" "$RUNNER_TEMP"/toolbox-stage-a-avd-home "$RUNNER_TEMP"/stage-a-* 2>/dev/null || true
           echo 'PUBLIC_JOB_AUTO_CLEANUP = DONE'
