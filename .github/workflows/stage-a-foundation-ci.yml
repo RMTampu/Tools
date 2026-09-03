@@ -64,10 +64,23 @@ jobs:
         run: |
           set -euo pipefail
           sudo chmod 666 /dev/kvm || true
-          printf 'no\n' | avdmanager create avd --force --name stage-a-api30 --package 'system-images;android-30;google_apis;x86_64' --device 'pixel_2'
-          test -s "$HOME/.android/avd/stage-a-api30.ini"
-          test -d "$HOME/.android/avd/stage-a-api30.avd"
-          "$ANDROID_SDK_ROOT/emulator/emulator" -list-avds | grep -Fx 'stage-a-api30'
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/toolbox-stage-a-avd-home"
+          mkdir -p "$ANDROID_AVD_HOME"
+          AVD_PATH="$ANDROID_AVD_HOME/stage-a-api30.avd"
+          AVD_CREATE_LOG="$RUNNER_TEMP/stage-a-avd-create.log"
+          set +o pipefail
+          yes no | avdmanager --verbose create avd --force --name stage-a-api30 --package 'system-images;android-30;google_apis;x86_64' --path "$AVD_PATH" > "$AVD_CREATE_LOG" 2>&1
+          AVD_CREATE_RC=${PIPESTATUS[1]}
+          set -o pipefail
+          cat "$AVD_CREATE_LOG"
+          if [[ "$AVD_CREATE_RC" != 0 ]]; then
+            echo "::error::avdmanager create failed with exit code $AVD_CREATE_RC"
+            avdmanager list device || true
+            exit "$AVD_CREATE_RC"
+          fi
+          test -d "$AVD_PATH"
+          "$ANDROID_SDK_ROOT/emulator/emulator" -list-avds | tee "$RUNNER_TEMP/stage-a-avd-list.txt"
+          grep -Fx 'stage-a-api30' "$RUNNER_TEMP/stage-a-avd-list.txt"
           EMULATOR_LOG="$RUNNER_TEMP/stage-a-emulator.log"
           "$ANDROID_SDK_ROOT/emulator/emulator" -avd stage-a-api30 -no-window -no-audio -no-boot-anim -no-snapshot -wipe-data -gpu swiftshader_indirect > "$EMULATOR_LOG" 2>&1 &
           EMULATOR_PID=$!
@@ -140,5 +153,5 @@ jobs:
         run: |
           set +e; adb emu kill >/dev/null 2>&1 || true
           rm -rf public-components/stage-a-foundation/build public-components/stage-a-android-host/build public-components/runtime-contracts/build public-components/runtime-safety-contracts/build
-          rm -rf "$HOME/.android/avd/stage-a-api30.avd" "$HOME/.android/avd/stage-a-api30.ini" "$RUNNER_TEMP"/stage-a-* 2>/dev/null || true
+          rm -rf "$HOME/.android/avd/stage-a-api30.avd" "$HOME/.android/avd/stage-a-api30.ini" "$RUNNER_TEMP"/toolbox-stage-a-avd-home "$RUNNER_TEMP"/stage-a-* 2>/dev/null || true
           echo 'PUBLIC_JOB_AUTO_CLEANUP = DONE'
