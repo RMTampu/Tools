@@ -31,6 +31,30 @@ Build pengembangan boleh dibuktikan dengan workflow repo publik jika tidak memak
 
 Build final tertandatangan dilakukan di repo private atau jalur private yang tidak mengekspos credential. Signing key dan credential tidak boleh disimpan di source publik.
 
+
+## Aturan Global Kata Kerja Pengguna
+
+Aturan ini berlaku untuk semua project, bukan hanya ToolBox.
+
+Jika pengguna memakai kata kerja atau perintah kerja seperti kerjakan, lanjut, lanjutkan, buat, perbaiki, cek, audit, build, test, jalankan, ulangi, selesaikan, matangkan, rapikan, hapus, pindahkan, update, atau kata kerja sejenis, agen wajib mengubahnya menjadi aksi nyata.
+
+Kata kerja pengguna bukan undangan untuk berdiskusi, menjelaskan rencana, bertanya ulang, membuat laporan progres, atau berhenti setelah menjawab. Kata kerja pengguna berarti agen harus langsung bekerja sampai satu unit pekerjaan tuntas.
+
+Agen wajib:
+
+1. membaca aturan repository yang relevan;
+2. menentukan target dari konteks terbaru pengguna;
+3. melakukan aksi pada file, source, asset, test, workflow, build, atau proses yang memang diminta;
+4. memperbaiki error yang muncul selama masih dalam scope;
+5. memantau proses aktif sampai selesai jika ada run/build/test;
+6. memberi laporan hanya setelah PASS, selesai, artifact siap, atau blocker nyata.
+
+Kata lanjut dan lanjutkan berarti teruskan pekerjaan aktif terakhir dari titik berhenti yang benar. Agen tidak boleh menjawab dengan rangkuman lalu berhenti.
+
+Agen hanya boleh bertanya sebelum bekerja jika target benar-benar tidak bisa ditentukan dari pesan terbaru, repository aktif, TASK.md, AGENTS.md, atau konteks project yang sedang dibuka.
+
+Jika masih ada aksi aman yang bisa dilakukan, agen wajib melakukan aksi itu dulu.
+
 ## Aturan Eksekusi Penuh
 
 Jika pengguna memberi perintah kerja seperti lanjutkan, kerjakan, perbaiki, buat, build, test, cek sampai selesai, atau instruksi sejenis, agen wajib mengeksekusi pekerjaan sampai satu unit kerja penuh tuntas.
