@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "projectId": "ToolBox",
+  "stageId": "A",
+  "handoffType": "CONSOLIDATED_STAGE_A",
+  "sourceRepository": "RMTampu/Tools",
+  "requiredStatus": "STAGE_A_READY_PRIVATE",
+  "dependencies": [
+    {"componentId": "public.runtime-contracts", "componentVersion": "0.1.0"},
+    {"componentId": "public.runtime-safety-contracts", "componentVersion": "0.1.0"},
+    {"componentId": "public.stage-a-foundation", "componentVersion": "0.1.0"}
+  ],
+  "integration": {
+    "singleStageTransaction": true,
+    "a1ToA4SeparatePrivatePromotionForbidden": true,
+    "registryRouteRequired": true,
+    "preflightBeforeWrite": true
+  },
+  "hostRequirements": [
+    "bind PermissionStateProvider to authoritative permission state",
+    "bind CapabilityStateProvider to authoritative capability availability",
+    "map ResourcePolicyProvider units to measured Android 11 target budgets; do not treat abstract Public units as bytes",
+    "implement RecoveryStateStore with durable atomic old-valid-or-new-valid semantics before runtime admission is opened",
+    "bind SafeUiModel to host Safe UI and enforce restricted mode before non-safe execution",
+    "route diagnostic events as non-sensitive metadata only",
+    "preserve ProductRegistry exact Stable ID and provider/dependency validation",
+    "preserve terminal quarantine semantics unless a separately proven re-admission contract exists"
+  ],
+  "forbiddenAssumptions": [
+    "Public simulator is production runtime",
+    "in-memory Public state survives process death",
+    "abstract resource units equal Android bytes without explicit mapping",
+    "component-level READY_PRIVATE authorizes separate Private integration",
+    "STAGE_A_READY_PRIVATE equals final application PASS"
+  ],
+  "productionArchiveMustExclude": [
+    "RuntimeContractsSimulator.java",
+    "RuntimeSafetySimulator.java",
+    "StageAIntegrationSimulator.java",
+    "all test sources"
+  ],
+  "firebase": false,
+  "finalApplicationSafe100Claimed": false
+}

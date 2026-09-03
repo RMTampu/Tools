@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "projectId": "ToolBox",
+  "stageId": "A",
+  "componentId": "public.stage-a-foundation",
+  "componentVersion": "0.1.0",
+  "contractId": "toolbox.stage.a.foundation",
+  "contractVersion": "1.0.0",
+  "scope": "PUBLIC_STAGE_CLOSURE",
+  "target": {
+    "productTarget": "Android 11 / API 30",
+    "javaRelease": 11,
+    "abiSpecificCode": false
+  },
+  "purpose": [
+    "stage-level registry integration surrogate",
+    "fail-closed execution admission",
+    "recovery bootstrap and durable-store contract",
+    "diagnostic mapping and bounded health aggregation",
+    "safe UI state contract"
+  ],
+  "runtimeAuthority": {
+    "androidLifecycle": false,
+    "persistentStorageImplementation": false,
+    "network": false,
+    "permissionGrant": false,
+    "nativeOrPluginLoading": false,
+    "dynamicCodeLoading": false,
+    "androidUiImplementation": false,
+    "signing": false,
+    "firebase": false
+  },
+  "dependencies": [
+    {
+      "componentId": "public.runtime-contracts",
+      "componentVersion": "0.1.0",
+      "contractId": "toolbox.runtime.metadata",
+      "contractVersion": "1.0.0"
+    },
+    {
+      "componentId": "public.runtime-safety-contracts",
+      "componentVersion": "0.1.0",
+      "contractId": "toolbox.runtime.safety",
+      "contractVersion": "1.0.0"
+    }
+  ],
+  "promotionBoundary": "STAGE_READY_PRIVATE_ONLY",
+  "privateContentRequired": false,
+  "privateIntegrationClaimed": false,
+  "finalApplicationSafe100Claimed": false
+}
