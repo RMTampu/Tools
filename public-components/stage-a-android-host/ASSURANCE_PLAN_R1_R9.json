@@ -7,8 +7,8 @@
     "R5": {"applicability":"APPLICABLE","methods":["permission boundary","no network"],"proof":"API30 permission + static boundary"},
     "R6": {"applicability":"APPLICABLE","methods":["exact toolchain","APK structural"],"proof":"manual SDK build/sign/install"},
     "R7": {"applicability":"N_A_SCOPE_PROVEN","methods":["scope scan"],"proof":"no native/plugin/reflection/dynamic code"},
-    "R8": {"applicability":"APPLICABLE","methods":["Safe UI render","API30"],"proof":"platform-widget runtime witness"},
-    "R9": {"applicability":"APPLICABLE","methods":["traceability","mutation","freshness"],"proof":"host closure evidence"}
+    "R8": {"applicability":"APPLICABLE","methods":["Safe UI render","production Safe UI actions","API30"],"proof":"platform-widget plus production-action runtime witness"},
+    "R9": {"applicability":"APPLICABLE","methods":["traceability","mutation","freshness"],"proof":"host closure evidence including Safe UI actions"}
   },
   "schemaVersion": 1
 }
