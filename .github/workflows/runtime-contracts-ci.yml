@@ -69,6 +69,10 @@ jobs:
         shell: bash
         run: python3 public-components/runtime-contracts/scripts/assurance_prebuild.py
 
+      - name: Validate sanitized Private integration handoff
+        shell: bash
+        run: python3 public-components/runtime-contracts/scripts/integration_handoff_validate.py
+
       - name: Compile, unit/failure/concurrency/boundary/property test, simulator
         shell: bash
         run: bash public-components/runtime-contracts/scripts/run-tests.sh
@@ -92,8 +96,10 @@ jobs:
           python3 - <<'PY'
           import json, os
           from pathlib import Path
-          path=Path('public-components/runtime-contracts/build/promotion/promotion-manifest.json')
-          data=json.loads(path.read_text())
+          manifest=Path('public-components/runtime-contracts/build/promotion/promotion-manifest.json')
+          handoff=Path('public-components/runtime-contracts/build/integration-handoff-evidence.json')
+          data=json.loads(manifest.read_text())
+          hand=json.loads(handoff.read_text())
           assert data['schemaVersion']==3
           assert data['status']=='READY_PRIVATE'
           assert data['sourceRepository']=='RMTampu/Tools'
@@ -106,6 +112,13 @@ jobs:
           assert data['testStatus']['packageMutation']=='PASS'
           assert data['testStatus']['packageValidation']=='PASS'
           assert data['sourceArchive']['promotionAllowed'] is True
+          assert hand['status']=='PASS'
+          assert hand['claim']=='PRIVATE_INTEGRATION_HANDOFF_CONTRACT'
+          assert hand['sourceCommitSha']==os.environ['GITHUB_SHA']
+          assert hand['workflowRunId']==os.environ['GITHUB_RUN_ID']
+          assert hand['privateContentIncluded'] is False
+          assert hand['privateTrustManifestOwnedByPublic'] is False
+          print('PRIVATE_INTEGRATION_HANDOFF_BINDING = PASS')
           print('READY_PRIVATE_BINDING = PASS')
           PY
 
@@ -125,6 +138,9 @@ jobs:
             public-components/runtime-contracts/build/package-mutation-output.txt
             public-components/runtime-contracts/build/assurance/r1-r9-summary.txt
             public-components/runtime-contracts/build/assurance/r1-r9-evidence.json
+            public-components/runtime-contracts/build/integration-handoff-evidence.json
+            public-components/runtime-contracts/PRIVATE_INTEGRATION_REQUIREMENTS.json
+            public-components/runtime-contracts/SANITIZED_PRIVATE_FAILURE_2026-09-03.md
           if-no-files-found: error
           retention-days: 7
 
