@@ -2,7 +2,7 @@
 
 ## Status
 
-Kebijakan pola lama antar repository sudah dihapus.
+Kebijakan pemisahan pengembangan antar repository sudah dihapus.
 
 ToolBox sekarang memakai pola kerja:
 
@@ -14,7 +14,7 @@ ToolBox sekarang memakai pola kerja:
 1. Jangan masukkan secret, token, private signing key, credential Firebase, atau data sensitif ke repo publik.
 2. Semua source dan asset yang masuk repo publik dianggap boleh dilihat publik.
 3. Jangan memakai repo private sebagai tempat trial-and-error fitur.
-4. Jangan membuat pola lama antar repository, pola lama antar repository, receiver contract, dummy private host, atau pola lama antar repository.
+4. Jangan membuat gate, paket, kontrak, dummy, atau mekanisme penyambungan antar repository.
 5. Build final dan signing dilakukan di jalur private.
 6. Termux hanya relay bila diperlukan dan bukan tempat build aplikasi.
 
