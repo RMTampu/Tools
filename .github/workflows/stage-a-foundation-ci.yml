@@ -68,10 +68,12 @@ jobs:
           mkdir -p "$ANDROID_AVD_HOME"
           AVD_PATH="$ANDROID_AVD_HOME/stage-a-api30.avd"
           AVD_CREATE_LOG="$RUNNER_TEMP/stage-a-avd-create.log"
+          set +e
           set +o pipefail
           yes no | avdmanager --verbose create avd --force --name stage-a-api30 --package 'system-images;android-30;google_apis;x86_64' --path "$AVD_PATH" > "$AVD_CREATE_LOG" 2>&1
           AVD_CREATE_RC=${PIPESTATUS[1]}
           set -o pipefail
+          set -e
           cat "$AVD_CREATE_LOG"
           if [[ "$AVD_CREATE_RC" != 0 ]]; then
             echo "::error::avdmanager create failed with exit code $AVD_CREATE_RC"
