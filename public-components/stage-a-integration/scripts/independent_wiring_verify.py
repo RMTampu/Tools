@@ -20,8 +20,16 @@ EXPECTED_SLOTS = {
     "S04": ("safe-ui.route.v1", "stage-a.safe-ui", "restricted-state-preempts-normal-route"),
     "S05": ("resource.profile.v1", "stage-a.resource-profile", "stage-a-idle-profile"),
     "S06": ("diagnostic.quarantine.v1", "stage-a.diagnostics", "non-sensitive-terminal-quarantine"),
+    "S07": ("module.registration.v1", "stage-a.module-registration", "before-build-graph-resolution"),
+    "S08": ("app.dependency.binding.v1", "stage-a.app-dependencies", "before-compile"),
+    "S09": ("source.placement.v1", "stage-a.production-payload", "before-compile"),
+    "S10": ("module.descriptor.v1", "stage-a.module-descriptors", "before-build-graph-resolution"),
 }
 EXPECTED_LIFECYCLE = [
+    "place-production-payload",
+    "create-module-descriptors",
+    "register-modules",
+    "bind-app-dependencies",
     "create-stage-a-host",
     "bootstrap-stage-a-host",
     "bind-durable-state",
@@ -42,6 +50,7 @@ REQUIRED_MEMBERS = {
     "canonicalContract", "stageWiringManifest", "acceptanceSchema",
     "referenceDummyEvidence", "adversarialDummyEvidence", "fullAssemblyEvidence",
     "reproducibilityEvidence", "independentVerifierEvidence", "promotionManifest",
+    "productionSourceArchive",
 }
 PRIVATE_ONLY = {
     "privateReceiverMap", "privateReceiverCertificateFullContent",
@@ -72,7 +81,7 @@ def sha(path):
 def validate(contract, wiring, acceptance, contract_digest):
     need(contract.get("schemaVersion") == 1, "contract schema")
     need(contract.get("contractId") == "toolbox.stage.receiver.v1", "contract id")
-    need(contract.get("contractVersion") == "1.0.0", "contract version")
+    need(contract.get("contractVersion") == "1.1.0", "contract version")
     need(contract.get("projectId") == "ToolBox" and contract.get("stageId") == "A", "contract identity")
     privacy = contract.get("privacy")
     need(privacy == {
@@ -112,13 +121,18 @@ def validate(contract, wiring, acceptance, contract_digest):
         need(sid not in binding_map, "duplicate wiring slot")
         need(isinstance(binding["values"], dict) and binding["values"], "binding values")
         for key, value in binding["values"].items():
-            need(isinstance(key, str) and key and isinstance(value, str) and value and len(value) <= 256, "unsafe binding value")
+            need(isinstance(key, str) and key and isinstance(value, str) and value and len(value) <= 512, "unsafe binding value")
             lowered = value.lower()
             need("/" not in value and "\\" not in value and "secret" not in lowered and "token" not in lowered, "private/path-like binding detail")
         binding_map[sid] = binding
     need(set(binding_map) == set(EXPECTED_SLOTS), "wiring slot universe")
     for sid, (_, provider, _) in EXPECTED_SLOTS.items():
         need(binding_map[sid]["providerId"] == provider, "provider mismatch")
+
+    need(binding_map["S07"]["values"] == {"ModuleIds": "toolbox-runtime-safety-contracts,toolbox-stage-a-foundation"}, "module registration declaration")
+    need(binding_map["S08"]["values"] == {"ModuleIds": "toolbox-runtime-safety-contracts,toolbox-stage-a-foundation"}, "app dependency declaration")
+    need(binding_map["S09"]["values"] == {"SourceGroups": "runtime-contracts-reuse,runtime-safety-import,stage-a-foundation-import,stage-a-android-host-import"}, "source placement declaration")
+    need(binding_map["S10"]["values"] == {"DescriptorProfile": "android-java-library-stage-a-v1"}, "module descriptor declaration")
 
     need(wiring.get("lifecycleOrder") == EXPECTED_LIFECYCLE, "lifecycle order")
     need(wiring.get("constraints") == {
@@ -172,6 +186,10 @@ def self_test(contract, wiring, acceptance, digest):
     w["bindings"][0]["providerId"] = "stage-a.wrong-provider"
     must_reject("wrong-provider", contract, w, acceptance)
 
+    w = copy.deepcopy(wiring)
+    w["bindings"][8]["values"]["SourceGroups"] += ",undeclared-private-group"
+    must_reject("undeclared-source-group", contract, w, acceptance)
+
     a = copy.deepcopy(acceptance)
     a["requiredClaims"]["privateManualPatchRequired"] = True
     must_reject("manual-patch-claim", contract, wiring, a)
@@ -179,6 +197,10 @@ def self_test(contract, wiring, acceptance, digest):
     a = copy.deepcopy(acceptance)
     a["privateOnlyEvidenceMustNotAppear"] = []
     must_reject("private-denylist-removed", contract, wiring, a)
+
+    a = copy.deepcopy(acceptance)
+    a["requiredMemberBindings"] = [v for v in a["requiredMemberBindings"] if v != "productionSourceArchive"]
+    must_reject("production-payload-unbound", contract, wiring, a)
     return mutations
 
 
@@ -197,17 +219,19 @@ def main():
             "schemaVersion": 1,
             "status": "PASS",
             "claim": "PUBLIC_STAGE",
-            "verifier": "independent-stage-a-wiring-oracle-v1",
+            "verifier": "independent-stage-a-wiring-oracle-v2",
             "contractSha256": digest,
             "wiringManifestSha256": sha(WIRING_PATH),
             "acceptanceSchemaSha256": sha(ACCEPTANCE_PATH),
             "slotCount": len(EXPECTED_SLOTS),
             "requiredSlotCoverage": len(EXPECTED_SLOTS),
+            "runtimeSlotCount": 6,
+            "buildAndPlacementSlotCount": 4,
             "mutationEscape": 0,
             "mutations": mutations,
             "privateContentUsed": False,
             "firebaseUsed": False,
-            "limitations": ["Public verifier proves safe contract/wiring model only; actual Private receiver conformance stays Private."],
+            "limitations": ["Public verifier proves safe contract/wiring/build-graph model only; actual Private receiver mapping and conformance stay Private."],
         }
         EVIDENCE_PATH.parent.mkdir(parents=True, exist_ok=True)
         EVIDENCE_PATH.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -216,6 +240,7 @@ def main():
         print(str(exc), file=sys.stderr)
         return 2
     print("STAGE_A_INDEPENDENT_WIRING_VERIFY = PASS")
+    print("STAGE_A_RECEIVER_SLOT_COUNT = 10")
     print("STAGE_A_WIRING_MUTATION_ESCAPE = 0")
     print("PRIVATE_CONTENT_USED = 0")
     print("PUBLIC_FIREBASE_ACCESS = 0")
