@@ -28,7 +28,7 @@ Public bukan master aplikasi final dan tidak boleh membutuhkan akses baca ke Pri
 
 Public hanya boleh bekerja dengan contract/interface yang memang aman dipublikasikan, mock, simulator, test harness, fixture/dummy data, dan komponen Public yang sedang dikembangkan.
 
-Batas akhir pekerjaan Public adalah kesiapan **satu tahap pembangunan utuh**: `STAGE_READY_PRIVATE`. Komponen dapat lebih dahulu mencapai `COMPONENT_READY_PRIVATE`, tetapi tetap ditahan di Public sampai seluruh tahap siap. Definisi dan syaratnya di §6; keduanya bukan integrasi sebenarnya atau aplikasi final PASS.
+Batas akhir pekerjaan Public adalah kesiapan **satu tahap pembangunan utuh**: `STAGE_READY_PRIVATE`. Komponen dapat lebih dahulu mencapai `COMPONENT_READY_PRIVATE`, tetapi tetap ditahan di Public sampai seluruh tahap siap. Keduanya bukan integrasi sebenarnya atau aplikasi final PASS.
 
 ## 4. Pertumbuhan Bertahap
 
@@ -46,7 +46,7 @@ Setiap contract harus memiliki minimal `CONTRACT_ID`, `VERSION`, `COMPATIBILITY`
 
 Untuk pengujian penyambungan di Public, baseline APK/state final Private WAJIB digantikan oleh dummy/mock/simulator mandiri yang dibuat dari contract/interface yang sudah dinyatakan aman untuk Public.
 
-Dummy tersebut bukan APK baseline, bukan salinan kernel, dan bukan hasil mengekstrak, menyamarkan, mengganti nama, atau menyunting source/asset/config/state/APK/artifact Private. Isi Private tidak boleh diambil ke Public terlebih dahulu untuk kemudian disanitasi.
+Dummy tersebut bukan APK baseline, bukan salinan kernel, dan bukan hasil mengekstrak, menyamarkan, mengganti nama, menyunting, meredaksi, mendekompilasi, atau mengobservasi source/asset/config/state/APK/artifact Private. Isi Private tidak boleh diambil ke Public terlebih dahulu untuk kemudian disanitasi.
 
 Jika contract aman belum cukup untuk suatu pengujian, catat gap sebagai `NOT_PROVEN`; jangan mengambil isi Private atau mengklaim dummy sebagai bukti integrasi/runtime final.
 
@@ -55,8 +55,8 @@ Jika contract aman belum cukup untuk suatu pengujian, catat gap sebagai `NOT_PRO
 Untuk setiap tahap pembangunan, sasaran operasional wajib adalah:
 
 ```text
-PUBLIC = IMPLEMENTASI + ITERASI + DUMMY INTEGRATION + FULL PUBLIC ASSEMBLY REHEARSAL + BUILD-READY PACKAGE
-PRIVATE = VALIDATE + MECHANICAL WIRING + BUILD + SIGN + VERIFY + FINAL TEST
+PUBLIC = IMPLEMENTASI + ITERASI + DUAL-DUMMY INTEGRATION + FULL PUBLIC ASSEMBLY REHEARSAL + BUILD-READY STAGE CAPSULE
+PRIVATE = VALIDATE + DETERMINISTIC MECHANICAL WIRING + BUILD + SIGN + VERIFY + FINAL TEST
 ```
 
 Private **bukan** tempat membuat algoritma, adapter produksi baru, kebijakan resource baru, dependency baru, lifecycle baru, recovery logic baru, Safe UI implementation baru, atau mencari cara menyambungkan komponen. Seluruh keputusan dan implementasi yang dapat dibuktikan tanpa isi Private wajib selesai di Public.
@@ -76,91 +76,113 @@ Jika salah satu tidak dapat dibuktikan, tahap tetap `NOT_PROVEN` dan dilarang me
 
 ### 5.2 Safe Private Receiver Contract
 
-Setiap baseline Private yang akan menerima Promotion Package wajib mempunyai **receiver contract aman** yang cukup untuk Public mengembangkan dan menguji sambungan tanpa mengetahui isi Private.
+Setiap baseline Private yang akan menerima Promotion Package wajib mempunyai receiver contract aman yang cukup untuk Public mengembangkan dan menguji sambungan tanpa mengetahui isi Private.
 
-Receiver contract hanya boleh memuat informasi minimum yang diperlukan, misalnya:
-
-- stable receiver/slot ID;
-- contract/interface version;
-- required/optional status;
-- input/output shape yang aman;
-- lifecycle/startup ordering yang memang perlu diketahui consumer;
-- compatibility range;
-- dependency class/requirement yang aman;
-- generic failure/error code;
-- acceptance schema version yang diperlukan untuk handoff.
+Receiver contract hanya boleh memuat informasi minimum yang diperlukan, misalnya stable/opaque slot ID, contract version/digest, required/optional status, input/output shape aman, lifecycle/startup ordering yang perlu diketahui consumer, compatibility range, dependency class/requirement aman, generic failure/error code, dan acceptance schema version/digest.
 
 Receiver contract **dilarang** memuat source Private, path internal, nama class internal yang tidak perlu, algoritma, state, asset, secret, database, internal topology, internal dependency yang sensitif, atau detail lain yang tidak diperlukan untuk wiring.
 
-Gunakan ID generik/opaque bila nama semantik dapat membuka rancangan internal. Prinsipnya:
+Prinsipnya:
 
 ```text
 PUBLIC_KNOWS_SOCKET_SHAPE = MINIMUM_REQUIRED
 PUBLIC_KNOWS_PRIVATE_IMPLEMENTATION = 0
 ```
 
-Contract aman harus diperlakukan sebagai boundary tersendiri. Dilarang membuatnya dengan pola `copy Private -> sensor/redact -> publish`. Contract harus dirancang sebagai abstraksi boundary dari awal.
+Contract aman harus dirancang sebagai abstraksi boundary dari awal. Dilarang pola `copy Private -> sensor/redact -> publish`.
 
-### 5.3 Private Receiver Adapter Tetap Private
+### 5.3 Stable Integration Plane dan Private Receiver Adapter
 
-Mapping dari receiver/slot ID aman ke path, class, object, registry, state, atau struktur internal yang sebenarnya tetap berada di Private sebagai **Private Receiver Adapter** atau mekanisme ekuivalen.
+Project yang mempunyai kernel/registry/extension-point harus menjaga **Stable Integration Plane** atau mekanisme ekuivalen yang sekecil dan sestabil mungkin.
+
+Mapping dari receiver/slot ID aman ke path, class, object, registry, state, atau struktur internal yang sebenarnya tetap berada di Private sebagai Private Receiver Adapter/map atau mekanisme ekuivalen.
 
 Public tidak boleh mengetahui mapping internal tersebut.
 
-Private Receiver Adapter harus sudah tersedia dan compatible sebelum tahap Public dinyatakan siap. Jika Private masih harus menciptakan implementation receiver baru ketika Promotion Package tiba, maka `PRIVATE_IMPLEMENTATION_REQUIRED = TRUE` dan `STAGE_READY_PRIVATE` batal.
+Private Receiver Adapter/Integration Plane harus sudah tersedia dan compatible sebelum tahap Public dinyatakan siap. Jika Private masih harus menciptakan implementation receiver baru ketika Stage Capsule tiba, maka `PRIVATE_IMPLEMENTATION_REQUIRED = TRUE` dan `STAGE_READY_PRIVATE` batal.
 
-Perubahan receiver internal yang tidak mengubah public-safe contract boleh tetap Private. Perubahan yang mengubah shape/version contract wajib memperbarui contract aman sebelum Public closure tahap.
+Untuk project ToolBox, Stage A adalah fondasi yang tepat untuk mengunci Integration Plane karena scope tahap A mencakup kernel, registry, lifecycle, contract, dan safety boundary.
 
-### 5.4 Dummy Private Host Wajib dan Harus Independen
+### 5.4 Canonical Contract Artifact
 
-Public wajib mempunyai `DUMMY_PRIVATE_HOST`/surrogate ekuivalen yang mengimplementasikan receiver contract aman secara independen.
+Tidak boleh ada dua definisi contract yang hanya diasumsikan sama.
 
-Dummy harus:
+Satu canonical safe contract artifact/IDL/schema menjadi sumber bersama shape/version wiring dan mempunyai exact digest. Public SDK/interface, dummy interface, conformance suite, wiring schema, Private receiver interface binding, dan Private conformance verifier harus berasal dari atau diverifikasi terhadap canonical source tersebut.
 
-- dibuat hanya dari contract/interface aman;
-- tidak dibuat dari source, APK, state, asset, config, dump, reflection output, decompilation, atau observasi internal Private;
-- tidak menyalin nama/path/topology internal yang tidak dibutuhkan contract;
-- menyediakan seluruh slot yang diperlukan tahap;
-- meniru lifecycle/startup/failure surface yang dideklarasikan contract;
-- memungkinkan exact production stage package dipasang tanpa perubahan logic.
+Public dan Private wajib mengikat exact contract digest yang sama. Contract mismatch = STOP sebelum attempt/build.
 
-Dummy boleh berbeda implementasi internal dari Private. Yang wajib sama adalah **shape contract, version, ordering, failure surface, dan wiring semantics yang dipublikasikan**.
+### 5.5 Sealed Private Receiver Certificate
 
-### 5.5 Machine-Readable Stage Wiring Manifest
+Receiver Private aktual harus mempunyai conformance evidence/certificate yang **tetap Private**, mengikat baseline, receiver contract digest, receiver adapter/map digest, conformance-suite digest, dan environment/toolchain binding bila material.
 
-Setiap Promotion Package tahap wajib membawa `STAGE_WIRING_MANIFEST` atau format mesin ekuivalen.
+Certificate/evidence, log, config, receiver map, atau ekstraknya tidak boleh diekspor ke Public.
 
-Manifest minimal mengikat:
+Untuk menghindari attempt tahap sebagai qualification loop, receiver certificate idealnya dibuat/seal ketika baseline sebelumnya dikunci dan direuse selama receiver/contract/input dasarnya tidak berubah.
 
-- `PROJECT_ID` dan `STAGE_ID`;
-- exact package/member/source/asset/build-descriptor hashes;
-- receiver contract ID/version;
-- mapping **public slot ID -> promoted provider ID**;
-- registry binding yang diperlukan;
-- module registration dan dependency graph yang diperlukan;
-- startup/lifecycle ordering;
-- state-store/recovery/Safe-UI/resource/diagnostic binding bila berlaku;
-- manifest/resource/shrinker/build requirements yang aman dan diperlukan;
-- compatibility constraints;
-- expected negative/fail-closed behavior;
-- handoff/acceptance schema version.
+Perubahan material receiver/contract menginvalidasi certificate. Qualification baru adalah pekerjaan Private nyata dengan budget/authorization; bukan preflight gratis.
 
-Manifest harus dapat diterapkan secara deterministic oleh tooling/dummy harness. Instruksi naratif seperti “buat adapter”, “cari tempat bootstrap”, atau “sesuaikan sampai compile” tidak cukup untuk `STAGE_READY_PRIVATE`.
+### 5.6 Dual Independent Public Dummy
 
-Private boleh melakukan perubahan **mekanis** yang dihasilkan dari manifest terhadap receiver adapter/local wiring layer, tetapi dilarang menambahkan behavior produk baru. Jika wiring membutuhkan keputusan desain atau coding behavior baru, STOP dan kembali Public.
+Public wajib mempunyai minimal:
 
-### 5.6 Full Public Assembly Rehearsal Wajib
+```text
+REFERENCE_DUMMY
+ADVERSARIAL_CONFORMANT_DUMMY
+```
+
+Keduanya dibuat hanya dari canonical safe contract, independen dari Private.
+
+Adversarial dummy tetap legal menurut contract tetapi menantang batas yang diperbolehkan, misalnya optional capability absent, minimum capacity, maximum legal latency, restricted/recovery state, process restart, failure surface, dan lifecycle timing edge sesuai scope.
+
+Kedua dummy harus sebisa mungkin mengurangi common-mode oracle/implementation yang sama.
+
+Jika package hanya bekerja pada satu dummy tetapi gagal pada implementasi lain yang tetap conform, `STAGE_READY_PRIVATE = FALSE`.
+
+### 5.7 Machine-Readable Stage Wiring Manifest
+
+Setiap Stage Capsule wajib membawa `STAGE_WIRING_MANIFEST` atau format mesin ekuivalen.
+
+Manifest minimal mengikat project/stage ID, canonical contract ID/version/digest, exact package/member/source/asset/build-descriptor hashes, mapping public slot ID -> promoted provider ID, registry binding, module registration, dependency graph, startup/lifecycle ordering, state/recovery/Safe-UI/resource/diagnostic binding bila berlaku, manifest/resource/shrinker/build requirements, compatibility constraints, expected fail-closed behavior, dan handoff/acceptance schema version/digest.
+
+Manifest harus dapat diterapkan secara deterministic. Instruksi naratif seperti `buat adapter`, `cari tempat bootstrap`, `sesuaikan sampai compile`, atau `perbaiki jika gagal` tidak cukup untuk `STAGE_READY_PRIVATE`.
+
+### 5.8 Deterministic Wiring Compiler dan Independent Verifier
+
+Private wiring harus berupa transformasi mesin deterministic:
+
+```text
+STAGE_WIRING_MANIFEST
++ PRIVATE_RECEIVER_MAP
++ CANONICAL_CONTRACT
+-> GENERATED_BINDINGS
+```
+
+Untuk input yang sama, output harus sama secara semantic/digest sesuai contract.
+
+Compiler/generator hanya boleh menghasilkan mechanical wiring yang dideklarasikan: placement, registration, slot/provider binding, startup binding, thin delegation tanpa semantic baru, build-graph connection, dan provenance/evidence.
+
+Compiler **tidak boleh menjadi oracle tunggal** bagi outputnya sendiri. Critical wiring wajib diperiksa independent translation verifier yang memperoleh expected graph/constraints secara terpisah.
+
+Minimal verifier menolak missing/duplicate/incompatible/undeclared binding, illegal dependency cycle/order, forbidden normal path dari restricted state, undeclared generated file, dan manual patch.
+
+### 5.9 Formal Wiring Model
+
+Property universal/critical pada ruang wiring finite harus dialokasikan ke exhaustive/model checking/formal method bila testing contoh tidak cukup, sesuai R9.
+
+Formal model harus ditrace ke manifest, generated wiring, dan implementation verifier. `FORMAL_MODEL_PASS` sendiri tidak cukup bila translation ke implementation tidak dibuktikan.
+
+### 5.10 Full Public Assembly Rehearsal
 
 Sebelum `STAGE_READY_PRIVATE`, Public wajib menjalankan rehearsal dari workspace bersih:
 
 ```text
 FRESH PUBLIC WORKSPACE
--> LOAD DUMMY_PRIVATE_HOST
--> VERIFY SAFE RECEIVER CONTRACT
--> LOAD EXACT PROMOTION PACKAGE
--> APPLY STAGE_WIRING_MANIFEST AUTOMATICALLY/DETERMINISTICALLY
--> VERIFY NO MANUAL FIX
--> ASSEMBLE FULL PUBLIC DUMMY APPLICATION
+-> CANONICAL CONTRACT
+-> REFERENCE + ADVERSARIAL CONFORMANT DUMMY
+-> EXACT STAGE CAPSULE
+-> APPLY STAGE_WIRING_MANIFEST DETERMINISTICALLY
+-> INDEPENDENT VERIFY
+-> FULL PUBLIC DUMMY APPLICATION/APK ASSEMBLY
 -> INSTALL/RUN ON DECLARED DEVELOPMENT TARGET
 -> VERIFY STARTUP + REGISTRY + ROUTES + STATE/LIFECYCLE + FAILURE/RECOVERY + SAFE MODE/UI AS APPLICABLE
 -> RESTART/PROCESS-DEATH TEST AS APPLICABLE
@@ -169,13 +191,9 @@ FRESH PUBLIC WORKSPACE
 -> PASS
 ```
 
-Full dummy application hanya terdiri dari material Public + dummy receiver. Ia **bukan aplikasi final**, tidak boleh memakai identitas/asset/state/secret Private, dan tidak boleh disebut final runtime proof.
+Full dummy application hanya terdiri dari material Public + dummy receiver. Ia bukan aplikasi final, tidak boleh memakai identitas/asset/state/secret Private, dan tidak boleh disebut final runtime proof.
 
-Untuk Android, Public wajib membangun APK dummy/prototype lengkap dengan production stage sources yang exact terhadap Promotion Package dan mengujinya pada API/target development yang dideklarasikan. Jika environment Public tidak sama dengan final ABI/device, perbedaan itu harus eksplisit; misalnya x86_64 API30 witness tidak boleh diklaim sebagai final arm64 proof.
-
-Public Firebase/Test Lab tetap dilarang menurut §9.1.
-
-Rehearsal harus fail jika sesudah package diterapkan diperlukan edit manual, hotfix, implementasi baru, dependency decision baru, atau perubahan source produksi.
+Public Firebase/Test Lab tetap dilarang.
 
 Invariant closure:
 
@@ -187,37 +205,31 @@ DUMMY_HOST_DERIVED_FROM_PRIVATE = 0
 PRIVATE_CONTENT_USED_BY_REHEARSAL = 0
 ```
 
-### 5.7 Build-Ready Promotion Package
+### 5.11 Reproducible / Hermetic Qualification
 
-Promotion Package tahap harus **assembly-ready/build-ready untuk receiver contract**, bukan sekadar source-ready.
+R6 berlaku penuh. Untuk claim deterministic/reproducible, Public melakukan clean independent assembly comparison sesuai R6. Bila format bit-reproducible, digest output harus identik; normalisasi hanya diizinkan untuk nondeterminism yang dibuktikan non-semantic.
 
-Selain source/asset produksi yang memang dipromosikan, paket harus membawa seluruh material Public yang diperlukan agar integrasi tidak membutuhkan keputusan baru di Private, termasuk bila berlaku:
+Double-clean qualification Public bukan alasan melakukan double candidate build di Private. Private memakai satu candidate build bila qualification/reuse evidence masih sah.
 
-- module/build descriptors;
-- dependency declarations/locks/digests;
-- registry descriptors;
-- schema/contract versions;
-- lifecycle/startup binding declarations;
-- manifest requirements;
-- resource/shrinker/ProGuard/R8 requirements;
-- compatibility matrix;
-- wiring manifest;
-- acceptance/handoff schema version;
-- test/provenance bindings.
+### 5.12 Build-Ready Proof-Carrying Stage Capsule
 
-Input yang memang Private-only seperti secret/signing material, internal state, private receiver mapping, dan final baseline tidak boleh masuk Promotion Package.
+Promotion Package tahap harus assembly-ready/build-ready untuk receiver contract, bukan sekadar source-ready, dan diperlakukan sebagai **proof-carrying Stage Capsule**.
 
-### 5.8 Public Handoff Acceptance Contract
+Selain source/asset produksi, capsule harus membawa seluruh material Public yang diperlukan agar Private tidak membuat keputusan baru: module/build descriptors, dependency declarations/locks/digests, registry descriptors, canonical contract digest, lifecycle/startup binding, manifest/resource/shrinker requirements, compatibility matrix, wiring manifest, acceptance schema digest, dual-dummy/full-assembly evidence, R1–R9 closure, independent/formal verification evidence bila berlaku, provenance/attestation, dan capsule root digest.
 
-Private wajib menyediakan **acceptance contract aman** untuk bagian handoff yang harus dibentuk oleh Public. Contract ini hanya mendeskripsikan schema/field/type/version/status yang boleh dan wajib, bukan nilai atau struktur internal Private.
+Input Private-only seperti secret/signing material, internal state, Private receiver mapping/certificate, dan final baseline tidak boleh masuk Stage Capsule.
 
-Public wajib memvalidasi Promotion Package, wiring manifest, dependency handoff record, dan metadata lain yang akan dibaca Private terhadap acceptance contract tersebut sebelum `STAGE_READY_PRIVATE`.
+### 5.13 Public Handoff Acceptance Contract
 
-Jika active Private verifier memerlukan field public-addressable yang tidak tercakup acceptance contract, contract dianggap stale dan closure tahap batal sampai diperbaiki. Ini mencegah kegagalan Private hanya karena schema/record incompatibility yang seharusnya dapat diketahui di Public.
+Private wajib menyediakan acceptance contract aman untuk bagian handoff yang harus dibentuk Public. Contract hanya mendeskripsikan schema/field/type/version/status yang boleh dan wajib, bukan nilai atau struktur internal Private.
 
-### 5.9 No-Private-Implementation Gate
+Public wajib memvalidasi Stage Capsule, wiring manifest, dependency handoff record, dan metadata lain yang akan dibaca Private terhadap acceptance contract sebelum `STAGE_READY_PRIVATE`.
 
-Sebelum promosi dan kembali saat Private preflight, wajib ada pemeriksaan fail-closed yang membuktikan:
+Jika active Private verifier memerlukan field public-addressable yang tidak tercakup acceptance contract, contract stale dan closure tahap batal sampai diperbaiki.
+
+### 5.14 No-Private-Implementation Gate
+
+Sebelum promosi dan kembali saat Private preflight wajib ada pemeriksaan fail-closed:
 
 ```text
 NEW_PRODUCT_ALGORITHM_IN_PRIVATE = 0
@@ -231,15 +243,19 @@ UNDECLARED_REGISTRY_DECISION_IN_PRIVATE = 0
 PRIVATE_WIRING_ONLY = TRUE
 ```
 
-Kategori perubahan Private yang diperbolehkan selama integrasi tahap hanya perubahan mekanis yang sudah dideklarasikan, misalnya package placement, module registration, slot/provider binding, startup binding, thin delegation tanpa semantic baru, build-graph connection, dan provenance/evidence.
+Kategori perubahan Private yang diperbolehkan hanya mechanical zones yang sudah dideklarasikan. Jika diff/operasi keluar dari kategori tersebut: `PRIVATE_DEVELOPMENT_DETECTED -> STOP -> ROLLBACK_IF_NEEDED -> SANITIZED_REPORT -> PUBLIC`.
 
-Jika diff/operasi keluar dari kategori yang dideklarasikan, status menjadi `PRIVATE_DEVELOPMENT_DETECTED` -> STOP -> rollback bila perlu -> sanitized report -> Public.
+### 5.15 Detail Normatif dan Basis Riset
+
+`REPOSITORY_INTEGRATION_POLICY.md` wajib dibaca setelah Rule 0 untuk detail Stable Integration Plane, sealed receiver lifecycle, proof-carrying capsule, cryptographic admission, atomic apply, tooling strategy, dan basis riset contract verification, reproducible/hermetic build, provenance/attestation, serta formal verification.
+
+Tidak ada kewajiban mengganti toolchain yang sudah sesuai hanya karena suatu tool disebut sebagai referensi riset.
 
 ## 6. Jalur Kematangan Komponen
 
 Untuk mencapai kesiapan komponen di Public, setiap komponen wajib melewati:
 
-`SPEC -> CONTRACT -> DEPENDENCY -> UNIT_TEST -> SIMULATOR -> FAILURE_TEST -> PACKAGE_VALIDATION -> COMPONENT_READY_PRIVATE`
+`SPEC -> CONTRACT -> DEPENDENCY -> UNIT_TEST -> SIMULATOR/DUMMY -> FAILURE_TEST -> PACKAGE_VALIDATION -> COMPONENT_READY_PRIVATE`
 
 Kesiapan komponen saja tidak pernah mengizinkan integrasi Private.
 
@@ -250,77 +266,96 @@ Kesiapan komponen saja tidak pernah mengizinkan integrasi Private.
 | `COMPONENT_READY_PRIVATE` | Seluruh proof wajib komponen pada scope Public selesai; komponen ditahan di Public menunggu tahap lengkap. | Tidak mengizinkan promosi, integrasi, build, atau test Private tersendiri. |
 | `STAGE_READY_PRIVATE` | Seluruh cakupan tahap yang ditetapkan pengguna sudah ditutup menurut §6.2. | Syarat kesiapan satu tahap utuh; tetap memerlukan otorisasi dan gate yang berlaku. |
 
-Status lama `READY_PRIVATE` pada output/manifest komponen hanya dibaca sebagai kesiapan komponen, bukan izin Private. Jangan mengganti nama field/status mesin tanpa memeriksa consumer; jangan menaikkan status lama menjadi kesiapan tahap secara otomatis. Alias seperti `STAGE_A_READY_PRIVATE` sah sebagai kesiapan tahap A hanya jika identitas, cakupan, dan bukti tahap memenuhi §6.2; nama artifact atau teks PASS saja tidak cukup.
+Status lama `READY_PRIVATE` pada output/manifest komponen hanya dibaca sebagai kesiapan komponen, bukan izin Private. Jangan menaikkan status lama menjadi kesiapan tahap secara otomatis.
 
 ### 6.2 Closure Tahap Utuh Sebelum Private
 
 Agen wajib memastikan:
 
-1. Identitas tahap dan seluruh requirement/sublangkah/komponen sesuai peta yang disetujui. Tidak boleh memperkecil cakupan agar paket parsial disebut satu tahap.
-2. Seluruh kontrak sambungan, versi, registry route, dependency, urutan/lifecycle, penanganan gagal, acceptance, dan batas resource yang diperlukan telah jelas. Keputusan teknis yang belum ditetapkan adalah blocker, bukan ruang untuk asumsi.
-3. Seluruh proof wajib Public, termasuk interaksi antar-komponen satu tahap, R1–R9 yang berlaku, asset/route proof, negative test, dan validasi paket sudah lengkap pada input yang terikat. N/A memerlukan alasan berbasis scope, bukan penghematan kuota.
-4. Promotion manifest tahap mengikat seluruh paket anggota dan evidence; paket parsial tidak membuka promosi.
-5. Penerima Private meninjau bukti prasyarat baseline/adapter/toolchain/trust yang masih sah tanpa mengekspor isinya. Bila kualifikasi baru diperlukan, nyatakan kebutuhan serta biayanya sebelum eksekusi; jangan menyembunyikannya sebagai persiapan gratis.
-6. Rencana satu attempt mencakup urutan integrasi, gate murah sebelum mahal, regression/build/signing/final test yang diperlukan, pemulihan, batas biaya/durasi, dan otorisasi yang berlaku.
-7. Safe Private Receiver Contract tersedia dan cukup tanpa membocorkan implementation Private.
-8. Dummy Private Host conform terhadap receiver contract dan dibangun independen dari Private.
-9. Machine-readable Stage Wiring Manifest lengkap dan deterministic.
-10. Full Public Assembly Rehearsal dari workspace bersih PASS tanpa manual fix setelah package apply.
-11. Public Handoff Acceptance Contract/schema compatibility PASS untuk seluruh record yang harus dibaca Private.
-12. Promotion Package build-ready sesuai §5.7 dan `NO_PRIVATE_IMPLEMENTATION` gate PASS.
+1. Identitas tahap dan seluruh requirement/sublangkah/komponen sesuai peta yang disetujui.
+2. Seluruh kontrak sambungan, versi, registry route, dependency, urutan/lifecycle, failure handling, acceptance, dan batas resource telah jelas.
+3. Seluruh proof wajib Public, termasuk interaksi antar-komponen satu tahap, R1–R9 yang berlaku, asset/route proof, negative test, dan package validation lengkap.
+4. Promotion manifest/Stage Capsule mengikat seluruh paket anggota dan evidence.
+5. Penerima Private meninjau bukti prasyarat baseline/adapter/toolchain/receiver certificate yang masih sah tanpa mengekspor isinya.
+6. Rencana satu attempt mencakup gate murah sebelum mahal, wiring, regression/build/signing/final test yang diperlukan, pemulihan, budget/durasi, dan otorisasi.
+7. Canonical safe contract tersedia dan frozen.
+8. Reference + adversarial conformant dummy PASS.
+9. Machine-readable Stage Wiring Manifest lengkap/deterministic.
+10. Deterministic wiring compiler + independent translation verifier terbukti.
+11. Formal wiring counterexample = 0 bila applicable.
+12. Full Public Assembly Rehearsal PASS tanpa manual fix.
+13. Public Handoff Acceptance Contract/schema compatibility PASS.
+14. Proof-carrying Stage Capsule valid/build-ready.
+15. `NO_PRIVATE_IMPLEMENTATION` gate PASS.
+16. `UNKNOWN = 0`, `NOT_PROVEN = 0` untuk seluruh Public prerequisite yang berlaku.
 
-Pisahkan **prasyarat masuk yang harus sudah terbukti** dari **witness integrasi/runtime final yang baru dihasilkan pada attempt Private**. Witness final tersebut tetap pending/NOT_PROVEN sampai dijalankan; bukan syarat PASS melingkar untuk memasuki Private, dan bukan alasan menunda test yang sebenarnya bisa ditutup di Public. `STAGE_READY_PRIVATE` bukan final application PASS.
+Pisahkan prerequisite masuk dari witness integrasi/runtime final yang baru dihasilkan pada attempt Private. Witness final tetap pending/NOT_PROVEN sampai dijalankan; bukan syarat PASS melingkar untuk memasuki Private. `STAGE_READY_PRIVATE` bukan final application PASS.
 
 ### 6.3 Satu Tahap, Satu Percobaan Private Terencana
 
 Satu tahap utuh adalah satu batas promosi/integrasi. Komponen, sublangkah, gate, sub-gate, individual check, jumlah paket, pergantian agen, atau pergantian konteks tidak menambah jatah attempt.
 
-Sebelum dispatch, agen wajib menunjukkan stage ID, scope/package binding, prasyarat, daftar operasi/workflow/job, bukti yang dipakai ulang, estimasi total menit/biaya termasuk layanan dan penyimpanan, batas durasi, titik STOP, serta izin eksekusi tahap yang sesuai instruksi pengguna. Izin menyunting MD tidak mengizinkan eksekusi Private.
+Sebelum dispatch, agen wajib menunjukkan stage ID, scope/capsule binding, prasyarat, daftar operasi/workflow/job, evidence reuse, estimasi total menit/biaya/penyimpanan, batas durasi, titik STOP, serta izin eksekusi tahap yang sesuai instruksi pengguna. Izin menyunting MD tidak mengizinkan eksekusi Private.
 
-Catat satu attempt ID beserta scope/input binding dan status belum dimulai/berjalan/menunggu approval/selesai/gagal/tidak diketahui. Cegah dispatch ganda dan pekerjaan bersamaan untuk attempt yang sama; bila status dispatch tidak pasti, periksa run yang ada, jangan mengirim ulang. Semua job, preflight, bootstrap, kualifikasi, build, dan verifikasi Private dihitung sebagai penggunaan nyata; memindahkannya ke workflow lain tidak membuatnya gratis atau membuka attempt baru.
+Catat satu attempt ID beserta scope/input binding dan status. Cegah dispatch ganda dan pekerjaan bersamaan. Semua job, preflight, bootstrap, qualification, build, dan verification Private dihitung sebagai penggunaan nyata; memindahkannya ke workflow lain tidak membuatnya gratis atau membuka attempt baru.
 
-Satu attempt adalah satu rencana eksekusi tahap, bukan janji satu command/workflow. Jangan memanggil workflow gate terpisah jika gate yang sama sudah tercakup secara sah dalam jalur kandidat. Jangan mengurangi proof untuk menghemat kuota. Jika kuota atau prasyarat tidak cukup, STOP dan sampaikan pilihan sebelum memakai Private.
+Satu attempt adalah satu rencana eksekusi tahap, bukan janji satu command/workflow. Jangan mendispatch gate terpisah jika coverage yang sama sudah sah tercakup candidate path. Jangan mengurangi proof untuk menghemat kuota.
 
-Checkpoint persetujuan Firebase terhadap signed candidate tetap wajib. Menunggu persetujuan tidak mengizinkan rebuild, mengganti kandidat, atau mengulang pekerjaan yang sudah sah. Approval Firebase satu kali tetap terpisah dari izin integrasi/build tahap.
+Checkpoint persetujuan Firebase terhadap signed candidate tetap wajib dan terpisah dari izin wiring/build tahap.
 
-Kegagalan/timeout/cancellation setelah pekerjaan Private dimulai tidak mengembalikan jatah attempt. Lakukan STOP dan pemulihan aman yang telah diotorisasi. Perbaikan Public harus menutup ulang cakupan tahap terdampak; attempt Private berikutnya memerlukan keputusan/izin baru, bukan auto-retry.
+Kegagalan/timeout/cancellation setelah pekerjaan Private dimulai tidak mengembalikan jatah attempt. STOP, rollback bila perlu, sanitized report, Public reclosure, lalu keputusan/izin baru untuk attempt berikutnya.
 
-Targetnya keberhasilan percobaan pertama. “100%” hanya berarti kelengkapan terhadap scope dan batas bukti yang disepakati, bukan jaminan bebas bug.
+Targetnya keberhasilan percobaan pertama. “100%” tidak boleh dimaknai probabilitas attempt pertama 100% atau bug-free absolut.
 
-## 7. Promotion Package
+Claim wiring yang sah bila seluruh exact sealed scope terbukti adalah:
 
-Promotion Package tahap memuat `PROJECT_ID`, `STAGE_ID`, versi cakupan tahap, daftar seluruh sublangkah/komponen wajib, daftar paket anggota beserta hash, contract/route/test-evidence binding, hasil closure Public, dan batas claim. Metadata Private seperti baseline internal dan bukti penerima disimpan pada catatan penerimaan Private, tidak disalin ke Public.
+```text
+DETERMINISTIC_WIRING_CLOSED = TRUE
+WIRING_UNKNOWN = 0
+WIRING_NOT_PROVEN = 0
+```
 
-Promotion Package juga wajib membawa receiver-contract binding, machine-readable Stage Wiring Manifest, acceptance/handoff schema version, build descriptors/dependency declarations yang diperlukan, serta evidence Full Public Assembly Rehearsal dan `NO_PRIVATE_IMPLEMENTATION` gate.
+## 7. Promotion Package / Stage Capsule
 
-Setiap paket anggota tetap minimal membawa metadata aman:
+Promotion Package tahap memuat `PROJECT_ID`, `STAGE_ID`, versi scope, seluruh sublangkah/komponen wajib, exact member hashes, canonical contract binding, Stage Wiring Manifest, route/test-evidence binding, R1–R9 closure, acceptance schema binding, dual-dummy/full-assembly evidence, provenance/attestation, capsule root digest, dan batas claim.
 
-- `PROJECT_ID`
-- `COMPONENT_ID`
-- `VERSION`
-- `CONTRACT_VERSION`
-- dependency/toolchain lock atau digest
-- target platform
-- hash/checksum
-- compatibility
-- test status
-- promotion manifest
+Metadata Private seperti baseline internal, receiver map/certificate, dan bukti penerima disimpan pada catatan penerimaan Private, tidak disalin ke Public.
 
-Private wajib menolak paket yang identitas, hash, contract, dependency, compatibility, receiver-contract version, wiring manifest, atau acceptance schema-nya tidak valid.
+Private wajib menolak capsule yang identity/hash/contract/dependency/compatibility/wiring/acceptance/provenance binding-nya tidak valid.
 
 ## 8. Private Preflight dan Transaction
 
-Hanya setelah closure tahap dan izin eksekusi pada §6, Private menjalankan preflight murah terhadap kelengkapan tahap, package/manifest/hash/contract/dependency/compatibility/environment. Preflight termasuk biaya attempt, bukan alasan menjalankan satu attempt per komponen.
+Hanya setelah closure tahap dan izin eksekusi pada §6, Private menjalankan preflight murah. Preflight termasuk biaya attempt.
 
-Private preflight wajib memverifikasi bahwa seluruh wiring dapat dilakukan melalui receiver adapter/slot yang sudah ada dan Stage Wiring Manifest yang exact. Jika diperlukan implementation, design decision, dependency decision, manual patch, atau behavior baru, **STOP sebelum integrasi/build**.
+Sebelum workload berat periksa fail-closed:
 
-Jika preflight gagal: **STOP**. Jangan menjalankan build/integrasi berat.
+```text
+CAPSULE ID/HASH/ROOT DIGEST
+-> CANONICAL CONTRACT DIGEST
+-> STAGE WIRING MANIFEST/SCHEMA DIGEST
+-> ACCEPTANCE SCHEMA DIGEST
+-> DEPENDENCY/TOOLCHAIN COMPATIBILITY
+-> PRIVATE RECEIVER CERTIFICATE FRESHNESS
+-> RECEIVER CONTRACT DIGEST MATCH
+-> ENVIRONMENT/BASELINE PREREQUISITE
+-> NO-PRIVATE-IMPLEMENTATION CONDITIONS
+```
 
-Sebelum integrasi:
+Jika satu saja mismatch/unknown/stale: **STOP**. Jangan menjalankan build/wiring berat untuk menemukan mismatch yang dapat diketahui di preflight.
 
-`CURRENT_FINAL -> SNAPSHOT -> INTEGRATE -> VERIFY`
+Transaksi resmi:
 
-Jika PASS: `COMMIT_NEW_FINAL_STATE`.
+```text
+CURRENT_FINAL
+-> FREEZE EXACT INPUTS
+-> SNAPSHOT
+-> GENERATE DECLARED WIRING
+-> INDEPENDENT VERIFY
+-> ATOMIC APPLY
+-> VERIFY TREE/DIFF
+-> REGRESSION
+-> COMMIT_NEW_FINAL_STATE
+```
 
 Jika FAIL: `ROLLBACK` ke state sebelumnya.
 
@@ -330,29 +365,30 @@ Mesin Private adalah satu-satunya jalur yang boleh mengeksekusi isi Private untu
 
 Jalur final resmi:
 
-`PREFLIGHT -> SNAPSHOT -> APPLY_DECLARED_WIRING -> VERIFY_WIRING -> REGRESSION -> COMMIT -> BUILD_APK -> SIGN_CANDIDATE -> VERIFY_SIGNATURE -> FIREBASE/FINAL_RUNTIME_TEST -> PASS -> RELEASE`
+`PREFLIGHT -> SNAPSHOT -> GENERATE_DECLARED_WIRING -> INDEPENDENT_VERIFY -> ATOMIC_APPLY -> VERIFY_TREE_DIFF -> REGRESSION -> COMMIT -> BUILD_APK -> SIGN_CANDIDATE -> VERIFY_SIGNATURE_HASH_PROVENANCE -> FIREBASE/FINAL_RUNTIME_TEST -> PASS -> RELEASE`
 
 Aturan:
 
 - build APK yang memakai source/asset Private wajib berjalan pada boundary Private;
 - signing candidate wajib berjalan pada boundary Private;
-- seluruh akses operasional Firebase/Test Lab dan final runtime execution terhadap APK kandidat wajib dimulai serta dijalankan dari boundary Private;
-- APK yang diuji final harus merupakan candidate yang sudah ditandatangani dan diverifikasi signature-nya;
-- release hanya boleh memakai artifact kandidat yang identitas/hash/signature-nya sama dengan artifact yang memperoleh final PASS;
-- Public tidak boleh menjadi bridge, reusable runner, caller target, artifact relay, atau CI engine untuk mengeksekusi isi Private;
-- Private integration tidak boleh menjadi tempat menulis behavior produk yang seharusnya sudah matang di Public.
+- final runtime/Firebase hanya dari Private;
+- APK final test harus candidate yang sudah ditandatangani dan diverifikasi;
+- release hanya exact candidate yang memperoleh final PASS;
+- Public tidak boleh menjadi bridge/runner/relay untuk isi Private;
+- Private wiring tidak boleh menjadi tempat menulis behavior produk yang seharusnya matang di Public;
+- deterministic wiring tooling harus benar-benar implemented/tested; teks MD bukan enforcement proof.
 
-GitHub Actions boleh digunakan sebagai mesin Private jika workflow dan seluruh input/output Private tetap berada pada repository/jalur Private dan tidak disalurkan ke Public.
+GitHub Actions boleh digunakan sebagai mesin Private jika workflow/input/output tetap Private.
 
 ### 9.1 Firebase / Test Lab Hanya di Private
 
-**Public DILARANG melakukan pengecekan, mengakses layanan, atau menjalankan pengujian Firebase/Test Lab dalam bentuk apa pun, termasuk dengan dummy, prototype, atau artifact yang sepenuhnya Public.**
+**Public DILARANG melakukan pengecekan, akses, atau pengujian Firebase/Test Lab dalam bentuk apa pun, termasuk dummy/prototype Public.**
 
-Larangan mencakup connection check, autentikasi ke layanan, pembacaan catalog/model, candidate preflight yang mengakses Firebase, upload/download artifact atau hasil, submit test matrix, serta penggunaan Public sebagai caller, executor, atau relay Firebase. Tidak ada pengecualian karena alasan riset, smoke test, kesiapan komponen, atau single-use approval.
+Larangan mencakup connection check, autentikasi, catalog/model lookup, candidate preflight yang mengakses Firebase, upload/download, submit test matrix, serta caller/relay Firebase.
 
-Public tetap boleh mempelajari dokumentasi API yang sudah terbuka, merancang test strategy, dan menguji mock/fixture Public yang tidak terhubung atau memanggil layanan Firebase. Pengujian penyambungan komponen memakai dummy mandiri sesuai §5, tanpa Firebase.
+Public boleh mempelajari dokumentasi API terbuka dan menguji mock/fixture tanpa koneksi/panggilan Firebase.
 
-Mode `connection-only` dan `candidate-preflight`, bila tersedia, tetap hanya di Private dan mengikuti policy Private; keduanya tidak menjadi final test atau izin submit matrix. Final Firebase test memakai APK candidate Private yang sudah dibangun, ditandatangani, dan diverifikasi signature-nya, serta memerlukan persetujuan eksplisit satu attempt sesuai policy. Persetujuan final Private tidak membuka jalur Public.
+Final Firebase test memakai exact signed candidate Private dan memerlukan persetujuan eksplisit satu attempt sesuai policy.
 
 ```text
 FIREBASE_EXECUTION_BOUNDARY = PRIVATE_ONLY
@@ -365,65 +401,49 @@ PUBLIC_FIREBASE_DUMMY_EXCEPTION = 0
 
 **DILARANG KERAS melakukan trial-and-error berulang di Private.**
 
-Jika kegagalan final/integrasi terjadi di Private:
+Jika kegagalan final/wiring terjadi:
 
 `STOP -> ROLLBACK bila diperlukan -> SANITIZED_FAILURE_REPORT -> PUBLIC FIX/RETEST -> TUTUP ULANG TAHAP TERDAMPAK -> STAGE_READY_PRIVATE -> TUNGGU KEPUTUSAN/IZIN ATTEMPT BARU`
 
-Dilarang pola:
-
-`Private gagal -> edit berulang di Private -> build lagi -> gagal -> edit lagi`.
-
-Private dipakai untuk final processing dengan sesedikit mungkin iterasi. Public menghabiskan iterasi pengembangan.
+Dilarang pola `Private gagal -> edit behavior -> build lagi -> gagal -> edit lagi`.
 
 ## 11. Sanitized Failure Report
 
-Informasi yang keluar dari Private ke Public hanya boleh berupa laporan aman, misalnya error ID, contract mismatch, unsupported version, lifecycle failure, dependency mismatch, receiver-slot mismatch, acceptance-schema mismatch, atau generic validation result.
+Informasi yang keluar dari Private ke Public hanya boleh error/compatibility information aman seperti error ID, contract mismatch, unsupported version, dependency mismatch, receiver-slot/wiring-manifest mismatch generik, acceptance-schema mismatch, lifecycle failure, atau generic validation result.
 
-Laporan dilarang membawa source/asset Private, secret, token, konfigurasi internal, path sensitif, dump internal, database/state, APK/artifact Private, internal receiver mapping, atau detail kernel yang membuka isi Private.
+Dilarang membawa source/asset Private, secret/token, konfigurasi internal, path sensitif, dump, database/state, APK/artifact Private, receiver map/certificate content, atau detail kernel yang membuka isi Private.
 
 ## 12. Auto Cleanup Public
 
-Setiap pekerjaan yang memakai mesin Public WAJIB memiliki Auto Cleanup otomatis, berjalan setelah job berhasil maupun gagal tanpa menunggu perintah pengguna.
+Setiap pekerjaan mesin Public WAJIB memiliki Auto Cleanup setelah sukses/gagal sejauh platform memungkinkan.
 
-Bersihkan sejauh platform memungkinkan:
+Bersihkan workflow run/log yang dapat dihapus, artifact sementara, cache, workspace, temporary branch/ref, debug output, dan temporary test data.
 
-- workflow run/log
-- artifact sementara
-- cache pekerjaan
-- workspace sementara
-- branch/ref sementara yang memang dibuat untuk job
-- debug output sementara
-- temporary test data
-
-Sebelum menghapus output sementara, pastikan paket tahap dan evidence Public yang diwajibkan telah tersimpan secara tahan lama dan dapat diverifikasi sesuai retention yang disetujui. Paket/evidence wajib bukan sampah job; jangan menghapus satu-satunya bukti atau memaksa rerun akibat cleanup.
-
-Cleanup tidak menggantikan aturan keamanan. Data Private tidak boleh pernah masuk Public sejak awal.
+Sebelum menghapus output sementara, pastikan Stage Capsule/evidence wajib tersimpan secara tahan lama sesuai retention. Cleanup tidak menggantikan keamanan; data Private tidak boleh pernah masuk Public.
 
 ## 13. Isolasi Project dan Shared Component
 
-Setiap pekerjaan harus memiliki minimal `PROJECT_ID`, target master, component ID/version, contract, target platform, dan compatibility.
+Setiap pekerjaan harus memiliki `PROJECT_ID`, target master, component ID/version, contract ID/version/digest, target platform, dan compatibility.
 
 Dilarang mengambil isi repo/project lain hanya karena terlihat cocok.
 
-Komponen lintas project harus dinyatakan eksplisit sebagai `GLOBAL/SHARED_COMPONENT` dan tetap memiliki source resmi, version, contract, dependency, compatibility, dan test.
+Komponen lintas project harus dinyatakan `GLOBAL/SHARED_COMPONENT` dan mempunyai source resmi, version, contract, dependency, compatibility, dan test.
 
 ## 14. Dependency dan Environment Lock
 
-Public dan Private wajib mengunci seluruh input yang memengaruhi hasil serta membuktikan kompatibilitas aspek bersama melalui contract. Daftar perbedaan environment harus eksplisit; kemiripan environment bukan proof kesetaraan. Ikuti R6 untuk seluruh fase/perintah dan dependency, serta R9 untuk binding/freshness evidence. Bukti dan konfigurasi Private tetap di Private.
+Public dan Private wajib mengunci seluruh input yang memengaruhi hasil serta membuktikan compatibility aspek bersama melalui contract. Perbedaan environment harus eksplisit; kemiripan environment bukan proof kesetaraan. Ikuti R6 dan R9.
 
-Dependency/toolchain qualification yang diperlukan untuk Promotion Package harus diselesaikan atau dinyatakan sebagai prasyarat Private yang sudah tersedia sebelum `STAGE_READY_PRIVATE`. Private tidak boleh digunakan untuk memilih dependency baru secara trial-and-error.
+Dependency/toolchain qualification untuk Stage Capsule harus selesai atau merupakan Private prerequisite yang sudah tersedia sebelum `STAGE_READY_PRIVATE`. Private tidak boleh digunakan memilih dependency baru secara trial-and-error.
 
 ## 15. Jalur Resmi
 
 Public:
 
-`RESEARCH -> DESIGN -> BUILD_COMPONENT -> AUDIT/TEST -> DUMMY_PRIVATE_HOST -> APPLY_WIRING_MANIFEST -> FULL_PUBLIC_ASSEMBLY_REHEARSAL -> PACKAGE_VALIDATION -> COMPONENT_READY_PRIVATE -> TUTUP SELURUH TAHAP -> STAGE_READY_PRIVATE`
-
-Auto Cleanup berlaku per job setelah paket/evidence wajib dipertahankan sesuai §12. Tidak membuka promosi komponen.
+`RESEARCH -> DESIGN -> BUILD_COMPONENT -> CONTRACT/R1-R9 -> DUAL_DUMMY -> DETERMINISTIC_WIRING_REHEARSAL -> FULL_PUBLIC_ASSEMBLY -> REPRODUCIBILITY/PROVENANCE -> PACKAGE_VALIDATION -> COMPONENT_READY_PRIVATE -> TUTUP SELURUH TAHAP -> PROOF_CARRYING_STAGE_CAPSULE -> STAGE_READY_PRIVATE`
 
 Private:
 
-`PREFLIGHT -> SNAPSHOT -> APPLY_DECLARED_WIRING -> VERIFY_WIRING -> REGRESSION -> COMMIT -> BUILD_APK -> SIGN_CANDIDATE -> VERIFY_SIGNATURE -> FIREBASE/FINAL_RUNTIME_TEST -> PASS -> RELEASE`
+`PREFLIGHT -> SNAPSHOT -> GENERATE_DECLARED_WIRING -> INDEPENDENT_VERIFY -> ATOMIC_APPLY -> VERIFY_TREE_DIFF -> REGRESSION -> COMMIT -> BUILD_APK -> SIGN_CANDIDATE -> VERIFY_SIGNATURE/HASH/PROVENANCE -> FIREBASE/FINAL_RUNTIME_TEST -> PASS -> RELEASE`
 
 Jika gagal di Private:
 
@@ -433,20 +453,22 @@ Jika gagal di Private:
 
 Dilarang menyediakan atau menggunakan:
 
-- checkout Private dari Public
-- token/credential Public untuk membaca Private
-- mirror kernel/source/asset/artifact Private di Public
-- registry Public yang menyimpan isi Private
-- contract Public yang mengungkap internal receiver mapping/path/class/topology yang tidak diperlukan
-- dummy yang diturunkan dari salinan/redaksi/dekompilasi/observasi isi Private
-- Public runner/workflow sebagai mesin build/test untuk isi Private
-- Public sebagai jalur pengecekan/akses/eksekusi Firebase/Test Lab, termasuk untuk dummy/prototype Public
-- transfer bebas antar project
-- debug/trial-and-error berulang di Private
-- implementasi behavior produk baru di Private ketika tahap mengklaim `PRIVATE_WIRING_ONLY`
-- manual patch sesudah Promotion Package diterapkan untuk membuatnya compile/build
-- log yang membocorkan data Private
-- ketergantungan Public pada isi Private
+- checkout Private dari Public;
+- token/credential Public untuk membaca Private;
+- mirror kernel/source/asset/artifact Private di Public;
+- registry Public yang menyimpan isi Private;
+- contract Public yang mengungkap internal receiver mapping/path/class/topology yang tidak diperlukan;
+- dummy yang diturunkan dari salinan/redaksi/dekompilasi/observasi isi Private;
+- ekspor Private receiver map/certificate/conformance evidence;
+- Public runner/workflow sebagai mesin build/test isi Private;
+- Public sebagai jalur Firebase;
+- transfer bebas antar project;
+- debug/trial-and-error berulang di Private;
+- implementasi behavior produk baru di Private ketika `PRIVATE_WIRING_ONLY`;
+- manual patch sesudah Stage Capsule diterapkan;
+- wiring compiler sebagai satu-satunya oracle;
+- log yang membocorkan data Private;
+- ketergantungan Public pada isi Private.
 
 ## 17. Konteks Percakapan Project
 
@@ -460,13 +482,14 @@ Prioritas konteks:
 
 ## 18. Prinsip Final
 
-- Private Master selalu menjadi sumber kebenaran final.
+- Private Master selalu sumber kebenaran final.
 - Isi Private tidak pernah keluar ke Public.
-- Public hanya mengetahui contract/socket minimum yang diperlukan untuk membuat komponen dapat disambungkan; internal receiver mapping tetap Private.
-- Public menghabiskan seluruh implementasi dan iterasi yang dapat dilakukan tanpa isi Private, termasuk dummy host, deterministic wiring rehearsal, dan full public dummy build.
-- `STAGE_READY_PRIVATE` hanya sah bila package build-ready terhadap receiver contract dan tidak memerlukan implementation/design/manual patch baru di Private.
-- Satu tahap utuh menjadi satu batas promosi dan satu percobaan Private terencana sesuai §6.3.
-- Integrasi baseline sebenarnya, build APK final, signing kandidat final, final runtime test, dan release berada pada mesin Private; seluruh akses/eksekusi Firebase/Test Lab juga hanya di Private.
-- Kegagalan Private wajib kembali ke Public melalui laporan yang sudah disanitasi bila perbaikan komponen diperlukan.
-- Asset dan pembahasan antar project wajib terisolasi.
+- Public hanya mengetahui contract/socket minimum; internal receiver mapping/conformance evidence tetap Private.
+- Public menghabiskan implementasi dan iterasi, termasuk dual dummy, deterministic wiring rehearsal, full dummy build, independent verification, dan reproducibility/provenance yang berlaku.
+- `STAGE_READY_PRIVATE` hanya sah jika Stage Capsule build-ready dan tidak membutuhkan implementation/design/manual patch baru di Private.
+- Satu tahap utuh adalah satu batas promosi dan satu percobaan Private terencana.
+- Private melakukan validate + deterministic mechanical wiring + final build/sign/verify/final test.
+- Kegagalan Private kembali ke Public melalui sanitized report.
+- Asset/pembahasan antar project wajib terisolasi.
 - Pekerjaan manual berulang yang dapat diotomatisasi wajib diotomatisasi.
+- `DETERMINISTIC_WIRING_CLOSED = TRUE` adalah claim kondisional pada exact sealed scope/input, bukan probabilitas first attempt 100%.
