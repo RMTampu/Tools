@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="io.toolbox.stageahosttest">
   <uses-permission android:name="android.permission.VIBRATE"/>
   <application android:allowBackup="false" android:usesCleartextTraffic="false" android:theme="@android:style/Theme.Material.NoActionBar">
     <activity android:name="io.toolbox.stageahosttest.HostTestActivity" android:exported="true">
