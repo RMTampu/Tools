@@ -65,12 +65,30 @@ jobs:
           set -euo pipefail
           sudo chmod 666 /dev/kvm || true
           echo no | avdmanager create avd --force -n stage-a-api30 -k 'system-images;android-30;google_apis;x86_64'
-          "$ANDROID_SDK_ROOT/emulator/emulator" -avd stage-a-api30 -no-window -no-audio -no-boot-anim -no-snapshot -wipe-data -gpu swiftshader_indirect > "$RUNNER_TEMP/stage-a-emulator.log" 2>&1 &
-          EMULATOR_PID=$!; trap 'kill "$EMULATOR_PID" 2>/dev/null || true' EXIT
-          adb wait-for-device
-          for _ in $(seq 1 180); do [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == "1" ]] && break; sleep 2; done
-          test "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1"; test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = "30"
-          adb shell getprop ro.product.cpu.abi | tr -d '\r' | tee public-components/stage-a-android-host/build/emulator-abi.txt; grep -Fx 'x86_64' public-components/stage-a-android-host/build/emulator-abi.txt
+          EMULATOR_LOG="$RUNNER_TEMP/stage-a-emulator.log"
+          "$ANDROID_SDK_ROOT/emulator/emulator" -avd stage-a-api30 -no-window -no-audio -no-boot-anim -no-snapshot -wipe-data -gpu swiftshader_indirect > "$EMULATOR_LOG" 2>&1 &
+          EMULATOR_PID=$!
+          trap 'kill "$EMULATOR_PID" 2>/dev/null || true' EXIT
+          if ! timeout 120s adb wait-for-device; then
+            echo '::error::API30 emulator did not become visible to adb within bounded device timeout.'
+            kill -0 "$EMULATOR_PID" 2>/dev/null || echo '::error::Emulator process exited before adb became ready.'
+            tail -n 200 "$EMULATOR_LOG" >&2 || true
+            exit 1
+          fi
+          booted=0
+          for _ in $(seq 1 90); do
+            kill -0 "$EMULATOR_PID" 2>/dev/null || { echo '::error::Emulator process exited during boot.'; tail -n 200 "$EMULATOR_LOG" >&2 || true; exit 1; }
+            if [[ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == "1" ]]; then booted=1; break; fi
+            sleep 2
+          done
+          if [[ "$booted" != 1 ]]; then
+            echo '::error::API30 emulator did not complete boot within bounded boot timeout.'
+            tail -n 200 "$EMULATOR_LOG" >&2 || true
+            exit 1
+          fi
+          test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = "30"
+          adb shell getprop ro.product.cpu.abi | tr -d '\r' | tee public-components/stage-a-android-host/build/emulator-abi.txt
+          grep -Fx 'x86_64' public-components/stage-a-android-host/build/emulator-abi.txt
           bash public-components/stage-a-android-host/scripts/run-emulator-tests.sh
       - name: Android host mutation challenge
         run: python3 public-components/stage-a-android-host/scripts/mutation_test.py
