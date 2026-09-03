@@ -25,4 +25,4 @@ Dokumen ini menjaga agar rancangan dan implementasi ToolBox matang sebelum fitur
 
 ## Aturan yang Tidak Dipakai Lagi
 
-Proses ini tidak memakai Promotion Package, Stage Capsule, STAGE_READY_PRIVATE, COMPONENT_READY_PRIVATE, receiver private, dummy private host, atau wiring lintas repo.
+Proses ini tidak memakai pola pemisahan pengembangan antar repository.
