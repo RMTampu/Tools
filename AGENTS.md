@@ -81,6 +81,37 @@ Agen tidak boleh membuat file seperti STATUS, CHECKPOINT, PROOF, atau laporan se
 
 Membuat atau memperbarui Markdown hanya boleh menjadi pekerjaan utama jika pengguna secara eksplisit meminta perubahan dokumen/aturan/MD. Jika pengguna meminta implementasi atau pematangan aplikasi, Markdown hanya boleh menjadi pendukung, bukan hasil utama.
 
+
+## Repo dan Jalur Source yang Benar
+
+Agen wajib mengerjakan repository yang secara eksplisit diarahkan pengguna sebagai tempat kerja aktif. Jika pengguna menyebut repo publik sebagai tempat pematangan, perubahan implementasi tidak boleh dialihkan ke repo private kecuali bagian itu memang signing, secret, Firebase final test, atau release sensitif.
+
+Sebelum membuat module, app, package, registry, kernel, workflow, atau struktur build baru, agen wajib memeriksa apakah jalur canonical sudah ada. Jika module canonical sudah ada, agen wajib mematangkan module itu, bukan membuat module kecil duplikat atau jalur samping yang tidak dipakai build utama.
+
+Pekerjaan dianggap tidak sah apabila:
+
+- perubahan source terjadi di repo yang berbeda dari repo kerja aktif yang diminta pengguna;
+- agen membuat module baru yang menduplikasi module canonical yang sudah ada;
+- perubahan tidak masuk ke build graph utama atau workflow utama;
+- laporan akhir tidak menyebut path file nyata yang berubah, command/test/build yang dijalankan, dan hasil run yang sudah dipantau;
+- agen mengklaim tahap selesai berdasarkan commit yang tidak mengubah jalur implementasi utama.
+
+Jika repo aktif belum jelas, agen wajib menentukan dari instruksi terbaru pengguna dan struktur repository. Jika masih ambigu setelah itu, agen boleh bertanya satu kali sebelum mengubah source.
+
+## Validasi Bukti Perubahan
+
+Sebelum melapor bahwa pekerjaan selesai, agen wajib membuktikan perubahan terlihat pada repository target dengan membaca kembali tree atau file yang diubah dari remote/local repository.
+
+Laporan akhir untuk pekerjaan teknis wajib menyebutkan:
+
+- repository target yang benar;
+- path source/asset/test/workflow yang berubah;
+- commit SHA atau status working tree;
+- test/build/run yang dijalankan dan hasilnya;
+- sisa blocker jika ada.
+
+Klaim perubahan tanpa bukti path dan hasil validasi dianggap gagal.
+
 ## Batas Berhenti yang Sah
 
 Agen hanya boleh berhenti sebelum pekerjaan tuntas jika ada blocker nyata, yaitu:
