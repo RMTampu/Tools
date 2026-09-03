@@ -89,6 +89,10 @@ public final class AndroidStageAHost {
         return SafeUiPolicy.modelFor(recovery.state());
     }
 
+    public AndroidSafeUi.Actions safeUiActions() {
+        return new AndroidSafeUiActions(this);
+    }
+
     public StageAContracts.HealthSnapshot health() {
         SafetyContracts.ResourceBudget budget = resources.budgetFor("stage.a.host");
         SafetyContracts.ResourceSample sample = resources.sampleFor("stage.a.host");
