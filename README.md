@@ -1,51 +1,9 @@
-# ToolBox — Public Research / Test / Staging
+# ToolBox
 
-`RMTampu/Tools` adalah repository **Public Research / Test / Staging**.
+ToolBox dikerjakan pada repo publik utama yang diarahkan pengguna.
 
-```text
-RMTampu/ToolBox (PRIVATE)
-= product master + source + asset + final integration + build + signing + Firebase/final test + release
+Repo publik berisi rancangan, source, asset yang boleh publik, implementasi, test, dan dokumentasi.
 
-RMTampu/Tools (PUBLIC)
-= research + prototype + component development + mock/simulator + public testing + whole-stage readiness staging
-```
+Build final tertandatangan, secret, signing key, credential Firebase, final runtime test, dan release sensitif berada di jalur private.
 
-## Batas Repository
-
-- Product source aplikasi/kernel Private tidak disimpan atau dibaca di repository ini.
-- Product asset/resource Private tidak disimpan atau dibaca di repository ini.
-- APK/artifact Private tidak boleh direlay melalui repository ini.
-- Public tidak boleh menerima credential untuk checkout/read Private.
-- Workflow Public hanya boleh bekerja terhadap component/source/data yang memang Public, mock, simulator, fixture, atau prototype.
-- Public tidak menjadi reusable CI untuk source Private.
-- Public dilarang melakukan akses/pengecekan/pengujian Firebase/Test Lab, termasuk untuk dummy/prototype Public; tidak boleh menjadi caller/bridge/relay Firebase.
-- Final build/signing/Firebase/release berada pada boundary Private.
-
-## Jalur Resmi
-
-```text
-PUBLIC
-RESEARCH
--> DESIGN
--> BUILD COMPONENT
--> AUDIT / TEST / SIMULATOR
--> PACKAGE
--> COMPONENT_READY_PRIVATE (DITAHAN DI PUBLIC)
--> CLOSURE SELURUH TAHAP
--> STAGE_READY_PRIVATE
--> AUTO CLEANUP (PAKET/EVIDENCE WAJIB DIPERTAHANKAN)
-```
-
-Pengujian penyambungan Public memakai dummy/mock/simulator mandiri dari contract aman, bukan salinan/ekstraksi/penyamaran baseline APK atau isi Private, dan tanpa Firebase.
-
-Hanya Promotion Package tahap utuh dengan `STAGE_READY_PRIVATE` dan otorisasi yang berlaku dapat masuk Private untuk satu percobaan terencana. Kesiapan komponen tidak membuka promosi. Status kesiapan bukan final application PASS. Public tidak mengetahui state final Private seperti `A`, `A+B`, atau `A+B+C`.
-
-Setiap Public job wajib memiliki Auto Cleanup otomatis setelah sukses/gagal sejauh platform memungkinkan.
-
-Baca `AGENTS.md`, `GLOBAL_PUBLIC_PRIVATE_DEVELOPMENT_RULES.md`, dan `REPOSITORY_INTEGRATION_POLICY.md` sebelum perubahan.
-
-## Urutan Dokumen Kerja
-
-Mulai dari [AGENTS.md](AGENTS.md) dan aturan global Rule 0, kemudian [PETA-PEMAKAIAN-MD.md](PETA-PEMAKAIAN-MD.md). Peta tersebut memuat fungsi dan urutan penggunaan seluruh MD Public berdasarkan pekerjaan.
-
-Untuk komponen yang tersedia, lanjutkan ke [README runtime-contracts](public-components/runtime-contracts/README.md), contract, matriks R1–R9, dan catatan handoff yang relevan. Pembacaan/pemetaan bukan bukti `READY_PRIVATE`; requirement harus diterapkan dan dibuktikan sesuai scope Public.
+Target utama: Android 11 / API 30 / arm64-v8a.
