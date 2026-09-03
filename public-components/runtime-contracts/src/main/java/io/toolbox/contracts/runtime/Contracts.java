@@ -5,7 +5,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -15,6 +14,12 @@ import java.util.regex.Pattern;
  */
 public final class Contracts {
     private Contracts() {}
+
+    public static final int MAX_STABLE_ID_LENGTH = 128;
+    public static final int MAX_VERSION_LENGTH = 64;
+    public static final int MAX_EXTERNAL_REF_LENGTH = 256;
+    public static final int MAX_COLLECTION_SIZE = 256;
+    public static final int MAX_BUNDLE_ENTRIES = 512;
 
     private static final Pattern STABLE_ID = Pattern.compile("[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*");
     private static final Pattern VERSION = Pattern.compile("[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?");
@@ -31,17 +36,17 @@ public final class Contracts {
     }
 
     public static String requireStableId(String value, String field) {
-        String id = requireText(value, field);
+        String id = requireBoundedText(value, field, MAX_STABLE_ID_LENGTH);
         if (!STABLE_ID.matcher(id).matches()) {
-            throw new ContractException("CONTRACT_INVALID", field + " is not a valid Stable ID: " + id);
+            throw new ContractException("CONTRACT_INVALID", field + " is not a valid Stable ID");
         }
         return id;
     }
 
     public static String requireVersion(String value, String field) {
-        String version = requireText(value, field);
+        String version = requireBoundedText(value, field, MAX_VERSION_LENGTH);
         if (!VERSION.matcher(version).matches()) {
-            throw new ContractException("CONTRACT_INVALID", field + " is not a semantic version: " + version);
+            throw new ContractException("CONTRACT_INVALID", field + " is not a semantic version");
         }
         return version;
     }
@@ -53,11 +58,47 @@ public final class Contracts {
         return value.trim();
     }
 
+    public static String requireBoundedText(String value, String field, int maxLength) {
+        String text = requireText(value, field);
+        if (text.length() > maxLength) {
+            throw new ContractException(
+                    "RESOURCE_LIMIT",
+                    field + " exceeds maximum length " + maxLength + " (actual=" + text.length() + ")"
+            );
+        }
+        return text;
+    }
+
+    public static String optionalBoundedText(String value, String field, int maxLength) {
+        if (value == null) return "";
+        String text = value.trim();
+        if (text.length() > maxLength) {
+            throw new ContractException(
+                    "RESOURCE_LIMIT",
+                    field + " exceeds maximum length " + maxLength + " (actual=" + text.length() + ")"
+            );
+        }
+        return text;
+    }
+
+    public static <T> T requireObject(T value, String field) {
+        if (value == null) {
+            throw new ContractException("CONTRACT_INVALID", field + " must not be null");
+        }
+        return value;
+    }
+
     public static List<String> immutableStableIds(Collection<String> source, String field) {
-        Objects.requireNonNull(source, field + " must not be null");
+        requireObject(source, field);
         ArrayList<String> copy = new ArrayList<>();
         LinkedHashSet<String> seen = new LinkedHashSet<>();
         for (String raw : source) {
+            if (copy.size() >= MAX_COLLECTION_SIZE) {
+                throw new ContractException(
+                        "RESOURCE_LIMIT",
+                        field + " exceeds maximum entries " + MAX_COLLECTION_SIZE
+                );
+            }
             String id = requireStableId(raw, field);
             if (!seen.add(id)) {
                 throw new ContractException("DUPLICATE_ID", "Duplicate " + field + ": " + id);
@@ -98,8 +139,12 @@ public final class Contracts {
                 String unsupportedBehavior
         ) {
             this.permissionId = requireStableId(permissionId, "permissionId");
-            this.kind = Objects.requireNonNull(kind, "kind");
-            this.platformPermissionRef = platformPermissionRef == null ? "" : platformPermissionRef.trim();
+            this.kind = requireObject(kind, "kind");
+            this.platformPermissionRef = optionalBoundedText(
+                    platformPermissionRef,
+                    "platformPermissionRef",
+                    MAX_EXTERNAL_REF_LENGTH
+            );
             this.reasonKey = requireStableId(reasonKey, "reasonKey");
             this.deniedBehavior = requireStableId(deniedBehavior, "deniedBehavior");
             this.unsupportedBehavior = requireStableId(unsupportedBehavior, "unsupportedBehavior");
@@ -348,18 +393,34 @@ public final class Contracts {
                 Collection<EventContract> events,
                 Collection<PermissionRequirement> permissions
         ) {
-            this.tool = Objects.requireNonNull(tool, "tool");
+            this.tool = requireObject(tool, "tool");
             this.components = immutableObjects(components, "components");
             this.actions = immutableObjects(actions, "actions");
             this.capabilities = immutableObjects(capabilities, "capabilities");
             this.events = immutableObjects(events, "events");
             this.permissions = immutableObjects(permissions, "permissions");
+            int total = 1 + this.components.size() + this.actions.size()
+                    + this.capabilities.size() + this.events.size() + this.permissions.size();
+            if (total > MAX_BUNDLE_ENTRIES) {
+                throw new ContractException(
+                        "RESOURCE_LIMIT",
+                        "ToolBundle exceeds maximum entries " + MAX_BUNDLE_ENTRIES + " (actual=" + total + ")"
+                );
+            }
         }
 
         private static <T> List<T> immutableObjects(Collection<T> source, String field) {
-            Objects.requireNonNull(source, field + " must not be null");
+            requireObject(source, field);
             ArrayList<T> copy = new ArrayList<>();
-            for (T value : source) copy.add(Objects.requireNonNull(value, field + " contains null"));
+            for (T value : source) {
+                if (copy.size() >= MAX_COLLECTION_SIZE) {
+                    throw new ContractException(
+                            "RESOURCE_LIMIT",
+                            field + " exceeds maximum entries " + MAX_COLLECTION_SIZE
+                    );
+                }
+                copy.add(requireObject(value, field + " contains null"));
+            }
             return Collections.unmodifiableList(copy);
         }
 
