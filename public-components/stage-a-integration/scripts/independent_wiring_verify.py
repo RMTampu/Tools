@@ -129,6 +129,10 @@ def validate(contract, wiring, acceptance, contract_digest):
     for sid, (_, provider, _) in EXPECTED_SLOTS.items():
         need(binding_map[sid]["providerId"] == provider, "provider mismatch")
 
+    need(binding_map["S01"]["values"] == {
+        "HostClass": "io.toolbox.stagea.android.AndroidStageAHost",
+        "RegistryAccessor": "productRegistry",
+    }, "shared product registry declaration")
     need(binding_map["S04"]["values"] == {
         "ActionsAccessor": "safeUiActions",
         "ModelAccessor": "safeUiModel",
@@ -192,6 +196,10 @@ def self_test(contract, wiring, acceptance, digest):
     must_reject("wrong-provider", contract, w, acceptance)
 
     w = copy.deepcopy(wiring)
+    w["bindings"][0]["values"]["RegistryAccessor"] = "registrySnapshot"
+    must_reject("shared-registry-accessor-replaced-by-snapshot", contract, w, acceptance)
+
+    w = copy.deepcopy(wiring)
     del w["bindings"][3]["values"]["ActionsAccessor"]
     must_reject("safe-ui-actions-accessor-missing", contract, w, acceptance)
 
@@ -228,7 +236,7 @@ def main():
             "schemaVersion": 1,
             "status": "PASS",
             "claim": "PUBLIC_STAGE",
-            "verifier": "independent-stage-a-wiring-oracle-v3",
+            "verifier": "independent-stage-a-wiring-oracle-v4",
             "contractSha256": digest,
             "wiringManifestSha256": sha(WIRING_PATH),
             "acceptanceSchemaSha256": sha(ACCEPTANCE_PATH),
@@ -236,6 +244,7 @@ def main():
             "requiredSlotCoverage": len(EXPECTED_SLOTS),
             "runtimeSlotCount": 6,
             "buildAndPlacementSlotCount": 4,
+            "sharedProductRegistryBound": True,
             "safeUiProductionActionsBound": True,
             "mutationEscape": 0,
             "mutations": mutations,
@@ -251,6 +260,7 @@ def main():
         return 2
     print("STAGE_A_INDEPENDENT_WIRING_VERIFY = PASS")
     print("STAGE_A_RECEIVER_SLOT_COUNT = 10")
+    print("STAGE_A_SHARED_PRODUCT_REGISTRY_BOUND = 1")
     print("STAGE_A_SAFE_UI_ACTIONS_BOUND = 1")
     print("STAGE_A_WIRING_MUTATION_ESCAPE = 0")
     print("PRIVATE_CONTENT_USED = 0")
