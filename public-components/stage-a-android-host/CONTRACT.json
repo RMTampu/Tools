@@ -1,7 +1,8 @@
 {
   "changeInvalidation": {
     "heavyWorkAdded": "replace idle workload profile with measured benchmark-backed profile and rerun R2/R9",
-    "permissionKindSpecialAccessAdded": "add explicit special-access adapter and tests"
+    "permissionKindSpecialAccessAdded": "add explicit special-access adapter and tests",
+    "safeUiActionAuthorityAdded": "implement authority in Public production adapters, add mutation/runtime proof, and rerun Stage-A closure before Private"
   },
   "contractId": "toolbox.stage.a.android-host",
   "contractVersion": "1.0.0",
@@ -20,6 +21,8 @@
     "HEAVY_WORK_PROFILE_REQUIRES_MEASURED_CAPACITY",
     "SAFE_UI_USES_PLATFORM_WIDGETS_NOT_COMPONENT_REGISTRY",
     "SAFE_UI_RESTRICTED_STATES_ONLY",
+    "SAFE_UI_ACTIONS_USE_PUBLIC_PRODUCTION_ADAPTER_ONLY",
+    "SAFE_UI_UNPROVEN_AUTHORITY_STAYS_UNAVAILABLE",
     "NO_NETWORK_AUTHORITY",
     "NO_FIREBASE_AUTHORITY",
     "NO_NATIVE_PLUGIN_DYNAMIC_CODE"
@@ -28,7 +31,7 @@
     "applicationBootstrap": "AndroidStageAHost.bootstrap before kernel heavy startup",
     "kernelStateStore": "thin delegate to AndroidAtomicStateStore",
     "productRegistry": "same ProductRegistry instance",
-    "safeUi": "render when SafeUiModel visible/restricted"
+    "safeUi": "render when SafeUiModel visible/restricted using AndroidStageAHost.safeUiActions; Private callback implementation forbidden"
   },
   "schemaVersion": 1
 }
