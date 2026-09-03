@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "contractId": "toolbox.stage.receiver.v1",
+  "contractVersion": "1.0.0",
+  "projectId": "ToolBox",
+  "stageId": "A",
+  "privacy": {
+    "publicKnowsSocketShapeOnly": true,
+    "privateImplementationExposed": false,
+    "privateReceiverMappingExposed": false
+  },
+  "slots": [
+    {
+      "slotId": "S01",
+      "shape": "registry.instance.v1",
+      "required": true,
+      "lifecycle": "single-shared-instance"
+    },
+    {
+      "slotId": "S02",
+      "shape": "durable.state.delegate.v1",
+      "required": true,
+      "lifecycle": "available-before-kernel-start"
+    },
+    {
+      "slotId": "S03",
+      "shape": "bootstrap.hook.v1",
+      "required": true,
+      "lifecycle": "before-kernel-start"
+    },
+    {
+      "slotId": "S04",
+      "shape": "safe-ui.route.v1",
+      "required": true,
+      "lifecycle": "restricted-state-preempts-normal-route"
+    },
+    {
+      "slotId": "S05",
+      "shape": "resource.profile.v1",
+      "required": true,
+      "lifecycle": "stage-a-idle-profile"
+    },
+    {
+      "slotId": "S06",
+      "shape": "diagnostic.quarantine.v1",
+      "required": true,
+      "lifecycle": "non-sensitive-terminal-quarantine"
+    }
+  ],
+  "compatibility": {
+    "androidApi": 30,
+    "publicRuntimeWitnessAbi": "x86_64",
+    "finalRuntimeAbiClaimed": false,
+    "firebasePublicAccess": false
+  },
+  "failureCodes": [
+    "receiver.contract.mismatch",
+    "receiver.slot.missing",
+    "receiver.slot.duplicate",
+    "receiver.lifecycle.order.invalid",
+    "receiver.binding.incompatible"
+  ]
+}
