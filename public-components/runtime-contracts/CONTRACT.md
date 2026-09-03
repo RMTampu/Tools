@@ -176,4 +176,23 @@ Contract ini menyimpan metadata saja. Ia tidak mempunyai API untuk:
 - UI/hardware/power authority;
 - Firebase/build/signing.
 
+## Private integration handoff
+
+Promotion Package tidak boleh diasumsikan otomatis memperbarui dependency/build-input trust state milik host Private.
+
+Sebelum regression atau build setelah integrasi, host Private wajib:
+
+```text
+INTEGRATION_INPUT_CHANGED
+-> INVALIDATE_AFFECTED_DEPENDENCY_TRUST_EVIDENCE
+-> REFRESH_PRIVATE_BUILD_INPUT_UNIVERSE
+-> REFRESH_PRIVATE_BUILD_INPUT_HASHES
+-> PRIVATE_DEPENDENCY_TRUST_PASS
+-> REGRESSION / VERIFY
+```
+
+Rincian machine-readable ada di `PRIVATE_INTEGRATION_REQUIREMENTS.json`.
+
+Public hanya mendefinisikan requirement handoff. Public dilarang mengetahui, mengambil, atau mengubah daftar build input/trust manifest internal Private. Jika host Private tidak dapat membuktikan trust state baru, integrasi harus fail-closed dan kembali melalui sanitized failure flow.
+
 Runtime Private menentukan adapter/execution policy setelah Promotion Package lulus preflight.
