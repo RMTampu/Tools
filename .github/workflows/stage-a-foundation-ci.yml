@@ -2,28 +2,30 @@ name: ToolBox Public Stage A Foundation CI
 
 on:
   push:
-    branches: [main, stage-a-android-host-closure]
-    paths: ['public-components/stage-a-foundation/**','public-components/stage-a-android-host/**','public-components/runtime-contracts/**','public-components/runtime-safety-contracts/**','.github/workflows/stage-a-foundation-ci.yml','AGENTS.md','GLOBAL_PUBLIC_PRIVATE_DEVELOPMENT_RULES.md','PETA-PEMAKAIAN-MD.md','REPOSITORY_INTEGRATION_POLICY.md','TEST_ROUTING_POLICY.md','AGENT_PROCEDURE_EXECUTION_RULES.md','APPLICATION_SAFE_100_PROCESS.md','APP_SAFE_R*.md']
+    branches: [main, stage-a-android-host-closure, stage-a-deterministic-reclosure]
+    paths: ['public-components/stage-a-foundation/**','public-components/stage-a-android-host/**','public-components/stage-a-integration/**','public-components/runtime-contracts/**','public-components/runtime-safety-contracts/**','.github/workflows/stage-a-foundation-ci.yml','AGENTS.md','GLOBAL_PUBLIC_PRIVATE_DEVELOPMENT_RULES.md','PETA-PEMAKAIAN-MD.md','REPOSITORY_INTEGRATION_POLICY.md','TEST_ROUTING_POLICY.md','AGENT_PROCEDURE_EXECUTION_RULES.md','APPLICATION_SAFE_100_PROCESS.md','APP_SAFE_R*.md']
   pull_request:
     branches: [main]
-    paths: ['public-components/stage-a-foundation/**','public-components/stage-a-android-host/**','public-components/runtime-contracts/**','public-components/runtime-safety-contracts/**','.github/workflows/stage-a-foundation-ci.yml']
+    paths: ['public-components/stage-a-foundation/**','public-components/stage-a-android-host/**','public-components/stage-a-integration/**','public-components/runtime-contracts/**','public-components/runtime-safety-contracts/**','.github/workflows/stage-a-foundation-ci.yml']
   workflow_dispatch:
 permissions: {contents: read}
 concurrency: {group: 'public-stage-a-foundation-${{ github.ref }}', cancel-in-progress: true}
 jobs:
   public-stage-a-foundation:
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 40
     steps:
       - name: Enforce Public boundary and Stage A boundary
         shell: bash
         run: |
           set -euo pipefail
           test "$GITHUB_REPOSITORY" = "RMTampu/Tools"
-          echo 'PUBLIC_PRIVATE_READ_ACCESS=0'; echo 'PRIVATE_CONTENT_INCLUDED=0'; echo 'PUBLIC_FINAL_BUILD=0'; echo 'PUBLIC_FIREBASE_ACCESS=0'; echo 'A1_A4_PRIVATE_BOUNDARIES=0'; echo 'STAGE_A_IS_SINGLE_PROMOTION_BOUNDARY=1'; echo 'PRIVATE_STAGE_A_HOST_IMPLEMENTATION_REQUIRED=0'
+          echo 'PUBLIC_PRIVATE_READ_ACCESS=0'; echo 'PRIVATE_CONTENT_INCLUDED=0'; echo 'PUBLIC_FINAL_BUILD=0'; echo 'PUBLIC_FIREBASE_ACCESS=0'; echo 'A1_A4_PRIVATE_BOUNDARIES=0'; echo 'STAGE_A_IS_SINGLE_PROMOTION_BOUNDARY=1'; echo 'PRIVATE_STAGE_A_HOST_IMPLEMENTATION_REQUIRED=0'; echo 'PRIVATE_WIRING_ONLY=1'
       - name: Checkout exact Public revision
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with: {persist-credentials: false}
+      - name: Independent sealed-wiring oracle and mutation challenge
+        run: python3 public-components/stage-a-integration/scripts/independent_wiring_verify.py --self-test
       - name: Setup exact Temurin JDK
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
         with: {distribution: temurin, java-version: '17.0.20+1', java-package: jdk, architecture: x64, check-latest: false}
@@ -57,9 +59,11 @@ jobs:
           echo "ANDROID_PLATFORM_SHA256=$(sha256sum "$ANDROID_SDK_ROOT/platforms/android-30/android.jar" | awk '{print $1}')" > public-components/stage-a-android-host/build/android-environment.txt
           echo "ANDROID_BUILD_TOOLS_PROPERTIES_SHA256=$(sha256sum "$ANDROID_SDK_ROOT/build-tools/34.0.0/source.properties" | awk '{print $1}')" >> public-components/stage-a-android-host/build/android-environment.txt
           echo "ANDROID_SYSTEM_IMAGE_PROPERTIES_SHA256=$(sha256sum "$ANDROID_SDK_ROOT/system-images/android-30/google_apis/x86_64/source.properties" | awk '{print $1}')" >> public-components/stage-a-android-host/build/android-environment.txt
-      - name: Build and verify API30 Stage A Android host test APK
+      - name: Build and verify first API30 Stage A Android host APK
         run: bash public-components/stage-a-android-host/scripts/build-test-apk.sh
-      - name: Boot API30 emulator and execute Android host runtime witness
+      - name: Rebuild clean and prove semantic Public reproducibility
+        run: python3 public-components/stage-a-integration/scripts/reproducibility_check.py
+      - name: Boot API30 emulator and execute Android host plus dual-dummy runtime witness
         shell: bash
         run: |
           set -euo pipefail
@@ -131,13 +135,16 @@ jobs:
         run: python3 public-components/stage-a-foundation/scripts/assurance_finalize.py
       - name: Validate consolidated Stage A Promotion Package
         run: python3 public-components/stage-a-foundation/scripts/package_validate.py
-      - name: Verify STAGE_A_READY_PRIVATE manifest binding
+      - name: Build and validate proof-carrying sealed Stage A capsule
+        run: python3 public-components/stage-a-integration/scripts/build_stage_capsule.py
+      - name: Verify STAGE_A_READY_PRIVATE and deterministic capsule binding
         shell: bash
         run: |
           python3 - <<'PY'
           import json,os
           from pathlib import Path
           r=Path('public-components/stage-a-foundation'); m=json.loads((r/'build/promotion/stage-a-promotion-manifest.json').read_text()); e=json.loads((r/'build/assurance/r1-r9-stage-a-evidence.json').read_text()); h=json.loads((r/'PRIVATE_INTEGRATION_REQUIREMENTS.json').read_text())
+          croot=Path('public-components/stage-a-integration/build/capsule-root/verification'); c=json.loads((croot/'stage-capsule.json').read_text()); cs=json.loads(Path('public-components/stage-a-integration/build/stage-capsule-summary.json').read_text()); runtime=Path('public-components/stage-a-android-host/build/host-runtime-summary.txt').read_text()
           assert m['status']=='STAGE_A_READY_PRIVATE' and m['sourceRepository']=='RMTampu/Tools' and m['sourceCommitSha']==os.environ['GITHUB_SHA'] and m['workflowRunId']==os.environ['GITHUB_RUN_ID']
           assert m['substeps']==['A1','A2','A3','A4'] and not m['substepsArePrivateBoundaries'] and not m['componentReadyPrivateAuthorizesPrivateStageIntegration']
           assert not m['privateImplementationRequired'] and m['privateWiringOnly'] and m['productionSourceArchive']['sourceCount']==20 and not m['productionSourceArchive']['simulatorSourceIncluded'] and not m['productionSourceArchive']['testSourceIncluded'] and not m['productionSourceArchive']['androidTestHarnessIncluded']
@@ -146,9 +153,14 @@ jobs:
           assert not m['publicBoundaries']['privateContentIncluded'] and not m['publicBoundaries']['privateReadAccess'] and not m['publicBoundaries']['privateExecutionThroughPublic'] and m['publicBoundaries']['publicAndroidHostRuntimeTested'] and m['publicBoundaries']['publicAndroidHostRuntimeApi']==30 and m['publicBoundaries']['publicAndroidHostWitnessAbi']=='x86_64' and not m['publicBoundaries']['finalAndroid11Arm64RuntimeClaimed'] and not m['publicBoundaries']['firebaseUsed']
           assert e['status']=='PASS' and e['closure']['unknown']==0 and e['closure']['notProvenWithinPublicStageScope']==0 and e['closure']['mutationEscape']==0
           assert h['privateImplementationRequired'] is False and h['privateWiringOnly'] is True and h['integration']['hostImplementationInPrivateForbidden'] is True
-          print('STAGE_A_READY_PRIVATE_BINDING = PASS'); print('PRIVATE_STAGE_A_HOST_IMPLEMENTATION_REQUIRED = 0'); print('PUBLIC_FIREBASE_ACCESS = 0')
+          assert 'REFERENCE_DUMMY=PASS' in runtime and 'ADVERSARIAL_CONFORMANT_DUMMY=PASS' in runtime
+          assert c['status']=='STAGE_READY_PRIVATE' and c['projectId']=='ToolBox' and c['stageId']=='A'
+          assert c['claims']['privateImplementationRequired'] is False and c['claims']['privateManualPatchRequired'] is False and c['claims']['privateWiringOnly'] is True
+          assert c['claims']['referenceDummy']=='PASS' and c['claims']['adversarialConformantDummy']=='PASS' and c['claims']['reproducibility']=='PASS' and c['claims']['independentWiringVerification']=='PASS'
+          assert 'productionSourceArchive' in c['members'] and cs['status']=='PASS' and cs['privateContentIncluded'] is False and cs['firebaseUsed'] is False
+          print('STAGE_A_READY_PRIVATE_BINDING = PASS'); print('DETERMINISTIC_WIRING_PUBLIC_CLOSURE = PASS'); print('PRIVATE_STAGE_A_HOST_IMPLEMENTATION_REQUIRED = 0'); print('PUBLIC_FIREBASE_ACCESS = 0')
           PY
-      - name: Upload consolidated Stage A Promotion Package
+      - name: Upload consolidated Stage A Promotion Package and sealed capsule
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: toolbox-stage-a-ready-private
@@ -160,6 +172,8 @@ jobs:
             public-components/stage-a-foundation/build/assurance/r1-r9-stage-a-evidence.json
             public-components/stage-a-android-host/build/assurance/android-host-r1-r9-evidence.json
             public-components/stage-a-android-host/build/android-environment.txt
+            public-components/stage-a-integration/build/toolbox-stage-a-sealed-capsule.zip
+            public-components/stage-a-integration/build/stage-capsule-summary.json
           if-no-files-found: error
           retention-days: 7
       - name: Auto Cleanup Public workspace
@@ -167,6 +181,6 @@ jobs:
         shell: bash
         run: |
           set +e; timeout 10s adb emu kill >/dev/null 2>&1 || true
-          rm -rf public-components/stage-a-foundation/build public-components/stage-a-android-host/build public-components/runtime-contracts/build public-components/runtime-safety-contracts/build
+          rm -rf public-components/stage-a-foundation/build public-components/stage-a-android-host/build public-components/stage-a-integration/build public-components/runtime-contracts/build public-components/runtime-safety-contracts/build
           rm -rf "$HOME/.android/avd/stage-a-api30.avd" "$HOME/.android/avd/stage-a-api30.ini" "$RUNNER_TEMP"/toolbox-stage-a-avd-home "$RUNNER_TEMP"/stage-a-* 2>/dev/null || true
           echo 'PUBLIC_JOB_AUTO_CLEANUP = DONE'
