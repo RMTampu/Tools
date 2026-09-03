@@ -1,251 +1,51 @@
-# AGENTS.md — Public Research / Test Staging
+# AGENTS.md - Aturan Kerja ToolBox
 
-## RULE 0 — WAJIB DIBACA PERTAMA
+## Aturan Utama
 
-Sebelum membaca aturan repository lain, sebelum membuka file pekerjaan, dan sebelum melakukan perubahan apa pun, agen WAJIB membaca:
+Instruksi pengguna terbaru menetapkan bahwa pola kerja lintas repo lama dihapus.
 
-`GLOBAL_PUBLIC_PRIVATE_DEVELOPMENT_RULES.md`
+ToolBox dikerjakan pada repo utama publik yang diarahkan pengguna. Repo private hanya dipakai untuk build final, signing, verifikasi signature, Firebase/final runtime test, dan release bila diperlukan.
 
-Aturan global tersebut adalah aturan induk lintas project. Jika aturan lama di repository ini bertentangan dengannya, **aturan global menang** kecuali instruksi pengguna terbaru secara eksplisit mengubahnya.
+## Sebelum Bekerja
 
-Invariant terpenting:
+Agen wajib membaca file ini sebelum mengubah repository.
 
-```text
-PRIVATE_CONTENT_TO_PUBLIC = FORBIDDEN
-PUBLIC = RESEARCH / ITERATION / STAGING
-PRIVATE = MASTER / VAULT / FINAL PROCESSING / FINAL EXECUTION
-PUBLIC_PRIVATE_READ_ACCESS = FORBIDDEN
-PRIVATE_EXECUTION_THROUGH_PUBLIC = FORBIDDEN
-PUBLIC_FIREBASE_ACCESS = FORBIDDEN
-FIREBASE_EXECUTION_BOUNDARY = PRIVATE_ONLY
-PUBLIC_JOB_AUTO_CLEANUP = REQUIRED
-```
+Jika ada file lama yang masih menyebut pola Public Research, Private Master, Promotion Package, Stage Capsule, dummy receiver, atau wiring lintas repo, bagian itu dianggap tidak berlaku dan harus dibersihkan saat file terkait disentuh.
 
-## 1. Wajib Dibaca Sebelum Bekerja
+## Peran Repository
 
-Setiap agen yang membaca, mengubah, membangun, menguji, memvalidasi, mengaudit, atau membuat workflow di `RMTampu/Tools` WAJIB membaca `AGENTS.md` dan Rule 0 terlebih dahulu.
+- Repo publik utama: tempat rancangan, source aplikasi, asset yang boleh publik, implementasi, test biasa, dan pematangan fitur.
+- Repo private build/signing: tempat credential, signing key, secret, Firebase credential, build final tertandatangan, final runtime test, dan release sensitif.
+- Termux hanya relay/perantara bila diperlukan; bukan tempat build aplikasi.
 
-Aturan safety/gate lama tetap berlaku hanya jika tidak bertentangan dengan Rule 0.
+## Yang Tidak Boleh Masuk Repo Publik
 
-### 1.1 Peta Pemakaian MD Wajib Dibaca dan Diterapkan
+- secret, token, password, private signing key;
+- credential Firebase atau credential layanan eksternal;
+- data pribadi, database nyata, dump internal sensitif;
+- asset yang memang ingin tetap rahasia.
 
-Setelah Rule 0 dan `GLOBAL_PUBLIC_PRIVATE_DEVELOPMENT_RULES.md`, setiap agen WAJIB membaca [PETA-PEMAKAIAN-MD.md](PETA-PEMAKAIAN-MD.md), lalu seluruh sumber yang diwajibkan oleh jalur pekerjaan Public tersebut.
+## Build dan Signing
 
-Agen WAJIB:
+Build pengembangan boleh dibuktikan dengan workflow repo publik jika tidak memakai secret sensitif.
 
-1. Membaca aturan awal, contract, dan metode research R1–R9 yang berlaku sebelum desain/implementasi/test yang bergantung padanya; ikuti `APPLICATION_SAFE_100_PROCESS.md` dan safety/procedure §12.
-2. Menerapkan requirement/metode yang relevan ke pekerjaan, lalu mencatat sumber → penerapan → verifikasi/evidence/status. Membaca tanpa menerapkan tidak menjadi PASS.
-3. Memeriksa kembali applicability/N/A berdasarkan scope dan contract; jangan menganggap domain tidak relevan hanya karena pernah dikecualikan pada komponen lain.
-4. Membedakan aturan aktif, navigasi, kompatibilitas legacy, dan evidence/history; dokumen lama tidak menghidupkan routing yang dilarang.
-5. Memperbarui register dan rujukan pemakai saat MD ditambah, dipindah, dihapus, atau berubah fungsi/status dalam perubahan yang diizinkan.
-6. Tidak menyatakan PASS untuk unit yang bergantung pada sumber wajib yang hilang/belum dibaca atau evidence yang belum cukup.
+Build final tertandatangan dilakukan di repo private atau jalur private yang tidak mengekspos credential. Signing key dan credential tidak boleh disimpan di source publik.
 
-Peta ini hanya berisi material Public. Kewajiban membaca tidak memberi izin mengambil dokumen/source/state/artifact Private, menjalankan Firebase di Public, atau menjalankan build/test di luar izin tugas. Tugas baca-saja tetap tidak mengubah repository hanya untuk mencatat pembacaan.
+## Aturan yang Dihapus
 
-### Batas Tahap yang Wajib Diterapkan
+Aturan berikut tidak lagi menjadi pola kerja ToolBox:
 
-Baca dan terapkan `GLOBAL_PUBLIC_PRIVATE_DEVELOPMENT_RULES.md` §6.1–§6.3 dan `REPOSITORY_INTEGRATION_POLICY.md` sebelum memutuskan promosi/eksekusi. Satu tahap utuh mengikuti peta pengguna; sublangkah/komponen/check hanya unit kerja internal.
+- pemisahan Public Research/Staging dan Private Master;
+- promosi tahap antar repo;
+- Promotion Package / Stage Capsule antar repo;
+- Private Receiver Contract;
+- Dummy Private Host / receiver tiruan untuk mencocokkan repo private;
+- deterministic wiring manifest lintas repo;
+- STAGE_READY_PRIVATE / COMPONENT_READY_PRIVATE sebagai gate lintas repo;
+- larangan membangun aplikasi utama di repo publik hanya karena dulu dipisah lintas repo.
 
-`COMPONENT_READY_PRIVATE` = komponen matang dan ditahan di Public; **tidak memberi izin masuk Private**. `STAGE_READY_PRIVATE` = closure seluruh tahap dan prasyarat yang berlaku; baru menjadi syarat satu percobaan Private terencana setelah otorisasi. Tidak boleh mengubah cakupan tahap menjadi ukuran paket yang kebetulan sudah selesai.
+## Prinsip Kerja
 
-Hasil riset wajib diterapkan melalui `APPLICATION_SAFE_100_PROCESS.md` bagian “Kesiapan Integrasi Satu Tahap”, R6 untuk seluruh input build, dan R9 untuk kelengkapan/interaksi/binding bukti. Rencana wajib mencakup budget semua job/layanan, pencegahan dispatch ganda, reuse evidence, dan STOP tanpa auto-retry.
+Kerja dibuat sederhana: satu repo publik utama untuk mematangkan aplikasi, satu jalur private untuk rahasia build/signing/final test.
 
-Aturan MD ini wajib bagi agen; keberadaannya tidak membuktikan guard otomatis sudah terpasang. Periksa workflow/script aktual sebelum eksekusi. Jika guard/trigger bertentangan atau belum terbukti, STOP dan catat blocker implementasi; jangan menganggap teks status, marker file, atau flag true sebagai enforcement.
-
-## 2. Identitas Repository
-
-`RMTampu/Tools` adalah **Public Research / Test / Staging Repository**.
-
-Repository ini bukan Private Master project mana pun dan bukan tempat final processing aplikasi Private.
-
-Untuk ToolBox saat ini:
-
-```text
-RMTampu/ToolBox (PRIVATE) = PRIVATE MASTER + FINAL EXECUTION
-RMTampu/Tools (PUBLIC)    = RESEARCH / TEST / STAGING
-RMTampu/Backup (PRIVATE)  = BACKUP ROLE bila digunakan
-```
-
-Aturan global harus tetap dapat dipakai untuk project lain tanpa bergantung pada nama ToolBox.
-
-## 3. Larangan Akses Private
-
-Repository Public dilarang:
-
-- checkout repository Private;
-- menerima token/credential untuk membaca Private;
-- menerima source/kernel/asset/config/state Private;
-- menerima APK/artifact yang mengandung isi Private;
-- menjadi reusable CI yang mengeksekusi source Private;
-- menjadi artifact relay/Firebase bridge untuk Private;
-- menyimpan mirror/snapshot/legacy copy isi Private.
-
-Semua workflow lama yang memerlukan source/artifact Private di Public **tidak boleh digunakan** dan harus dianggap legacy/incompatible dengan Rule 0.
-
-## 4. Fungsi Public yang Diizinkan
-
-Public digunakan untuk:
-
-- riset dan desain;
-- prototype;
-- pengembangan komponen baru;
-- unit/contract/dependency/failure test;
-- mock/simulator/test harness;
-- audit dan debugging komponen Public;
-- packaging Promotion Package;
-- staging komponen hingga `COMPONENT_READY_PRIVATE`, lalu closure seluruh tahap hingga `STAGE_READY_PRIVATE`.
-
-Public hanya memakai contract/interface yang memang aman dipublikasikan, fixture/dummy data, mock/simulator, dan komponen yang sedang dikembangkan di Public.
-
-Pengujian penyambungan WAJIB memakai dummy/mock/simulator mandiri sebagai pengganti baseline APK/state final Private. Dummy dibuat dari contract aman; dilarang menyalin, mengekstrak, menyamarkan, atau membawa isi Private ke Public dalam bentuk apa pun. Pengujian dummy di Public tidak memakai Firebase.
-
-## 5. Jalur Kematangan Komponen
-
-```text
-SPEC
--> CONTRACT
--> DEPENDENCY
--> UNIT_TEST
--> SIMULATOR
--> FAILURE_TEST
--> PACKAGE_VALIDATION
--> COMPONENT_READY_PRIVATE
-```
-
-`COMPONENT_READY_PRIVATE` tidak mengizinkan paket dipromosikan sendiri. Seluruh komponen ditahan di Public sampai closure tahap menghasilkan `STAGE_READY_PRIVATE`; hanya tahap utuh yang dapat dipromosikan dengan otorisasi Private yang berlaku. Public tidak melakukan integrasi sebenarnya terhadap state final Private. Output lama `READY_PRIVATE` komponen tetap component-scoped, bukan izin Private.
-
-## 6. Promotion Package
-
-Paket tahap mengikuti manifest closure pada aturan global §7; semua paket anggota harus tercakup. Tiap paket anggota minimal memiliki metadata aman:
-
-- Project ID;
-- Component ID/version;
-- Contract version;
-- dependency/toolchain lock atau digest;
-- target platform;
-- hash/checksum;
-- compatibility;
-- test status;
-- promotion manifest.
-
-Tidak boleh memasukkan data Private ke Promotion Package.
-
-## 7. Auto Cleanup Public
-
-Setiap pekerjaan dengan mesin Public WAJIB memiliki cleanup otomatis setelah selesai, berhasil maupun gagal, tanpa menunggu perintah pengguna.
-
-Bersihkan sejauh platform memungkinkan:
-
-- workflow run/log;
-- artifact sementara;
-- cache pekerjaan;
-- workspace sementara;
-- branch/ref sementara yang dibuat untuk job;
-- debug output sementara;
-- temporary test data.
-
-Pipeline baru tidak boleh dianggap matang jika lifecycle cleanup belum dirancang.
-
-## 8. Build dan Test
-
-GitHub Actions di Public hanya boleh membangun/menguji **komponen Public, mock, simulator, fixture, atau prototype Public**.
-
-Dilarang menggunakan Public untuk final build aplikasi yang source/asset finalnya berada di Private.
-
-Final build, signing, signature verification, Firebase/final runtime test, dan release dilakukan di jalur Private project masing-masing.
-
-Termux tidak digunakan sebagai lingkungan build aplikasi dan package/tool tambahan tidak boleh diinstal tanpa izin eksplisit pengguna.
-
-## 9. Android / Target-Specific Testing
-
-Untuk komponen yang menarget Android, environment test harus dicatat dan dependency/toolchain dikunci.
-
-Hasil simulator/non-target tidak boleh diklaim sebagai final runtime proof. Final target-specific proof tetap tanggung jawab Private Master/final processing.
-
-## 10. Firebase / External Test Bridge
-
-**Public DILARANG melakukan akses, pengecekan, atau pengujian Firebase/Test Lab dalam bentuk apa pun.** Larangan berlaku juga untuk dummy/prototype/artifact Public, connection check, catalog/model lookup, candidate preflight yang mengakses Firebase, upload/download, submit matrix, serta caller/relay Firebase.
-
-Public hanya boleh mempelajari dokumentasi API terbuka dan menguji mock/fixture yang tidak terhubung atau memanggil Firebase. Seluruh operasi Firebase hanya di Private menurut aturan global §9.1 dan `TEST_ROUTING_POLICY.md`; single-use approval bukan pengecualian untuk Public.
-
-Tidak boleh menggunakan Public untuk mengirim source/asset/APK/artifact Private ke layanan eksternal. Final verification dimulai dan dijalankan dari Private sesuai authorization policy.
-
-```text
-PUBLIC_FIREBASE = FORBIDDEN
-PRIVATE_FINAL_FIREBASE_DEFAULT = LOCKED
-1 EXPLICIT USER APPROVAL = 1 PRIVATE FINAL FIREBASE EXECUTION ATTEMPT
-```
-
-Tidak boleh auto-run atau auto-retry Firebase di Private; Public tetap dilarang.
-
-## 11. Shared Component dan Isolasi Project
-
-Dilarang mengambil file/asset/config dari project lain hanya karena terlihat cocok.
-
-Komponen lintas project harus dinyatakan sebagai `GLOBAL/SHARED_COMPONENT` dan memiliki source resmi, version, contract, dependency, compatibility, serta test.
-
-Pembahasan dan pekerjaan project juga harus terisolasi sesuai aturan global.
-
-## 12. Safety / Procedure
-
-Aturan teknis yang tersedia tetap berlaku bila relevan dan tidak bertentangan dengan Rule 0, termasuk:
-
-- `AGENT_PROCEDURE_EXECUTION_RULES.md`;
-- `PREBUILD_ASSET_GATE.md`;
-- `ASSET_SAFE_100_RULES.md`;
-- `ASSET_SAFE_100_METHODS.md`;
-- `ASSET_SAFE_100_PROCESS.md`;
-- `ASSET_ROUTE_PROOF_METHODS.md`;
-- `ASSET_ROUTE_PROOF_PROCESS.md`;
-- `APPLICATION_SAFE_100_PROCESS.md`;
-- rule/procedure domain R1–R9 bila tersedia.
-
-### 12.1 Scope Wajib untuk Dokumen Assurance Public
-
-Jika dokumen R6–R9, Asset Safe, Prebuild Asset Gate, atau dokumen assurance legacy menyebut:
-
-- final build;
-- final APK/package;
-- signing;
-- install final;
-- final acceptance;
-- release;
-
-maka pada repository Public klausul tersebut hanya boleh dibaca sebagai **metode, contract, model, prototype, atau research requirement terhadap scope Public**.
-
-Klausul tersebut **tidak pernah** memberi izin untuk membawa atau mengeksekusi isi Private di Public.
-
-Setiap penyebutan Firebase/approval pada dokumen assurance merupakan aturan final Private, bukan izin menjalankan Firebase untuk prototype/dummy Public. Public tetap hanya memakai dokumentasi API terbuka dan mock/fixture tanpa koneksi Firebase.
-
-Final execution terhadap integrated Private state tetap dilakukan di Private.
-
-Aturan legacy tidak boleh menghidupkan kembali alur Private -> Public.
-
-## 13. Urutan Otoritas
-
-```text
-Instruksi pengguna terbaru
--> AGENTS.md RULE 0
--> GLOBAL_PUBLIC_PRIVATE_DEVELOPMENT_RULES.md
--> aturan khusus repository yang tidak bertentangan
--> REPOSITORY_INTEGRATION_POLICY.md
--> TEST_ROUTING_POLICY.md / safety procedure terkait
--> dokumentasi legacy lain
-```
-
-## 14. Invariant
-
-```text
-PUBLIC_ROLE = RESEARCH_TEST_STAGING
-PRIVATE_CONTENT_IN_PUBLIC = 0
-PUBLIC_PRIVATE_READ_ACCESS = 0
-PRIVATE_SOURCE_BUILD_IN_PUBLIC = 0
-PRIVATE_EXECUTION_THROUGH_PUBLIC = 0
-PUBLIC_FINAL_PRODUCT_BUILD = 0
-PUBLIC_FINAL_SIGNING = 0
-PUBLIC_FIREBASE_ACCESS = 0
-PUBLIC_FIREBASE_EXECUTION = 0
-PUBLIC_FIREBASE_DUMMY_EXCEPTION = 0
-PUBLIC_JOB_AUTO_CLEANUP = REQUIRED
-UNAUTHORIZED_FIREBASE_RUN = 0
-```
+Jika ada konflik antara dokumen lama dan instruksi ini, aturan ini menang.
