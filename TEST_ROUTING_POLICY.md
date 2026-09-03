@@ -2,7 +2,7 @@
 
 ## Status
 
-Aturan test routing lintas repo lama sudah dihapus.
+Aturan test routing pola lama antar repository sudah dihapus.
 
 ## Jalur Test
 
