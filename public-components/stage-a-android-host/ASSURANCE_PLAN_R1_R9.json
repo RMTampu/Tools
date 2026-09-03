@@ -1,0 +1,14 @@
+{
+  "domains": {
+    "R1": {"applicability":"APPLICABLE","methods":["contracts","boundary","fault"],"proof":"JVM+API30 runtime"},
+    "R2": {"applicability":"APPLICABLE","methods":["normalized resource math","pressure","bounded store"],"proof":"JVM+API30 measurement"},
+    "R3": {"applicability":"APPLICABLE","methods":["process restart","recovery"],"proof":"API30 two-process-launch witness"},
+    "R4": {"applicability":"APPLICABLE","methods":["AtomicFile","checksum","corruption"],"proof":"API30 durable/corruption witness"},
+    "R5": {"applicability":"APPLICABLE","methods":["permission boundary","no network"],"proof":"API30 permission + static boundary"},
+    "R6": {"applicability":"APPLICABLE","methods":["exact toolchain","APK structural"],"proof":"manual SDK build/sign/install"},
+    "R7": {"applicability":"N_A_SCOPE_PROVEN","methods":["scope scan"],"proof":"no native/plugin/reflection/dynamic code"},
+    "R8": {"applicability":"APPLICABLE","methods":["Safe UI render","API30"],"proof":"platform-widget runtime witness"},
+    "R9": {"applicability":"APPLICABLE","methods":["traceability","mutation","freshness"],"proof":"host closure evidence"}
+  },
+  "schemaVersion": 1
+}
