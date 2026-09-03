@@ -32,6 +32,7 @@
       "slotId": "S04",
       "providerId": "stage-a.safe-ui",
       "values": {
+        "ActionsAccessor": "safeUiActions",
         "ModelAccessor": "safeUiModel",
         "RendererClass": "io.toolbox.stagea.android.AndroidSafeUi"
       }
