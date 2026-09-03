@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "contractId": "toolbox.runtime.safety",
+  "contractVersion": "1.0.0",
+  "componentId": "public.runtime-safety-contracts",
+  "componentVersion": "0.1.0",
+  "javaRelease": 11,
+  "stableId": {
+    "regex": "[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*",
+    "maxLength": 128,
+    "unicodeAllowed": false
+  },
+  "diagnosticBuffer": {
+    "capacityMin": 1,
+    "capacityMax": 256,
+    "overflowPolicy": "DROP_OLDEST",
+    "ordering": "INSERTION_ORDER",
+    "threadSafety": "SYNCHRONIZED_SINGLE_MONITOR",
+    "snapshotMutable": false,
+    "droppedCount": "SATURATING_LONG"
+  },
+  "resourceGuard": {
+    "budgetMin": 1,
+    "budgetMax": 1000000,
+    "sampleMin": 0,
+    "sampleMax": 2000000,
+    "pressureThreshold": "used*5 >= max*4",
+    "decisionOrder": [
+      "REJECT if any sample exceeds its budget",
+      "DEGRADE if any sample is at or above 80 percent of budget",
+      "ALLOW otherwise"
+    ],
+    "sideEffects": false
+  },
+  "recoveryMachine": {
+    "states": ["NORMAL", "DEGRADED", "RECOVERY_REQUIRED", "SAFE_MODE", "QUARANTINED"],
+    "events": [
+      "RESOURCE_PRESSURE",
+      "RESOURCE_NORMAL",
+      "FAILURE_REQUIRES_RECOVERY",
+      "ENTER_SAFE_MODE",
+      "RECOVERY_SUCCEEDED",
+      "RECOVERY_FAILED",
+      "FATAL_FAILURE"
+    ],
+    "initialState": "NORMAL",
+    "quarantinedTerminal": true,
+    "illegalTransition": "FAIL_CLOSED_WITH_ILLEGAL_TRANSITION",
+    "threadSafety": "SYNCHRONIZED_SINGLE_MONITOR",
+    "durableStateOwnedByComponent": false,
+    "hostReAdmissionOwnedByComponent": false
+  },
+  "failureCodes": [
+    "CONTRACT_INVALID",
+    "RESOURCE_LIMIT",
+    "ILLEGAL_TRANSITION"
+  ],
+  "authorityBoundary": {
+    "filesystem": false,
+    "database": false,
+    "network": false,
+    "processExecution": false,
+    "classLoader": false,
+    "reflectionExecution": false,
+    "androidPermissionGrant": false,
+    "firebase": false,
+    "signing": false
+  },
+  "promotion": {
+    "privateSourceRequired": false,
+    "publicSimulatorOnly": true,
+    "finalAndroidRuntimeProofClaimed": false
+  }
+}
