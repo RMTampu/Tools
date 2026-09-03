@@ -69,13 +69,13 @@ jobs:
         shell: bash
         run: python3 public-components/runtime-contracts/scripts/assurance_prebuild.py
 
-      - name: Validate sanitized Private integration handoff
-        shell: bash
-        run: python3 public-components/runtime-contracts/scripts/integration_handoff_validate.py
-
       - name: Compile, unit/failure/concurrency/boundary/property test, simulator
         shell: bash
         run: bash public-components/runtime-contracts/scripts/run-tests.sh
+
+      - name: Validate sanitized Private integration handoff
+        shell: bash
+        run: python3 public-components/runtime-contracts/scripts/integration_handoff_validate.py
 
       - name: R6 package mutation challenge
         shell: bash
