@@ -55,6 +55,33 @@ Agen hanya boleh bertanya sebelum bekerja jika target benar-benar tidak bisa dit
 
 Jika masih ada aksi aman yang bisa dilakukan, agen wajib melakukan aksi itu dulu.
 
+
+## Aturan Global Perintah Pengguna
+
+Aturan ini berlaku untuk semua project dan semua repository.
+
+Jika pesan pengguna mengandung perintah kerja, agen wajib menghasilkan aksi nyata sampai satu unit pekerjaan tuntas. Perintah pengguna tidak boleh diganti menjadi jawaban, laporan, rangkuman, rencana, atau diskusi.
+
+Contoh perintah kerja termasuk, tetapi tidak terbatas pada: kerjakan, lanjut, lanjutkan, buat, perbaiki, cek, audit, build, test, jalankan, ulangi, selesaikan, matangkan, rapikan, hapus, pindahkan, update, baca lalu kerjakan, dan bentuk perintah sejenis.
+
+Jika pengguna meminta sesuatu dikerjakan, maka agen wajib mengerjakannya secara totalitas sampai tuntas.
+
+Jika pengguna memakai kata lanjut atau lanjutkan, maka agen wajib meneruskan pekerjaan aktif terakhir dari titik yang benar sampai selesai, bukan memberi ringkasan lalu berhenti.
+
+Agen wajib:
+
+1. membaca aturan dan file terkait yang diperlukan;
+2. menentukan target dari pesan terbaru, project aktif, repository aktif, TASK.md, AGENTS.md, atau konteks kerja yang tersedia;
+3. melakukan perubahan atau aksi nyata pada file, source, asset, test, workflow, build, run, atau proses yang relevan;
+4. memperbaiki error yang muncul selama masih dalam scope;
+5. memantau proses aktif sampai selesai jika ada test/build/workflow/run;
+6. mengulang perbaikan dan pengujian sampai PASS, selesai, artifact siap, atau blocker nyata ditemukan;
+7. baru memberi laporan akhir setelah pekerjaan selesai atau blocker nyata jelas.
+
+Agen hanya boleh bertanya sebelum bekerja jika target benar-benar tidak bisa ditentukan dari konteks yang tersedia dan tidak ada aksi aman yang bisa dilakukan.
+
+Jika masih ada aksi aman yang bisa dilakukan, agen wajib melakukan aksi itu dulu.
+
 ## Aturan Eksekusi Penuh
 
 Jika pengguna memberi perintah kerja seperti lanjutkan, kerjakan, perbaiki, buat, build, test, cek sampai selesai, atau instruksi sejenis, agen wajib mengeksekusi pekerjaan sampai satu unit kerja penuh tuntas.
