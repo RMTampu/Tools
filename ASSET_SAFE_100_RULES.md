@@ -1,35 +1,4 @@
-# ASSET_SAFE_100_RULES.md
-
-## 1. Status Dokumen
-
-`READY_PRIVATE` pada formula asset/package di dokumen ini adalah nama legacy untuk kesiapan **komponen Public** (`COMPONENT_READY_PRIVATE`), bukan izin promosi/eksekusi Private. Asset/package menunggu closure seluruh tahap; hanya `STAGE_READY_PRIVATE` bersama otorisasi yang berlaku memenuhi syarat promosi tahap utuh menurut aturan global §6. Gate/sub-gate asset tidak menjadi batas attempt Private.
-
-> **Scope Public wajib:** dokumen ini hanya berlaku untuk asset/resource milik component, prototype, mock, simulator, fixture, dan package yang memang Public di `RMTampu/Tools`.
->
-> Dalam dokumen ini, istilah final artifact/package dan `ASSET_SAFE_100` adalah metode dan formula untuk scope Public. Claim yang boleh dikeluarkan oleh repository ini adalah `PUBLIC_ASSET_SAFE_100`, lalu `PACKAGE_VALIDATION` dan `READY_PRIVATE`; tidak pernah final build, signing, Firebase, atau release Private.
-
-Dokumen ini adalah aturan operasional wajib untuk seluruh pekerjaan yang menyentuh asset/resource pada repository `RMTampu/Tools`.
-
-Target dokumen ini adalah `ASSET_SAFE_100`: seluruh asset yang termasuk ruang lingkup harus terbukti benar terhadap spesifikasinya, berhasil masuk ke hasil build, dapat di-resolve dan digunakan pada seluruh konfigurasi/state yang didukung, serta tidak meninggalkan kelas kegagalan asset yang belum diperiksa.
-
-Dokumen ini hanya menilai kegagalan yang berasal dari asset/resource.
-
-Kegagalan alat seperti emulator, CI runner, compiler, build tool, toolchain, validator, filesystem eksternal, atau alat pengujian tidak boleh diklasifikasikan sebagai kegagalan asset kecuali bukti menunjukkan asset itu sendiri adalah penyebabnya.
-
----
-
-## 2. Target Platform
-
-Target utama:
-
-- Android 11
-- API 30
-- ABI utama `arm64-v8a`
-- Artifact Android Public (component/prototype/mock/fixture), bukan artifact final Private
-
-Aturan asset harus mempertahankan kompatibilitas terhadap target tersebut.
-
----
+> Catatan aktif: aturan lintas repo lama sudah dihapus. ToolBox dikerjakan di repo publik utama; repo private hanya untuk secret, signing, build final, Firebase/final runtime test, dan release sensitif.
 
 ## 3. Status Resmi
 
