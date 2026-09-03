@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "projectId": "ToolBox",
+  "componentId": "public.runtime-safety-contracts",
+  "componentVersion": "0.1.0",
+  "contractId": "toolbox.runtime.safety",
+  "contractVersion": "1.0.0",
+  "scope": "PUBLIC_COMPONENT_ONLY",
+  "target": {
+    "productTarget": "Android 11 / API 30",
+    "javaRelease": 11,
+    "abiSpecificCode": false
+  },
+  "purpose": [
+    "bounded in-memory diagnostic event buffering",
+    "deterministic resource-pressure decisions",
+    "explicit recovery and safe-mode state-machine contract"
+  ],
+  "runtimeAuthority": {
+    "androidLifecycle": false,
+    "persistentStorage": false,
+    "network": false,
+    "permissionGrant": false,
+    "nativeOrPluginLoading": false,
+    "dynamicCodeLoading": false,
+    "uiOrHardware": false,
+    "signing": false,
+    "firebase": false
+  },
+  "dependencies": {
+    "externalRuntimeDependencies": 0,
+    "jdkOnly": true
+  },
+  "promotionBoundary": "READY_PRIVATE_ONLY",
+  "privateContentRequired": false,
+  "privateIntegrationClaimed": false,
+  "finalApplicationSafe100Claimed": false
+}
