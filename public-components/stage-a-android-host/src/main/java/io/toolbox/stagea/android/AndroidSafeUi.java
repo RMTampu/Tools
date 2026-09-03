@@ -59,10 +59,10 @@ public final class AndroidSafeUi {
         detail.setContentDescription("Ringkasan diagnostik aman");
         body.addView(detail, matchWrap());
 
-        body.addView(button(activity, "Periksa integritas", () -> detail.setText(safeMessage(actions.verifyIntegrity()))), matchWrap());
-        body.addView(button(activity, "Coba bootstrap lagi", () -> detail.setText(safeMessage(actions.retryBootstrap()))), matchWrap());
-        body.addView(button(activity, "Buka baca-saja", () -> detail.setText(safeMessage(actions.enterReadOnly()))), matchWrap());
-        body.addView(button(activity, "Ekspor diagnostik aman", () -> detail.setText(safeMessage(actions.exportSanitizedDiagnostics()))), matchWrap());
+        body.addView(button(activity, "Periksa kondisi aman", () -> detail.setText(safeMessage(actions.verifyIntegrity()))), matchWrap());
+        body.addView(button(activity, "Cek status bootstrap", () -> detail.setText(safeMessage(actions.retryBootstrap()))), matchWrap());
+        body.addView(button(activity, "Tetap di mode terbatas", () -> detail.setText(safeMessage(actions.enterReadOnly()))), matchWrap());
+        body.addView(button(activity, "Ringkas diagnostik aman", () -> detail.setText(safeMessage(actions.exportSanitizedDiagnostics()))), matchWrap());
 
         Button restore = button(activity, "Pulihkan state aman", () -> detail.setText(safeMessage(actions.restoreKnownGood())));
         restore.setEnabled(actions.canRestoreKnownGood());
