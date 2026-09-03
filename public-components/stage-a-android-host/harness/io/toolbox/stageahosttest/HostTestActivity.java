@@ -31,6 +31,8 @@ public final class HostTestActivity extends Activity {
             else if ("read".equals(mode)) readPhase();
             else if ("corrupt".equals(mode)) corruptPhase();
             else if ("ui".equals(mode)) uiPhase();
+            else if ("referenceDummy".equals(mode)) dummyPhase(new ReferenceDummyReceiver(),"STAGE_A_REFERENCE_DUMMY_PASS");
+            else if ("adversarialDummy".equals(mode)) dummyPhase(new AdversarialConformantDummyReceiver(),"STAGE_A_ADVERSARIAL_DUMMY_PASS");
             else throw new IllegalArgumentException("unknown mode");
         } catch(Throwable failure) {
             Log.e(TAG,"STAGE_A_HOST_TEST_FAIL mode="+mode,failure);
@@ -95,6 +97,11 @@ public final class HostTestActivity extends Activity {
         check(view!=null && model.visible() && model.restricted());
         setContentView(view);
         Log.i(TAG,"STAGE_A_HOST_SAFE_UI_PASS");
+    }
+    private void dummyPhase(DummyReceiver receiver,String marker) {
+        receiver.verify(this);
+        check(receiver.receiverId()!=null && !receiver.receiverId().isEmpty());
+        Log.i(TAG,marker+" receiver="+receiver.receiverId());
     }
     private static void check(boolean v){ if(!v) throw new AssertionError(); }
 }
