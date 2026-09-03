@@ -10,6 +10,7 @@
     "AndroidPermissionStateProvider",
     "AndroidResourcePolicyProvider",
     "AndroidSafeUi",
+    "AndroidSafeUiActions",
     "AndroidStageAHost",
     "StateFileCodec",
     "NormalizedResourceMath"
@@ -18,6 +19,7 @@
     "Delegate existing KernelStateStore port to AndroidAtomicStateStore without changing durable semantics.",
     "Use the same ProductRegistry instance for product metadata and AndroidStageAHost.",
     "Call AndroidStageAHost.bootstrap before normal kernel startup; restricted SafeUiModel blocks normal execution.",
+    "Obtain Safe UI behavior only from AndroidStageAHost.safeUiActions and do not implement replacement callbacks in Private.",
     "Stage A idle workload profile is valid only while Stage A introduces no heavy action workload.",
     "Do not claim x86_64 Public emulator as final arm64 runtime evidence."
   ],
