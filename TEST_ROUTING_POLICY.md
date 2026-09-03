@@ -29,12 +29,14 @@ Public dilarang:
 - menerima APK/artifact Private;
 - membangun APK final dari source Private;
 - menandatangani candidate Private;
-- menjalankan Firebase terhadap artifact Private;
+- mengakses, mengecek, atau menjalankan Firebase/Test Lab, termasuk untuk dummy/prototype/artifact Public;
 - menjadi reusable CI/relay untuk isi Private.
 
 ## 3. Public Test Environment
 
-Environment test Public boleh fleksibel sesuai contract pekerjaan.
+Environment test Public boleh fleksibel sesuai contract pekerjaan, tetapi **tidak termasuk Firebase/Test Lab**.
+
+Untuk menguji penyambungan, Public WAJIB menggunakan dummy/mock/simulator mandiri dari contract aman sebagai pengganti baseline APK/state final Private. Dummy tidak boleh merupakan salinan, ekstraksi, atau penyamaran isi Private. Integrasi sebenarnya baru dilakukan di Private setelah `READY_PRIVATE` dan preflight PASS.
 
 Untuk target Android:
 
@@ -53,7 +55,7 @@ PUBLIC_DEVELOPMENT_PASS
 READY_PRIVATE
 ```
 
-`READY_PRIVATE` hanya berarti component/promotion package sudah matang untuk masuk Private. Ia bukan final application PASS.
+`READY_PRIVATE` hanya berarti component/promotion package sudah matang untuk diintegrasikan ke baseline APK/state final di Private. Ia bukan bukti integrasi sebenarnya dan bukan final application PASS.
 
 Jalur kematangan:
 
@@ -70,18 +72,20 @@ SPEC
 
 ## 5. Firebase
 
-Firebase Final Gate untuk artifact Private bukan fungsi repository ini.
+**Seluruh akses operasional Firebase/Test Lab hanya boleh dari Private. Public dilarang tanpa pengecualian dummy/prototype Public.**
 
-Aturan generic tetap dicatat agar tidak disalahgunakan:
+Larangan mencakup connection check, autentikasi, catalog/model lookup, candidate preflight yang mengakses Firebase, upload/download artifact atau hasil, submit test matrix, dan caller/relay Firebase. Single-use approval tidak membuka jalur Public.
+
+Public boleh mempelajari dokumentasi API terbuka dan menguji mock/fixture tanpa koneksi atau panggilan ke Firebase. Mode `connection-only`, `candidate-preflight`, serta final test adalah milik jalur Private dan tunduk pada policy Private. Final test memakai APK candidate Private yang sudah dibangun, ditandatangani, dan diverifikasi.
 
 ```text
-FIREBASE DEFAULT = LOCKED
-1 EXPLICIT USER APPROVAL = 1 FIREBASE EXECUTION ATTEMPT
+PUBLIC_FIREBASE = FORBIDDEN
+FIREBASE_EXECUTION_BOUNDARY = PRIVATE_ONLY
+PRIVATE_FINAL_FIREBASE_DEFAULT = LOCKED
+1 EXPLICIT USER APPROVAL = 1 PRIVATE FINAL FIREBASE EXECUTION ATTEMPT
 NO AUTO RETRY
 NO FALLBACK
 ```
-
-Eksekusi final dilakukan dari boundary Private sesuai policy Private.
 
 ## 6. Kegagalan Private yang Kembali ke Public
 
@@ -115,6 +119,8 @@ PRIVATE_CONTENT_IN_PUBLIC = 0
 PRIVATE_EXECUTION_THROUGH_PUBLIC = 0
 PUBLIC_FINAL_BUILD = 0
 PUBLIC_SIGNING_PRIVATE_CANDIDATE = 0
-PUBLIC_FIREBASE_PRIVATE_ARTIFACT = 0
+PUBLIC_FIREBASE_ACCESS = 0
+PUBLIC_FIREBASE_EXECUTION = 0
+PUBLIC_FIREBASE_DUMMY_EXCEPTION = 0
 PUBLIC_JOB_AUTO_CLEANUP = REQUIRED
 ```

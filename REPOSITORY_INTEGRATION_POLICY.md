@@ -37,6 +37,8 @@ Dilarang:
 
 Contract/interface yang memang diklasifikasikan aman untuk Public bukan isi Private yang diekspor; contract tersebut harus dikelola sebagai boundary publik tersendiri.
 
+Pengujian penyambungan di Public WAJIB menggunakan dummy/mock/simulator mandiri dari contract aman, bukan APK baseline atau salinan/ekstraksi/penyamaran isi Private. Integrasi ke baseline/state final yang sebenarnya hanya dilakukan setelah Promotion Package masuk Private dan preflight PASS.
+
 ## 4. Arah Integrasi Resmi
 
 ```text
@@ -69,7 +71,7 @@ Public tidak mengetahui atau mengambil state final Private.
 
 ## 5. Promotion Package
 
-Perpindahan Public -> Private hanya melalui paket yang telah dinyatakan `READY_PRIVATE`.
+Perpindahan Public -> Private hanya melalui paket yang telah dinyatakan `READY_PRIVATE`. Status ini berarti paket matang untuk integrasi Private, bukan integrasi baseline atau aplikasi final sudah PASS.
 
 Minimal metadata:
 
@@ -206,7 +208,9 @@ Public boleh build/test hanya terhadap komponen/data Public, mock, simulator, fi
 
 Public tidak boleh build/test aplikasi final yang membutuhkan source, asset, state, artifact, credential, atau internal contract Private.
 
-Final application build, signing, signature verification, Firebase/final runtime test, dan release dilakukan pada mesin/jalur Private.
+Final application build, signing, signature verification, final runtime test, dan release dilakukan pada mesin/jalur Private.
+
+Seluruh akses operasional Firebase/Test Lab hanya boleh dari Private. Public dilarang melakukan connection check, catalog/model lookup, preflight yang mengakses Firebase, upload/download, atau test matrix, termasuk terhadap dummy/prototype Public. Single-use approval hanya berlaku untuk final execution Private, bukan pengecualian Public. Riset dokumentasi API terbuka serta mock/fixture tanpa koneksi/panggilan Firebase tetap diperbolehkan sesuai aturan global §9.1.
 
 Dependency/toolchain harus dikunci dan environment Public/Private dibuat sedekat mungkin untuk aspek yang mempengaruhi kompatibilitas.
 
@@ -237,6 +241,9 @@ PUBLIC_PRIVATE_READ_ACCESS = 0
 PRIVATE_EXECUTION_THROUGH_PUBLIC = 0
 PRIVATE_FINAL_BUILD_IN_PUBLIC = 0
 PRIVATE_ARTIFACT_RELAY_THROUGH_PUBLIC = 0
+FIREBASE_EXECUTION_BOUNDARY = PRIVATE_ONLY
+PUBLIC_FIREBASE_ACCESS = 0
+PUBLIC_FIREBASE_EXECUTION = 0
 PRIVATE_TRIAL_AND_ERROR = 0
 UNSANITIZED_FAILURE_REPORT = 0
 UNDECLARED_CROSS_PROJECT_TRANSFER = 0

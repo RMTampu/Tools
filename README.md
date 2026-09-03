@@ -18,7 +18,7 @@ RMTampu/Tools (PUBLIC)
 - Public tidak boleh menerima credential untuk checkout/read Private.
 - Workflow Public hanya boleh bekerja terhadap component/source/data yang memang Public, mock, simulator, fixture, atau prototype.
 - Public tidak menjadi reusable CI untuk source Private.
-- Public tidak menjadi Firebase bridge untuk artifact Private.
+- Public dilarang melakukan akses/pengecekan/pengujian Firebase/Test Lab, termasuk untuk dummy/prototype Public; tidak boleh menjadi caller/bridge/relay Firebase.
 - Final build/signing/Firebase/release berada pada boundary Private.
 
 ## Jalur Resmi
@@ -34,7 +34,9 @@ RESEARCH
 -> AUTO CLEANUP
 ```
 
-Setelah `READY_PRIVATE`, hanya Promotion Package aman yang masuk ke Private. Public tidak mengetahui state final Private seperti `A`, `A+B`, atau `A+B+C`.
+Pengujian penyambungan Public memakai dummy/mock/simulator mandiri dari contract aman, bukan salinan/ekstraksi/penyamaran baseline APK atau isi Private, dan tanpa Firebase.
+
+Setelah `READY_PRIVATE`, hanya Promotion Package aman yang masuk ke Private untuk integrasi baseline sebenarnya. Status tersebut bukan final application PASS. Public tidak mengetahui state final Private seperti `A`, `A+B`, atau `A+B+C`.
 
 Setiap Public job wajib memiliki Auto Cleanup otomatis setelah sukses/gagal sejauh platform memungkinkan.
 

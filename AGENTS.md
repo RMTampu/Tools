@@ -16,6 +16,8 @@ PUBLIC = RESEARCH / ITERATION / STAGING
 PRIVATE = MASTER / VAULT / FINAL PROCESSING / FINAL EXECUTION
 PUBLIC_PRIVATE_READ_ACCESS = FORBIDDEN
 PRIVATE_EXECUTION_THROUGH_PUBLIC = FORBIDDEN
+PUBLIC_FIREBASE_ACCESS = FORBIDDEN
+FIREBASE_EXECUTION_BOUNDARY = PRIVATE_ONLY
 PUBLIC_JOB_AUTO_CLEANUP = REQUIRED
 ```
 
@@ -70,6 +72,8 @@ Public digunakan untuk:
 
 Public hanya memakai contract/interface yang memang aman dipublikasikan, fixture/dummy data, mock/simulator, dan komponen yang sedang dikembangkan di Public.
 
+Pengujian penyambungan WAJIB memakai dummy/mock/simulator mandiri sebagai pengganti baseline APK/state final Private. Dummy dibuat dari contract aman; dilarang menyalin, mengekstrak, menyamarkan, atau membawa isi Private ke Public dalam bentuk apa pun. Pengujian dummy di Public tidak memakai Firebase.
+
 ## 5. Jalur Kematangan Komponen
 
 ```text
@@ -83,7 +87,7 @@ SPEC
 -> READY_PRIVATE
 ```
 
-Setelah `READY_PRIVATE`, paket dapat dipromosikan ke Private Master. Public tidak melakukan integrasi sebenarnya terhadap state final Private.
+`READY_PRIVATE` berarti komponen/paket sudah matang untuk diintegrasikan ke baseline APK/state final di Private, bukan aplikasi final sudah PASS. Setelah status itu tercapai, paket dapat dipromosikan ke Private Master. Public tidak melakukan integrasi sebenarnya terhadap state final Private.
 
 ## 6. Promotion Package
 
@@ -135,16 +139,19 @@ Hasil simulator/non-target tidak boleh diklaim sebagai final runtime proof. Fina
 
 ## 10. Firebase / External Test Bridge
 
-Tidak boleh menggunakan Public sebagai jalur untuk mengirim source/asset/APK/artifact Private ke layanan eksternal.
+**Public DILARANG melakukan akses, pengecekan, atau pengujian Firebase/Test Lab dalam bentuk apa pun.** Larangan berlaku juga untuk dummy/prototype/artifact Public, connection check, catalog/model lookup, candidate preflight yang mengakses Firebase, upload/download, submit matrix, serta caller/relay Firebase.
 
-Jika layanan eksternal digunakan untuk final verification, jalur harus dimulai dari Private/approved private processing dan tetap mengikuti authorization policy.
+Public hanya boleh mempelajari dokumentasi API terbuka dan menguji mock/fixture yang tidak terhubung atau memanggil Firebase. Seluruh operasi Firebase hanya di Private menurut aturan global §9.1 dan `TEST_ROUTING_POLICY.md`; single-use approval bukan pengecualian untuk Public.
+
+Tidak boleh menggunakan Public untuk mengirim source/asset/APK/artifact Private ke layanan eksternal. Final verification dimulai dan dijalankan dari Private sesuai authorization policy.
 
 ```text
-FIREBASE DEFAULT = LOCKED
-1 EXPLICIT USER APPROVAL = 1 FIREBASE EXECUTION ATTEMPT
+PUBLIC_FIREBASE = FORBIDDEN
+PRIVATE_FINAL_FIREBASE_DEFAULT = LOCKED
+1 EXPLICIT USER APPROVAL = 1 PRIVATE FINAL FIREBASE EXECUTION ATTEMPT
 ```
 
-Tidak boleh auto-run atau auto-retry Firebase.
+Tidak boleh auto-run atau auto-retry Firebase di Private; Public tetap dilarang.
 
 ## 11. Shared Component dan Isolasi Project
 
@@ -176,13 +183,14 @@ Jika dokumen R6–R9, Asset Safe, Prebuild Asset Gate, atau dokumen assurance le
 - final APK/package;
 - signing;
 - install final;
-- Firebase;
 - final acceptance;
 - release;
 
 maka pada repository Public klausul tersebut hanya boleh dibaca sebagai **metode, contract, model, prototype, atau research requirement terhadap scope Public**.
 
 Klausul tersebut **tidak pernah** memberi izin untuk membawa atau mengeksekusi isi Private di Public.
+
+Setiap penyebutan Firebase/approval pada dokumen assurance merupakan aturan final Private, bukan izin menjalankan Firebase untuk prototype/dummy Public. Public tetap hanya memakai dokumentasi API terbuka dan mock/fixture tanpa koneksi Firebase.
 
 Final execution terhadap integrated Private state tetap dilakukan di Private.
 
@@ -210,7 +218,9 @@ PRIVATE_SOURCE_BUILD_IN_PUBLIC = 0
 PRIVATE_EXECUTION_THROUGH_PUBLIC = 0
 PUBLIC_FINAL_PRODUCT_BUILD = 0
 PUBLIC_FINAL_SIGNING = 0
-PUBLIC_FIREBASE_PRIVATE_ARTIFACT = 0
+PUBLIC_FIREBASE_ACCESS = 0
+PUBLIC_FIREBASE_EXECUTION = 0
+PUBLIC_FIREBASE_DUMMY_EXCEPTION = 0
 PUBLIC_JOB_AUTO_CLEANUP = REQUIRED
 UNAUTHORIZED_FIREBASE_RUN = 0
 ```

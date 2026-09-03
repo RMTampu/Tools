@@ -8,6 +8,8 @@ Status riset: `PRACTICAL_SATURATION` terhadap ruang metode yang telah disapu.
 
 Test environment dan Firebase authorization selalu mengikuti `TEST_ROUTING_POLICY.md`.
 
+**Batas Firebase wajib:** seluruh akses/pengecekan/eksekusi Firebase/Test Lab hanya dari Private. Public tidak boleh memakainya, termasuk untuk dummy/prototype. Penyebutan Firebase dan approval di dokumen ini adalah requirement final Private, bukan izin Public; pengujian komponen Public memakai mock/simulator mandiri tanpa koneksi Firebase sampai `READY_PRIVATE`.
+
 ---
 
 ## 2. Scope
@@ -27,7 +29,7 @@ R6 menutup:
 
 Asset package proof tetap mengikuti `ASSET_SAFE_100`; native runtime semantics dimiliki R7.
 
-Target produk tetap Android 11 / API 30 / ARM64. Penyebutan target tersebut tidak berarti seluruh install/runtime test GitHub wajib berjalan pada environment identik. GitHub development testing bersifat fleksibel; target-specific Firebase test hanya boleh dijalankan setelah single-use approval pengguna.
+Target produk tetap Android 11 / API 30 / ARM64. Penyebutan target tersebut tidak berarti seluruh install/runtime test GitHub wajib berjalan pada environment identik. GitHub development testing bersifat fleksibel dalam batas Public/Private; target-specific Firebase test hanya boleh dijalankan dari Private setelah single-use approval pengguna.
 
 ---
 
@@ -102,7 +104,7 @@ DEVELOPMENT / REGRESSION INSTALL TESTS
 -> API/ABI boleh fleksibel sesuai TEST_ROUTING_POLICY.md
 
 FINAL TARGET-SPECIFIC INSTALL WITNESS
--> Firebase Final Gate
+-> Firebase Final Gate di Private
 -> Android 11 / API 30 / ARM64 only
 -> hanya setelah explicit single-use user approval
 ```
@@ -116,7 +118,7 @@ Jika final target-specific install witness diperlukan untuk final claim dan peng
 ### R6-M19 — Failed / Interrupted Update Semantics
 Jika aplikasi memiliki self-update/package update workflow, uji download/package corruption, insufficient storage, signature mismatch, interrupted staging, install rejection, and rollback/fallback. R3/R4 own internal state recovery; R6 owns package/install transaction.
 
-Development fault testing dilakukan di GitHub sejauh feasible. Target-specific final execution mengikuti single-use Firebase approval rule.
+Development fault testing dilakukan di GitHub sejauh feasible. Target-specific final execution hanya di Private dan mengikuti single-use Firebase approval rule.
 
 ### R6-M20 — Supply-Chain Inventory / SBOM
 Buat machine-readable dependency/material inventory yang mengikat direct/transitive components ke final build. Vulnerability status adalah security maintenance evidence, tetapi presence/identity closure tetap wajib walau tidak ada known CVE.
@@ -148,7 +150,7 @@ boleh dicapai setelah seluruh R6 proof yang relevan dan dapat dilakukan di GitHu
 
 `R6_DEVELOPMENT_PASS` tidak sama dengan `APP_SAFE_R6_PASS` bila final target-specific install/runtime witness masih diwajibkan oleh active claim.
 
-Firebase tidak boleh dijalankan untuk menutup gap tersebut sampai pengguna memberikan single-use approval.
+Jika Firebase diperlukan untuk menutup gap tersebut, eksekusinya hanya boleh di Private setelah pengguna memberikan single-use approval; Public tetap dilarang menjalankan Firebase.
 
 ---
 
@@ -200,4 +202,4 @@ BUILD_FAULT_ESCAPE = 0
 STALE_EVIDENCE = 0
 ```
 
-Jika `SUPPORTED_INSTALL_PATH_UNPROVEN` hanya tersisa karena target-specific Android 11 ARM64 runtime witness belum diotorisasi, agen wajib berhenti pada development status dan meminta Final Gate approval; tidak boleh menjalankan Firebase otomatis.
+Jika `SUPPORTED_INSTALL_PATH_UNPROVEN` hanya tersisa karena target-specific Android 11 ARM64 runtime witness belum diotorisasi, agen wajib mempertahankan development status. Final Gate approval hanya diminta pada jalur Private setelah kandidat/gate Private siap; tidak boleh menjalankan Firebase dari Public atau secara otomatis.

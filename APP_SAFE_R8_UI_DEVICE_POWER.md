@@ -8,6 +8,8 @@ Status riset: `PRACTICAL_SATURATION` terhadap ruang metode yang telah disapu.
 
 Test environment dan Firebase authorization selalu mengikuti `TEST_ROUTING_POLICY.md`.
 
+**Batas Firebase wajib:** seluruh akses/pengecekan/eksekusi Firebase/Test Lab hanya dari Private. Public tidak boleh memakainya, termasuk untuk dummy/prototype. Penyebutan Firebase dan approval di dokumen ini adalah requirement final Private, bukan izin Public; pengujian komponen Public memakai mock/simulator mandiri tanpa koneksi Firebase sampai `READY_PRIVATE`.
+
 ---
 
 ## 2. Scope
@@ -28,7 +30,7 @@ R8 menutup:
 
 Logic is owned by R1; asset visual correctness by `ASSET_SAFE_100`; lifecycle by R3; resource budgets by R2.
 
-Target produk utama tetap Android 11/API30/ARM64. Penyebutan target tersebut tidak berarti seluruh UI/device test GitHub wajib berjalan pada target identik. Development matrix GitHub bersifat fleksibel; Firebase Final Gate tetap dikunci ke Android 11/API30/ARM64 dan memerlukan single-use approval pengguna.
+Target produk utama tetap Android 11/API30/ARM64. Penyebutan target tersebut tidak berarti seluruh UI/device test GitHub wajib berjalan pada target identik. Development matrix GitHub bersifat fleksibel dalam batas Public/Private; Firebase Final Gate hanya di Private, tetap dikunci ke Android 11/API30/ARM64, dan memerlukan single-use approval pengguna.
 
 ---
 
@@ -97,7 +99,7 @@ DEVICE/API/ABI MATRIX = FLEXIBLE
 
 Gunakan environment yang tersedia dan paling relevan untuk menemukan defect dan regression.
 
-Untuk final target witness pada Firebase:
+Untuk final target witness pada Firebase di Private:
 
 ```text
 ANDROID = 11
@@ -105,7 +107,7 @@ API = 30
 ABI = arm64-v8a
 ```
 
-Firebase final execution hanya boleh dilakukan setelah single-use user approval.
+Firebase final execution hanya boleh dilakukan dari Private setelah single-use user approval.
 
 One device cannot prove all classes.
 
@@ -140,7 +142,7 @@ GITHUB DEVELOPMENT MATRIX = FLEXIBLE
 FIREBASE FINAL TARGET = API30 + arm64-v8a ONLY
 ```
 
-Jika target-specific Android 11 ARM64 UI/runtime witness diperlukan untuk final claim, Firebase hanya boleh dijalankan setelah explicit single-use user approval.
+Jika target-specific Android 11 ARM64 UI/runtime witness diperlukan untuk final claim, Firebase hanya boleh dijalankan dari Private setelah explicit single-use user approval.
 
 Gunakan physical-device jobs untuk claims yang tidak emulatable. Device matrix changes invalidate affected evidence.
 
@@ -163,7 +165,7 @@ boleh diberikan jika seluruh affected UI/device tests yang dapat dilakukan di Gi
 
 `R8_DEVELOPMENT_PASS` tidak sama dengan final `APP_SAFE_R8_PASS` bila active claim masih membutuhkan Android 11 ARM64 final witness atau real-device/vendor evidence.
 
-Agen tidak boleh menjalankan Firebase untuk menutup target-specific gap tanpa approval pengguna.
+Jika Firebase diperlukan untuk menutup target-specific gap, eksekusinya hanya boleh di Private setelah kandidat/gate Private siap dan approval pengguna diperoleh. Public tetap dilarang menjalankan Firebase.
 
 ---
 
@@ -216,4 +218,4 @@ UI_DEVICE_FAULT_ESCAPE = 0
 STALE_EVIDENCE = 0
 ```
 
-Jika remaining witness hanya target-specific Android 11/API30/ARM64 final runtime evidence, agen wajib berhenti pada development status dan meminta Final Gate approval; tidak boleh menjalankan Firebase otomatis.
+Jika remaining witness hanya target-specific Android 11/API30/ARM64 final runtime evidence, agen wajib mempertahankan development status. Final Gate approval hanya diminta pada jalur Private setelah kandidat/gate Private siap; tidak boleh menjalankan Firebase dari Public atau secara otomatis.

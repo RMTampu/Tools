@@ -2,7 +2,7 @@
 
 ## 1. Status
 
-`RMTampu/Tools` **bukan Firebase Final Gate bridge untuk artifact Private**.
+`RMTampu/Tools` **dilarang melakukan seluruh akses, pengecekan, dan pengujian Firebase/Test Lab**, termasuk terhadap dummy/prototype/artifact Public. Repository ini bukan Firebase executor, caller, atau bridge.
 
 Semua routing lama yang memakai pola berikut dinyatakan tidak berlaku:
 
@@ -11,7 +11,7 @@ PRIVATE APK -> RMTampu/Tools PUBLIC -> FIREBASE
 PRIVATE SOURCE -> PUBLIC BUILD -> FIREBASE
 ```
 
-Final Firebase execution untuk ToolBox berada pada boundary Private `RMTampu/ToolBox`.
+Seluruh operasi Firebase untuk ToolBox hanya berada pada boundary Private `RMTampu/ToolBox`. Larangan Public tidak bergantung pada asal artifact atau adanya single-use approval.
 
 ## 2. Yang Dilarang di Public
 
@@ -21,34 +21,38 @@ Repository ini tidak boleh:
 - menerima source/asset/config/state Private;
 - menerima credential untuk membaca Private;
 - mengambil artifact dari run Private untuk diteruskan ke Firebase;
-- menjalankan final Firebase matrix untuk candidate Private;
-- menjadi relay/bridge final-test Private.
+- melakukan connection check, autentikasi, catalog/model lookup, atau candidate preflight yang mengakses Firebase;
+- mengunggah/mengunduh artifact atau hasil melalui Firebase/Test Lab;
+- menjalankan Firebase test matrix, smoke test, atau test lain, termasuk untuk dummy/prototype Public;
+- menjadi caller, relay, atau bridge Firebase/final-test.
 
 ## 3. Yang Masih Boleh Dilakukan
 
-Public boleh melakukan riset generik terhadap Firebase/Test Lab tanpa memakai isi Private, misalnya:
+Public hanya boleh melakukan riset **tanpa akses operasional atau panggilan ke layanan Firebase/Test Lab**, misalnya:
 
-- mempelajari contract/API;
-- membuat mock/simulator;
-- menyusun test strategy;
-- menguji prototype/dummy artifact yang memang Public;
-- memvalidasi logic tooling terhadap fixture Public.
+- mempelajari dokumentasi contract/API yang sudah terbuka;
+- membuat mock/simulator mandiri yang tidak terhubung ke Firebase;
+- menyusun test strategy untuk pelaksanaan kelak di Private;
+- memvalidasi logic komponen/tooling menggunakan fixture Public tanpa Firebase.
 
-Hasil tersebut hanya evidence Public/research, bukan final ToolBox runtime proof.
+Pengujian penyambungan di Public menggunakan dummy mandiri dari contract aman sebagai pengganti baseline APK/state final, bukan salinan/ekstraksi/penyamaran isi Private. Dummy/prototype tersebut **tidak boleh diuji melalui Firebase**.
+
+Hasil tersebut hanya evidence Public/research sampai `READY_PRIVATE`: paket siap diintegrasikan ke baseline sebenarnya di Private, bukan final ToolBox runtime proof.
 
 ## 4. Authorization Principle
 
-Aturan generic tetap:
+Public tidak mempunyai jalur authorization Firebase. Aturan berikut **hanya untuk final execution di Private**:
 
 ```text
-FIREBASE DEFAULT = LOCKED
-1 EXPLICIT USER APPROVAL = 1 FINAL FIREBASE EXECUTION ATTEMPT
+PUBLIC_FIREBASE = FORBIDDEN
+PRIVATE_FINAL_FIREBASE_DEFAULT = LOCKED
+1 EXPLICIT USER APPROVAL = 1 PRIVATE FINAL FIREBASE EXECUTION ATTEMPT
 NO AUTO RETRY
 NO FALLBACK
 NO APPROVAL REUSE
 ```
 
-Tetapi authorization final candidate Private dieksekusi pada boundary Private, bukan dari repository ini.
+Mode `connection-only` dan `candidate-preflight`, bila dipakai, juga hanya di Private dan mengikuti policy Private; keduanya tidak mengizinkan Public melakukan pengecekan atau submit matrix. Persetujuan final Private tidak membuka pengecualian dummy/prototype Public.
 
 ## 5. Final Candidate Order
 
@@ -71,5 +75,8 @@ Public tidak menjalankan tahapan tersebut terhadap isi Private.
 PUBLIC_FIREBASE_PRIVATE_ARTIFACT_BRIDGE = 0
 PRIVATE_CONTENT_IN_PUBLIC = 0
 PRIVATE_EXECUTION_THROUGH_PUBLIC = 0
-PUBLIC_FINAL_FIREBASE = 0
+FIREBASE_EXECUTION_BOUNDARY = PRIVATE_ONLY
+PUBLIC_FIREBASE_ACCESS = 0
+PUBLIC_FIREBASE_EXECUTION = 0
+PUBLIC_FIREBASE_DUMMY_EXCEPTION = 0
 ```

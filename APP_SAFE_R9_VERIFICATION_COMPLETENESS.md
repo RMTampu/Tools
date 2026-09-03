@@ -10,6 +10,8 @@ Status riset: `PRACTICAL_SATURATION` terhadap ruang metode assurance/V&V yang te
 
 Untuk seluruh keputusan test environment dan Firebase authorization, R9 WAJIB mengikuti `TEST_ROUTING_POLICY.md`. R9 tidak mempunyai kewenangan membuka Firebase sendiri.
 
+**Batas Firebase wajib:** seluruh akses/pengecekan/eksekusi Firebase/Test Lab hanya dari Private. Public tidak boleh memakainya, termasuk untuk dummy/prototype. Penyebutan Firebase dan approval di dokumen ini adalah requirement final Private, bukan izin Public; pengujian komponen Public memakai mock/simulator mandiri tanpa koneksi Firebase sampai `READY_PRIVATE`.
+
 ---
 
 ## 2. Scope
@@ -106,7 +108,7 @@ Environment GitHub dan Firebase harus dicatat terpisah. GitHub non-target bukan 
 ### R9-M17 — Evidence Provenance & Binding
 Setiap evidence wajib mengikat minimal source revision/input set, tool/version/config, environment/device where material, build/artifact digest, test/proof ID, timestamp/run identity, and result. Evidence dari artifact/revision lain tidak dapat dipakai ulang tanpa equivalence proof.
 
-Untuk Firebase evidence, binding juga wajib mencatat bahwa execution tersebut mempunyai approval pengguna yang berlaku untuk attempt itu sesuai `TEST_ROUTING_POLICY.md`.
+Untuk Firebase evidence, binding juga wajib mencatat execution repository/boundary Private serta approval pengguna yang berlaku untuk attempt itu sesuai `TEST_ROUTING_POLICY.md`. Evidence dari eksekusi Public tidak sah untuk menutup claim Firebase.
 
 ### R9-M18 — Evidence Freshness / Change-Impact Closure
 Setiap change menghasilkan impact set. Evidence affected wajib invalidated. Final acceptance requires `STALE_EVIDENCE = 0` and no unknown dependency between changed item and proof.
@@ -157,15 +159,17 @@ FINAL_TARGET_WITNESS_REQUIRED = YES
 
 Tetapi R9 DILARANG mengubah kesimpulan tersebut menjadi permission Firebase.
 
-Alur wajib:
+Pada scope Public, tutup proof komponen sampai `PACKAGE_VALIDATION -> READY_PRIVATE`, lalu kirim Promotion Package ke Private. Target-specific final witness tetap tanggung jawab Private; Public tidak menjalankan Firebase.
+
+Alur Firebase hanya di Private, setelah seluruh prerequisite kandidat menurut `TEST_ROUTING_POLICY.md` terpenuhi:
 
 ```text
-R1-R8/R9 development proof complete enough for DEVELOPMENT_PASS
+PRIVATE REQUIRED VERIFICATION + SIGNED CANDIDATE + SIGNATURE/HASH/PROVENANCE = PASS
 -> STOP
 -> ask user
--> explicit approval?
+-> explicit approval for this Private candidate?
    NO  -> Firebase LOCKED
-   YES -> one Firebase execution attempt only
+   YES -> one Firebase execution attempt from Private only
 ```
 
 Jika satu attempt selesai atau gagal:
@@ -175,7 +179,7 @@ approval consumed
 -> Firebase LOCKED again
 ```
 
-Retry memerlukan approval baru.
+Retry di Private memerlukan approval baru. Approval tidak memberi izin untuk menjalankan Firebase dari Public.
 
 ---
 
@@ -254,4 +258,4 @@ AND FAULT_ESCAPE = 0
 
 R9 PASS adalah prasyarat final `APPLICATION_SAFE_100`, bukan sinonim otomatis bila scope/platform boundary belum dikunci.
 
-R9 PASS juga bukan alasan untuk menjalankan Firebase tambahan. Setiap Firebase execution tetap memerlukan approval pengguna baru untuk setiap attempt.
+R9 PASS juga bukan alasan untuk menjalankan Firebase tambahan. Setiap Firebase final execution hanya di Private dan tetap memerlukan approval pengguna baru untuk setiap attempt.

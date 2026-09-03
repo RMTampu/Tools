@@ -51,7 +51,7 @@ Public tidak boleh mengklaim:
 FINAL_APPLICATION_SAFE_100
 FINAL_PRIVATE_BUILD_PASS
 FINAL_SIGNING_PASS
-FIREBASE_TARGET_PASS untuk artifact Private
+FIREBASE_TARGET_PASS
 FINAL_RELEASE_READY
 ```
 
@@ -74,7 +74,7 @@ RULE/SCOPE LOCK
 -> READY_PRIVATE
 ```
 
-Tidak ada final application build boundary pada Public untuk isi Private.
+Tidak ada final application build boundary pada Public untuk isi Private. Penyambungan komponen diuji menggunakan dummy/mock/simulator mandiri dari contract aman, bukan baseline APK atau salinan/ekstraksi/penyamaran isi Private; pengujian Public tidak menggunakan Firebase.
 
 ## 5. R6 di Public
 
@@ -97,14 +97,16 @@ Evidence non-target tidak boleh diklaim sebagai final Android 11/API30/ARM64 pro
 
 ## 7. Firebase
 
-Firebase Final Gate terhadap artifact Private berada di Private.
+Seluruh akses operasional, pengecekan, dan pengujian Firebase/Test Lab hanya boleh di Private. Public dilarang memakainya, termasuk untuk dummy/prototype/artifact Public dan sekalipun ada single-use approval.
 
 Public tidak boleh:
 
-- menerima APK Private;
-- mengunduh artifact Private;
-- menjalankan final matrix untuk Private candidate;
-- menjadi relay Firebase.
+- menerima APK atau mengunduh artifact Private;
+- melakukan Firebase connection check, autentikasi, catalog/model lookup, atau preflight yang mengakses Firebase;
+- melakukan upload/download atau submit Firebase test matrix;
+- menjadi executor, caller, atau relay Firebase.
+
+Riset dokumentasi API terbuka dan mock/fixture tanpa koneksi/panggilan Firebase tetap boleh. Final target-specific witness dipenuhi dari jalur Private dengan signed candidate dan approval sesuai policy Private, bukan dari Public.
 
 ## 8. Private Failure Feedback
 
@@ -135,7 +137,7 @@ SPEC
 -> READY_PRIVATE
 ```
 
-Final integration berikutnya terjadi di Private.
+`READY_PRIVATE` berarti paket siap untuk integrasi ke baseline APK/state final yang sebenarnya di Private, bukan integrasi atau aplikasi final sudah PASS. Final integration berikutnya terjadi di Private.
 
 ## 10. Auto Cleanup
 
@@ -149,7 +151,9 @@ PRIVATE_CONTENT_IN_PUBLIC = 0
 PRIVATE_EXECUTION_THROUGH_PUBLIC = 0
 PUBLIC_FINAL_APPLICATION_BUILD = 0
 PUBLIC_FINAL_SIGNING = 0
-PUBLIC_FIREBASE_PRIVATE_ARTIFACT = 0
+PUBLIC_FIREBASE_ACCESS = 0
+PUBLIC_FIREBASE_EXECUTION = 0
+PUBLIC_FIREBASE_DUMMY_EXCEPTION = 0
 PUBLIC_FINAL_APPLICATION_SAFE_100 = 0
 PUBLIC_JOB_AUTO_CLEANUP = REQUIRED
 ```

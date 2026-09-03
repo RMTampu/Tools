@@ -75,13 +75,15 @@ Setiap Public job wajib memiliki cleanup otomatis setelah berhasil maupun gagal 
 
 ## Firebase
 
-Firebase Final Gate untuk artifact Private **bukan fungsi repository Public ini**.
+**Seluruh akses/pengecekan/pengujian Firebase/Test Lab dilarang dari Public**, termasuk connection check, catalog lookup, preflight, upload/download, test matrix, dan dummy/prototype Public. Tidak ada pengecualian berdasarkan single-use approval.
 
-Aturan generic tetap:
+Riset dokumentasi API terbuka serta mock/fixture tanpa koneksi Firebase tetap boleh. Aturan approval berikut hanya berlaku pada final execution Private:
 
 ```text
-FIREBASE DEFAULT = LOCKED
-1 EXPLICIT USER APPROVAL = 1 FIREBASE EXECUTION ATTEMPT
+PUBLIC_FIREBASE = FORBIDDEN
+FIREBASE_EXECUTION_BOUNDARY = PRIVATE_ONLY
+PRIVATE_FINAL_FIREBASE_DEFAULT = LOCKED
+1 EXPLICIT USER APPROVAL = 1 PRIVATE FINAL FIREBASE EXECUTION ATTEMPT
 NO AUTO RETRY
 ```
 

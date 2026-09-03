@@ -8,6 +8,8 @@ Status riset: `PRACTICAL_SATURATION` terhadap ruang metode yang telah disapu.
 
 Test environment dan Firebase authorization selalu mengikuti `TEST_ROUTING_POLICY.md`.
 
+**Batas Firebase wajib:** seluruh akses/pengecekan/eksekusi Firebase/Test Lab hanya dari Private. Public tidak boleh memakainya, termasuk untuk dummy/prototype. Penyebutan Firebase dan approval di dokumen ini adalah requirement final Private, bukan izin Public; pengujian komponen Public memakai mock/simulator mandiri tanpa koneksi Firebase sampai `READY_PRIVATE`.
+
 ---
 
 ## 2. Scope
@@ -103,7 +105,7 @@ DEVELOPMENT QUALIFICATION
 -> GitHub environment yang tersedia/relevan
 
 ANDROID 11 / API30 / ARM64 TARGET-SPECIFIC RUNTIME QUALIFICATION
--> Firebase Final Gate
+-> Firebase Final Gate di Private
 -> hanya setelah explicit single-use user approval
 ```
 
@@ -118,7 +120,7 @@ Plugin/native failure that can be isolated should not corrupt kernel/global stat
 ### R7-M21 — Load/Unload/Reload/Upgrade Exercise
 Exercise initial load, repeated load, unload where supported, host restart, plugin crash, version upgrade, incompatible downgrade/rejection, resource cleanup, and pending callback cancellation.
 
-Development exercise boleh dilakukan pada GitHub runtime yang tersedia. Jika claim bergantung pada ARM64/API30 runtime, target-specific witness tetap dipisahkan dan hanya boleh dilakukan pada Firebase Final Gate setelah user approval.
+Development exercise boleh dilakukan pada GitHub runtime yang tersedia. Jika claim bergantung pada ARM64/API30 runtime, target-specific witness tetap dipisahkan dan hanya boleh dilakukan pada Firebase Final Gate di Private setelah user approval.
 
 ### R7-M22 — Differential / Cross-Build Native Validation
 Where feasible compare debug/sanitized/release outputs for semantic equivalence and verify compiler/optimization does not reveal UB-dependent behavior.
@@ -144,7 +146,7 @@ boleh diberikan bila seluruh proof R7 yang relevan dan dapat dilakukan di GitHub
 
 `R7_DEVELOPMENT_PASS` tidak sama dengan final `APP_SAFE_R7_PASS` jika active claim masih memerlukan ARM64/API30 runtime witness.
 
-Agen tidak boleh menjalankan Firebase untuk menutup target runtime gap tanpa approval pengguna.
+Jika Firebase diperlukan untuk menutup target runtime gap, eksekusinya hanya boleh di Private setelah kandidat/gate Private siap dan approval pengguna diperoleh. Public tetap dilarang menjalankan Firebase.
 
 ---
 
@@ -195,4 +197,4 @@ NATIVE_PLUGIN_FAULT_ESCAPE = 0
 STALE_EVIDENCE = 0
 ```
 
-`UNPROVEN_ARM64_ABI = 0` minimal membutuhkan proof bahwa artifact/contract ARM64 valid. Jika final claim juga memerlukan actual ARM64 runtime behavior, structural ABI proof saja tidak cukup; target-specific runtime witness harus ditutup melalui user-authorized Firebase Final Gate.
+`UNPROVEN_ARM64_ABI = 0` minimal membutuhkan proof bahwa artifact/contract ARM64 valid. Jika final claim juga memerlukan actual ARM64 runtime behavior, structural ABI proof saja tidak cukup; target-specific runtime witness harus ditutup melalui user-authorized Firebase Final Gate di Private.

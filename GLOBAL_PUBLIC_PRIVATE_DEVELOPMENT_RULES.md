@@ -28,6 +28,8 @@ Public bukan master aplikasi final dan tidak boleh membutuhkan akses baca ke Pri
 
 Public hanya boleh bekerja dengan contract/interface yang memang aman dipublikasikan, mock, simulator, test harness, fixture/dummy data, dan komponen Public yang sedang dikembangkan.
 
+Batas akhir pekerjaan Public adalah `READY_PRIVATE`: komponen dan Promotion Package sudah matang untuk diintegrasikan ke baseline APK/state final di Private. Status ini bukan bukti bahwa integrasi sebenarnya atau aplikasi final sudah PASS.
+
 ## 4. Pertumbuhan Bertahap
 
 Project dapat berkembang bertahap:
@@ -42,7 +44,11 @@ Public dan Private dihubungkan oleh contract aman, bukan oleh isi Private.
 
 Setiap contract harus memiliki minimal `CONTRACT_ID`, `VERSION`, `COMPATIBILITY`, lifecycle/input-output yang diperlukan, dependency requirement, dan error code aman.
 
-Mock/simulator Public tidak boleh menjadi salinan kernel Private terselubung.
+Untuk pengujian penyambungan di Public, baseline APK/state final Private WAJIB digantikan oleh dummy/mock/simulator mandiri yang dibuat dari contract/interface yang sudah dinyatakan aman untuk Public.
+
+Dummy tersebut bukan APK baseline, bukan salinan kernel, dan bukan hasil mengekstrak, menyamarkan, mengganti nama, atau menyunting source/asset/config/state/APK/artifact Private. Isi Private tidak boleh diambil ke Public terlebih dahulu untuk kemudian disanitasi.
+
+Jika contract aman belum cukup untuk suatu pengujian, catat gap sebagai `NOT_PROVEN`; jangan mengambil isi Private atau mengklaim dummy sebagai bukti integrasi/runtime final.
 
 ## 6. Jalur Kematangan Komponen
 
@@ -95,12 +101,29 @@ Aturan:
 
 - build APK yang memakai source/asset Private wajib berjalan pada boundary Private;
 - signing candidate wajib berjalan pada boundary Private;
-- Firebase/final runtime execution terhadap APK kandidat Private wajib dimulai dari boundary Private;
+- seluruh akses operasional Firebase/Test Lab dan final runtime execution terhadap APK kandidat wajib dimulai serta dijalankan dari boundary Private;
 - APK yang diuji final harus merupakan candidate yang sudah ditandatangani dan diverifikasi signature-nya;
 - release hanya boleh memakai artifact kandidat yang identitas/hash/signature-nya sama dengan artifact yang memperoleh final PASS;
 - Public tidak boleh menjadi bridge, reusable runner, caller target, artifact relay, atau CI engine untuk mengeksekusi isi Private.
 
 GitHub Actions boleh digunakan sebagai mesin Private jika workflow dan seluruh input/output Private tetap berada pada repository/jalur Private dan tidak disalurkan ke Public.
+
+### 9.1 Firebase / Test Lab Hanya di Private
+
+**Public DILARANG melakukan pengecekan, mengakses layanan, atau menjalankan pengujian Firebase/Test Lab dalam bentuk apa pun, termasuk dengan dummy, prototype, atau artifact yang sepenuhnya Public.**
+
+Larangan mencakup connection check, autentikasi ke layanan, pembacaan catalog/model, candidate preflight yang mengakses Firebase, upload/download artifact atau hasil, submit test matrix, serta penggunaan Public sebagai caller, executor, atau relay Firebase. Tidak ada pengecualian karena alasan riset, smoke test, kesiapan komponen, atau single-use approval.
+
+Public tetap boleh mempelajari dokumentasi API yang sudah terbuka, merancang test strategy, dan menguji mock/fixture Public yang tidak terhubung atau memanggil layanan Firebase. Pengujian penyambungan komponen memakai dummy mandiri sesuai §5, tanpa Firebase.
+
+Mode `connection-only` dan `candidate-preflight`, bila tersedia, tetap hanya di Private dan mengikuti policy Private; keduanya tidak menjadi final test atau izin submit matrix. Final Firebase test memakai APK candidate Private yang sudah dibangun, ditandatangani, dan diverifikasi, serta memerlukan persetujuan eksplisit satu attempt sesuai policy. Persetujuan final Private tidak membuka jalur Public.
+
+```text
+FIREBASE_EXECUTION_BOUNDARY = PRIVATE_ONLY
+PUBLIC_FIREBASE_ACCESS = 0
+PUBLIC_FIREBASE_EXECUTION = 0
+PUBLIC_FIREBASE_DUMMY_EXCEPTION = 0
+```
 
 ## 10. Larangan Trial-and-Error di Private
 
@@ -172,7 +195,8 @@ Dilarang menyediakan atau menggunakan:
 - token/credential Public untuk membaca Private
 - mirror kernel/source/asset/artifact Private di Public
 - registry Public yang menyimpan isi Private
-- Public runner/workflow sebagai mesin build/test/Firebase untuk isi Private
+- Public runner/workflow sebagai mesin build/test untuk isi Private
+- Public sebagai jalur pengecekan/akses/eksekusi Firebase/Test Lab, termasuk untuk dummy/prototype Public
 - transfer bebas antar project
 - debug/trial-and-error berulang di Private
 - log yang membocorkan data Private
@@ -193,7 +217,7 @@ Prioritas konteks:
 - Private Master selalu menjadi sumber kebenaran final.
 - Isi Private tidak pernah keluar ke Public.
 - Public menghabiskan iterasi pengembangan; Private melakukan final processing dengan iterasi minimum.
-- Build, signing, Firebase/final runtime test, dan release untuk isi Private berada pada mesin Private.
+- Integrasi baseline sebenarnya, build APK final, signing kandidat final, final runtime test, dan release berada pada mesin Private; seluruh akses/eksekusi Firebase/Test Lab juga hanya di Private.
 - Kegagalan Private wajib kembali ke Public melalui laporan yang sudah disanitasi bila perbaikan komponen diperlukan.
 - Asset dan pembahasan antar project wajib terisolasi.
 - Pekerjaan manual berulang yang dapat diotomatisasi wajib diotomatisasi.
