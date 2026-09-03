@@ -26,6 +26,8 @@ mutations = [
     {"id":"safe_ui_quarantine_not_restricted","file":"SafeUiPolicy.java","old":"return new StageAContracts.SafeUiModel(true, true, \"safe.ui.quarantined\", state);","new":"return new StageAContracts.SafeUiModel(true, false, \"safe.ui.quarantined\", state);","occurrence":1},
     {"id":"health_quarantine_not_blocked","file":"HealthAggregator.java","old":"health = StageAContracts.HealthState.BLOCKED;","new":"health = StageAContracts.HealthState.DEGRADED;","occurrence":1},
     {"id":"diagnostic_code_separator_changed","file":"DiagnosticMapper.java","old":".replace('_', '.');","new":".replace('_', '-');","occurrence":1},
+    {"id":"safe_ui_restore_authority_falsely_enabled","file":"SafeUiActionPolicy.java","old":"public static boolean canRestoreKnownGood() {\n        return false;\n    }","new":"public static boolean canRestoreKnownGood() {\n        return true;\n    }","occurrence":1},
+    {"id":"safe_ui_quarantine_terminal_bypass","file":"SafeUiActionPolicy.java","old":"return Objects.requireNonNull(state, \"state\") != SafetyContracts.RecoveryState.QUARANTINED;","new":"return true;","occurrence":1},
 ]
 def replace_occurrence(text, old, new, occurrence):
     start = -1; pos = 0
@@ -49,10 +51,15 @@ for mutation in mutations:
         if compile_main.returncode != 0: raise AssertionError(f"mutation {mutation['id']} did not compile:\n" + compile_main.stdout)
         compile_test = subprocess.run(["javac","--release","11","-Xlint:all","-Werror","-cp",str(classes),"-d",str(tests)] + [str(path) for path in copied_tests], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         if compile_test.returncode != 0: raise AssertionError(f"test compilation failed for {mutation['id']}:\n" + compile_test.stdout)
-        run = subprocess.run(["java","-ea","-cp",f"{classes}:{tests}","io.toolbox.stagea.StageAFoundationSelfTest"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-        killed = run.returncode != 0
-        results.append({"id":mutation["id"],"killed":killed,"returnCode":run.returncode})
-        if not killed: raise AssertionError(f"mutation escaped: {mutation['id']}\n{run.stdout}")
+        runs = []
+        for test_class in ("io.toolbox.stagea.StageAFoundationSelfTest", "io.toolbox.stagea.SafeUiActionPolicyTest"):
+            run = subprocess.run(["java","-ea","-cp",f"{classes}:{tests}",test_class], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            runs.append({"class":test_class,"returnCode":run.returncode,"output":run.stdout})
+        killed = any(row["returnCode"] != 0 for row in runs)
+        results.append({"id":mutation["id"],"killed":killed,"testReturnCodes":{row["class"]:row["returnCode"] for row in runs}})
+        if not killed:
+            outputs = "\n".join(row["class"] + ":\n" + row["output"] for row in runs)
+            raise AssertionError(f"mutation escaped: {mutation['id']}\n{outputs}")
         print(f"MUTATION_KILLED={mutation['id']}")
 summary = {"schemaVersion":1,"status":"PASS","mutationsTotal":len(results),"mutationsKilled":sum(1 for row in results if row["killed"]),"mutationsEscaped":sum(1 for row in results if not row["killed"]),"results":results}
 (BUILD / "mutation-evidence.json").write_text(json.dumps(summary, indent=2, sort_keys=True) + "\n")
