@@ -41,3 +41,9 @@ Setelah `READY_PRIVATE`, hanya Promotion Package aman yang masuk ke Private untu
 Setiap Public job wajib memiliki Auto Cleanup otomatis setelah sukses/gagal sejauh platform memungkinkan.
 
 Baca `AGENTS.md`, `GLOBAL_PUBLIC_PRIVATE_DEVELOPMENT_RULES.md`, dan `REPOSITORY_INTEGRATION_POLICY.md` sebelum perubahan.
+
+## Urutan Dokumen Kerja
+
+Mulai dari [AGENTS.md](AGENTS.md) dan aturan global Rule 0, kemudian [PETA-PEMAKAIAN-MD.md](PETA-PEMAKAIAN-MD.md). Peta tersebut memuat fungsi dan urutan penggunaan seluruh MD Public berdasarkan pekerjaan.
+
+Untuk komponen yang tersedia, lanjutkan ke [README runtime-contracts](public-components/runtime-contracts/README.md), contract, matriks R1–R9, dan catatan handoff yang relevan. Pembacaan/pemetaan bukan bukti `READY_PRIVATE`; requirement harus diterapkan dan dibuktikan sesuai scope Public.

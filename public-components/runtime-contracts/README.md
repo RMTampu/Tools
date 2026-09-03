@@ -83,3 +83,13 @@ Komponen dapat menjadi `READY_PRIVATE` hanya bila:
 - workflow hanya berjalan pada `RMTampu/Tools`;
 - workspace cleanup berjalan `if: always()`;
 - tidak terdapat private token, signing, APK build, Firebase, atau Private checkout.
+
+## Urutan Dokumen Kerja Komponen
+
+Awali dengan [AGENTS repository](../../AGENTS.md), aturan global Rule 0, dan [peta pemakaian MD Public](../../PETA-PEMAKAIAN-MD.md). Setelah aturan awal:
+
+1. [CONTRACT.md](CONTRACT.md) — sumber input/output, batas resource, publication, failure, dan integration handoff.
+2. [ASSURANCE_R1_R9.md](ASSURANCE_R1_R9.md) bersama sumber R1–R9 yang dirujuk — applicability, metode, dan evidence sebelum pekerjaan bergantung padanya; matriks tidak menggantikan sumber metode.
+3. [SANITIZED_PRIVATE_FAILURE_2026-09-03.md](SANITIZED_PRIVATE_FAILURE_2026-09-03.md) dan [PRIVATE_INTEGRATION_REQUIREMENTS.json](PRIVATE_INTEGRATION_REQUIREMENTS.json) — saat memperbaiki/menguji handoff dependency trust terkait.
+
+Catatan failure dipakai sebagai requirement/regresi yang aman, bukan izin membaca Private. Status dan evidence tetap harus cocok dengan exact revision; daftar dokumen ini tidak menyatakan test/package sudah PASS.

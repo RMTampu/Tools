@@ -27,6 +27,21 @@ Setiap agen yang membaca, mengubah, membangun, menguji, memvalidasi, mengaudit, 
 
 Aturan safety/gate lama tetap berlaku hanya jika tidak bertentangan dengan Rule 0.
 
+### 1.1 Peta Pemakaian MD Wajib Dibaca dan Diterapkan
+
+Setelah Rule 0 dan `GLOBAL_PUBLIC_PRIVATE_DEVELOPMENT_RULES.md`, setiap agen WAJIB membaca [PETA-PEMAKAIAN-MD.md](PETA-PEMAKAIAN-MD.md), lalu seluruh sumber yang diwajibkan oleh jalur pekerjaan Public tersebut.
+
+Agen WAJIB:
+
+1. Membaca aturan awal, contract, dan metode research R1–R9 yang berlaku sebelum desain/implementasi/test yang bergantung padanya; ikuti `APPLICATION_SAFE_100_PROCESS.md` dan safety/procedure §12.
+2. Menerapkan requirement/metode yang relevan ke pekerjaan, lalu mencatat sumber → penerapan → verifikasi/evidence/status. Membaca tanpa menerapkan tidak menjadi PASS.
+3. Memeriksa kembali applicability/N/A berdasarkan scope dan contract; jangan menganggap domain tidak relevan hanya karena pernah dikecualikan pada komponen lain.
+4. Membedakan aturan aktif, navigasi, kompatibilitas legacy, dan evidence/history; dokumen lama tidak menghidupkan routing yang dilarang.
+5. Memperbarui register dan rujukan pemakai saat MD ditambah, dipindah, dihapus, atau berubah fungsi/status dalam perubahan yang diizinkan.
+6. Tidak menyatakan PASS untuk unit yang bergantung pada sumber wajib yang hilang/belum dibaca atau evidence yang belum cukup.
+
+Peta ini hanya berisi material Public. Kewajiban membaca tidak memberi izin mengambil dokumen/source/state/artifact Private, menjalankan Firebase di Public, atau menjalankan build/test di luar izin tugas. Tugas baca-saja tetap tidak mengubah repository hanya untuk mencatat pembacaan.
+
 ## 2. Identitas Repository
 
 `RMTampu/Tools` adalah **Public Research / Test / Staging Repository**.
