@@ -1,4 +1,4 @@
-> Catatan aktif: aturan lintas repo lama sudah dihapus. ToolBox dikerjakan di repo publik utama; repo private hanya untuk secret, signing, build final, Firebase/final runtime test, dan release sensitif.
+> Catatan aktif: aturan pola lama antar repository sudah dihapus. ToolBox dikerjakan di repo publik utama; repo private hanya untuk secret, signing, build final, Firebase/final runtime test, dan release sensitif.
 
 ## 8. Referensi Antar-File Wajib Diikuti
 
