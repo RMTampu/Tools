@@ -30,13 +30,15 @@ final class AdversarialConformantDummyReceiver implements DummyReceiver {
                 activity,
                 capabilityId -> StageAContracts.Availability.UNAVAILABLE,
                 constrained);
-        require(host.bootstrap() == SafetyContracts.RecoveryState.SAFE_MODE);
-        StageAContracts.SafeUiModel ui = host.safeUiModel();
-        require(ui.visible() && ui.restricted());
-        require(host.registrySnapshot() != null);
-        require(host.durableStateStore() != null);
-        require(host.diagnostics() != null);
-        require(host.health() != null);
+        ContractDrivenDummyIntegrationPlane plane = new ContractDrivenDummyIntegrationPlane();
+        plane.bindProvider(host);
+        require(plane.registry() == host.productRegistry());
+        require(plane.bootstrap() == SafetyContracts.RecoveryState.SAFE_MODE);
+        plane.markKernelReady();
+        require(plane.routeRestrictedBeforeNormal());
+        plane.verifyClosed();
+        require(host.safeUiModel().visible() && host.safeUiModel().restricted());
+        require(host.safeUiActions() != null);
     }
 
     private static void require(boolean value) {
