@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "projectId": "ToolBox",
   "stageId": "A",
-  "contractSha256": "7ed8b80e6eccd73e278fe582d60c1a1e726acb1a6f7389c06295c0f589595ebd",
+  "contractSha256": "50ea39cd2b53690c2011cf5c0127385761b4b3a5c74e1b0df57242b07e408b8f",
   "bindings": [
     {
       "slotId": "S01",
@@ -50,6 +50,34 @@
         "DiagnosticsAccessor": "diagnostics",
         "HostClass": "io.toolbox.stagea.android.AndroidStageAHost"
       }
+    },
+    {
+      "slotId": "S07",
+      "providerId": "stage-a.module-registration",
+      "values": {
+        "ModuleIds": "toolbox-runtime-safety-contracts,toolbox-stage-a-foundation"
+      }
+    },
+    {
+      "slotId": "S08",
+      "providerId": "stage-a.app-dependencies",
+      "values": {
+        "ModuleIds": "toolbox-runtime-safety-contracts,toolbox-stage-a-foundation"
+      }
+    },
+    {
+      "slotId": "S09",
+      "providerId": "stage-a.production-payload",
+      "values": {
+        "SourceGroups": "runtime-contracts-reuse,runtime-safety-import,stage-a-foundation-import,stage-a-android-host-import"
+      }
+    },
+    {
+      "slotId": "S10",
+      "providerId": "stage-a.module-descriptors",
+      "values": {
+        "DescriptorProfile": "android-java-library-stage-a-v1"
+      }
     }
   ],
   "moduleRegistration": [
@@ -58,6 +86,10 @@
     "toolbox-stage-a-foundation"
   ],
   "lifecycleOrder": [
+    "place-production-payload",
+    "create-module-descriptors",
+    "register-modules",
+    "bind-app-dependencies",
     "create-stage-a-host",
     "bootstrap-stage-a-host",
     "bind-durable-state",
