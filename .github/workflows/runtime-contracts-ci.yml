@@ -7,6 +7,11 @@ on:
     paths:
       - 'public-components/runtime-contracts/**'
       - '.github/workflows/runtime-contracts-ci.yml'
+      - 'AGENTS.md'
+      - 'GLOBAL_PUBLIC_PRIVATE_DEVELOPMENT_RULES.md'
+      - 'AGENT_PROCEDURE_EXECUTION_RULES.md'
+      - 'APPLICATION_SAFE_100_PROCESS.md'
+      - 'APP_SAFE_R*.md'
   workflow_dispatch:
 
 permissions:
@@ -45,16 +50,36 @@ jobs:
           architecture: x64
           check-latest: false
 
-      - name: Verify Java runtime
+      - name: Setup exact Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13.7'
+          check-latest: false
+
+      - name: Verify pinned runtimes
         shell: bash
         run: |
           set -euo pipefail
           java -version
           javac -version
+          python --version
+          python3 --version
 
-      - name: Compile, unit/failure/concurrency test, simulator
+      - name: R1-R8 prebuild assurance scope gate
+        shell: bash
+        run: python3 public-components/runtime-contracts/scripts/assurance_prebuild.py
+
+      - name: Compile, unit/failure/concurrency/boundary/property test, simulator
         shell: bash
         run: bash public-components/runtime-contracts/scripts/run-tests.sh
+
+      - name: R6 package mutation challenge
+        shell: bash
+        run: python3 public-components/runtime-contracts/scripts/package_mutation_test.py
+
+      - name: R9 Public evidence completeness gate
+        shell: bash
+        run: python3 public-components/runtime-contracts/scripts/assurance_finalize.py
 
       - name: Validate Promotion Package
         shell: bash
@@ -69,11 +94,16 @@ jobs:
           from pathlib import Path
           path=Path('public-components/runtime-contracts/build/promotion/promotion-manifest.json')
           data=json.loads(path.read_text())
-          assert data['schemaVersion']==2
+          assert data['schemaVersion']==3
           assert data['status']=='READY_PRIVATE'
           assert data['sourceRepository']=='RMTampu/Tools'
           assert data['sourceCommitSha']==os.environ['GITHUB_SHA']
+          assert data['workflowRunId']==os.environ['GITHUB_RUN_ID']
           assert data['privateContentIncluded'] is False
+          assert data['assurance']['r1ToR9PublicAssurance']=='PASS'
+          assert data['assurance']['r9EvidenceCompleteness']=='PASS'
+          assert data['assurance']['finalApplicationSafe100Claimed'] is False
+          assert data['testStatus']['packageMutation']=='PASS'
           assert data['testStatus']['packageValidation']=='PASS'
           assert data['sourceArchive']['promotionAllowed'] is True
           print('READY_PRIVATE_BINDING = PASS')
@@ -89,7 +119,12 @@ jobs:
             public-components/runtime-contracts/build/promotion/promotion-manifest.json
             public-components/runtime-contracts/build/test-summary.txt
             public-components/runtime-contracts/build/test-output.txt
+            public-components/runtime-contracts/build/boundary-output.txt
+            public-components/runtime-contracts/build/property-output.txt
             public-components/runtime-contracts/build/simulator-output.txt
+            public-components/runtime-contracts/build/package-mutation-output.txt
+            public-components/runtime-contracts/build/assurance/r1-r9-summary.txt
+            public-components/runtime-contracts/build/assurance/r1-r9-evidence.json
           if-no-files-found: error
           retention-days: 7
 
@@ -99,5 +134,6 @@ jobs:
         run: |
           set +e
           rm -rf public-components/runtime-contracts/build
+          rm -rf public-components/runtime-contracts/.assurance-state
           rm -rf "$RUNNER_TEMP"/toolbox-public-* 2>/dev/null || true
           echo 'PUBLIC_JOB_AUTO_CLEANUP = DONE'
