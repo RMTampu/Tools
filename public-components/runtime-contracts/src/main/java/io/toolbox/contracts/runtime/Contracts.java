@@ -68,6 +68,7 @@ public final class Contracts {
     }
 
     public static final class ContractException extends IllegalArgumentException {
+        private static final long serialVersionUID = 1L;
         private final String code;
 
         public ContractException(String code, String message) {
