@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "schemaId": "toolbox.stage-a.handoff.acceptance.v1",
+  "projectId": "ToolBox",
+  "stageId": "A",
+  "requiredCapsuleFields": [
+    "schemaVersion",
+    "projectId",
+    "stageId",
+    "status",
+    "capsuleRootSha256",
+    "members",
+    "claims"
+  ],
+  "requiredMemberBindings": [
+    "canonicalContract",
+    "stageWiringManifest",
+    "acceptanceSchema",
+    "referenceDummyEvidence",
+    "adversarialDummyEvidence",
+    "fullAssemblyEvidence",
+    "reproducibilityEvidence",
+    "independentVerifierEvidence",
+    "promotionManifest"
+  ],
+  "requiredClaims": {
+    "privateImplementationRequired": false,
+    "privateManualPatchRequired": false,
+    "privateWiringOnly": true,
+    "publicFullAssemblyRehearsal": "PASS",
+    "referenceDummy": "PASS",
+    "adversarialConformantDummy": "PASS",
+    "reproducibility": "PASS",
+    "independentWiringVerification": "PASS"
+  },
+  "privateOnlyEvidenceMustNotAppear": [
+    "privateReceiverMap",
+    "privateReceiverCertificateFullContent",
+    "privateReceiverConformanceLogs",
+    "privateInternalSlotMapping",
+    "privateBaselineInternalIdentity"
+  ],
+  "unknownFieldsPolicy": "FAIL_CLOSED_FOR_ACCEPTANCE_RECORDS",
+  "manualPatchPolicy": "FORBIDDEN"
+}
