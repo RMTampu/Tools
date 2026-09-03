@@ -6,10 +6,10 @@
   "externalRuntimeDependencies": 0,
   "firebase": false,
   "privateContentRequired": false,
-  "productionSourceCount": 8,
+  "productionSourceCount": 9,
   "projectId": "ToolBox",
   "promotionRole": "PART_OF_CONSOLIDATED_STAGE_A_ONLY",
-  "purpose": "Production-ready Android API30 host adapters for Stage A public contracts so Private integration is wiring-only.",
+  "purpose": "Production-ready Android API30 host adapters and Safe-UI actions for Stage A public contracts so Private integration is wiring-only.",
   "schemaVersion": 1,
   "stageId": "A",
   "target": {
