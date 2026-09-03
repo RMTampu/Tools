@@ -20,16 +20,15 @@ EXPECTED_SLOTS = {
     "S04": ("safe-ui.route.v1", "stage-a.safe-ui", "restricted-state-preempts-normal-route"),
     "S05": ("resource.profile.v1", "stage-a.resource-profile", "stage-a-idle-profile"),
     "S06": ("diagnostic.quarantine.v1", "stage-a.diagnostics", "non-sensitive-terminal-quarantine"),
-    "S07": ("module.registration.v1", "stage-a.module-registration", "before-build-graph-resolution"),
-    "S08": ("app.dependency.binding.v1", "stage-a.app-dependencies", "before-compile"),
-    "S09": ("source.placement.v1", "stage-a.production-payload", "before-compile"),
-    "S10": ("module.descriptor.v1", "stage-a.module-descriptors", "before-build-graph-resolution"),
+    "S07": ("integration.plane.module.v1", "stage-a.integration-plane-module", "preexisting-before-stage-apply"),
+    "S08": ("integration.plane.app-binding.v1", "stage-a.integration-plane-app-binding", "preexisting-before-stage-apply"),
+    "S09": ("production.payload.placement.v1", "stage-a.production-payload", "before-compile"),
+    "S10": ("generated.provider.unit.v1", "stage-a.generated-provider-unit", "after-payload-before-compile"),
 }
 EXPECTED_LIFECYCLE = [
+    "verify-stable-integration-plane",
     "place-production-payload",
-    "create-module-descriptors",
-    "register-modules",
-    "bind-app-dependencies",
+    "generate-stage-provider-unit",
     "create-stage-a-host",
     "bootstrap-stage-a-host",
     "bind-durable-state",
@@ -81,7 +80,7 @@ def sha(path):
 def validate(contract, wiring, acceptance, contract_digest):
     need(contract.get("schemaVersion") == 1, "contract schema")
     need(contract.get("contractId") == "toolbox.stage.receiver.v1", "contract id")
-    need(contract.get("contractVersion") == "1.1.0", "contract version")
+    need(contract.get("contractVersion") == "1.2.0", "contract version")
     need(contract.get("projectId") == "ToolBox" and contract.get("stageId") == "A", "contract identity")
     privacy = contract.get("privacy")
     need(privacy == {
@@ -138,10 +137,10 @@ def validate(contract, wiring, acceptance, contract_digest):
         "ModelAccessor": "safeUiModel",
         "RendererClass": "io.toolbox.stagea.android.AndroidSafeUi",
     }, "safe-ui production behavior declaration")
-    need(binding_map["S07"]["values"] == {"ModuleIds": "toolbox-runtime-safety-contracts,toolbox-stage-a-foundation"}, "module registration declaration")
-    need(binding_map["S08"]["values"] == {"ModuleIds": "toolbox-runtime-safety-contracts,toolbox-stage-a-foundation"}, "app dependency declaration")
+    need(binding_map["S07"]["values"] == {"PlaneId": "stage-integration-plane.v1"}, "stable plane declaration")
+    need(binding_map["S08"]["values"] == {"BindingId": "app-to-stage-integration-plane.v1"}, "stable app binding declaration")
     need(binding_map["S09"]["values"] == {"SourceGroups": "runtime-contracts-reuse,runtime-safety-import,stage-a-foundation-import,stage-a-android-host-import"}, "source placement declaration")
-    need(binding_map["S10"]["values"] == {"DescriptorProfile": "android-java-library-stage-a-v1"}, "module descriptor declaration")
+    need(binding_map["S10"]["values"] == {"GeneratedProviderProfile": "stage-provider-kotlin-v1"}, "generated provider declaration")
 
     need(wiring.get("lifecycleOrder") == EXPECTED_LIFECYCLE, "lifecycle order")
     need(wiring.get("constraints") == {
@@ -150,9 +149,9 @@ def validate(contract, wiring, acceptance, contract_digest):
         "newDependencyDecisionAllowed": False,
         "sameProductRegistryRequired": True,
         "safeUiRestrictedStatePreemptsNormalRoute": True,
+        "stageApplyMayModifyPrivateImplementationFiles": False,
     }, "wiring constraints")
-    modules = wiring.get("moduleRegistration")
-    need(modules == ["toolbox-runtime-contracts", "toolbox-runtime-safety-contracts", "toolbox-stage-a-foundation"], "module registration")
+    need(wiring.get("moduleRegistration") == ["stage-integration-plane.v1"], "stable integration plane registration")
     need(wiring.get("acceptanceSchemaVersion") == 1, "acceptance version")
 
     need(acceptance.get("schemaVersion") == 1 and acceptance.get("schemaId") == "toolbox.stage-a.handoff.acceptance.v1", "acceptance identity")
@@ -204,8 +203,16 @@ def self_test(contract, wiring, acceptance, digest):
     must_reject("safe-ui-actions-accessor-missing", contract, w, acceptance)
 
     w = copy.deepcopy(wiring)
+    w["bindings"][6]["values"]["PlaneId"] = "private.module.path"
+    must_reject("stable-plane-id-changed", contract, w, acceptance)
+
+    w = copy.deepcopy(wiring)
     w["bindings"][8]["values"]["SourceGroups"] += ",undeclared-private-group"
     must_reject("undeclared-source-group", contract, w, acceptance)
+
+    w = copy.deepcopy(wiring)
+    w["constraints"]["stageApplyMayModifyPrivateImplementationFiles"] = True
+    must_reject("private-implementation-write-enabled", contract, w, acceptance)
 
     a = copy.deepcopy(acceptance)
     a["requiredClaims"]["privateManualPatchRequired"] = True
@@ -236,21 +243,23 @@ def main():
             "schemaVersion": 1,
             "status": "PASS",
             "claim": "PUBLIC_STAGE",
-            "verifier": "independent-stage-a-wiring-oracle-v4",
+            "verifier": "independent-stage-a-wiring-oracle-v5",
             "contractSha256": digest,
             "wiringManifestSha256": sha(WIRING_PATH),
             "acceptanceSchemaSha256": sha(ACCEPTANCE_PATH),
             "slotCount": len(EXPECTED_SLOTS),
             "requiredSlotCoverage": len(EXPECTED_SLOTS),
             "runtimeSlotCount": 6,
-            "buildAndPlacementSlotCount": 4,
+            "stablePlaneAndPlacementSlotCount": 4,
+            "stableIntegrationPlaneRequired": True,
+            "stageApplyMayModifyPrivateImplementationFiles": False,
             "sharedProductRegistryBound": True,
             "safeUiProductionActionsBound": True,
             "mutationEscape": 0,
             "mutations": mutations,
             "privateContentUsed": False,
             "firebaseUsed": False,
-            "limitations": ["Public verifier proves safe contract/wiring/build-graph model only; actual Private receiver mapping and conformance stay Private."],
+            "limitations": ["Public verifier proves safe contract, stable-plane, payload-placement and wiring model only; actual Private receiver mapping and conformance stay Private."],
         }
         EVIDENCE_PATH.parent.mkdir(parents=True, exist_ok=True)
         EVIDENCE_PATH.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -260,6 +269,7 @@ def main():
         return 2
     print("STAGE_A_INDEPENDENT_WIRING_VERIFY = PASS")
     print("STAGE_A_RECEIVER_SLOT_COUNT = 10")
+    print("STAGE_A_STABLE_INTEGRATION_PLANE = 1")
     print("STAGE_A_SHARED_PRODUCT_REGISTRY_BOUND = 1")
     print("STAGE_A_SAFE_UI_ACTIONS_BOUND = 1")
     print("STAGE_A_WIRING_MUTATION_ESCAPE = 0")
