@@ -2,7 +2,7 @@
 
 ## Aturan Utama
 
-Instruksi pengguna terbaru menetapkan bahwa pola kerja lintas repo lama dihapus.
+Instruksi pengguna terbaru menetapkan bahwa pola kerja pola lama antar repository dihapus.
 
 ToolBox dikerjakan pada repo utama publik yang diarahkan pengguna. Repo private hanya dipakai untuk build final, signing, verifikasi signature, Firebase/final runtime test, dan release bila diperlukan.
 
@@ -10,7 +10,7 @@ ToolBox dikerjakan pada repo utama publik yang diarahkan pengguna. Repo private 
 
 Agen wajib membaca file ini sebelum mengubah repository.
 
-Jika ada file lama yang masih menyebut pola Public Research, Private Master, Promotion Package, Stage Capsule, dummy receiver, atau wiring lintas repo, bagian itu dianggap tidak berlaku dan harus dibersihkan saat file terkait disentuh.
+Jika ada file lama yang masih menyebut pola pola lama antar repository, pola lama antar repository, pola lama antar repository, pola lama antar repository, dummy receiver, atau pola lama antar repository, bagian itu dianggap tidak berlaku dan harus dibersihkan saat file terkait disentuh.
 
 ## Peran Repository
 
@@ -33,16 +33,7 @@ Build final tertandatangan dilakukan di repo private atau jalur private yang tid
 
 ## Aturan yang Dihapus
 
-Aturan berikut tidak lagi menjadi pola kerja ToolBox:
-
-- pemisahan Public Research/Staging dan Private Master;
-- promosi tahap antar repo;
-- Promotion Package / Stage Capsule antar repo;
-- Private Receiver Contract;
-- Dummy Private Host / receiver tiruan untuk mencocokkan repo private;
-- deterministic wiring manifest lintas repo;
-- STAGE_READY_PRIVATE / COMPONENT_READY_PRIVATE sebagai gate lintas repo;
-- larangan membangun aplikasi utama di repo publik hanya karena dulu dipisah lintas repo.
+Semua pola kerja lama yang memisahkan pengembangan aplikasi ke beberapa repository sudah dihapus. Jangan membuat gate, paket, kontrak, dummy, atau mekanisme penyambungan antar repository untuk pekerjaan ToolBox.
 
 ## Prinsip Kerja
 
