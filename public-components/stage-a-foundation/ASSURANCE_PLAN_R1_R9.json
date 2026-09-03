@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "projectId": "ToolBox",
+  "stageId": "A",
+  "componentId": "public.stage-a-foundation",
+  "status": "PLAN_LOCKED",
+  "domains": {
+    "R1": {
+      "applicability": "APPLICABLE",
+      "methods": ["M01","M02","M03","M10","M11","M14","M18","M19","M25","M26"],
+      "proof": ["contract invariants","boundary/self tests","cross-product property tests","mutation challenge"]
+    },
+    "R2": {
+      "applicability": "APPLICABLE",
+      "methods": ["M01","M02","M03","M05","M08","M12","M13","M20"],
+      "proof": ["synchronized recovery coordinator","thread-safe registry dependency","8000 concurrent admission evaluations","bounded diagnostics dependency","mutation challenge"]
+    },
+    "R3": {
+      "applicability": "APPLICABLE",
+      "methods": ["M02","M04","M11","M12","M15","M16","M18","M20"],
+      "proof": ["explicit recovery states","bootstrap contract","fail-closed store failure","safe-ui mapping","recovery integration simulator"]
+    },
+    "R4": {
+      "applicability": "CONTRACT_ONLY",
+      "methods": ["M01","M02","M03","M09","M11","M12","M14","M20"],
+      "proof": ["RecoveryStateStore port contract only; no Public durable implementation","Private handoff requires atomic durable implementation"],
+      "notClaimed": ["durable storage runtime PASS","process-death persistence PASS"]
+    },
+    "R5": {
+      "applicability": "APPLICABLE",
+      "methods": ["M01","M03","M05","M20"],
+      "proof": ["permission/capability fail-closed provider boundary","no external authority","forbidden API scan","boundary workflow"]
+    },
+    "R6": {
+      "applicability": "APPLICABLE",
+      "methods": ["M01","M02","M03","M04","M07","M08","M09","M21","M22","M23"],
+      "proof": ["pinned JDK/Python/actions","zero external runtime dependencies","reproducible JAR","consolidated source hashes","CI provenance"]
+    },
+    "R7": {
+      "applicability": "BOUNDARY_ONLY",
+      "methods": ["M01","M12","M13","M16","M17","M20","M23"],
+      "proof": ["no native/plugin/dynamic loader in Stage A production source","registry metadata does not execute code","forbidden API scan"]
+    },
+    "R8": {
+      "applicability": "SAFE_UI_CONTRACT_ONLY",
+      "methods": ["M01","M02","M20","M22"],
+      "proof": ["SafeUiModel deterministic mapping","no Android UI implementation in Public","integration simulator checks visibility/restriction"],
+      "notClaimed": ["Android UI rendering PASS","device/power PASS"]
+    },
+    "R9": {
+      "applicability": "APPLICABLE",
+      "methods": ["M01","M02","M03","M04","M06","M09","M12","M16","M17","M18","M19","M20","M21","M22","M24"],
+      "proof": ["stage-level traceability","dependency revalidation","cross-domain simulator","mutation challenge","source/provenance binding","unknown/skipped closure"]
+    }
+  },
+  "publicClaimBoundary": {
+    "stageAReadyPrivateAllowedAfterAllProofPass": true,
+    "finalApplicationSafe100Claimed": false,
+    "finalAndroidTargetRuntimeClaimed": false,
+    "firebaseUsed": false
+  }
+}
