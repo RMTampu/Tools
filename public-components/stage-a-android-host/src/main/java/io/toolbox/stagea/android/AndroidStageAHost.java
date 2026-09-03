@@ -100,6 +100,7 @@ public final class AndroidStageAHost {
         return HealthAggregator.aggregate(registry.snapshot(), diagnostics, recovery.state(), guard);
     }
 
+    public ProductRegistry productRegistry() { return registry; }
     public ProductRegistry.RegistrySnapshot registrySnapshot() { return registry.snapshot(); }
     public AndroidAtomicStateStore durableStateStore() { return durableStore; }
     public RecoveryCoordinator recoveryCoordinator() { return recovery; }
