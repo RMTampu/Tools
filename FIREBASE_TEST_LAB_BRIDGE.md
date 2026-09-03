@@ -2,7 +2,7 @@
 
 ## Status
 
-Dokumen ini menggantikan aturan lama yang dibuat karena pemisahan lintas repo.
+Dokumen ini menggantikan aturan lama yang dibuat karena pemisahan pola lama antar repository.
 
 ## Aturan
 
