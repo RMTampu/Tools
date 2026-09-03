@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "projectId": "ToolBox",
+  "componentId": "public.runtime-safety-contracts",
+  "componentVersion": "0.1.0",
+  "contractId": "toolbox.runtime.safety",
+  "contractVersion": "1.0.0",
+  "integrationBoundary": "PRIVATE_HOST_ONLY",
+  "productionPromotionAllowlist": [
+    "src/main/java/io/toolbox/contracts/safety/SafetyContracts.java",
+    "src/main/java/io/toolbox/contracts/safety/DiagnosticBuffer.java",
+    "src/main/java/io/toolbox/contracts/safety/ResourceGuard.java",
+    "src/main/java/io/toolbox/contracts/safety/RecoveryMachine.java"
+  ],
+  "simulatorOnly": [
+    "src/main/java/io/toolbox/contracts/safety/RuntimeSafetySimulator.java"
+  ],
+  "hostRequirements": {
+    "resourceUnitsMustBeMappedExplicitly": true,
+    "resourceBudgetValuesOwnedByPrivateHost": true,
+    "diagnosticPayloadMustRemainNonSensitiveMetadata": true,
+    "durableDiagnosticPersistenceNotProvided": true,
+    "durableRecoveryStateNotProvided": true,
+    "checkpointRestoreImplementationNotProvided": true,
+    "androidLifecycleIntegrationNotProvided": true,
+    "safeModeUiNotProvided": true,
+    "hostMustPreserveFailClosedIllegalTransitionSemantics": true,
+    "hostMustPreserveQuarantinedTerminalSemanticsUnlessExplicitReadmissionContractExists": true,
+    "privateHostMustRunOwnR1R9ImpactAnalysisBeforeIntegrationPass": true
+  },
+  "forbiddenAssumptions": [
+    "Public simulator is production runtime code",
+    "in-memory recovery state survives process death",
+    "recovery state transition performs checkpoint or file restore",
+    "resource unit numbers are Android memory bytes without an explicit host mapping",
+    "diagnostic event metadata may contain Private secrets or internal dumps",
+    "READY_PRIVATE is final application safety proof"
+  ],
+  "privateContentRequired": false,
+  "firebaseRequired": false
+}
