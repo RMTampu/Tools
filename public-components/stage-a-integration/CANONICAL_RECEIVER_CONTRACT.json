@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "contractId": "toolbox.stage.receiver.v1",
-  "contractVersion": "1.1.0",
+  "contractVersion": "1.2.0",
   "projectId": "ToolBox",
   "stageId": "A",
   "privacy": {
@@ -48,27 +48,27 @@
     },
     {
       "slotId": "S07",
-      "shape": "module.registration.v1",
+      "shape": "integration.plane.module.v1",
       "required": true,
-      "lifecycle": "before-build-graph-resolution"
+      "lifecycle": "preexisting-before-stage-apply"
     },
     {
       "slotId": "S08",
-      "shape": "app.dependency.binding.v1",
+      "shape": "integration.plane.app-binding.v1",
       "required": true,
-      "lifecycle": "before-compile"
+      "lifecycle": "preexisting-before-stage-apply"
     },
     {
       "slotId": "S09",
-      "shape": "source.placement.v1",
+      "shape": "production.payload.placement.v1",
       "required": true,
       "lifecycle": "before-compile"
     },
     {
       "slotId": "S10",
-      "shape": "module.descriptor.v1",
+      "shape": "generated.provider.unit.v1",
       "required": true,
-      "lifecycle": "before-build-graph-resolution"
+      "lifecycle": "after-payload-before-compile"
     }
   ],
   "compatibility": {
@@ -84,6 +84,6 @@
     "receiver.lifecycle.order.invalid",
     "receiver.binding.incompatible",
     "receiver.source.placement.invalid",
-    "receiver.module.graph.invalid"
+    "receiver.integration.plane.invalid"
   ]
 }
