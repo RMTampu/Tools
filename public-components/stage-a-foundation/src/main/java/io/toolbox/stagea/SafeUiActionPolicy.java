@@ -10,7 +10,7 @@ import java.util.Set;
 /**
  * Deterministic, fail-closed policy for Stage-A safe-UI actions.
  * This class owns no Android lifecycle, filesystem export, restore authority,
- * network access, Firebase access, or Private receiver knowledge.
+ * network or remote-backend authority, or Private receiver knowledge.
  */
 public final class SafeUiActionPolicy {
     private static final int MAX_SUMMARY_LENGTH = 512;
