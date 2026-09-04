@@ -369,6 +369,7 @@ public final class WorkspaceShellView extends FrameLayout {
             active = section;
             kernel.authoringWorkspace().activate(section);
             kernel.productServices().resources().activate(section);
+            kernel.productServices().toolLifecycle().activate(toolId(section));
             kernel.editorEnvironment().shell().clearSelection();
             renderToolBar();
             renderWorkspace();
@@ -1100,6 +1101,17 @@ public final class WorkspaceShellView extends FrameLayout {
                         + "/" + result.requiredCount()
         );
         statusLine.setTextColor(result.isPass() ? UiKit.NEON : UiKit.PERINGATAN);
+    }
+
+    private static String toolId(AuthoringSection section) {
+        switch (section) {
+            case UI: return "tool.ui";
+            case LOGIC: return "tool.logic";
+            case DATA: return "tool.data";
+            case BINDING: return "tool.binding";
+            case ASSET: return "tool.asset";
+            default: throw new IllegalStateException("fungsi tidak dikenal");
+        }
     }
 
     private String labelSection(AuthoringSection section) {
