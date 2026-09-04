@@ -3,9 +3,12 @@ package com.toolbox.tools.core;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.Base64;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 public final class WorkspaceCodec {
@@ -89,8 +92,10 @@ public final class WorkspaceCodec {
             }
         }
 
-        if (!metadata.keySet().equals(
-                java.util.Set.of("id", "schema", "revision", "size"))) {
+        Set<String> required = new HashSet<>(
+                Arrays.asList("id", "schema", "revision", "size")
+        );
+        if (!metadata.keySet().equals(required)) {
             throw new IllegalArgumentException("workspace metadata incomplete");
         }
 
