@@ -4,7 +4,9 @@
 
 Kerjakan **Tahap 10 = J — READY, validator/IR, private build, signing, final candidate identity** pada repo publik utama `RMTampu/Tools`.
 
-Baseline parent aktif adalah **Tahap 9** dengan signed APK SHA-256 `8f6f504c8f289926ad88550ab2686b801efc3ac12536c9e57f807b208461a116`.
+Baseline/rollback anchor permanen adalah **Tahap 7** dengan signed APK SHA-256 `741ebcf799280fbba1b4c7d2e60ba157ba133e3f6545b3468882373150f024f7`.
+
+Tahap 9 signed APK SHA-256 `8f6f504c8f289926ad88550ab2686b801efc3ac12536c9e57f807b208461a116` hanya **development predecessor candidate**, bukan baseline.
 
 Instruksi user untuk rangkaian ini:
 - selesaikan Tahap 8, 9, dan 10 beruntun;
@@ -12,7 +14,7 @@ Instruksi user untuk rangkaian ini:
 - **jangan menjalankan Firebase**;
 - laporan hanya setelah seluruh rangkaian selesai.
 
-Tahap 10 menambah kemampuan di atas Tahap 9; APK Tahap 9 tidak boleh dimodifikasi.
+Tahap 10 menambah kemampuan di atas Tahap 9 sebagai urutan evolusi, tetapi rollback tetap ke exact Baseline Tahap 7. APK Tahap 9 hanya predecessor candidate dan tidak boleh dipakai sebagai rollback baseline.
 
 ### J1 — READY Gate
 - READY adalah lifecycle eksplisit, bukan label UI.
@@ -46,7 +48,8 @@ Tahap 10 menambah kemampuan di atas Tahap 9; APK Tahap 9 tidak boleh dimodifikas
 ## Exit Gate Tahap 10
 
 ```text
-PARENT_TAHAP_9_SIGNED_IDENTITY = PASS
+ROLLBACK_BASELINE_TAHAP_7 = PASS
+DEVELOPMENT_PARENT_TAHAP_9_SIGNED_IDENTITY = PASS
 VERSION_CODE_GT_TAHAP_9 = YES
 READY_PREVIEW_READ_ONLY = PASS
 READY_REQUIRES_CLEAN_PROJECT = PASS
