@@ -12,7 +12,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public final class FileAssetStore {
+public final class FileAssetStore implements AssetStore {
     private final Path root;
     private final Path originals;
     private final Path cache;
