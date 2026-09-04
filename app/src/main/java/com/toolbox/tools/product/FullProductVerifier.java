@@ -82,11 +82,11 @@ public final class FullProductVerifier {
         add(ok, ProductCapability.EDITOR_ASET, engines.asset().isReady());
 
         add(ok, ProductCapability.BUBBLE,
-                kernel.editorEnvironment().shell().bubble() != null);
+                kernel.editorEnvironment().shell().bubbleController() != null);
         add(ok, ProductCapability.EDGE_PANEL,
-                kernel.editorEnvironment().shell().edgePanel() != null);
+                kernel.editorEnvironment().shell().edgePanel(null) != null);
         add(ok, ProductCapability.FLOATING_EDITOR,
-                kernel.editorEnvironment().floating() != null);
+                kernel.editorEnvironment().floatingEditor() != null);
         add(ok, ProductCapability.VISUAL_PROPERTI_KODE,
                 kernel.authoringWorkspace() != null);
         add(ok, ProductCapability.EDIT_PRATINJAU_UJI_LANGSUNG,
