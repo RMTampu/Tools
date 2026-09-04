@@ -1,12 +1,12 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "projectId": "ToolBox",
-  "stage": "Tahap 5",
-  "stageMap": "E",
+  "stage": "Tahap 6",
+  "stageMap": "F",
   "parentBaseline": {
-    "name": "Tahap 4",
-    "apkSha256": "74a90ae0442083d4f050a4642a9c2a213ff1b785ea5b2f844f033cdea543cfc3",
-    "publicR1R9RunId": "33841266917",
+    "name": "Tahap 5",
+    "apkSha256": "717f36b59d9c005b17bfeee72b1de7f872ed3c6b406471e6b9d80c9efba91f49",
+    "publicR1R9RunId": "33845088359",
     "privateFinalRuntimePassed": true
   },
   "target": {
@@ -21,23 +21,23 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R1_LOGIC_INPUT.md",
       "methods": [
-        "stable object/editor IDs",
-        "capability-aware edit menu",
-        "fail-closed unsupported operation",
-        "explicit edit/preview/test/live modes",
-        "exact selected-object routing"
+        "five authoring sections share stable model identity",
+        "bounded validated search query",
+        "stable-id exact discovery",
+        "draft state machine",
+        "template exact-version publishing"
       ],
-      "proof": "unit + UI route + mutation"
+      "proof": "unit + route gate + mutation"
     },
     "R2": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R2_CONCURRENCY_RESOURCE.md",
       "methods": [
-        "bounded bubble/floating geometry",
-        "single primary floating editor",
-        "bounded undo/redo history",
-        "single heavy editor function",
-        "bounded diagnostic state"
+        "one heavy authoring section active",
+        "search result limit <=100",
+        "draft history <=32",
+        "immutable search results",
+        "no search-side execution"
       ],
       "proof": "unit + source contract"
     },
@@ -45,34 +45,33 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R3_LIFECYCLE_STATE_RECOVERY.md",
       "methods": [
-        "edit off clears selection",
-        "preview hides editor overlays",
-        "live capability gate",
-        "close floating editor without revert",
-        "emergency shell reset"
+        "DRAFT/VALIDATED/PUBLISHED/DISCARDED explicit lifecycle",
+        "terminal publish/discard",
+        "validated-to-edit returns DRAFT",
+        "authoring reuses Tahap5 editor lifecycle"
       ],
-      "proof": "unit + emulator interaction"
+      "proof": "unit + regression"
     },
     "R4": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R4_PERSISTENCE_STORAGE_VERSION.md",
       "methods": [
-        "working state separate from component master",
-        "orientation-specific bubble persistence in Android host",
-        "gesture grouped into one history transaction",
+        "monotonic draft revision",
+        "registry unchanged before template publish",
+        "preview identity map without master mutation",
         "parent baseline immutable"
       ],
-      "proof": "unit + host source + baseline binding"
+      "proof": "unit + baseline binding"
     },
     "R5": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R5_SECURITY_NETWORK_BOUNDARY.md",
       "methods": [
-        "lock protection before mutation",
-        "no touch-through bubble listener",
-        "no arbitrary executable editor payload",
-        "no secret/network authority added",
-        "broken operation diagnostics"
+        "search is read-only",
+        "template dependency validation before publish",
+        "invalid/missing dependency fail closed",
+        "no arbitrary executable authoring payload",
+        "no public secret/network authority"
       ],
       "proof": "negative tests + source scan"
     },
@@ -80,11 +79,11 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R6_BUILD_DEPENDENCY_INSTALL.md",
       "methods": [
-        "versionCode above Tahap 4",
+        "versionCode above Tahap 5",
         "pinned JDK/Gradle/SDK",
-        "API30 package metadata",
+        "API30 metadata",
         "APK digest",
-        "API30 interactive emulator witness"
+        "API30 interactive authoring witness"
       ],
       "proof": "GitHub Actions build/package/runtime"
     },
@@ -94,17 +93,17 @@
       "methods": [
         "native/JNI/plugin/reflection/dynamic-loader scope scan"
       ],
-      "proof": "no native/JNI/plugin/reflection/dynamic executable loader in Tahap 5 app source"
+      "proof": "no native/JNI/plugin/reflection/dynamic executable loader added in Tahap 6"
     },
     "R8": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R8_UI_DEVICE_POWER.md",
       "methods": [
-        "real Bubble/Edge/Floating Android views",
-        "safe bounds clamp",
-        "portrait/landscape position storage",
-        "dark visual shell",
-        "API30 UIAutomator interaction witness"
+        "UI/Logic/Data/Binding/Asset authoring controls",
+        "search UI interaction",
+        "Bahasa Indonesia presentation",
+        "Stage5 shell regression",
+        "API30 UIAutomator witness"
       ],
       "proof": "unit + API30 emulator interaction"
     },
@@ -113,8 +112,8 @@
       "sourceMethodDoc": "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md",
       "methods": [
         "R1-R8 traceability",
-        "stage-specific mutation challenge",
-        "interactive UI route proof",
+        "Tahap6 mutation challenge",
+        "authoring/search/template interaction proof",
         "ASSET_SAFE regression",
         "unknown/skipped closure"
       ],
