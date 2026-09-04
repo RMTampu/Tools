@@ -39,6 +39,7 @@ assert 'android:exported="true"' in manifest
 
 required=[
  "src/main/java/com/toolbox/tools/core/StableId.java",
+ "src/main/java/com/toolbox/tools/core/DigestUtils.java",
  "src/main/java/com/toolbox/tools/core/ProjectState.java",
  "src/main/java/com/toolbox/tools/core/ProjectDefinitionCodec.java",
  "src/main/java/com/toolbox/tools/core/ProjectManifest.java",
