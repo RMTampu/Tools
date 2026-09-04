@@ -15,15 +15,18 @@ public final class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        AppKernel kernel = AppKernel.createPersistent(
-                new File(getFilesDir(), "workspace-stage2.tbx")
-        );
+        File projectRoot = new File(getFilesDir(), "projects/project.default");
+        AppKernel kernel = AppKernel.createPersistent(projectRoot);
         VerificationManager verifier = new VerificationManager();
-        String status = verifier.verify(kernel).isPass() ? "PASS" : "ERROR";
+        String status = verifier.verify(kernel).isPass() ? "LULUS" : "GAGAL";
 
         TextView view = new TextView(this);
         view.setGravity(Gravity.CENTER);
-        view.setText("ToolBox Stage 2\nWorkspace / Save / Revision / Recovery\n" + status);
+        view.setText(
+                "ToolBox Tahap 2\n"
+                        + "Penyimpanan Proyek • Simpan • Revisi • Pemulihan\n"
+                        + status
+        );
         view.setTextSize(18f);
         setContentView(view);
     }
