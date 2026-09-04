@@ -1,0 +1,31 @@
+<resources>
+    <string name="app_name">ToolBox</string>
+    <string name="bahasa_default">Bahasa Indonesia</string>
+    <string name="editor">Editor</string>
+    <string name="alat_ui">UI</string>
+    <string name="alat_logika">Logika</string>
+    <string name="alat_data">Data</string>
+    <string name="alat_pengikatan">Pengikatan</string>
+    <string name="alat_aset">Aset</string>
+    <string name="mode_visual">Visual</string>
+    <string name="mode_properti">Properti</string>
+    <string name="mode_kode">Kode</string>
+    <string name="mode_edit">Edit</string>
+    <string name="mode_pratinjau">Pratinjau</string>
+    <string name="mode_uji">Uji</string>
+    <string name="mode_langsung">Langsung</string>
+    <string name="simpan">Simpan</string>
+    <string name="urungkan">Urungkan</string>
+    <string name="ulangi">Ulangi</string>
+    <string name="diagnostik">Diagnostik</string>
+    <string name="pengaturan">Pengaturan</string>
+    <string name="proyek_aktif">Proyek Aktif</string>
+    <string name="proyek_demo">Proyek Demo</string>
+    <string name="komponen">Komponen</string>
+    <string name="template">Template</string>
+    <string name="kit">Kit</string>
+    <string name="terbaru">Terbaru</string>
+    <string name="favorit">Favorit</string>
+    <string name="tambah_ke_layar">Tambah ke Layar</string>
+    <string name="siap">Siap</string>
+</resources>
