@@ -91,6 +91,11 @@ public final class FileStorageGateway implements StorageGateway {
         }
     }
 
+    @Override
+    public synchronized boolean recoveredFromBackup() {
+        return recoveredFromBackup;
+    }
+
     public synchronized boolean wasRecoveredFromBackup() {
         return recoveredFromBackup;
     }
@@ -104,7 +109,10 @@ public final class FileStorageGateway implements StorageGateway {
             throw new IOException("workspace file size invalid");
         }
         try {
-            return codec.decode(Files.readString(path, StandardCharsets.UTF_8));
+            return codec.decode(new String(
+                    Files.readAllBytes(path),
+                    StandardCharsets.UTF_8
+            ));
         } catch (IllegalArgumentException error) {
             throw new IOException("workspace file corrupt", error);
         }
