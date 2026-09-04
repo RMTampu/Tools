@@ -158,8 +158,7 @@ jobs:
           export ANDROID_AVD_HOME="$RUNNER_TEMP/toolbox-tahap3-avd-home"
           mkdir -p "$ANDROID_AVD_HOME"
           AVD_PATH="$ANDROID_AVD_HOME/tahap3-api30.avd"
-          printf '
-' | avdmanager create avd --force --name tahap3-api30 --package 'system-images;android-30;google_apis;x86_64' --path "$AVD_PATH" --device 'pixel_2'
+          printf '\\n' | avdmanager create avd --force --name tahap3-api30 --package 'system-images;android-30;google_apis;x86_64' --path "$AVD_PATH" --device 'pixel_2'
           "$ANDROID_SDK_ROOT/emulator/emulator" -avd tahap3-api30 -no-window -no-audio -no-boot-anim -no-snapshot -wipe-data -gpu swiftshader_indirect > "$RUNNER_TEMP/tahap3-emulator.log" 2>&1 &
           EMULATOR_PID=$!
           trap 'kill "$EMULATOR_PID" 2>/dev/null || true' EXIT
@@ -167,7 +166,7 @@ jobs:
           timeout 120s adb wait-for-device
           booted=0
           for _ in $(seq 1 90); do
-            state="$(timeout 10s adb shell getprop sys.boot_completed 2>/dev/null | tr -d '' || true)"
+            state="$(timeout 10s adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\\r' || true)"
             if [[ "$state" == "1" ]]; then booted=1; break; fi
             kill -0 "$EMULATOR_PID" 2>/dev/null || {
               tail -n 200 "$RUNNER_TEMP/tahap3-emulator.log" >&2 || true
@@ -177,15 +176,14 @@ jobs:
           done
           test "$booted" = "1"
 
-          API_LEVEL="$(adb shell getprop ro.build.version.sdk | tr -d '')"
-          ABI="$(adb shell getprop ro.product.cpu.abi | tr -d '')"
+          API_LEVEL="$(adb shell getprop ro.build.version.sdk | tr -d '\\r')"
+          ABI="$(adb shell getprop ro.product.cpu.abi | tr -d '\\r')"
           test "$API_LEVEL" = "30"
           test "$ABI" = "x86_64"
 
           adb install -r app/build/outputs/apk/debug/app-debug.apk
           START="$(adb shell am start -W -n com.toolbox.tools/.MainActivity)"
-          printf '%s
-' "$START"
+          printf '%s\\n' "$START"
           grep -F 'Status: ok' <<< "$START"
           sleep 2
           adb shell uiautomator dump /sdcard/toolbox-window.xml >/dev/null
