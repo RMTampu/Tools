@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "projectId": "ToolBox",
+  "stage": "Tahap 2",
+  "stageMap": "B",
+  "target": {
+    "androidApi": 30,
+    "androidVersion": "11",
+    "abi": "arm64-v8a",
+    "publicFinalArm64Claimed": false
+  },
+  "domains": {
+    "R1": {
+      "applicability": "APPLICABLE",
+      "sourceMethodDoc": "APP_SAFE_R1_LOGIC_INPUT.md",
+      "methods": [
+        "stable-id validation",
+        "closed project schema",
+        "reference integrity",
+        "invalid-input fail-closed"
+      ],
+      "proof": "unit + route gate + mutation"
+    },
+    "R2": {
+      "applicability": "APPLICABLE",
+      "sourceMethodDoc": "APP_SAFE_R2_CONCURRENCY_RESOURCE.md",
+      "methods": [
+        "single-writer file lock",
+        "bounded undo history",
+        "bounded revision history",
+        "bounded resource/project payload"
+      ],
+      "proof": "unit + static contract"
+    },
+    "R3": {
+      "applicability": "APPLICABLE",
+      "sourceMethodDoc": "APP_SAFE_R3_LIFECYCLE_STATE_RECOVERY.md",
+      "methods": [
+        "dirty-state exit contract",
+        "transaction journal",
+        "interrupted transaction cleanup",
+        "explicit recovery preview"
+      ],
+      "proof": "unit + failure tests"
+    },
+    "R4": {
+      "applicability": "APPLICABLE",
+      "sourceMethodDoc": "APP_SAFE_R4_PERSISTENCE_STORAGE_VERSION.md",
+      "methods": [
+        "project definition + manifest + index",
+        "SHA-256 integrity",
+        "atomic revision publish",
+        "schema migration",
+        "previous-valid recovery"
+      ],
+      "proof": "unit + persistence tests"
+    },
+    "R5": {
+      "applicability": "APPLICABLE",
+      "sourceMethodDoc": "APP_SAFE_R5_SECURITY_NETWORK_BOUNDARY.md",
+      "methods": [
+        "persisted SAF read/write permission",
+        "project relink identity",
+        "path-boundary validation",
+        "no network authority"
+      ],
+      "proof": "static boundary + unit"
+    },
+    "R6": {
+      "applicability": "APPLICABLE",
+      "sourceMethodDoc": "APP_SAFE_R6_BUILD_DEPENDENCY_INSTALL.md",
+      "methods": [
+        "pinned JDK/Gradle/SDK",
+        "API30 package metadata",
+        "versionCode above Tahap 1",
+        "artifact digest"
+      ],
+      "proof": "GitHub Actions build/package"
+    },
+    "R7": {
+      "applicability": "N_A_SCOPE_PROVEN",
+      "sourceMethodDoc": "APP_SAFE_R7_NATIVE_PLUGIN_RUNTIME.md",
+      "methods": [
+        "scope scan"
+      ],
+      "proof": "no native/JNI/plugin/reflection/dynamic loader in Tahap 2 app source"
+    },
+    "R8": {
+      "applicability": "APPLICABLE",
+      "sourceMethodDoc": "APP_SAFE_R8_UI_DEVICE_POWER.md",
+      "methods": [
+        "Android host startup",
+        "manual-save user decision contract",
+        "SAF Android API30 boundary"
+      ],
+      "proof": "app host compile + unit + Stage A API30 regression"
+    },
+    "R9": {
+      "applicability": "APPLICABLE",
+      "sourceMethodDoc": "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md",
+      "methods": [
+        "R1-R8 traceability",
+        "mutation challenge",
+        "source hash provenance",
+        "unknown/skipped closure"
+      ],
+      "proof": "automatic finalize evidence"
+    }
+  },
+  "exitGate": {
+    "unknown": 0,
+    "skipped": 0,
+    "staleEvidence": 0,
+    "mutationEscape": 0,
+    "privateContentIncluded": false,
+    "firebaseUsed": false,
+    "finalSignedReleaseClaimed": false
+  }
+}
