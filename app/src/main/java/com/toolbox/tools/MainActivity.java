@@ -27,8 +27,8 @@ public final class MainActivity extends Activity {
         TextView view = new TextView(this);
         view.setGravity(Gravity.CENTER);
         view.setText(
-                "ToolBox Tahap 3\n"
-                        + "Komponen • Asset • Template • Library\n"
+                "ToolBox Tahap 4\n"
+                        + "Renderer • Navigasi • Action • Data • Binding • Flow\n"
                         + status
         );
         view.setTextSize(18f);
