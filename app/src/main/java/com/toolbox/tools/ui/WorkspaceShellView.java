@@ -393,7 +393,13 @@ public final class WorkspaceShellView extends FrameLayout {
     private void renderWorkspace() {
         workspace.removeAllViews();
         View pane;
-        switch (representation) {
+        if (kernel.editorEnvironment().shell().mode() != EditorMode.EDIT) {
+            pane = new UiCanvasView(
+                    getContext(),
+                    kernel,
+                    null
+            );
+        } else switch (representation) {
             case PROPERTI:
                 pane = EditorPaneFactory.properties(
                         getContext(),
@@ -487,6 +493,9 @@ public final class WorkspaceShellView extends FrameLayout {
     private void setRuntimeMode(EditorMode mode) {
         try {
             kernel.editorEnvironment().shell().setMode(mode);
+            edgeContainer.setVisibility(
+                    mode == EditorMode.EDIT ? VISIBLE : GONE
+            );
             renderRuntimeModeBar();
             renderWorkspace();
             renderEdge();
@@ -1074,16 +1083,18 @@ public final class WorkspaceShellView extends FrameLayout {
     }
 
     private void undo() {
-        boolean done = kernel.editorEnvironment().visualSession().undo();
-        if (!done) done = kernel.projectManager().undo();
+        boolean visual = kernel.editorEnvironment().visualSession().undo();
+        boolean project = kernel.projectManager().undo();
+        boolean done = visual || project;
         toast(done ? "Perubahan diurungkan." : "Tidak ada perubahan untuk diurungkan.");
         renderWorkspace();
         updateStatus();
     }
 
     private void redo() {
-        boolean done = kernel.editorEnvironment().visualSession().redo();
-        if (!done) done = kernel.projectManager().redo();
+        boolean visual = kernel.editorEnvironment().visualSession().redo();
+        boolean project = kernel.projectManager().redo();
+        boolean done = visual || project;
         toast(done ? "Perubahan diulangi." : "Tidak ada perubahan untuk diulangi.");
         renderWorkspace();
         updateStatus();
