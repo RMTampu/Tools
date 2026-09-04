@@ -12,6 +12,9 @@ import com.toolbox.tools.library.InMemoryAssetStore;
 import com.toolbox.tools.library.LibraryManager;
 import com.toolbox.tools.runtime.DefaultRuntimeFactory;
 import com.toolbox.tools.runtime.RuntimeEnvironment;
+import com.toolbox.tools.repair.HealthMonitor;
+import com.toolbox.tools.repair.RecoveryPreviewService;
+import com.toolbox.tools.repair.RepairSessionManager;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,6 +32,9 @@ public final class AppKernel {
     private final EditorEnvironment editorEnvironment;
     private final UnifiedAuthoringWorkspace authoringWorkspace;
     private final ExternalIntegrationManager externalIntegrationManager;
+    private final RepairSessionManager repairSessionManager;
+    private final RecoveryPreviewService recoveryPreviewService;
+    private final HealthMonitor healthMonitor;
     private AppState state;
 
     public AppKernel(
@@ -63,6 +69,14 @@ public final class AppKernel {
                 this.libraryManager
         );
         this.externalIntegrationManager = new ExternalIntegrationManager();
+        this.repairSessionManager = new RepairSessionManager(
+                this.projectManager,
+                this.recoveryManager
+        );
+        this.recoveryPreviewService = new RecoveryPreviewService(
+                this.projectManager
+        );
+        this.healthMonitor = new HealthMonitor();
         this.state = AppState.CREATED;
     }
 
@@ -162,7 +176,7 @@ public final class AppKernel {
             });
             configStore.put("targetApi", "30");
             configStore.put("targetAbi", "arm64");
-            configStore.put("tahap", "7");
+            configStore.put("tahap", "8");
             projectManager.bootstrap("project.default");
             state = AppState.READY;
         } catch (IOException | RuntimeException error) {
@@ -182,5 +196,8 @@ public final class AppKernel {
     public EditorEnvironment editorEnvironment() { return editorEnvironment; }
     public UnifiedAuthoringWorkspace authoringWorkspace() { return authoringWorkspace; }
     public ExternalIntegrationManager externalIntegrationManager() { return externalIntegrationManager; }
+    public RepairSessionManager repairSessionManager() { return repairSessionManager; }
+    public RecoveryPreviewService recoveryPreviewService() { return recoveryPreviewService; }
+    public HealthMonitor healthMonitor() { return healthMonitor; }
     public synchronized AppState state() { return state; }
 }
