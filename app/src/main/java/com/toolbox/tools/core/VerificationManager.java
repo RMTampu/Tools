@@ -20,9 +20,22 @@ public final class VerificationManager {
         if (!"arm64".equals(kernel.configStore().get("targetAbi", ""))) {
             return VerificationResult.fail("android abi target mismatch");
         }
+        if (!"2".equals(kernel.configStore().get("stage", ""))) {
+            return VerificationResult.fail("stage 2 configuration missing");
+        }
         if (kernel.recoveryManager().isRecoveryRequired()) {
             return VerificationResult.fail("recovery required");
         }
-        return VerificationResult.pass("stage 1 foundation ready");
+        WorkspaceSnapshot workspace = kernel.workspaceManager().current();
+        if (workspace == null) {
+            return VerificationResult.fail("workspace missing");
+        }
+        if (!"toolbox.default".equals(workspace.workspaceId())) {
+            return VerificationResult.fail("workspace identity mismatch");
+        }
+        if (workspace.schemaVersion() != WorkspaceSnapshot.CURRENT_SCHEMA_VERSION) {
+            return VerificationResult.fail("workspace schema mismatch");
+        }
+        return VerificationResult.pass("stage 2 workspace foundation ready");
     }
 }
