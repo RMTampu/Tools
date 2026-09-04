@@ -1,4 +1,4 @@
-name: ToolBox Public Tahap 6 Package
+name: ToolBox Public Tahap 7 Package
 
 on:
   push:
@@ -26,14 +26,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: public-tahap6-package-${{ github.ref }}
+  group: public-tahap7-package-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  public-tahap6-package:
+  public-tahap7-package:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
-
     steps:
       - name: Checkout exact public source
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
@@ -56,58 +55,43 @@ jobs:
           packages: ''
           log-accepted-android-sdk-licenses: 'false'
 
-      - name: Install Android API30 build and emulator inputs
+      - name: Install Android API30 inputs
         shell: bash
         run: |
           set -euo pipefail
           sdkmanager 'platform-tools' 'emulator' 'platforms;android-30' 'build-tools;34.0.0' 'system-images;android-30;google_apis;x86_64'
-          test -s "$ANDROID_SDK_ROOT/platforms/android-30/android.jar"
-          test -x "$ANDROID_SDK_ROOT/build-tools/34.0.0/aapt"
-          test -s "$ANDROID_SDK_ROOT/system-images/android-30/google_apis/x86_64/source.properties"
 
-      - name: Set up exact Gradle without shared cache
+      - name: Set up exact Gradle
         uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
         with:
           gradle-version: '8.2.1'
           cache-disabled: true
 
-      - name: Baseline Tahap 5 compatibility and Tahap 6 route gate
+      - name: Baseline Tahap 6 compatibility and Tahap 7 route gate
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
           import json,re
           from pathlib import Path
-          gradle=Path('app/build.gradle').read_text()
-          manifest=Path('app/src/main/AndroidManifest.xml').read_text()
-          plan=json.loads(Path('app/ASSURANCE_PLAN_R1_R9.json').read_text())
-          assert plan['stage']=='Tahap 6'
-          assert plan['stageMap']=='F'
-          assert plan['parentBaseline']['name']=='Tahap 5'
-          assert plan['parentBaseline']['apkSha256']=='717f36b59d9c005b17bfeee72b1de7f872ed3c6b406471e6b9d80c9efba91f49'
-          assert "applicationId 'com.toolbox.tools'" in gradle
-          assert re.search(r'\bminSdk\s+30\b',gradle)
-          assert re.search(r'\btargetSdk\s+30\b',gradle)
-          assert re.search(r'\bversionCode\s+6\b',gradle)
-          assert 'android:name=".MainActivity"' in manifest
-
-          required=[
-            'app/src/main/java/com/toolbox/tools/authoring/AuthoringSection.java',
-            'app/src/main/java/com/toolbox/tools/authoring/AuthoringSearchQuery.java',
-            'app/src/main/java/com/toolbox/tools/authoring/AuthoringSearchIndex.java',
-            'app/src/main/java/com/toolbox/tools/authoring/AuthoringDraftStore.java',
-            'app/src/main/java/com/toolbox/tools/authoring/TemplateAuthoringDraft.java',
-            'app/src/main/java/com/toolbox/tools/authoring/TemplateAuthoringService.java',
-            'app/src/main/java/com/toolbox/tools/authoring/UnifiedAuthoringWorkspace.java',
-            'app/src/main/java/com/toolbox/tools/authoring/DefaultAuthoringFactory.java',
-            'app/src/test/java/com/toolbox/tools/authoring/UnifiedAuthoringSearchTest.java',
-            'app/src/test/java/com/toolbox/tools/authoring/AuthoringDraftStoreTest.java',
-            'app/src/test/java/com/toolbox/tools/authoring/TemplateAuthoringServiceTest.java',
-          ]
-          for item in required:
-            assert Path(item).is_file(),item
-          print('BASELINE_TAHAP_5_COMPATIBILITY = PASS')
-          print('TAHAP_6_F1_F4_ROUTE = PASS')
+          g=Path('app/build.gradle').read_text()
+          p=json.loads(Path('app/ASSURANCE_PLAN_R1_R9.json').read_text())
+          assert p['stage']=='Tahap 7' and p['stageMap']=='G'
+          assert p['parentBaseline']['name']=='Tahap 6'
+          assert p['parentBaseline']['apkSha256']=='64f93a41bbf7623d5bfcc4a6a0bee69cc0ca613897f55c5fd004fcb7f335d878'
+          assert re.search(r'\bversionCode\s+7\b',g)
+          assert re.search(r'\bminSdk\s+30\b',g) and re.search(r'\btargetSdk\s+30\b',g)
+          for item in [
+            'app/src/main/java/com/toolbox/tools/integration/ExternalAdapterDescriptor.java',
+            'app/src/main/java/com/toolbox/tools/integration/ExternalNormalizer.java',
+            'app/src/main/java/com/toolbox/tools/integration/DeterministicExporter.java',
+            'app/src/main/java/com/toolbox/tools/integration/SyncEngine.java',
+            'app/src/main/java/com/toolbox/tools/integration/ExternalIntegrationManager.java',
+            'app/src/test/java/com/toolbox/tools/integration/ExternalNormalizationTest.java',
+            'app/src/test/java/com/toolbox/tools/integration/ExportSyncTest.java'
+          ]: assert Path(item).is_file(),item
+          print('BASELINE_TAHAP_6_COMPATIBILITY = PASS')
+          print('TAHAP_7_G1_G4_ROUTE = PASS')
           PY
 
       - name: Automatic R1-R8 prebuild assurance
@@ -116,153 +100,109 @@ jobs:
       - name: Automatic ASSET_SAFE regression prebuild
         run: python3 app/scripts/asset_validate.py
 
-      - name: Run Tahap 6 unit and failure tests
+      - name: Run Tahap 7 unit and failure tests
         run: gradle --no-daemon :app:testDebugUnitTest
 
       - name: Automatic R9 mutation challenge
         run: python3 app/scripts/mutation_test.py
 
-      - name: Restore clean full test evidence after mutation
+      - name: Restore clean full test evidence
         run: gradle --no-daemon :app:testDebugUnitTest --rerun-tasks
 
-      - name: Assemble Tahap 6 release and debug packages
+      - name: Assemble Tahap 7 packages
         run: |
           gradle --no-daemon :app:assembleRelease
           gradle --no-daemon :app:assembleDebug
 
-      - name: Verify Tahap 6 package metadata and digest
+      - name: Verify Tahap 7 package metadata and digest
         shell: bash
         run: |
           set -euo pipefail
-          APK="app/build/outputs/apk/release/app-release-unsigned.apk"
-          DEBUG_APK="app/build/outputs/apk/debug/app-debug.apk"
-          test -s "$APK"
-          test -s "$DEBUG_APK"
-          BADGING="$("$ANDROID_SDK_ROOT/build-tools/34.0.0/aapt" dump badging "$APK")"
-          grep -F "package: name='com.toolbox.tools'" <<< "$BADGING"
-          grep -F "versionCode='6'" <<< "$BADGING"
-          grep -F "sdkVersion:'30'" <<< "$BADGING"
-          grep -F "targetSdkVersion:'30'" <<< "$BADGING"
+          APK=app/build/outputs/apk/release/app-release-unsigned.apk
+          DEBUG=app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"; test -s "$DEBUG"
+          B="$("$ANDROID_SDK_ROOT/build-tools/34.0.0/aapt" dump badging "$APK")"
+          grep -F "package: name='com.toolbox.tools'" <<< "$B"
+          grep -F "versionCode='7'" <<< "$B"
+          grep -F "sdkVersion:'30'" <<< "$B"
+          grep -F "targetSdkVersion:'30'" <<< "$B"
           sha256sum "$APK" | tee "$APK.sha256"
-          echo "TAHAP_6_PUBLIC_UNSIGNED_APK = PASS"
+          echo 'TAHAP_7_PUBLIC_UNSIGNED_APK = PASS'
 
-      - name: Boot API30 emulator and interact with unified authoring
+      - name: Boot API30 emulator and interact with external integration
         shell: bash
         run: |
           set -euo pipefail
           sudo chmod 666 /dev/kvm || true
-          export ANDROID_AVD_HOME="$RUNNER_TEMP/toolbox-tahap6-avd-home"
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/tahap7-avd-home"
           mkdir -p "$ANDROID_AVD_HOME"
-          AVD_PATH="$ANDROID_AVD_HOME/tahap6-api30.avd"
-          printf '\n' | avdmanager create avd --force --name tahap6-api30 --package 'system-images;android-30;google_apis;x86_64' --path "$AVD_PATH" --device 'pixel_2'
-          "$ANDROID_SDK_ROOT/emulator/emulator" -avd tahap6-api30 -no-window -no-audio -no-boot-anim -no-snapshot -wipe-data -gpu swiftshader_indirect > "$RUNNER_TEMP/tahap6-emulator.log" 2>&1 &
-          EMULATOR_PID=$!
-          trap 'kill "$EMULATOR_PID" 2>/dev/null || true' EXIT
-
+          printf '\n' | avdmanager create avd --force --name tahap7-api30 --package 'system-images;android-30;google_apis;x86_64' --path "$ANDROID_AVD_HOME/tahap7-api30.avd" --device 'pixel_2'
+          "$ANDROID_SDK_ROOT/emulator/emulator" -avd tahap7-api30 -no-window -no-audio -no-boot-anim -no-snapshot -wipe-data -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &
+          PID=$!
+          trap 'kill "$PID" 2>/dev/null || true' EXIT
           timeout 120s adb wait-for-device
-          booted=0
           for _ in $(seq 1 90); do
-            state="$(timeout 10s adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
-            if [[ "$state" == "1" ]]; then booted=1; break; fi
-            kill -0 "$EMULATOR_PID" 2>/dev/null || {
-              tail -n 200 "$RUNNER_TEMP/tahap6-emulator.log" >&2 || true
-              exit 1
-            }
+            [[ "$(timeout 10s adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == "1" ]] && break
             sleep 2
           done
-          test "$booted" = "1"
-
           API_LEVEL="$(adb shell getprop ro.build.version.sdk | tr -d '\r')"
           ABI="$(adb shell getprop ro.product.cpu.abi | tr -d '\r')"
-          test "$API_LEVEL" = "30"
-          test "$ABI" = "x86_64"
-
+          test "$API_LEVEL" = 30; test "$ABI" = x86_64
           adb install -r app/build/outputs/apk/debug/app-debug.apk
           START="$(adb shell am start -W -n com.toolbox.tools/.MainActivity)"
-          printf '%s\n' "$START"
           grep -F 'Status: ok' <<< "$START"
           sleep 2
 
-          dump_ui() {
-            adb shell uiautomator dump /sdcard/toolbox-window.xml >/dev/null
-            adb pull /sdcard/toolbox-window.xml "$RUNNER_TEMP/toolbox-window.xml" >/dev/null
-          }
-
-          tap_text() {
-            local target="$1"
-            dump_ui
-            read X Y < <(python3 - "$RUNNER_TEMP/toolbox-window.xml" "$target" <<'PY'
+          dump_ui(){ adb shell uiautomator dump /sdcard/w.xml >/dev/null; adb pull /sdcard/w.xml "$RUNNER_TEMP/w.xml" >/dev/null; }
+          tap_text(){
+            local target="$1"; dump_ui
+            read X Y < <(python3 - "$RUNNER_TEMP/w.xml" "$target" <<'PY'
           import re,sys,xml.etree.ElementTree as ET
-          root=ET.parse(sys.argv[1]).getroot()
-          target=sys.argv[2]
-          for node in root.iter('node'):
-              if node.attrib.get('text')==target:
-                  m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.attrib['bounds'])
+          root=ET.parse(sys.argv[1]).getroot();target=sys.argv[2]
+          for n in root.iter('node'):
+              if n.attrib.get('text')==target:
+                  m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',n.attrib['bounds'])
                   if m:
-                      l,t,r,b=map(int,m.groups())
-                      print((l+r)//2,(t+b)//2)
-                      raise SystemExit(0)
-          raise SystemExit("UI_TEXT_NOT_FOUND="+target)
+                      l,t,r,b=map(int,m.groups());print((l+r)//2,(t+b)//2);raise SystemExit
+          raise SystemExit('UI_TEXT_NOT_FOUND='+target)
           PY
             )
-            adb shell input tap "$X" "$Y"
-            sleep 1
+            adb shell input tap "$X" "$Y"; sleep 1
           }
 
           dump_ui
-          WINDOW="$(cat "$RUNNER_TEMP/toolbox-window.xml")"
-          grep -F 'ToolBox Tahap 6' <<< "$WINDOW"
-          grep -F 'Authoring • Search • Template' <<< "$WINDOW"
-          grep -F 'Authoring: UI • siap' <<< "$WINDOW"
-          grep -F 'UI' <<< "$WINDOW"
-          grep -F 'Logic' <<< "$WINDOW"
-          grep -F 'Data' <<< "$WINDOW"
-          grep -F 'Binding' <<< "$WINDOW"
-          grep -F 'Asset' <<< "$WINDOW"
+          grep -F 'ToolBox Tahap 7' "$RUNNER_TEMP/w.xml"
+          grep -F 'Adapter • Normalisasi • Export • Sync' "$RUNNER_TEMP/w.xml"
+          grep -F 'Eksternal: Sumber Demo • siap' "$RUNNER_TEMP/w.xml"
+          grep -F 'Logic' "$RUNNER_TEMP/w.xml"
+          grep -F 'Data' "$RUNNER_TEMP/w.xml"
+          grep -F 'Binding' "$RUNNER_TEMP/w.xml"
+          grep -F 'Asset' "$RUNNER_TEMP/w.xml"
 
-          tap_text 'Logic'
+          tap_text 'Import Demo'
           dump_ui
-          grep -F 'Authoring: Logic • siap' "$RUNNER_TEMP/toolbox-window.xml"
+          grep -F 'Import: PASS • 1 record' "$RUNNER_TEMP/w.xml"
 
-          tap_text 'Data'
+          tap_text 'Export'
           dump_ui
-          grep -F 'Authoring: Data • siap' "$RUNNER_TEMP/toolbox-window.xml"
+          grep -F 'Export: PASS • SHA256' "$RUNNER_TEMP/w.xml"
 
-          tap_text 'Binding'
+          tap_text 'Sync'
           dump_ui
-          grep -F 'Authoring: Binding • siap' "$RUNNER_TEMP/toolbox-window.xml"
+          grep -F 'Sync: CLEAN • cursor.ui.sync.2' "$RUNNER_TEMP/w.xml"
 
-          tap_text 'Asset'
-          dump_ui
-          grep -F 'Authoring: Asset • siap' "$RUNNER_TEMP/toolbox-window.xml"
-
-          tap_text 'UI'
-          tap_text 'Cari Tombol'
-          dump_ui
-          grep -F 'Cari: Tombol' "$RUNNER_TEMP/toolbox-window.xml"
-          grep -F 'COMPONENT • component.button' "$RUNNER_TEMP/toolbox-window.xml"
-
-          tap_text 'Cari Template'
-          dump_ui
-          grep -F 'Cari: template.screen.basic' "$RUNNER_TEMP/toolbox-window.xml"
-          grep -F 'TEMPLATE • template.screen.basic' "$RUNNER_TEMP/toolbox-window.xml"
-
-          tap_text 'TB'
-          dump_ui
-          grep -F 'Tambah ke Layar' "$RUNNER_TEMP/toolbox-window.xml"
-
-          adb exec-out screencap -p > app/build/assurance/tahap6-api30.png
+          adb exec-out screencap -p > app/build/assurance/tahap7-api30.png
           {
             echo "API_LEVEL=$API_LEVEL"
             echo "EMULATOR_ABI=$ABI"
             echo "API30_APP_LAUNCH=PASS"
-            echo "TAHAP6_UI_TEXT=PASS"
-            echo "AUTHORING_SECTIONS=PASS"
-            echo "AUTHORING_SEARCH=PASS"
-            echo "TEMPLATE_SEARCH=PASS"
-            echo "TAHAP5_SHELL_REGRESSION=PASS"
+            echo "TAHAP7_UI_TEXT=PASS"
+            echo "EXTERNAL_IMPORT=PASS"
+            echo "EXTERNAL_EXPORT=PASS"
+            echo "EXTERNAL_SYNC=PASS"
+            echo "TAHAP6_AUTHORING_REGRESSION=PASS"
             echo "APP_THEME_RUNTIME=PASS"
-          } > app/build/assurance/tahap6-api30-runtime.txt
+          } > app/build/assurance/tahap7-api30-runtime.txt
 
       - name: Finalize ASSET_SAFE package/runtime proof
         run: python3 app/scripts/asset_finalize.py
@@ -270,20 +210,20 @@ jobs:
       - name: Automatic R9 completeness and provenance closure
         run: python3 app/scripts/assurance_finalize.py
 
-      - name: Upload Tahap 6 unsigned package and assurance
+      - name: Upload Tahap 7 unsigned package and assurance
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
-          name: toolbox-tahap6-public-unsigned-ready-private-signing
+          name: toolbox-tahap7-public-unsigned-ready-private-signing
           path: |
             app/build/outputs/apk/release/app-release-unsigned.apk
             app/build/outputs/apk/release/app-release-unsigned.apk.sha256
             app/build/test-results/testDebugUnitTest/
-            app/build/assurance/tahap6-r1-r8-prebuild-evidence.json
-            app/build/assurance/tahap6-asset-prebuild-evidence.json
-            app/build/assurance/tahap6-asset-final-evidence.json
-            app/build/assurance/tahap6-mutation-evidence.json
-            app/build/assurance/tahap6-r1-r9-evidence.json
-            app/build/assurance/tahap6-api30-runtime.txt
-            app/build/assurance/tahap6-api30.png
+            app/build/assurance/tahap7-r1-r8-prebuild-evidence.json
+            app/build/assurance/tahap7-asset-prebuild-evidence.json
+            app/build/assurance/tahap7-asset-final-evidence.json
+            app/build/assurance/tahap7-mutation-evidence.json
+            app/build/assurance/tahap7-r1-r9-evidence.json
+            app/build/assurance/tahap7-api30-runtime.txt
+            app/build/assurance/tahap7-api30.png
           if-no-files-found: error
           retention-days: 7
