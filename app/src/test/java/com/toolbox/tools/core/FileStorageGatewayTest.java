@@ -39,11 +39,34 @@ public final class FileStorageGatewayTest {
 
         storage.save(first);
         storage.save(second);
-        Files.writeString(target, "corrupt\n", StandardCharsets.UTF_8);
+        Files.write(target, "corrupt\n".getBytes(StandardCharsets.UTF_8));
 
         WorkspaceSnapshot recovered = storage.load();
 
         assertEquals(first, recovered);
         assertTrue(storage.wasRecoveredFromBackup());
+    }
+
+    @Test
+    public void managerMarksRecoveryWhenBackupWasRequired() throws Exception {
+        Path directory = Files.createTempDirectory("toolbox-stage2");
+        Path target = directory.resolve("workspace.tbx");
+        FileStorageGateway storage = new FileStorageGateway(target.toFile());
+
+        storage.save(WorkspaceSnapshot.create("toolbox.test")
+                .withValue("title", "Alpha", 1));
+        storage.save(WorkspaceSnapshot.create("toolbox.test")
+                .withValue("title", "Beta", 2));
+        Files.write(target, "corrupt\n".getBytes(StandardCharsets.UTF_8));
+
+        RecoveryManager recovery = new RecoveryManager();
+        WorkspaceManager manager = new WorkspaceManager(storage, recovery);
+        manager.bootstrap("toolbox.test");
+
+        assertEquals("Alpha", manager.current().value("title", ""));
+        assertTrue(recovery.isRecoveryRequired());
+
+        manager.save();
+        assertFalse(recovery.isRecoveryRequired());
     }
 }
