@@ -8,15 +8,31 @@ kerjakan, lanjut, lanjutkan, perbaiki, bangun, matangkan, uji, validasi, cek, sa
 berarti:
 AKSI LANGSUNG, BUKAN JAWABAN.
 
-Agen dilarang mengirim laporan, status, alasan, rencana, atau progres sebelum:
+Respons seperti ini adalah PELANGGARAN:
+- "Saya lanjutkan..."
+- "Saya sudah membaca..."
+- "Hasil pemeriksaan..."
+- "Gap yang ditemukan..."
+- "Saya akan..."
+- "Berikutnya..."
+- laporan daftar file sebelum PASS
+- laporan kondisi repo sebelum PASS
+- alasan kenapa pekerjaan belum selesai sebelum blocker nyata
+
+Agen dilarang mengirim laporan, status, alasan, rencana, pemeriksaan, ringkasan, atau progres sebelum:
 
 1. PASS lengkap;
 2. artifact siap;
 3. blocker nyata.
 
-Jika belum PASS, lanjut kerja.
-Jika workflow berjalan, pantau sampai selesai.
-Jika gagal, baca log, perbaiki, jalankan ulang.
+Jika belum PASS, jangan chat. Lanjut kerja.
+Jika baru selesai membaca repo, jangan chat. Lanjut kerja.
+Jika baru menemukan gap, jangan chat. Perbaiki gap.
+Jika baru membuat commit, jangan chat. Lanjut test/build.
+Jika workflow berjalan, jangan chat. Pantau sampai selesai.
+Jika workflow gagal, jangan chat. Baca log, perbaiki, jalankan ulang.
+
+Blocker nyata hanya boleh dilaporkan jika agen sudah mencoba menyelesaikan dan benar-benar terhenti karena hal di luar akses, seperti secret private tidak tersedia, izin repo ditolak, layanan eksternal mati, atau keputusan keamanan wajib dari user.
 
 Untuk project ToolBox, konteks aktif mencakup dua repo:
 - RMTampu/ToolBox
