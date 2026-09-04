@@ -10,8 +10,8 @@ android {
         applicationId 'com.toolbox.tools'
         minSdk 30
         targetSdk 30
-        versionCode 8
-        versionName '8.0-tahap8-dev'
+        versionCode 9
+        versionName '9.0-tahap9-dev'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
 
