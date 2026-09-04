@@ -116,6 +116,30 @@ public final class ProjectManager {
         return savedRevision;
     }
 
+    public synchronized void setLifecycle(ProjectLifecycle next) {
+        requireStarted();
+        if (next == null) {
+            throw new NullPointerException("next lifecycle");
+        }
+        if (current.lifecycle() == next) {
+            return;
+        }
+        if (current.lifecycle() == ProjectLifecycle.TRASH) {
+            throw new IllegalStateException(
+                    "TRASH project lifecycle is terminal"
+            );
+        }
+        if (current.lifecycle() == ProjectLifecycle.ARCHIVED
+                && next != ProjectLifecycle.TRASH) {
+            throw new IllegalStateException(
+                    "ARCHIVED project cannot return to active lifecycle"
+            );
+        }
+        current = current.withLifecycle(next);
+        dirty = true;
+        redo.clear();
+    }
+
     public synchronized void putResource(String resourceId, String payload) {
         Map<String, String> upserts = new LinkedHashMap<>();
         upserts.put(resourceId, payload);
