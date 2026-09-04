@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "projectId": "ToolBox",
+  "stage": "Tahap 3",
+  "stageMap": "C",
+  "statusPolicy": {
+    "readyRequiresValidation": true,
+    "unsupportedRuntimeTypesRemainDraft": true,
+    "noSilentDuplicateMerge": true,
+    "noOriginalEvictionByCacheCleanup": true
+  },
+  "shippedAndroidAssets": [
+    {
+      "assetId": "android.style.app.theme",
+      "path": "app/src/main/res/values/styles.xml",
+      "sha256": "09971eb83251ec35483f0b27b3a9a33e0eb7556a24f190ec90141659c3889cf9",
+      "type": "ANDROID_VALUES_XML",
+      "required": true,
+      "owner": "application.host",
+      "consumer": "AndroidManifest application theme",
+      "loader": "Android Resources / Theme",
+      "semantic": "AppTheme resolves to Theme.Material.NoActionBar with sans fontFamily"
+    }
+  ],
+  "managedAssetReadyKinds": {
+    "RAW": {
+      "mime": "application/octet-stream",
+      "validator": "hash + size + consumer contract"
+    },
+    "JSON": {
+      "mime": "application/json",
+      "validator": "hash + size + consumer contract + bounded JSON syntax"
+    },
+    "TEMPLATE_DATA": {
+      "mime": "application/json",
+      "validator": "hash + size + consumer contract + bounded JSON syntax"
+    }
+  },
+  "managedAssetDraftOnlyKinds": [
+    "IMAGE",
+    "ICON",
+    "FONT",
+    "AUDIO",
+    "VIDEO"
+  ],
+  "route": [
+    "AssetDescriptor",
+    "AssetPayloadValidator",
+    "AssetRegistry.publishReady",
+    "AssetStore.importOriginal",
+    "AssetStore.readOriginal",
+    "LibraryManager"
+  ],
+  "requiredInvariants": [
+    "stable asset id",
+    "SHA-256",
+    "type/MIME",
+    "size budget",
+    "consumer contract",
+    "version",
+    "original/cache separation",
+    "duplicate candidate detection",
+    "relink integrity",
+    "canonical child path",
+    "no executable payload loading"
+  ]
+}
