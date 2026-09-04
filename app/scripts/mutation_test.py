@@ -16,50 +16,48 @@ mutations=[
   "test":"com.toolbox.tools.core.ProjectDefinitionCodecTest.invalidStableIdIsRejected"
  },
  {
-  "name":"bubble_safe_clamp_bypass",
-  "path":APP/"src/main/java/com/toolbox/tools/editor/BubblePositionStore.java",
-  "old":"return clamped;",
-  "new":"return requested;",
-  "test":"com.toolbox.tools.editor.BubbleShellTest.bubbleIsBoundedAndStoresPerOrientation"
+  "name":"search_limit_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/authoring/AuthoringSearchQuery.java",
+  "old":"if (limit <= 0 || limit > MAX_RESULTS) {",
+  "new":"if (limit <= 0) {",
+  "test":"com.toolbox.tools.authoring.UnifiedAuthoringSearchTest.unifiedSearchIsStableBoundedFilteredAndDoesNotExecute"
  },
  {
-  "name":"live_capability_gate_bypass",
-  "path":APP/"src/main/java/com/toolbox/tools/editor/EditorShellController.java",
-  "old":"if (next == EditorMode.LIVE && !liveCapability) {",
+  "name":"search_section_filter_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/authoring/AuthoringSearchQuery.java",
+  "old":"if (section == null) return true;",
+  "new":"if (true) return true;",
+  "test":"com.toolbox.tools.authoring.UnifiedAuthoringSearchTest.unifiedSearchIsStableBoundedFilteredAndDoesNotExecute"
+ },
+ {
+  "name":"draft_terminal_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/authoring/AuthoringDraftStore.java",
+  "old":"if (draft.lifecycle().terminal()) {",
   "new":"if (false) {",
-  "test":"com.toolbox.tools.editor.BubbleShellTest.previewHidesOverlayAndLiveRequiresCapability"
+  "test":"com.toolbox.tools.authoring.AuthoringDraftStoreTest.draftRevisionIsMonotonicAndPublishRequiresValidation"
  },
  {
-  "name":"edge_capability_gate_bypass",
-  "path":APP/"src/main/java/com/toolbox/tools/editor/EdgePanelFactory.java",
-  "old":"if (capabilities.supports(capability)) {",
-  "new":"if (true) {",
-  "test":"com.toolbox.tools.editor.EdgeFloatingTest.edgeChangesContextAndOnlyShowsSupportedCapabilities"
- },
- {
-  "name":"visual_lock_bypass",
-  "path":APP/"src/main/java/com/toolbox/tools/editor/VisualEditorSession.java",
-  "old":"if (lockSet(operation.objectId()).isLocked(operation.capability())) {",
+  "name":"draft_publish_validation_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/authoring/AuthoringDraftStore.java",
+  "old":"if (previous.lifecycle() != DraftLifecycle.VALIDATED) {",
   "new":"if (false) {",
-  "test":"com.toolbox.tools.editor.VisualEditorSessionTest.lockPreventsMutationAndRecordsDiagnostic"
+  "test":"com.toolbox.tools.authoring.AuthoringDraftStoreTest.draftRevisionIsMonotonicAndPublishRequiresValidation"
  },
  {
-  "name":"history_bound_bypass",
-  "path":APP/"src/main/java/com/toolbox/tools/editor/VisualHistory.java",
-  "old":"while (undo.size() > MAX_HISTORY) {",
-  "new":"while (false) {",
-  "test":"com.toolbox.tools.editor.VisualEditorSessionTest.historyIsBounded"
+  "name":"template_dependency_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/authoring/TemplateAuthoringService.java",
+  "old":"if (!dependencies.isPass()) {",
+  "new":"if (false) {",
+  "test":"com.toolbox.tools.authoring.TemplateAuthoringServiceTest.missingDependencyFailsClosedAndDoesNotPublish"
  }
 ]
 
 killed=[]
 for m in mutations:
     p=m["path"]; original=p.read_text()
-    old=m["old"]
-    assert old in original,(m["name"],"mutation target missing")
-    mutated=original.replace(old,m["new"],1)
+    assert m["old"] in original,(m["name"],"mutation target missing")
     try:
-        p.write_text(mutated)
+        p.write_text(original.replace(m["old"],m["new"],1))
         result=subprocess.run(
           ["gradle","--no-daemon",":app:testDebugUnitTest","--tests",m["test"],"--rerun-tasks"],
           cwd=REPO,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT
@@ -72,7 +70,7 @@ for m in mutations:
     finally:
         p.write_text(original)
 
-e={"schemaVersion":4,"stage":"Tahap 5","status":"PASS","mutationsTotal":len(mutations),"mutationsKilled":len(killed),"mutationsEscaped":0,"killed":killed}
-(OUT/"tahap5-mutation-evidence.json").write_text(json.dumps(e,indent=2,sort_keys=True)+"\n")
-print("TAHAP_5_R9_MUTATION = PASS")
+e={"schemaVersion":5,"stage":"Tahap 6","status":"PASS","mutationsTotal":len(mutations),"mutationsKilled":len(killed),"mutationsEscaped":0,"killed":killed}
+(OUT/"tahap6-mutation-evidence.json").write_text(json.dumps(e,indent=2,sort_keys=True)+"\n")
+print("TAHAP_6_R9_MUTATION = PASS")
 print("MUTATION_ESCAPE = 0")
