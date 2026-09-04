@@ -32,8 +32,12 @@ public final class EditorShellController {
         }
     }
 
+    public synchronized boolean selectionAvailable() {
+        return editEnabled && mode == EditorMode.EDIT;
+    }
+
     public synchronized void selectObject(String objectId) {
-        if (!editEnabled || mode != EditorMode.EDIT) {
+        if (!selectionAvailable()) {
             throw new IllegalStateException("selection unavailable");
         }
         selectedObjectId = com.toolbox.tools.core.StableId.require(
