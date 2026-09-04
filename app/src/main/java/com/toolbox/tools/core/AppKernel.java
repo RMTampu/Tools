@@ -5,6 +5,8 @@ import com.toolbox.tools.library.DefaultLibraryFactory;
 import com.toolbox.tools.library.FileAssetStore;
 import com.toolbox.tools.library.InMemoryAssetStore;
 import com.toolbox.tools.library.LibraryManager;
+import com.toolbox.tools.runtime.DefaultRuntimeFactory;
+import com.toolbox.tools.runtime.RuntimeEnvironment;
 
 import java.io.File;
 import java.io.IOException;
@@ -18,6 +20,7 @@ public final class AppKernel {
     private final ProjectManager projectManager;
     private final LibraryManager libraryManager;
     private final AssetStore assetStore;
+    private final RuntimeEnvironment runtimeEnvironment;
     private AppState state;
 
     public AppKernel(
@@ -27,7 +30,8 @@ public final class AppKernel {
             RecoveryManager recoveryManager,
             ProjectManager projectManager,
             LibraryManager libraryManager,
-            AssetStore assetStore
+            AssetStore assetStore,
+            RuntimeEnvironment runtimeEnvironment
     ) {
         this.toolRegistry = Objects.requireNonNull(toolRegistry, "toolRegistry");
         this.engineManager = Objects.requireNonNull(engineManager, "engineManager");
@@ -36,6 +40,10 @@ public final class AppKernel {
         this.projectManager = Objects.requireNonNull(projectManager, "projectManager");
         this.libraryManager = Objects.requireNonNull(libraryManager, "libraryManager");
         this.assetStore = Objects.requireNonNull(assetStore, "assetStore");
+        this.runtimeEnvironment = Objects.requireNonNull(
+                runtimeEnvironment,
+                "runtimeEnvironment"
+        );
         this.state = AppState.CREATED;
     }
 
@@ -48,11 +56,13 @@ public final class AppKernel {
                 recovery,
                 new ProjectMigrationRegistry()
         );
+        LibraryManager library = DefaultLibraryFactory.create();
         return create(
                 recovery,
                 projectManager,
-                DefaultLibraryFactory.create(),
-                new InMemoryAssetStore()
+                library,
+                new InMemoryAssetStore(),
+                DefaultRuntimeFactory.create(library.components())
         );
     }
 
@@ -81,11 +91,13 @@ public final class AppKernel {
                 recovery,
                 new ProjectMigrationRegistry()
         );
+        LibraryManager library = DefaultLibraryFactory.create();
         return create(
                 recovery,
                 projectManager,
-                DefaultLibraryFactory.create(),
-                new FileAssetStore(assetLibraryRoot)
+                library,
+                new FileAssetStore(assetLibraryRoot),
+                DefaultRuntimeFactory.create(library.components())
         );
     }
 
@@ -93,7 +105,8 @@ public final class AppKernel {
             RecoveryManager recovery,
             ProjectManager projectManager,
             LibraryManager libraryManager,
-            AssetStore assetStore
+            AssetStore assetStore,
+            RuntimeEnvironment runtimeEnvironment
     ) {
         AppKernel kernel = new AppKernel(
                 new ToolRegistry(),
@@ -102,7 +115,8 @@ public final class AppKernel {
                 recovery,
                 projectManager,
                 libraryManager,
-                assetStore
+                assetStore,
+                runtimeEnvironment
         );
         kernel.initialize();
         return kernel;
@@ -125,7 +139,7 @@ public final class AppKernel {
             });
             configStore.put("targetApi", "30");
             configStore.put("targetAbi", "arm64");
-            configStore.put("tahap", "3");
+            configStore.put("tahap", "4");
             projectManager.bootstrap("project.default");
             state = AppState.READY;
         } catch (IOException | RuntimeException error) {
@@ -134,35 +148,13 @@ public final class AppKernel {
         }
     }
 
-    public ToolRegistry toolRegistry() {
-        return toolRegistry;
-    }
-
-    public EngineManager engineManager() {
-        return engineManager;
-    }
-
-    public ConfigStore configStore() {
-        return configStore;
-    }
-
-    public RecoveryManager recoveryManager() {
-        return recoveryManager;
-    }
-
-    public ProjectManager projectManager() {
-        return projectManager;
-    }
-
-    public LibraryManager libraryManager() {
-        return libraryManager;
-    }
-
-    public AssetStore assetStore() {
-        return assetStore;
-    }
-
-    public synchronized AppState state() {
-        return state;
-    }
+    public ToolRegistry toolRegistry() { return toolRegistry; }
+    public EngineManager engineManager() { return engineManager; }
+    public ConfigStore configStore() { return configStore; }
+    public RecoveryManager recoveryManager() { return recoveryManager; }
+    public ProjectManager projectManager() { return projectManager; }
+    public LibraryManager libraryManager() { return libraryManager; }
+    public AssetStore assetStore() { return assetStore; }
+    public RuntimeEnvironment runtimeEnvironment() { return runtimeEnvironment; }
+    public synchronized AppState state() { return state; }
 }
