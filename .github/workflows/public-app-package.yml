@@ -89,6 +89,9 @@ jobs:
 
           required=[
               'app/src/main/java/com/toolbox/tools/core/StableId.java',
+              'app/src/main/java/com/toolbox/tools/core/DigestUtils.java',
+              'app/src/main/java/com/toolbox/tools/core/ProjectAccessStatus.java',
+              'app/src/main/java/com/toolbox/tools/core/StaleWriteException.java',
               'app/src/main/java/com/toolbox/tools/core/ProjectState.java',
               'app/src/main/java/com/toolbox/tools/core/ProjectDefinitionCodec.java',
               'app/src/main/java/com/toolbox/tools/core/ProjectManifest.java',
