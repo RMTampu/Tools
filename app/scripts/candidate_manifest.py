@@ -21,6 +21,7 @@ application_id="com.toolbox.tools"
 version_code=10
 version_name="10.0-tahap10-dev"
 parent="8f6f504c8f289926ad88550ab2686b801efc3ac12536c9e57f807b208461a116"
+rollback_baseline="741ebcf799280fbba1b4c7d2e60ba157ba133e3f6545b3468882373150f024f7"
 
 canonical=(
     "TBX_CANDIDATE_V1\n"
@@ -42,6 +43,9 @@ payload={
     "versionCode":version_code,
     "versionName":version_name,
     "parentSignedApkSha256":parent,
+    "parentSignedCandidateStage":9,
+    "rollbackBaselineStage":7,
+    "rollbackBaselineApkSha256":rollback_baseline,
     "irSha256":ir_sha,
     "unsignedApkSha256":unsigned_sha,
     "publicSourceRepository":os.environ.get("GITHUB_REPOSITORY","LOCAL"),
@@ -54,4 +58,5 @@ payload={
 )
 print("TAHAP_10_CANDIDATE_IDENTITY = PASS")
 print("CANDIDATE_SHA256="+candidate_sha)
+print("ROLLBACK_BASELINE_TAHAP_7 = PASS")
 print("FIREBASE_USED = NO")
