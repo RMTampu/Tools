@@ -43,6 +43,7 @@ required=[
     "src/main/java/com/toolbox/tools/core/AppKernel.java",
     "src/main/java/com/toolbox/tools/core/VerificationManager.java",
     "src/main/java/com/toolbox/tools/repair/RepairSessionManager.java",
+    "src/main/java/com/toolbox/tools/editor/EditorShellController.java",
     "src/main/java/com/toolbox/tools/live/TargetDescriptor.java",
     "src/main/java/com/toolbox/tools/live/CapabilityScanner.java",
     "src/main/java/com/toolbox/tools/live/CapabilityScanResult.java",
