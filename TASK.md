@@ -2,64 +2,43 @@
 
 ## Tugas Aktif
 
-Kerjakan Tahap 1 pematangan publik sampai tuntas.
+Kerjakan **Tahap 2 — Pematangan Pembuatan/Implementasi** pada repo publik utama `RMTampu/Tools`.
 
-Repo aktif: RMTampu/Tools.
+Baseline Tahap 1 sudah dikunci pada jalur private sebagai exact APK Android 11 yang signed + Firebase-tested. Tahap 2 wajib menghasilkan kandidat baru dengan `versionCode` lebih tinggi dan tidak boleh memodifikasi baseline Tahap 1.
 
-## Arti Perintah Pengguna
+## Scope Tahap 2 Aktif
 
-Jika pengguna menulis perintah pendek seperti:
+Urutan implementasi dimulai dari fondasi Stage B yang sudah ditetapkan:
 
-- kerjakan tahap 1
-- lanjut
-- lanjutkan
-- cek
-- build
-- test
-- matangkan publik
+1. identity dan schema versioned;
+2. storage gateway dan implementation nyata;
+3. Save;
+4. Undo/Redo;
+5. revision history yang bounded;
+6. corruption detection dan recovery;
+7. integrasi ke kernel/host Android 11;
+8. unit/failure/persistence tests;
+9. public build/package validation sampai PASS.
 
-maka agen wajib langsung bekerja pada tugas aktif ini.
+Tahap lanjutan setelah core ini tetap mencakup freeze/journal, import terbuka, repair/dynamic UI, managed target, lalu validasi/distribusi sesuai roadmap, tetapi tidak boleh melompati core Stage B.
 
-Perintah tersebut tidak boleh dijawab dengan laporan, rencana, atau alasan belum ada source.
+## Exit Gate Unit Tahap 2 Ini
 
-## Target Tahap 1
+Unit dianggap PASS hanya bila:
 
-Tahap 1 dianggap selesai hanya jika repo publik memiliki fondasi teknis nyata yang dapat diuji.
+- `applicationId=com.toolbox.tools` tetap;
+- target/min SDK tetap API 30;
+- `versionCode > 1`;
+- workspace identity + schema tervalidasi fail-closed;
+- save/load deterministic;
+- checksum corruption ditolak;
+- file replacement atomic atau fail-closed;
+- backup valid dapat dipakai untuk recovery;
+- Undo/Redo dan revision teruji;
+- history bounded;
+- recovery state terpicu pada storage failure;
+- Android host memakai persistent storage gateway;
+- unit tests PASS;
+- unsigned release APK berhasil dibuild GitHub Actions dan artifact tersedia.
 
-Minimal harus ada:
-
-- source atau module publik yang sesuai tahap;
-- konfigurasi build/test publik;
-- test atau validator yang berjalan;
-- hasil validasi PASS atau blocker nyata.
-
-## Jika Source Belum Ada
-
-Jika source aplikasi, module, build.gradle, settings.gradle, test, registry, atau fondasi teknis belum ada, itu bukan blocker.
-
-Agen wajib membuat baseline aman yang sesuai Android 11 API 30 arm64 dan aturan publik, selama tidak membutuhkan secret, signing key, Firebase credential, atau asset private.
-
-Agen dilarang berhenti dengan jawaban seperti:
-
-- belum ada source;
-- belum ada baseline;
-- belum bisa dikerjakan;
-- langkah berikutnya adalah membuat source.
-
-Jika langkah berikutnya adalah membuat source, agen wajib membuat source itu.
-
-## Jalur Kerja Wajib
-
-1. Baca AGENTS.md.
-2. Baca TASK.md.
-3. Cek struktur repo.
-4. Kerjakan gap teknis nyata.
-5. Jalankan test/build/validator yang tersedia.
-6. Jika gagal, perbaiki dan ulangi.
-7. Berhenti hanya jika PASS, artifact siap, atau blocker nyata.
-
-## Batas Private
-
-Repo private hanya untuk secret, signing, Firebase final test, final runtime test, dan release sensitif.
-
-Tahap 1 publik tidak boleh berhenti hanya karena final signing/Firebase belum bisa dilakukan.
+Private tetap hanya untuk signing, credential, Firebase final runtime test, dan release sensitif.
