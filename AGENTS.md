@@ -356,12 +356,12 @@ Jika domain tidak berlaku, status harus `N_A_SCOPE_PROVEN`, bukan dilewati diam-
 
 Workflow canonical aplikasi wajib menghasilkan evidence machine-readable R1-R9 dan meng-upload evidence bersama artifact. Perubahan teknis yang belum melewati gate ini tidak boleh disebut matang atau siap tahap berikutnya.
 
-## Baseline Permanen Tahap 7
+## Baseline Permanen Tahap 11
 
-- Baseline/rollback anchor ToolBox yang sah adalah **Tahap 7**.
-- APK baseline canonical: `741ebcf799280fbba1b4c7d2e60ba157ba133e3f6545b3468882373150f024f7`.
-- Tahap 8 dan seterusnya adalah candidate/evolution, bukan baseline baru.
-- Tahap 8+ boleh memakai signed candidate tahap sebelumnya sebagai development predecessor, tetapi tidak boleh menyebutnya parent baseline atau rollback baseline.
-- Semua assurance/workflow/provenance Tahap 8+ wajib tetap mengikat `rollbackBaseline = Tahap 7`.
-- Record Tahap 8+ yang berstatus `REVOKED_NON_BASELINE` hanya historical candidate dan dilarang menjadi rollback anchor.
-
+- Baseline/rollback anchor ToolBox yang sah sekarang adalah **Tahap 11**.
+- APK baseline canonical: `f9dcffed7dc5d657c6dbd1c45933db6a4f6215f5145aee1849cc50f35038b76b`.
+- App.patch canonical: `c235da4f9078ee79f9ecbf796232896e806c09501dc0b7e5814970db042adf98`.
+- Tahap 11 sudah lulus R1-R9, ASSET_SAFE, signing, Android 11/API30, dan Firebase Test Lab ARM64.
+- Tahap 7 adalah historical superseded baseline dan bukan lagi rollback anchor aktif.
+- Tahap 12+ jika ada adalah candidate/evolution di atas Tahap 11 dan wajib rollback ke Tahap 11.
+- Firebase PASS tidak otomatis memindahkan baseline; baseline berikutnya hanya berubah jika pengguna memberi instruksi eksplisit baru.
