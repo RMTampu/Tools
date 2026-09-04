@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "projectId": "ToolBox",
-  "stage": "Tahap 7",
-  "stageMap": "G",
+  "stage": "Tahap 8",
+  "stageMap": "H",
   "statusPolicy": {
     "readyRequiresValidation": true,
     "unsupportedRuntimeTypesRemainDraft": true,
     "noSilentDuplicateMerge": true,
     "noOriginalEvictionByCacheCleanup": true,
-    "noTahap7AssetMutation": true
+    "noTahap8AssetMutation": true
   },
   "shippedAndroidAssets": [
     {
@@ -64,7 +64,8 @@
     "relink integrity",
     "canonical child path",
     "no executable payload loading",
-    "Tahap 3 asset contracts remain unchanged and validated in Tahap 7 package",
-    "external import/export path never bypasses AssetPayloadValidator for managed assets"
+    "external import/export path never bypasses AssetPayloadValidator for managed assets",
+    "Tahap 3 asset contracts remain unchanged and validated in Tahap 8 package",
+    "repair plan cannot bypass managed asset validation or protected safety/recovery boundaries"
   ]
 }
