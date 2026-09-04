@@ -38,6 +38,14 @@ public final class EdgeFloatingTest {
         assertEquals(3, selected.items().size());
         assertEquals("Size", selected.items().get(0).labelIndonesia());
 
+        EdgePanelModel all = shell.edgePanel(
+                VisualCapabilitySet.defaultEditable()
+        );
+        assertEquals(20, all.items().size());
+        assertTrue(all.items().stream().anyMatch(
+                item -> "Auto Connect Binding".equals(item.labelIndonesia())
+        ));
+
         shell.activateFunction(EditorFunction.DATA);
         EdgePanelModel data = shell.edgePanel(limited);
         assertEquals("Data", data.titleIndonesia());
