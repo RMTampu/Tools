@@ -8,4 +8,8 @@ public interface StorageGateway {
     WorkspaceSnapshot load() throws IOException;
 
     void save(WorkspaceSnapshot snapshot) throws IOException;
+
+    default boolean recoveredFromBackup() {
+        return false;
+    }
 }
