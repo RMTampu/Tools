@@ -9,7 +9,7 @@ import static org.junit.Assert.assertTrue;
 
 public final class AppKernelTest {
     @Test
-    public void defaultKernelPassesStageTwoVerification() {
+    public void defaultKernelPassesTahapTwoVerification() {
         AppKernel kernel = AppKernel.createDefault();
 
         VerificationResult result = new VerificationManager().verify(kernel);
@@ -20,11 +20,13 @@ public final class AppKernelTest {
         assertTrue(kernel.engineManager().contains("foundation-engine"));
         assertEquals("30", kernel.configStore().get("targetApi", ""));
         assertEquals("arm64", kernel.configStore().get("targetAbi", ""));
-        assertEquals("2", kernel.configStore().get("stage", ""));
-        assertNotNull(kernel.workspaceManager().current());
-        assertEquals("toolbox.default", kernel.workspaceManager().current().workspaceId());
-        assertEquals(WorkspaceSnapshot.CURRENT_SCHEMA_VERSION,
-                kernel.workspaceManager().current().schemaVersion());
+        assertEquals("2", kernel.configStore().get("tahap", ""));
+        assertNotNull(kernel.projectManager().current());
+        assertEquals("project.default", kernel.projectManager().current().projectId());
+        assertEquals(
+                ProjectState.CURRENT_SCHEMA_VERSION,
+                kernel.projectManager().current().schemaVersion()
+        );
     }
 
     @Test
