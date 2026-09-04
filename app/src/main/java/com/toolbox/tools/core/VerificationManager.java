@@ -249,7 +249,7 @@ public final class VerificationManager {
                 || capabilityScan.status(CapabilityArea.UI)
                 != CapabilityAvailability.AVAILABLE
                 || capabilityScan.status(CapabilityArea.LOGIC)
-                != CapabilityAvailability.READ_ONLY
+                != CapabilityAvailability.AVAILABLE
                 || capabilityScan.status(CapabilityArea.RUNTIME)
                 != CapabilityAvailability.AVAILABLE) {
             return VerificationResult.fail("kontrak Capability Scan tidak cocok");
