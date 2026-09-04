@@ -79,6 +79,11 @@ public final class BubbleShellTest {
         shell.setLiveCapability(true);
         shell.setMode(EditorMode.LIVE);
         assertEquals(EditorMode.LIVE, shell.mode());
+        assertFalse(shell.selectionAvailable());
+        assertThrows(
+                IllegalStateException.class,
+                () -> shell.selectObject("object.home.primary")
+        );
 
         shell.setLiveCapability(false);
         assertEquals(EditorMode.EDIT, shell.mode());
