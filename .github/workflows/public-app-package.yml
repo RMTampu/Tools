@@ -67,7 +67,7 @@ jobs:
           gradle-version: '8.2.1'
           cache-disabled: true
 
-      - name: Parent Tahap 9 identity and Tahap 10 route gate
+      - name: Permanent Baseline Tahap 7 and Tahap 9 predecessor route gate
         shell: bash
         run: |
           set -euo pipefail
@@ -77,8 +77,13 @@ jobs:
           g=Path('app/build.gradle').read_text()
           p=json.loads(Path('app/ASSURANCE_PLAN_R1_R9.json').read_text())
           assert p['stage']=='Tahap 10' and p['stageMap']=='J'
-          assert p['parentBaseline']['name']=='Tahap 9'
-          assert p['parentBaseline']['apkSha256']=='8f6f504c8f289926ad88550ab2686b801efc3ac12536c9e57f807b208461a116'
+          assert p['parentBaseline']['name']=='Tahap 7'
+          assert p['parentBaseline']['apkSha256']=='741ebcf799280fbba1b4c7d2e60ba157ba133e3f6545b3468882373150f024f7'
+          assert p['parentBaseline']['permanent'] is True
+          assert p['parentBaseline']['rollbackAnchor'] is True
+          assert p['developmentParentCandidate']['name']=='Tahap 9'
+          assert p['developmentParentCandidate']['signedApkSha256']=='8f6f504c8f289926ad88550ab2686b801efc3ac12536c9e57f807b208461a116'
+          assert p['developmentParentCandidate']['baseline'] is False
           assert re.search(r'\bversionCode\s+10\b',g)
           assert "versionName '10.0-tahap10-dev'" in g
           assert re.search(r'\bminSdk\s+30\b',g)
@@ -96,7 +101,8 @@ jobs:
             'app/scripts/candidate_manifest.py'
           ]:
               assert Path(item).is_file(),item
-          print('PARENT_TAHAP_9_SIGNED_IDENTITY = PASS')
+          print('ROLLBACK_BASELINE_TAHAP_7 = PASS')
+          print('DEVELOPMENT_PARENT_TAHAP_9_SIGNED_IDENTITY = PASS')
           print('TAHAP_10_J1_J4_ROUTE = PASS')
           print('FIREBASE_USED = NO')
           PY
