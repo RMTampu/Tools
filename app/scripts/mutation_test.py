@@ -53,8 +53,8 @@ mutations=[
  {
   "name":"candidate_parent_identity_bypass",
   "path":APP/"src/main/java/com/toolbox/tools/build/CandidateIdentityFactory.java",
-  "old":"+ parentSignedApkSha256 + "\\n"",
-  "new":"+ "" + "\\n"",
+  "old":'+ parentSignedApkSha256 + "\\n"',
+  "new":'+ "" + "\\n"',
   "test":"com.toolbox.tools.build.CandidateIdentityTest.everyIdentityInputChangesCandidate"
  }
 ]
