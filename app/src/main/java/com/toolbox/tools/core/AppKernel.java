@@ -29,6 +29,7 @@ import com.toolbox.tools.runtime.RuntimeEnvironment;
 import com.toolbox.tools.repair.HealthMonitor;
 import com.toolbox.tools.repair.RecoveryPreviewService;
 import com.toolbox.tools.repair.RepairSessionManager;
+import com.toolbox.tools.product.DeclarativeProjectRuntime;
 import com.toolbox.tools.product.EvolutionManager;
 import com.toolbox.tools.product.ProductServices;
 import com.toolbox.tools.product.SafeModeController;
@@ -60,6 +61,7 @@ public final class AppKernel {
     private final CandidateIdentityFactory candidateIdentityFactory;
     private final ReadyCoordinator readyCoordinator;
     private final RemotePatchVerifier remotePatchVerifier;
+    private final DeclarativeProjectRuntime declarativeRuntime;
     private final SafePatchManager safePatchManager;
     private final ProductServices productServices;
     private final EvolutionManager evolutionManager;
@@ -124,10 +126,14 @@ public final class AppKernel {
                 this.applicationIrBuilder
         );
         this.remotePatchVerifier = RemoteTrustAnchor.createVerifier();
+        this.declarativeRuntime = new DeclarativeProjectRuntime(
+                ProjectState.create("project.default")
+        );
         this.safePatchManager = new SafePatchManager(
                 this.projectManager,
                 this.recoveryManager,
-                this.remotePatchVerifier
+                this.remotePatchVerifier,
+                this.declarativeRuntime::reload
         );
         this.productServices = new ProductServices(this.projectManager);
         this.evolutionManager = new EvolutionManager(
@@ -252,6 +258,7 @@ public final class AppKernel {
             configStore.put("tahap", "produk-penuh-v12");
             configStore.put("bahasaDefault", "id");
             projectManager.bootstrap("project.default");
+            declarativeRuntime.reload(projectManager.current());
             state = AppState.READY;
         } catch (IOException | RuntimeException error) {
             recoveryManager.markRecoveryRequired();
@@ -282,6 +289,7 @@ public final class AppKernel {
     public ReadyCoordinator readyCoordinator() { return readyCoordinator; }
     public RemotePatchVerifier remotePatchVerifier() { return remotePatchVerifier; }
     public SafePatchManager safePatchManager() { return safePatchManager; }
+    public DeclarativeProjectRuntime declarativeRuntime() { return declarativeRuntime; }
     public ProductServices productServices() { return productServices; }
     public ProductEngineSuite productEngines() { return productEngines; }
     public EvolutionManager evolutionManager() { return evolutionManager; }
