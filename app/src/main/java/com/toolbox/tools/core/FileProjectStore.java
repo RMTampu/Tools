@@ -127,6 +127,19 @@ public final class FileProjectStore implements ProjectStore {
 
     @Override
     public synchronized ProjectState recoverRevision(long revision) throws IOException {
+        ProjectState candidate = loadRevision(revision);
+        return recoverStateInternal(candidate, revision);
+    }
+
+    @Override
+    public synchronized ProjectState recoverState(ProjectState candidate) throws IOException {
+        return recoverStateInternal(candidate, candidate.revision());
+    }
+
+    private ProjectState recoverStateInternal(
+            ProjectState candidate,
+            long previousValidRevision
+    ) throws IOException {
         Files.createDirectories(root);
         Files.createDirectories(revisions);
 
@@ -137,7 +150,6 @@ public final class FileProjectStore implements ProjectStore {
              FileLock ignored = channel.lock()) {
 
             long actual = Files.isRegularFile(currentRef) ? readRef(currentRef) : 0;
-            ProjectState candidate = loadRevision(revision);
             ProjectValidationResult validation = validator.validate(candidate);
             if (!validation.isPass()) {
                 throw new IOException(
@@ -147,7 +159,7 @@ public final class FileProjectStore implements ProjectStore {
             ProjectState recovered = publishRevision(
                     candidate,
                     actual + 1,
-                    revision
+                    previousValidRevision > 0 ? previousValidRevision : actual
             );
             trimOldRevisions();
             return recovered;
