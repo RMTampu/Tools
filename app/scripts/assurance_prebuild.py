@@ -56,6 +56,7 @@ required=[
  "src/main/java/com/toolbox/tools/runtime/EventActionCompatibility.java",
  "src/main/java/com/toolbox/tools/runtime/CompositeAction.java",
  "src/main/java/com/toolbox/tools/runtime/DataSourceDefinition.java",
+ "src/main/java/com/toolbox/tools/runtime/DataRecord.java",
  "src/main/java/com/toolbox/tools/runtime/PagedQuery.java",
  "src/main/java/com/toolbox/tools/runtime/BindingDefinition.java",
  "src/main/java/com/toolbox/tools/runtime/BindingCycleGuard.java",
