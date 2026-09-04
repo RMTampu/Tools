@@ -100,11 +100,16 @@ jobs:
               'app/src/main/java/com/toolbox/tools/core/ProjectManager.java',
               'app/src/main/java/com/toolbox/tools/core/DraftRecoveryStore.java',
               'app/src/main/java/com/toolbox/tools/core/ProjectMigrationRegistry.java',
+              'app/src/main/java/com/toolbox/tools/core/RecoverySnapshotStore.java',
               'app/src/main/java/com/toolbox/tools/core/ProjectAccessClassifier.java',
+              'app/src/main/java/com/toolbox/tools/core/ProjectRelinkVerifier.java',
+              'app/src/main/java/com/toolbox/tools/android/SafProjectAccessGateway.java',
               'app/src/test/java/com/toolbox/tools/core/ProjectDefinitionCodecTest.java',
               'app/src/test/java/com/toolbox/tools/core/ProjectManagerTest.java',
               'app/src/test/java/com/toolbox/tools/core/FileProjectStoreTest.java',
               'app/src/test/java/com/toolbox/tools/core/ProjectMigrationAndAccessTest.java',
+              'app/src/test/java/com/toolbox/tools/core/RecoverySnapshotStoreTest.java',
+              'app/src/test/java/com/toolbox/tools/core/ProjectRelinkVerifierTest.java',
           ]
           for item in required:
               assert Path(item).is_file(), item
@@ -124,6 +129,9 @@ jobs:
               'previewRecovery',
               'ACCESS_LOST',
               'SCHEMA_INCOMPATIBLE',
+              'FINAL_RECOVERY_SNAPSHOT',
+              'LAST_VALID_RECOVERY',
+              'takePersistableUriPermission',
           ]
           for marker in assertions:
               assert marker in source, marker
