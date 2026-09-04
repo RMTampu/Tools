@@ -4,10 +4,12 @@
   "stage": "Tahap 10",
   "stageMap": "J",
   "parentBaseline": {
-    "name": "Tahap 9",
-    "apkSha256": "8f6f504c8f289926ad88550ab2686b801efc3ac12536c9e57f807b208461a116",
-    "publicR1R9RunId": "33866101946",
-    "privateSigned": true
+    "name": "Tahap 7",
+    "apkSha256": "741ebcf799280fbba1b4c7d2e60ba157ba133e3f6545b3468882373150f024f7",
+    "publicR1R9RunId": "33851807482",
+    "privateFinalRuntimePassed": true,
+    "permanent": true,
+    "rollbackAnchor": true
   },
   "target": {
     "androidApi": 30,
@@ -58,8 +60,9 @@
         "IR version 1",
         "resource SHA-256 projection",
         "candidate SHA-256 provenance",
-        "parent signed Tahap9 immutable",
-        "READY saved revision"
+        "permanent rollback Baseline Tahap7 immutable",
+        "READY saved revision",
+        "Tahap9 development predecessor identity immutable"
       ],
       "proof": "unit + baseline binding"
     },
@@ -69,7 +72,7 @@
       "methods": [
         "IR never executes resource payload",
         "public source contains no signing secret",
-        "candidate identity binds parent APK and unsigned APK",
+        "candidate identity binds development predecessor APK and unsigned APK",
         "no Firebase in Tahap10 chain"
       ],
       "proof": "negative tests + source scan"
@@ -128,5 +131,12 @@
     "firebaseUsed": false,
     "signingUsed": false,
     "finalSignedReleaseClaimed": false
+  },
+  "developmentParentCandidate": {
+    "name": "Tahap 9",
+    "signedApkSha256": "8f6f504c8f289926ad88550ab2686b801efc3ac12536c9e57f807b208461a116",
+    "publicR1R9RunId": "33866101946",
+    "privateSigned": true,
+    "baseline": false
   }
 }
