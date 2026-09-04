@@ -1,5 +1,11 @@
 package com.toolbox.tools.core;
 
+import com.toolbox.tools.library.AssetStore;
+import com.toolbox.tools.library.DefaultLibraryFactory;
+import com.toolbox.tools.library.FileAssetStore;
+import com.toolbox.tools.library.InMemoryAssetStore;
+import com.toolbox.tools.library.LibraryManager;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.Objects;
@@ -10,6 +16,8 @@ public final class AppKernel {
     private final ConfigStore configStore;
     private final RecoveryManager recoveryManager;
     private final ProjectManager projectManager;
+    private final LibraryManager libraryManager;
+    private final AssetStore assetStore;
     private AppState state;
 
     public AppKernel(
@@ -17,13 +25,17 @@ public final class AppKernel {
             EngineManager engineManager,
             ConfigStore configStore,
             RecoveryManager recoveryManager,
-            ProjectManager projectManager
+            ProjectManager projectManager,
+            LibraryManager libraryManager,
+            AssetStore assetStore
     ) {
         this.toolRegistry = Objects.requireNonNull(toolRegistry, "toolRegistry");
         this.engineManager = Objects.requireNonNull(engineManager, "engineManager");
         this.configStore = Objects.requireNonNull(configStore, "configStore");
         this.recoveryManager = Objects.requireNonNull(recoveryManager, "recoveryManager");
         this.projectManager = Objects.requireNonNull(projectManager, "projectManager");
+        this.libraryManager = Objects.requireNonNull(libraryManager, "libraryManager");
+        this.assetStore = Objects.requireNonNull(assetStore, "assetStore");
         this.state = AppState.CREATED;
     }
 
@@ -36,11 +48,31 @@ public final class AppKernel {
                 recovery,
                 new ProjectMigrationRegistry()
         );
-        return create(recovery, projectManager);
+        return create(
+                recovery,
+                projectManager,
+                DefaultLibraryFactory.create(),
+                new InMemoryAssetStore()
+        );
     }
 
     public static AppKernel createPersistent(File projectRoot) {
         Objects.requireNonNull(projectRoot, "projectRoot");
+        File parent = projectRoot.getParentFile();
+        File appFilesRoot = parent == null ? projectRoot : parent.getParentFile();
+        if (appFilesRoot == null) appFilesRoot = projectRoot;
+        return createPersistent(
+                projectRoot,
+                new File(appFilesRoot, "library/assets")
+        );
+    }
+
+    public static AppKernel createPersistent(
+            File projectRoot,
+            File assetLibraryRoot
+    ) {
+        Objects.requireNonNull(projectRoot, "projectRoot");
+        Objects.requireNonNull(assetLibraryRoot, "assetLibraryRoot");
         RecoveryManager recovery = new RecoveryManager();
         ProjectManager projectManager = new ProjectManager(
                 new FileProjectStore(projectRoot),
@@ -49,19 +81,28 @@ public final class AppKernel {
                 recovery,
                 new ProjectMigrationRegistry()
         );
-        return create(recovery, projectManager);
+        return create(
+                recovery,
+                projectManager,
+                DefaultLibraryFactory.create(),
+                new FileAssetStore(assetLibraryRoot)
+        );
     }
 
     private static AppKernel create(
             RecoveryManager recovery,
-            ProjectManager projectManager
+            ProjectManager projectManager,
+            LibraryManager libraryManager,
+            AssetStore assetStore
     ) {
         AppKernel kernel = new AppKernel(
                 new ToolRegistry(),
                 new EngineManager(),
                 new ConfigStore(),
                 recovery,
-                projectManager
+                projectManager,
+                libraryManager,
+                assetStore
         );
         kernel.initialize();
         return kernel;
@@ -84,7 +125,7 @@ public final class AppKernel {
             });
             configStore.put("targetApi", "30");
             configStore.put("targetAbi", "arm64");
-            configStore.put("tahap", "2");
+            configStore.put("tahap", "3");
             projectManager.bootstrap("project.default");
             state = AppState.READY;
         } catch (IOException | RuntimeException error) {
@@ -111,6 +152,14 @@ public final class AppKernel {
 
     public ProjectManager projectManager() {
         return projectManager;
+    }
+
+    public LibraryManager libraryManager() {
+        return libraryManager;
+    }
+
+    public AssetStore assetStore() {
+        return assetStore;
     }
 
     public synchronized AppState state() {
