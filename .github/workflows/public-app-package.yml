@@ -1,4 +1,4 @@
-name: ToolBox Public App Package
+name: ToolBox Public Tahap 2 Package
 
 on:
   push:
@@ -23,11 +23,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: public-app-package-${{ github.ref }}
+  group: public-tahap2-package-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  public-app-package:
+  public-tahap2-package:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
 
@@ -68,7 +68,7 @@ jobs:
           gradle-version: '8.2.1'
           cache-disabled: true
 
-      - name: Stage 2 baseline compatibility and route gate
+      - name: Tahap 1 baseline compatibility and Tahap 2 route gate
         shell: bash
         run: |
           set -euo pipefail
@@ -88,42 +88,66 @@ jobs:
           assert 'android:exported="true"' in manifest
 
           required=[
-              'app/src/main/java/com/toolbox/tools/core/WorkspaceSnapshot.java',
-              'app/src/main/java/com/toolbox/tools/core/WorkspaceCodec.java',
-              'app/src/main/java/com/toolbox/tools/core/StorageGateway.java',
-              'app/src/main/java/com/toolbox/tools/core/InMemoryStorageGateway.java',
-              'app/src/main/java/com/toolbox/tools/core/FileStorageGateway.java',
-              'app/src/main/java/com/toolbox/tools/core/WorkspaceManager.java',
-              'app/src/test/java/com/toolbox/tools/core/WorkspaceCodecTest.java',
-              'app/src/test/java/com/toolbox/tools/core/WorkspaceManagerTest.java',
-              'app/src/test/java/com/toolbox/tools/core/FileStorageGatewayTest.java',
+              'app/src/main/java/com/toolbox/tools/core/StableId.java',
+              'app/src/main/java/com/toolbox/tools/core/ProjectState.java',
+              'app/src/main/java/com/toolbox/tools/core/ProjectDefinitionCodec.java',
+              'app/src/main/java/com/toolbox/tools/core/ProjectManifest.java',
+              'app/src/main/java/com/toolbox/tools/core/ProjectStore.java',
+              'app/src/main/java/com/toolbox/tools/core/FileProjectStore.java',
+              'app/src/main/java/com/toolbox/tools/core/ProjectManager.java',
+              'app/src/main/java/com/toolbox/tools/core/DraftRecoveryStore.java',
+              'app/src/main/java/com/toolbox/tools/core/ProjectMigrationRegistry.java',
+              'app/src/main/java/com/toolbox/tools/core/ProjectAccessClassifier.java',
+              'app/src/test/java/com/toolbox/tools/core/ProjectDefinitionCodecTest.java',
+              'app/src/test/java/com/toolbox/tools/core/ProjectManagerTest.java',
+              'app/src/test/java/com/toolbox/tools/core/FileProjectStoreTest.java',
+              'app/src/test/java/com/toolbox/tools/core/ProjectMigrationAndAccessTest.java',
           ]
           for item in required:
               assert Path(item).is_file(), item
 
           source='\n'.join(Path(p).read_text() for p in required if '/main/' in p)
-          assert 'MAX_HISTORY = 64' in source
-          assert 'MAX_ENTRIES = 256' in source
-          assert 'ATOMIC_MOVE' in source
-          assert 'SHA-256' in source
-          assert 'recoveredFromBackup' in source
+          assertions=[
+              'MAX_UNDO_GROUPS = 64',
+              'MAX_REVISIONS = 32',
+              'STALE_WRITE',
+              'journal.pending',
+              'project.manifest',
+              'project.index',
+              'resources',
+              'ATOMIC_MOVE',
+              'SHA-256',
+              'recoverRevision',
+              'previewRecovery',
+              'ACCESS_LOST',
+              'SCHEMA_INCOMPATIBLE',
+          ]
+          for marker in assertions:
+              assert marker in source, marker
+
+          old=[
+              'app/src/main/java/com/toolbox/tools/core/WorkspaceSnapshot.java',
+              'app/src/main/java/com/toolbox/tools/core/WorkspaceManager.java',
+          ]
+          for item in old:
+              assert not Path(item).exists(), f'obsolete Tahap 2 model remains: {item}'
 
           forbidden=['SIGNING_KEY','KEY_STORE_PASSWORD','KEY_PASSWORD','FIREBASE_PROJECT_ID']
           for item in forbidden:
               assert item not in source
 
-          print('STAGE2_BASELINE_VERSION_GATE = PASS')
-          print('STAGE2_STORAGE_ROUTE_GATE = PASS')
+          print('BASELINE_TAHAP_1_COMPATIBILITY = PASS')
+          print('TAHAP_2_B1_B4_ROUTE = PASS')
           print('PUBLIC_SECRET_BOUNDARY = PASS')
           PY
 
-      - name: Run Stage 2 public app unit and failure tests
+      - name: Run Tahap 2 unit failure transaction recovery tests
         run: gradle --no-daemon :app:testDebugUnitTest
 
-      - name: Assemble Stage 2 unsigned release package
+      - name: Assemble Tahap 2 unsigned release package
         run: gradle --no-daemon :app:assembleRelease
 
-      - name: Verify Stage 2 package metadata and digest
+      - name: Verify Tahap 2 package metadata and digest
         shell: bash
         run: |
           set -euo pipefail
@@ -135,14 +159,15 @@ jobs:
           grep -F "sdkVersion:'30'" <<< "$BADGING"
           grep -F "targetSdkVersion:'30'" <<< "$BADGING"
           sha256sum "$APK" | tee "$APK.sha256"
-          echo "STAGE2_PUBLIC_UNSIGNED_RELEASE_READY_FOR_PRIVATE_SIGNING=1"
+          echo "TAHAP_2_PUBLIC_UNSIGNED_APK = PASS"
 
-      - name: Upload Stage 2 unsigned package
+      - name: Upload Tahap 2 unsigned package
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
-          name: toolbox-stage2-public-app-unsigned-ready-private-signing
+          name: toolbox-tahap2-public-unsigned-ready-private-signing
           path: |
             app/build/outputs/apk/release/app-release-unsigned.apk
             app/build/outputs/apk/release/app-release-unsigned.apk.sha256
+            app/build/test-results/testDebugUnitTest/
           if-no-files-found: error
           retention-days: 7
