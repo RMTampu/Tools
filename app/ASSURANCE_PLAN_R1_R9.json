@@ -1,12 +1,12 @@
 {
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "projectId": "ToolBox",
-  "stage": "Tahap 7",
-  "stageMap": "G",
+  "stage": "Tahap 8",
+  "stageMap": "H",
   "parentBaseline": {
-    "name": "Tahap 6",
-    "apkSha256": "64f93a41bbf7623d5bfcc4a6a0bee69cc0ca613897f55c5fd004fcb7f335d878",
-    "publicR1R9RunId": "33848830996",
+    "name": "Tahap 7",
+    "apkSha256": "741ebcf799280fbba1b4c7d2e60ba157ba133e3f6545b3468882373150f024f7",
+    "publicR1R9RunId": "33851807482",
     "privateFinalRuntimePassed": true
   },
   "target": {
@@ -21,11 +21,11 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R1_LOGIC_INPUT.md",
       "methods": [
-        "stable external adapter identity",
-        "bounded external input",
-        "deterministic canonical normalization",
-        "explicit capability gate",
-        "sync conflict fail-closed"
+        "stable repair identity",
+        "base revision gate",
+        "protected core gate",
+        "expected-change verification",
+        "invalid transition fail-closed"
       ],
       "proof": "unit + route gate + mutation"
     },
@@ -33,11 +33,10 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R2_CONCURRENCY_RESOURCE.md",
       "methods": [
-        "max 1000 external records",
-        "max 64 fields",
-        "max 4096 chars/value",
-        "sync history <=32",
-        "immutable normalized/export snapshots"
+        "repair operations <=128",
+        "repair history <=32",
+        "immutable repair plan",
+        "bounded recovery candidates from existing stores"
       ],
       "proof": "unit + source contract"
     },
@@ -45,22 +44,21 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R3_LIFECYCLE_STATE_RECOVERY.md",
       "methods": [
-        "cursor/revision sync lifecycle",
-        "NO_CHANGE idempotency",
-        "CONFLICT terminal until explicit resolution",
-        "offline/source failure separated from model corruption"
+        "NEW/STAGED/ACTIVATED/VERIFIED/ROLLED_BACK/FAILED_SAFE lifecycle",
+        "recovery point before activation",
+        "verify-or-rollback",
+        "explicit recovery preview"
       ],
-      "proof": "unit + regression"
+      "proof": "unit + runtime"
     },
     "R4": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R4_PERSISTENCE_STORAGE_VERSION.md",
       "methods": [
-        "versioned external schema",
-        "deterministic export",
-        "SHA-256 export integrity",
-        "parent baseline immutable",
-        "export does not mutate working state"
+        "deterministic repair SHA-256",
+        "activation commits new revision",
+        "rollback restores pre-activation revision",
+        "parent baseline immutable"
       ],
       "proof": "unit + baseline binding"
     },
@@ -68,11 +66,10 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R5_SECURITY_NETWORK_BOUNDARY.md",
       "methods": [
-        "external fields canonicalized",
-        "no executable payload loading",
-        "adapter capability least authority",
-        "external identifier preserved only as provenance",
-        "no public secret/network credential"
+        "kernel/recovery/safety/security resources protected",
+        "no executable repair payload",
+        "repair scoped to project identity",
+        "no public secrets"
       ],
       "proof": "negative tests + source scan"
     },
@@ -80,11 +77,11 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R6_BUILD_DEPENDENCY_INSTALL.md",
       "methods": [
-        "versionCode above Tahap 6",
+        "versionCode above Tahap 7",
         "pinned JDK/Gradle/SDK",
         "API30 metadata",
         "APK digest",
-        "API30 interactive external integration witness"
+        "API30 repair interaction witness"
       ],
       "proof": "GitHub Actions build/package/runtime"
     },
@@ -94,15 +91,15 @@
       "methods": [
         "native/JNI/plugin/reflection/dynamic-loader scope scan"
       ],
-      "proof": "no native/JNI/plugin/reflection/dynamic executable loader added in Tahap 7"
+      "proof": "no native/JNI/plugin/reflection/dynamic executable loader added in Tahap 8"
     },
     "R8": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R8_UI_DEVICE_POWER.md",
       "methods": [
-        "Indonesian external adapter UI",
-        "Import Demo/Export/Sync controls",
-        "Tahap6 authoring regression",
+        "Repair Demo/Health/Recovery Preview controls",
+        "Indonesian diagnostics",
+        "Tahap7 regression",
         "API30 UIAutomator witness"
       ],
       "proof": "unit + API30 emulator interaction"
@@ -112,8 +109,8 @@
       "sourceMethodDoc": "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md",
       "methods": [
         "R1-R8 traceability",
-        "Tahap7 mutation challenge",
-        "external route proof",
+        "Tahap8 mutation challenge",
+        "repair route proof",
         "ASSET_SAFE regression",
         "unknown/skipped closure"
       ],
