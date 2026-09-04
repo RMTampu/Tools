@@ -19,9 +19,13 @@ public final class DependencyResolver {
                         + dependency.dependencyId());
             }
         }
-        for (String assetId : definition.assetRequirements()) {
-            if (!assets.hasAnyVersion(assetId)) {
-                issues.add("ASSET_DEPENDENCY_MISSING:" + assetId);
+        for (AssetDependencyRef dependency : definition.assetDependencies()) {
+            if (dependency.required()
+                    && !assets.hasCompatible(
+                    dependency.assetId(),
+                    dependency.versionRange())) {
+                issues.add("ASSET_DEPENDENCY_MISSING_OR_INCOMPATIBLE:"
+                        + dependency.assetId());
             }
         }
         return new DependencyResolutionResult(issues);
