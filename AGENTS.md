@@ -56,6 +56,17 @@ Agen hanya boleh bertanya sebelum bekerja jika target benar-benar tidak bisa dit
 Jika masih ada aksi aman yang bisa dilakukan, agen wajib melakukan aksi itu dulu.
 
 
+
+## TASK.md Mengikat Agen
+
+Jika repository memiliki TASK.md, agen wajib membacanya setelah AGENTS.md dan menjadikannya target kerja aktif.
+
+TASK.md menghapus kebutuhan bertanya ulang tentang repo, tahap, atau langkah berikutnya selama isinya cukup untuk menentukan aksi aman.
+
+Jika TASK.md menyatakan source, baseline, module, build, test, atau registry harus dibuat, agen wajib membuatnya. Agen tidak boleh berhenti dengan alasan komponen itu belum ada.
+
+Jika perintah pengguna pendek, agen wajib menggabungkan pesan terbaru pengguna dengan TASK.md lalu langsung bekerja.
+
 ## Aturan Global Perintah Pengguna
 
 Aturan ini berlaku untuk semua project dan semua repository.
