@@ -32,6 +32,7 @@ public final class AppKernel {
         ProjectManager projectManager = new ProjectManager(
                 new InMemoryProjectStore(),
                 new DraftRecoveryStore(),
+                new RecoverySnapshotStore(),
                 recovery,
                 new ProjectMigrationRegistry()
         );
@@ -44,6 +45,7 @@ public final class AppKernel {
         ProjectManager projectManager = new ProjectManager(
                 new FileProjectStore(projectRoot),
                 new DraftRecoveryStore(projectRoot),
+                new RecoverySnapshotStore(projectRoot),
                 recovery,
                 new ProjectMigrationRegistry()
         );
