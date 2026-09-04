@@ -68,6 +68,7 @@ for marker in [
     "verifyOrRollback",
     "CapabilityAvailability.READ_ONLY",
     "TERAPKAN_PASS",
+    "selectionAvailable",
 ]:
     assert marker in combined,marker
 
