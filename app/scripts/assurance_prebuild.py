@@ -53,6 +53,8 @@ required=[
  "src/main/java/com/toolbox/tools/runtime/SharedRuntimeModel.java",
  "src/main/java/com/toolbox/tools/runtime/Renderer.java",
  "src/main/java/com/toolbox/tools/runtime/RuntimeModelValidator.java",
+ "src/main/java/com/toolbox/tools/runtime/NavigationManager.java",
+ "src/main/java/com/toolbox/tools/runtime/BindingCycleGuard.java",
  "src/main/java/com/toolbox/tools/editor/BubblePositionStore.java",
  "src/main/java/com/toolbox/tools/editor/BubbleController.java",
  "src/main/java/com/toolbox/tools/editor/EdgePanelFactory.java",
