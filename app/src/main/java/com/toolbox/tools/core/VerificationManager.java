@@ -3,6 +3,9 @@ package com.toolbox.tools.core;
 import com.toolbox.tools.authoring.AuthoringItemKind;
 import com.toolbox.tools.authoring.AuthoringSearchResult;
 import com.toolbox.tools.authoring.AuthoringSection;
+import com.toolbox.tools.build.ApplicationIr;
+import com.toolbox.tools.build.BuildValidationResult;
+import com.toolbox.tools.build.CandidateIdentity;
 import com.toolbox.tools.editor.EdgePanelModel;
 import com.toolbox.tools.editor.EditorMode;
 import com.toolbox.tools.editor.VisualCapabilitySet;
@@ -42,8 +45,8 @@ public final class VerificationManager {
                 || !"arm64".equals(kernel.configStore().get("targetAbi", ""))) {
             return VerificationResult.fail("android target mismatch");
         }
-        if (!"9".equals(kernel.configStore().get("tahap", ""))) {
-            return VerificationResult.fail("tahap 9 configuration missing");
+        if (!"10".equals(kernel.configStore().get("tahap", ""))) {
+            return VerificationResult.fail("tahap 10 configuration missing");
         }
         if (kernel.recoveryManager().isRecoveryRequired()) {
             return VerificationResult.fail("recovery required");
@@ -257,6 +260,81 @@ public final class VerificationManager {
             return VerificationResult.fail("self-edit protection mismatch");
         }
 
-        return VerificationResult.pass("tahap 9 capability live self-edit ready");
+        if (kernel.buildValidator() == null
+                || kernel.applicationIrBuilder() == null
+                || kernel.candidateIdentityFactory() == null
+                || kernel.readyCoordinator() == null) {
+            return VerificationResult.fail("Tahap 10 build services unavailable");
+        }
+
+        ProjectState beforeReadyPreview =
+                kernel.projectManager().current();
+        long beforeSavedRevision =
+                kernel.projectManager().savedRevision();
+
+        BuildValidationResult readyPreview =
+                kernel.readyCoordinator().preview();
+        if (!readyPreview.isPass()) {
+            return VerificationResult.fail(
+                    "READY preview failed:" + readyPreview.message()
+            );
+        }
+        if (!beforeReadyPreview.equals(
+                kernel.projectManager().current())
+                || beforeSavedRevision
+                != kernel.projectManager().savedRevision()) {
+            return VerificationResult.fail(
+                    "READY preview mutated project"
+            );
+        }
+
+        ApplicationIr firstIr =
+                kernel.applicationIrBuilder().build(kernel);
+        ApplicationIr secondIr =
+                kernel.applicationIrBuilder().build(kernel);
+        if (firstIr.irVersion()
+                != ApplicationIr.CURRENT_IR_VERSION
+                || !firstIr.sha256().equals(secondIr.sha256())
+                || !firstIr.canonical().equals(secondIr.canonical())
+                || !firstIr.sha256().matches("[0-9a-f]{64}")) {
+            return VerificationResult.fail(
+                    "deterministic IR contract failed"
+            );
+        }
+
+        String previewUnsigned =
+                "0000000000000000000000000000000000000000000000000000000000000000";
+        String parentSigned =
+                "8f6f504c8f289926ad88550ab2686b801efc3ac12536c9e57f807b208461a116";
+        CandidateIdentity firstCandidate =
+                kernel.candidateIdentityFactory().create(
+                        "com.toolbox.tools",
+                        10,
+                        "10.0-tahap10-dev",
+                        parentSigned,
+                        firstIr.sha256(),
+                        previewUnsigned
+                );
+        CandidateIdentity secondCandidate =
+                kernel.candidateIdentityFactory().create(
+                        "com.toolbox.tools",
+                        10,
+                        "10.0-tahap10-dev",
+                        parentSigned,
+                        firstIr.sha256(),
+                        previewUnsigned
+                );
+        if (!firstCandidate.sha256().equals(
+                secondCandidate.sha256())
+                || !firstCandidate.candidateId().equals(
+                secondCandidate.candidateId())) {
+            return VerificationResult.fail(
+                    "candidate identity not deterministic"
+            );
+        }
+
+        return VerificationResult.pass(
+                "tahap 10 READY IR candidate identity ready"
+        );
     }
 }
