@@ -1,12 +1,12 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "projectId": "ToolBox",
-  "stage": "Tahap 4",
-  "stageMap": "D",
+  "stage": "Tahap 5",
+  "stageMap": "E",
   "parentBaseline": {
-    "name": "Tahap 3",
-    "apkSha256": "2a14dae5980e3f51f23f67602c9a2839938632a54ae4a9c69ea80e61e420f02a",
-    "publicR1R9RunId": "33838621346",
+    "name": "Tahap 4",
+    "apkSha256": "74a90ae0442083d4f050a4642a9c2a213ff1b785ea5b2f844f033cdea543cfc3",
+    "publicR1R9RunId": "33841266917",
     "privateFinalRuntimePassed": true
   },
   "target": {
@@ -21,23 +21,23 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R1_LOGIC_INPUT.md",
       "methods": [
-        "stable screen/action/data/flow IDs",
-        "typed contracts",
-        "exact event-action compatibility",
-        "flow port compatibility",
-        "fail-closed reference validation"
+        "stable object/editor IDs",
+        "capability-aware edit menu",
+        "fail-closed unsupported operation",
+        "explicit edit/preview/test/live modes",
+        "exact selected-object routing"
       ],
-      "proof": "unit + route gate + mutation"
+      "proof": "unit + UI route + mutation"
     },
     "R2": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R2_CONCURRENCY_RESOURCE.md",
       "methods": [
-        "bounded back stack",
-        "bounded page size",
-        "bounded binding token set",
-        "flow step/time watchdog",
-        "derived renderer without clone screens"
+        "bounded bubble/floating geometry",
+        "single primary floating editor",
+        "bounded undo/redo history",
+        "single heavy editor function",
+        "bounded diagnostic state"
       ],
       "proof": "unit + source contract"
     },
@@ -45,45 +45,46 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R3_LIFECYCLE_STATE_RECOVERY.md",
       "methods": [
-        "lightweight navigation state",
-        "binding origin/version token",
-        "cycle suppression",
-        "active-flow materialization",
-        "project recovery preserved from Tahap 2"
+        "edit off clears selection",
+        "preview hides editor overlays",
+        "live capability gate",
+        "close floating editor without revert",
+        "emergency shell reset"
       ],
-      "proof": "unit + regression"
+      "proof": "unit + emulator interaction"
     },
     "R4": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R4_PERSISTENCE_STORAGE_VERSION.md",
       "methods": [
-        "shared declarative model",
-        "render tree derived/rebuildable",
-        "stable identity across navigation/data/flow",
+        "working state separate from component master",
+        "orientation-specific bubble persistence in Android host",
+        "gesture grouped into one history transaction",
         "parent baseline immutable"
       ],
-      "proof": "unit + baseline binding"
+      "proof": "unit + host source + baseline binding"
     },
     "R5": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R5_SECURITY_NETWORK_BOUNDARY.md",
       "methods": [
-        "no arbitrary executable action/flow payload",
-        "permission metadata only",
+        "lock protection before mutation",
+        "no touch-through bubble listener",
+        "no arbitrary executable editor payload",
         "no secret/network authority added",
-        "broken references diagnostic instead of guessed binding"
+        "broken operation diagnostics"
       ],
-      "proof": "source scan + negative tests"
+      "proof": "negative tests + source scan"
     },
     "R6": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R6_BUILD_DEPENDENCY_INSTALL.md",
       "methods": [
-        "versionCode above Tahap 3",
+        "versionCode above Tahap 4",
         "pinned JDK/Gradle/SDK",
         "API30 package metadata",
         "APK digest",
-        "API30 emulator launch"
+        "API30 interactive emulator witness"
       ],
       "proof": "GitHub Actions build/package/runtime"
     },
@@ -93,26 +94,27 @@
       "methods": [
         "native/JNI/plugin/reflection/dynamic-loader scope scan"
       ],
-      "proof": "no native/JNI/plugin/reflection/dynamic executable loader in Tahap 4 app source"
+      "proof": "no native/JNI/plugin/reflection/dynamic executable loader in Tahap 5 app source"
     },
     "R8": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R8_UI_DEVICE_POWER.md",
       "methods": [
-        "Bahasa Indonesia host status",
-        "derived renderer startup",
-        "API30 emulator launch",
-        "theme runtime witness"
+        "real Bubble/Edge/Floating Android views",
+        "safe bounds clamp",
+        "portrait/landscape position storage",
+        "dark visual shell",
+        "API30 UIAutomator interaction witness"
       ],
-      "proof": "unit + API30 emulator"
+      "proof": "unit + API30 emulator interaction"
     },
     "R9": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md",
       "methods": [
         "R1-R8 traceability",
-        "mutation challenge",
-        "source provenance",
+        "stage-specific mutation challenge",
+        "interactive UI route proof",
         "ASSET_SAFE regression",
         "unknown/skipped closure"
       ],
