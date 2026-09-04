@@ -1,26 +1,49 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "projectId": "ToolBox",
-  "stage": "Tahap 11",
-  "stageMap": "K",
+  "stage": "Produk Penuh v12",
+  "stageMap": "FULL_PRODUCT",
   "statusPolicy": {
     "readyRequiresValidation": true,
     "unsupportedRuntimeTypesRemainDraft": true,
     "noSilentDuplicateMerge": true,
     "noOriginalEvictionByCacheCleanup": true,
-    "noTahap11AssetMutation": true
+    "firebaseRequiresUserPermission": true,
+    "publicSigningForbidden": true
   },
   "shippedAndroidAssets": [
     {
       "assetId": "android.style.app.theme",
       "path": "app/src/main/res/values/styles.xml",
-      "sha256": "09971eb83251ec35483f0b27b3a9a33e0eb7556a24f190ec90141659c3889cf9",
+      "sha256": "7c2deda4ae25993fe280a336c3d0d8350dbd983de5519237b51204ad5c3059d6",
       "type": "ANDROID_VALUES_XML",
       "required": true,
       "owner": "application.host",
       "consumer": "AndroidManifest application theme",
       "loader": "Android Resources / Theme",
-      "semantic": "AppTheme resolves to Theme.Material.NoActionBar with sans fontFamily"
+      "semantic": "AppTheme Gelap Neon, status/navigation/background gelap dan accent neon"
+    },
+    {
+      "assetId": "android.values.colors.dark.neon",
+      "path": "app/src/main/res/values/colors.xml",
+      "sha256": "4373929a66d70b77a92279efd98ebdfcc035353ea2a72306e9ebfcc740f94a9a",
+      "type": "ANDROID_VALUES_XML",
+      "required": true,
+      "owner": "application.ui",
+      "consumer": "UiKit/AppTheme",
+      "loader": "Android Resources / Color",
+      "semantic": "Palet Gelap Neon canonical"
+    },
+    {
+      "assetId": "android.values.strings.indonesia",
+      "path": "app/src/main/res/values/strings.xml",
+      "sha256": "1f7f7bbad55e0dfc04789a4c30e10b6faf17b8d788acaa5b3969126d7196b9db",
+      "type": "ANDROID_VALUES_XML",
+      "required": true,
+      "owner": "application.ui",
+      "consumer": "AndroidManifest/Workspace",
+      "loader": "Android Resources / String",
+      "semantic": "Bahasa Indonesia default dan label produk"
     }
   ],
   "managedAssetReadyKinds": {
@@ -53,27 +76,31 @@
     "LibraryManager"
   ],
   "requiredInvariants": [
-    "stable asset id",
-    "SHA-256",
-    "type/MIME",
-    "size budget",
-    "consumer contract",
-    "version",
+    "closed physical Android asset universe",
+    "stable asset id and SHA-256",
+    "type/MIME and size budget",
+    "consumer/loader/semantic contract",
     "original/cache separation",
     "duplicate candidate detection",
     "relink integrity",
     "canonical child path",
     "no executable payload loading",
-    "external import/export path never bypasses AssetPayloadValidator for managed assets",
-    "repair plan cannot bypass managed asset validation or protected safety/recovery boundaries",
-    "live/self-edit cannot bypass managed asset validation or protected safety/recovery boundaries",
-    "capability scan never grants writable asset capability without a valid edit door",
-    "Tahap 3 asset contracts remain unchanged and validated in Tahap 11 package",
-    "IR references managed assets only by validated stable metadata and SHA-256",
-    "candidate/signing path cannot bypass AssetPayloadValidator or public/private boundary",
-    "Firebase is not used by Tahap 11 completion chain",
-    "App.patch is declarative data and never an executable class/native payload",
-    "remote verification must pass before patch mutation",
-    "safe restore snapshot exists before patch mutation"
+    "five managed built-in assets publish READY",
+    "eighteen built-in components publish READY",
+    "four built-in templates publish READY",
+    "Bahasa Indonesia strings are packaged",
+    "Gelap Neon colors/theme are packaged",
+    "runtime UI consumes packaged theme/strings",
+    "App.patch declarative data only",
+    "remote verification before mutation",
+    "recovery snapshot before mutation",
+    "Firebase absent from public maturation"
+  ],
+  "managedBuiltinAssets": [
+    "asset.theme.dark.neon",
+    "asset.tokens.default",
+    "asset.binding.profiles",
+    "asset.animation.presets",
+    "asset.component.kit"
   ]
 }
