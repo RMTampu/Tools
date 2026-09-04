@@ -10,11 +10,11 @@ OUT.mkdir(parents=True,exist_ok=True)
 plan=json.loads((APP/"ASSURANCE_PLAN_R1_R9.json").read_text())
 asset=json.loads((APP/"ASSET_ASSURANCE_PLAN.json").read_text())
 assert plan["projectId"]=="ToolBox"
-assert plan["stage"]=="Tahap 5" and plan["stageMap"]=="E"
-assert plan["parentBaseline"]["name"]=="Tahap 4"
-assert plan["parentBaseline"]["apkSha256"]=="74a90ae0442083d4f050a4642a9c2a213ff1b785ea5b2f844f033cdea543cfc3"
+assert plan["stage"]=="Tahap 6" and plan["stageMap"]=="F"
+assert plan["parentBaseline"]["name"]=="Tahap 5"
+assert plan["parentBaseline"]["apkSha256"]=="717f36b59d9c005b17bfeee72b1de7f872ed3c6b406471e6b9d80c9efba91f49"
 assert plan["target"]["androidApi"]==30
-assert asset["stage"]=="Tahap 5" and asset["stageMap"]=="E"
+assert asset["stage"]=="Tahap 6" and asset["stageMap"]=="F"
 
 method_counts={}
 for i in range(1,10):
@@ -40,7 +40,7 @@ main=(APP/"src/main/java/com/toolbox/tools/MainActivity.java").read_text()
 assert "applicationId 'com.toolbox.tools'" in gradle
 assert re.search(r"\bminSdk\s+30\b",gradle)
 assert re.search(r"\btargetSdk\s+30\b",gradle)
-assert re.search(r"\bversionCode\s+5\b",gradle)
+assert re.search(r"\bversionCode\s+6\b",gradle)
 assert 'android:name=".MainActivity"' in manifest
 assert 'android:theme="@style/AppTheme"' in manifest
 
@@ -48,61 +48,54 @@ required=[
  "src/main/java/com/toolbox/tools/core/StableId.java",
  "src/main/java/com/toolbox/tools/core/AppKernel.java",
  "src/main/java/com/toolbox/tools/core/VerificationManager.java",
- "src/main/java/com/toolbox/tools/library/ComponentRegistry.java",
  "src/main/java/com/toolbox/tools/library/LibraryManager.java",
+ "src/main/java/com/toolbox/tools/library/TemplateRegistry.java",
  "src/main/java/com/toolbox/tools/runtime/SharedRuntimeModel.java",
- "src/main/java/com/toolbox/tools/runtime/Renderer.java",
- "src/main/java/com/toolbox/tools/runtime/RuntimeModelValidator.java",
- "src/main/java/com/toolbox/tools/runtime/NavigationManager.java",
- "src/main/java/com/toolbox/tools/runtime/BindingCycleGuard.java",
- "src/main/java/com/toolbox/tools/editor/BubblePositionStore.java",
- "src/main/java/com/toolbox/tools/editor/BubbleController.java",
- "src/main/java/com/toolbox/tools/editor/EdgePanelFactory.java",
  "src/main/java/com/toolbox/tools/editor/EditorShellController.java",
- "src/main/java/com/toolbox/tools/editor/FloatingPlacementEngine.java",
- "src/main/java/com/toolbox/tools/editor/FloatingEditorController.java",
- "src/main/java/com/toolbox/tools/editor/VisualCapabilitySet.java",
  "src/main/java/com/toolbox/tools/editor/VisualEditorSession.java",
- "src/main/java/com/toolbox/tools/editor/VisualHistory.java",
- "src/main/java/com/toolbox/tools/editor/VisualLockSet.java",
- "src/main/java/com/toolbox/tools/editor/EditorDiagnostic.java",
- "src/main/java/com/toolbox/tools/editor/DefaultEditorFactory.java",
+ "src/main/java/com/toolbox/tools/authoring/AuthoringSection.java",
+ "src/main/java/com/toolbox/tools/authoring/AuthoringSearchQuery.java",
+ "src/main/java/com/toolbox/tools/authoring/AuthoringSearchIndex.java",
+ "src/main/java/com/toolbox/tools/authoring/AuthoringDraftStore.java",
+ "src/main/java/com/toolbox/tools/authoring/TemplateAuthoringDraft.java",
+ "src/main/java/com/toolbox/tools/authoring/TemplateAuthoringService.java",
+ "src/main/java/com/toolbox/tools/authoring/UnifiedAuthoringWorkspace.java",
+ "src/main/java/com/toolbox/tools/authoring/DefaultAuthoringFactory.java",
 ]
 for rel in required:
     assert (APP/rel).is_file(),rel
 combined="\n".join((APP/rel).read_text() for rel in required)+"\n"+main
 
 checks={
- "R1":["StableId.require","capabilities.supports","BROKEN_OPERATION","LIVE_CAPABILITY_UNAVAILABLE"],
- "R2":["MAX_HISTORY = 64","MAX_ACTIVE_TOKENS = 256","MAX_BACK_STACK = 64","single primary"],
- "R3":["emergencyReset","editorOverlayVisible","setLiveCapability","floatingEditor().close"],
- "R4":["VisualObjectState","VisualEditTransaction","orientationSuffix","getPreferences"],
- "R5":["LOCKED_OPERATION","editor.operation.broken","setOnTouchListener","ProcessBuilder"],
- "R6":["versionCode 5"],
+ "R1":["StableId.require","MAX_QUERY_LENGTH = 128","DraftLifecycle","resolveExact"],
+ "R2":["MAX_RESULTS = 100","MAX_HISTORY = 32","activeSection","Collections.unmodifiableList"],
+ "R3":["PUBLISHED","DISCARDED","draft terminal","VALIDATED"],
+ "R4":["revision() + 1","TemplateInstantiationPlan","preview","registry"],
+ "R5":["search is read-only","DependencyResolutionResult","template dependency validation"],
+ "R6":["versionCode 6"],
  "R7":[],
- "R8":["FrameLayout","Edge Panel","Floating Editor","BubblePositionStore"],
- "R9":["EditorDiagnostic","VisualHistory","VerificationManager"],
+ "R8":["UI","Logic","Data","Binding","Asset","Cari Tombol"],
+ "R9":["TemplateAuthoringValidation","AuthoringDraftStore","VerificationManager"],
 }
 for domain,markers in checks.items():
     for marker in markers:
-        if marker=="versionCode 5":
-            assert re.search(r"\bversionCode\s+5\b",gradle)
-        elif marker=="single primary":
-            assert "private FloatingEditorState active;" in combined
-        elif marker=="ProcessBuilder":
-            assert "ProcessBuilder" not in combined
-        elif marker=="floatingEditor().close":
-            assert "floatingEditor().close" in main
+        if marker=="versionCode 6":
+            assert re.search(r"\bversionCode\s+6\b",gradle)
+        elif marker=="search is read-only":
+            assert "search(" in combined and "execute(" not in combined
+        elif marker=="registry":
+            assert "templates.publishReady" in combined
+        elif marker=="template dependency validation":
+            assert "resolver.resolveTemplate" in combined
         else:
             assert marker in combined,(domain,marker)
 
 tests=[
+ "src/test/java/com/toolbox/tools/authoring/UnifiedAuthoringSearchTest.java",
+ "src/test/java/com/toolbox/tools/authoring/AuthoringDraftStoreTest.java",
+ "src/test/java/com/toolbox/tools/authoring/TemplateAuthoringServiceTest.java",
  "src/test/java/com/toolbox/tools/editor/BubbleShellTest.java",
- "src/test/java/com/toolbox/tools/editor/EdgeFloatingTest.java",
  "src/test/java/com/toolbox/tools/editor/VisualEditorSessionTest.java",
- "src/test/java/com/toolbox/tools/runtime/RendererSharedModelTest.java",
- "src/test/java/com/toolbox/tools/runtime/NavigationActionTest.java",
- "src/test/java/com/toolbox/tools/runtime/DataBindingTest.java",
  "src/test/java/com/toolbox/tools/runtime/FlowGraphTest.java",
 ]
 for rel in tests:
@@ -129,26 +122,25 @@ for rel in ["app/build.gradle","app/ASSURANCE_PLAN_R1_R9.json","app/ASSET_ASSURA
     hashes[rel]=hashlib.sha256((REPO/rel).read_bytes()).hexdigest()
 
 evidence={
- "schemaVersion":4,
+ "schemaVersion":5,
  "projectId":"ToolBox",
- "stage":"Tahap 5","stageMap":"E","status":"PASS",
- "parentBaseline":{"name":"Tahap 4","apkSha256":plan["parentBaseline"]["apkSha256"],"unchangedByPublicWork":True},
- "androidApi":30,"versionCode":5,
+ "stage":"Tahap 6","stageMap":"F","status":"PASS",
+ "parentBaseline":{"name":"Tahap 5","apkSha256":plan["parentBaseline"]["apkSha256"],"unchangedByPublicWork":True},
+ "androidApi":30,"versionCode":6,
  "researchMethodCounts":method_counts,
  "domains":{k:{"applicability":v["applicability"],"prebuild":"PASS"} for k,v in plan["domains"].items()},
- "visualEditor":{
-   "bubble":"BOUND",
-   "edgePanel":"BOUND",
-   "floatingEditor":"BOUND",
-   "workingState":"BOUND",
-   "history":"BOUNDED",
-   "liveCapabilityGate":"BOUND"
+ "authoring":{
+   "sections":["UI","LOGIC","DATA","BINDING","ASSET"],
+   "sharedModel":"BOUND",
+   "search":"BOUNDED_DETERMINISTIC",
+   "draftLifecycle":"BOUND",
+   "templateAuthoring":"BOUND"
  },
  "assetChain":"BOUND","r7":"N_A_SCOPE_PROVEN","sourceHashes":hashes,
  "publicBoundaries":{"privateContentIncluded":False,"firebaseUsed":False,"signingUsed":False,"arbitraryExecutableRuntimeAdded":False}
 }
-(OUT/"tahap5-r1-r8-prebuild-evidence.json").write_text(json.dumps(evidence,indent=2,sort_keys=True)+"\n")
-print("TAHAP_5_R1_R8_PREBUILD = PASS")
+(OUT/"tahap6-r1-r8-prebuild-evidence.json").write_text(json.dumps(evidence,indent=2,sort_keys=True)+"\n")
+print("TAHAP_6_R1_R8_PREBUILD = PASS")
 print("R1_R9_RESEARCH_CORPUS = BOUND")
 print("ASSET_SAFE_CHAIN = BOUND")
 print("R7 = N_A_SCOPE_PROVEN")
