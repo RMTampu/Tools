@@ -28,7 +28,7 @@ public final class EdgePanelFactory {
                 return contextual(
                         "Logika",
                         "Editor / Logika",
-                        "Event",
+                        "Peristiwa",
                         "Aksi",
                         "Kondisi",
                         "Alur",
@@ -42,9 +42,9 @@ public final class EdgePanelFactory {
                         "Sumber",
                         "Koleksi",
                         "Tabel",
-                        "Field",
+                        "Kolom Data",
                         "Relasi",
-                        "Query",
+                        "Kueri",
                         "Data Contoh"
                 );
             case BINDING:
@@ -106,8 +106,8 @@ public final class EdgePanelFactory {
         add(items, capabilities, VisualCapability.LAYER, "edge.layer", "Lapisan");
         add(items, capabilities, VisualCapability.STATE, "edge.state", "Keadaan");
         add(items, capabilities, VisualCapability.ANIMATION, "edge.animation", "Animasi");
-        add(items, capabilities, VisualCapability.AUTO_CONNECT_BINDING, "edge.autoconnect", "Hubungkan Binding Otomatis");
-        add(items, capabilities, VisualCapability.EVENT_ACTION, "edge.eventaction", "Event/Aksi");
+        add(items, capabilities, VisualCapability.AUTO_CONNECT_BINDING, "edge.autoconnect", "Hubungkan Pengikatan Otomatis");
+        add(items, capabilities, VisualCapability.EVENT_ACTION, "edge.eventaction", "Peristiwa/Aksi");
         add(items, capabilities, VisualCapability.ACCESSIBILITY, "edge.accessibility", "Aksesibilitas");
         add(items, capabilities, VisualCapability.LOCK, "edge.lock", "Kunci");
         add(items, capabilities, VisualCapability.OTHERS, "edge.others", "Lainnya");
@@ -147,7 +147,7 @@ public final class EdgePanelFactory {
 
     private static List<EdgeItem> quickAccessItems() {
         List<EdgeItem> items = new ArrayList<>();
-        items.add(new EdgeItem("quick.edit", "Edit ON / OFF", true));
+        items.add(new EdgeItem("quick.edit", "Edit AKTIF / NONAKTIF", true));
         items.add(new EdgeItem("quick.tool", "Alat", true));
         items.add(new EdgeItem("quick.settings", "Pengaturan", true));
         items.add(new EdgeItem("quick.floating", "Jendela Mengambang", true));
