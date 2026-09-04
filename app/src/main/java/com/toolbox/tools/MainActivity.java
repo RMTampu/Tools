@@ -22,6 +22,10 @@ import com.toolbox.tools.editor.EditorFunction;
 import com.toolbox.tools.editor.EdgeItem;
 import com.toolbox.tools.editor.EdgePanelModel;
 import com.toolbox.tools.editor.VisualCapabilitySet;
+import com.toolbox.tools.integration.ExportPackage;
+import com.toolbox.tools.integration.ExternalSnapshot;
+import com.toolbox.tools.integration.NormalizationResult;
+import com.toolbox.tools.integration.SyncPlan;
 
 import java.io.File;
 
@@ -35,6 +39,7 @@ public final class MainActivity extends Activity {
     private TextView bubble;
     private LinearLayout authoringBar;
     private TextView authoringStatus;
+    private TextView integrationStatus;
     private float downRawX;
     private float downRawY;
     private float startX;
@@ -56,7 +61,7 @@ public final class MainActivity extends Activity {
         root.setBackgroundColor(Color.rgb(8, 12, 18));
 
         TextView header = label(
-                "ToolBox Tahap 6\nUI • Logic • Data • Binding • Asset\nAuthoring • Search • Template\n" + status,
+                "ToolBox Tahap 7\nAdapter • Normalisasi • Export • Sync\nUI • Logic • Data • Binding • Asset\n" + status,
                 18f
         );
         header.setGravity(Gravity.CENTER);
@@ -182,6 +187,23 @@ public final class MainActivity extends Activity {
         authoringStatus = label("Authoring: UI • siap", 13f);
         authoringStatus.setTextColor(Color.rgb(180, 220, 255));
         authoringBar.addView(authoringStatus);
+
+        LinearLayout integrationRow = new LinearLayout(this);
+        integrationRow.setOrientation(LinearLayout.HORIZONTAL);
+        TextView importDemo = label("Import Demo", 13f);
+        importDemo.setOnClickListener(v -> runExternalImport());
+        integrationRow.addView(importDemo);
+        TextView exportDemo = label("Export", 13f);
+        exportDemo.setOnClickListener(v -> runExternalExport());
+        integrationRow.addView(exportDemo);
+        TextView syncDemo = label("Sync", 13f);
+        syncDemo.setOnClickListener(v -> runExternalSync());
+        integrationRow.addView(syncDemo);
+        authoringBar.addView(integrationRow);
+
+        integrationStatus = label("Eksternal: Sumber Demo • siap", 13f);
+        integrationStatus.setTextColor(Color.rgb(170, 255, 220));
+        authoringBar.addView(integrationStatus);
 
         FrameLayout.LayoutParams authoringParams =
                 new FrameLayout.LayoutParams(
@@ -343,6 +365,44 @@ public final class MainActivity extends Activity {
                     .append(first.stableId());
         }
         authoringStatus.setText(text.toString());
+    }
+
+    private void runExternalImport() {
+        ExternalSnapshot snapshot = kernel.externalIntegrationManager()
+                .demoSnapshot(1, "cursor.ui.1");
+        NormalizationResult normalized = kernel.externalIntegrationManager()
+                .importSnapshot(snapshot);
+        integrationStatus.setText(
+                normalized.isPass()
+                        ? "Import: PASS • " + normalized.records().size() + " record"
+                        : "Import: GAGAL"
+        );
+    }
+
+    private void runExternalExport() {
+        ExternalSnapshot snapshot = kernel.externalIntegrationManager()
+                .demoSnapshot(1, "cursor.ui.export");
+        NormalizationResult normalized = kernel.externalIntegrationManager()
+                .importSnapshot(snapshot);
+        ExportPackage exported = kernel.externalIntegrationManager()
+                .export(normalized.records());
+        integrationStatus.setText(
+                "Export: PASS • SHA256 "
+                        + exported.sha256().substring(0, 12)
+        );
+    }
+
+    private void runExternalSync() {
+        ExternalSnapshot snapshot = kernel.externalIntegrationManager()
+                .demoSnapshot(2, "cursor.ui.sync.2");
+        SyncPlan plan = kernel.externalIntegrationManager().planSync(snapshot);
+        if (plan.status() == com.toolbox.tools.integration.SyncStatus.CLEAN) {
+            kernel.externalIntegrationManager().applySync(plan);
+        }
+        integrationStatus.setText(
+                "Sync: " + plan.status().name()
+                        + " • " + kernel.externalIntegrationManager().sync().cursor()
+        );
     }
 
     private void persistBubblePosition(View view) {
