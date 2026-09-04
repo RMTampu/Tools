@@ -16,6 +16,8 @@ import android.widget.TextView;
 
 import com.toolbox.tools.authoring.AuthoringSearchResult;
 import com.toolbox.tools.authoring.AuthoringSection;
+import com.toolbox.tools.build.ApplicationIr;
+import com.toolbox.tools.build.CandidateIdentity;
 import com.toolbox.tools.core.AppKernel;
 import com.toolbox.tools.core.VerificationManager;
 import com.toolbox.tools.editor.EditorFunction;
@@ -50,6 +52,8 @@ public final class MainActivity extends Activity {
     private TextView authoringStatus;
     private TextView integrationStatus;
     private TextView repairStatus;
+    private TextView buildStatus;
+    private ApplicationIr lastIr;
     private TextView liveStatus;
     private float downRawX;
     private float downRawY;
@@ -72,7 +76,7 @@ public final class MainActivity extends Activity {
         root.setBackgroundColor(Color.rgb(8, 12, 18));
 
         TextView header = label(
-                "ToolBox Tahap 9\nCapability Scan • Live • TERAPKAN • Self Edit\nRepair • Recovery • UI • Logic • Data • Binding • Asset\n" + status,
+                "ToolBox Tahap 10\nREADY • Validator • IR • Candidate Identity\nCapability • Live • Repair • UI • Data • Asset\n" + status,
                 18f
         );
         header.setGravity(Gravity.CENTER);
@@ -254,6 +258,23 @@ public final class MainActivity extends Activity {
         repairStatus = label("Repair: siap • Health: HEALTHY", 13f);
         repairStatus.setTextColor(Color.rgb(255, 220, 150));
         authoringBar.addView(repairStatus);
+
+        LinearLayout buildRow = new LinearLayout(this);
+        buildRow.setOrientation(LinearLayout.HORIZONTAL);
+        TextView ready = label("READY", 12f);
+        ready.setOnClickListener(v -> publishReady());
+        buildRow.addView(ready);
+        TextView ir = label("Buat IR", 12f);
+        ir.setOnClickListener(v -> buildIr());
+        buildRow.addView(ir);
+        TextView candidate = label("Candidate Preview", 12f);
+        candidate.setOnClickListener(v -> previewCandidate());
+        buildRow.addView(candidate);
+        authoringBar.addView(buildRow);
+
+        buildStatus = label("Build: READY belum dipublish", 12f);
+        buildStatus.setTextColor(Color.rgb(160, 245, 255));
+        authoringBar.addView(buildStatus);
 
         FrameLayout.LayoutParams authoringParams =
                 new FrameLayout.LayoutParams(
@@ -605,6 +626,62 @@ public final class MainActivity extends Activity {
             );
         } catch (Exception error) {
             repairStatus.setText("Recovery Preview: GAGAL AMAN");
+        }
+    }
+
+    private void publishReady() {
+        try {
+            if (kernel.projectManager().hasUnsavedChanges()) {
+                kernel.projectManager().save();
+            }
+            com.toolbox.tools.core.ProjectState ready =
+                    kernel.readyCoordinator().publishReady();
+            buildStatus.setText(
+                    "READY: PASS • revision " + ready.revision()
+            );
+        } catch (Exception error) {
+            buildStatus.setText("READY: GAGAL AMAN");
+        }
+    }
+
+    private void buildIr() {
+        try {
+            if (kernel.projectManager().current().lifecycle()
+                    != com.toolbox.tools.core.ProjectLifecycle.READY) {
+                publishReady();
+            }
+            lastIr = kernel.readyCoordinator().buildIr();
+            buildStatus.setText(
+                    "IR: PASS • " + lastIr.sha256()
+            );
+        } catch (Exception error) {
+            buildStatus.setText("IR: GAGAL AMAN");
+        }
+    }
+
+    private void previewCandidate() {
+        try {
+            if (lastIr == null) {
+                buildIr();
+            }
+            if (lastIr == null) {
+                return;
+            }
+            CandidateIdentity identity =
+                    kernel.candidateIdentityFactory().create(
+                            "com.toolbox.tools",
+                            10,
+                            "10.0-tahap10-dev",
+                            "8f6f504c8f289926ad88550ab2686b801efc3ac12536c9e57f807b208461a116",
+                            lastIr.sha256(),
+                            "0000000000000000000000000000000000000000000000000000000000000000"
+                    );
+            buildStatus.setText(
+                    "Candidate Preview: "
+                            + identity.sha256()
+            );
+        } catch (Exception error) {
+            buildStatus.setText("Candidate Preview: GAGAL AMAN");
         }
     }
 
