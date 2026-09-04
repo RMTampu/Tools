@@ -1,4 +1,4 @@
-name: ToolBox Public Tahap 8 Package
+name: ToolBox Public Tahap 9 Package
 
 on:
   push:
@@ -26,11 +26,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: public-tahap8-package-${{ github.ref }}
+  group: public-tahap9-package-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  public-tahap8-package:
+  public-tahap9-package:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -67,7 +67,7 @@ jobs:
           gradle-version: '8.2.1'
           cache-disabled: true
 
-      - name: Baseline Tahap 7 compatibility and Tahap 8 route gate
+      - name: Baseline Tahap 8 compatibility and Tahap 9 route gate
         shell: bash
         run: |
           set -euo pipefail
@@ -76,22 +76,24 @@ jobs:
           from pathlib import Path
           g=Path('app/build.gradle').read_text()
           p=json.loads(Path('app/ASSURANCE_PLAN_R1_R9.json').read_text())
-          assert p['stage']=='Tahap 8' and p['stageMap']=='H'
-          assert p['parentBaseline']['name']=='Tahap 7'
-          assert p['parentBaseline']['apkSha256']=='741ebcf799280fbba1b4c7d2e60ba157ba133e3f6545b3468882373150f024f7'
-          assert re.search(r'\bversionCode\s+8\b',g)
-          assert re.search(r'\bminSdk\s+30\b',g) and re.search(r'\btargetSdk\s+30\b',g)
+          assert p['stage']=='Tahap 9' and p['stageMap']=='I'
+          assert p['parentBaseline']['name']=='Tahap 8'
+          assert p['parentBaseline']['apkSha256']=='1be38ee81c02ffc02882f883fdaa61caff6a9d462a5fcfdc6a8f520f06ee373a'
+          assert re.search(r'\bversionCode\s+9\b',g)
+          assert re.search(r'\bminSdk\s+30\b',g)
+          assert re.search(r'\btargetSdk\s+30\b',g)
           for item in [
-            'app/src/main/java/com/toolbox/tools/repair/RepairPlan.java',
-            'app/src/main/java/com/toolbox/tools/repair/RepairPlanValidator.java',
+            'app/src/main/java/com/toolbox/tools/live/TargetDescriptor.java',
+            'app/src/main/java/com/toolbox/tools/live/CapabilityScanner.java',
+            'app/src/main/java/com/toolbox/tools/live/LiveSessionManager.java',
+            'app/src/main/java/com/toolbox/tools/live/SelfEditPolicy.java',
             'app/src/main/java/com/toolbox/tools/repair/RepairSessionManager.java',
-            'app/src/main/java/com/toolbox/tools/repair/HealthMonitor.java',
-            'app/src/main/java/com/toolbox/tools/repair/RecoveryPreviewService.java',
-            'app/src/test/java/com/toolbox/tools/repair/RepairSessionManagerTest.java',
-            'app/src/test/java/com/toolbox/tools/repair/HealthRecoveryTest.java'
-          ]: assert Path(item).is_file(),item
-          print('BASELINE_TAHAP_7_COMPATIBILITY = PASS')
-          print('TAHAP_8_H1_H4_ROUTE = PASS')
+            'app/src/test/java/com/toolbox/tools/live/CapabilityScannerTest.java',
+            'app/src/test/java/com/toolbox/tools/live/LiveSessionManagerTest.java'
+          ]:
+              assert Path(item).is_file(),item
+          print('BASELINE_TAHAP_8_COMPATIBILITY = PASS')
+          print('TAHAP_9_I1_I4_ROUTE = PASS')
           PY
 
       - name: Automatic R1-R8 prebuild assurance
@@ -100,7 +102,7 @@ jobs:
       - name: Automatic ASSET_SAFE regression prebuild
         run: python3 app/scripts/asset_validate.py
 
-      - name: Run Tahap 8 unit and failure tests
+      - name: Run Tahap 9 unit and failure tests
         run: gradle --no-daemon :app:testDebugUnitTest
 
       - name: Automatic R9 mutation challenge
@@ -109,35 +111,36 @@ jobs:
       - name: Restore clean full test evidence
         run: gradle --no-daemon :app:testDebugUnitTest --rerun-tasks
 
-      - name: Assemble Tahap 8 packages
+      - name: Assemble Tahap 9 packages
         run: |
           gradle --no-daemon :app:assembleRelease
           gradle --no-daemon :app:assembleDebug
 
-      - name: Verify Tahap 8 package metadata and digest
+      - name: Verify Tahap 9 package metadata and digest
         shell: bash
         run: |
           set -euo pipefail
           APK=app/build/outputs/apk/release/app-release-unsigned.apk
           DEBUG=app/build/outputs/apk/debug/app-debug.apk
-          test -s "$APK"; test -s "$DEBUG"
+          test -s "$APK"
+          test -s "$DEBUG"
           B="$("$ANDROID_SDK_ROOT/build-tools/34.0.0/aapt" dump badging "$APK")"
           grep -F "package: name='com.toolbox.tools'" <<< "$B"
-          grep -F "versionCode='8'" <<< "$B"
+          grep -F "versionCode='9'" <<< "$B"
           grep -F "sdkVersion:'30'" <<< "$B"
           grep -F "targetSdkVersion:'30'" <<< "$B"
           sha256sum "$APK" | tee "$APK.sha256"
-          echo 'TAHAP_8_PUBLIC_UNSIGNED_APK = PASS'
+          echo 'TAHAP_9_PUBLIC_UNSIGNED_APK = PASS'
 
-      - name: Boot API30 emulator and interact with repair recovery
+      - name: Boot API30 emulator and interact with capability live self-edit
         shell: bash
         run: |
           set -euo pipefail
           sudo chmod 666 /dev/kvm || true
-          export ANDROID_AVD_HOME="$RUNNER_TEMP/tahap8-avd-home"
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/tahap9-avd-home"
           mkdir -p "$ANDROID_AVD_HOME"
-          printf '\n' | avdmanager create avd --force --name tahap8-api30 --package 'system-images;android-30;google_apis;x86_64' --path "$ANDROID_AVD_HOME/tahap8-api30.avd" --device 'pixel_2'
-          "$ANDROID_SDK_ROOT/emulator/emulator" -avd tahap8-api30 -no-window -no-audio -no-boot-anim -no-snapshot -wipe-data -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &
+          printf '\n' | avdmanager create avd --force --name tahap9-api30 --package 'system-images;android-30;google_apis;x86_64' --path "$ANDROID_AVD_HOME/tahap9-api30.avd" --device 'pixel_2'
+          "$ANDROID_SDK_ROOT/emulator/emulator" -avd tahap9-api30 -no-window -no-audio -no-boot-anim -no-snapshot -wipe-data -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &
           PID=$!
           trap 'kill "$PID" 2>/dev/null || true' EXIT
           timeout 120s adb wait-for-device
@@ -147,62 +150,78 @@ jobs:
             sleep 2
           done
           test "$booted" = 1
+
           API_LEVEL="$(adb shell getprop ro.build.version.sdk | tr -d '\r')"
           ABI="$(adb shell getprop ro.product.cpu.abi | tr -d '\r')"
-          test "$API_LEVEL" = 30; test "$ABI" = x86_64
+          test "$API_LEVEL" = 30
+          test "$ABI" = x86_64
+
           adb install -r app/build/outputs/apk/debug/app-debug.apk
           START="$(adb shell am start -W -n com.toolbox.tools/.MainActivity)"
           grep -F 'Status: ok' <<< "$START"
           sleep 2
 
-          dump_ui(){ adb shell uiautomator dump /sdcard/w.xml >/dev/null; adb pull /sdcard/w.xml "$RUNNER_TEMP/w.xml" >/dev/null; }
+          dump_ui(){
+            adb shell uiautomator dump /sdcard/w.xml >/dev/null
+            adb pull /sdcard/w.xml "$RUNNER_TEMP/w.xml" >/dev/null
+          }
+
           tap_text(){
-            local target="$1"; dump_ui
+            local target="$1"
+            dump_ui
             read X Y < <(python3 - "$RUNNER_TEMP/w.xml" "$target" <<'PY'
           import re,sys,xml.etree.ElementTree as ET
-          root=ET.parse(sys.argv[1]).getroot();target=sys.argv[2]
+          root=ET.parse(sys.argv[1]).getroot()
+          target=sys.argv[2]
           for n in root.iter('node'):
               if n.attrib.get('text')==target:
                   m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',n.attrib['bounds'])
                   if m:
-                      l,t,r,b=map(int,m.groups());print((l+r)//2,(t+b)//2);raise SystemExit
+                      l,t,r,b=map(int,m.groups())
+                      print((l+r)//2,(t+b)//2)
+                      raise SystemExit
           raise SystemExit('UI_TEXT_NOT_FOUND='+target)
           PY
             )
-            adb shell input tap "$X" "$Y"; sleep 1
+            adb shell input tap "$X" "$Y"
+            sleep 1
           }
 
           dump_ui
-          grep -F 'ToolBox Tahap 8' "$RUNNER_TEMP/w.xml"
-          grep -F 'Repair • Staging • Verify • Rollback • Health • Recovery' "$RUNNER_TEMP/w.xml"
-          grep -F 'Repair: siap • Health: HEALTHY' "$RUNNER_TEMP/w.xml"
-          grep -F 'Import Demo' "$RUNNER_TEMP/w.xml"
+          grep -F 'ToolBox Tahap 9' "$RUNNER_TEMP/w.xml"
+          grep -F 'Capability Scan • Live • TERAPKAN • Self Edit' "$RUNNER_TEMP/w.xml"
+          grep -F 'Live: belum dipindai' "$RUNNER_TEMP/w.xml"
+          grep -F 'Repair Demo' "$RUNNER_TEMP/w.xml"
 
-          tap_text 'Repair Demo'
+          tap_text 'Capability Scan'
           dump_ui
-          grep -F 'Repair: VERIFIED • Recovery Point: PASS' "$RUNNER_TEMP/w.xml"
+          grep -F 'Capability: UI AVAILABLE • Runtime AVAILABLE' "$RUNNER_TEMP/w.xml"
 
-          tap_text 'Health'
+          tap_text 'Live'
           dump_ui
-          grep -F 'Health: HEALTHY • alasan 0' "$RUNNER_TEMP/w.xml"
+          grep -F 'Live: OPEN • ToolBox Sendiri' "$RUNNER_TEMP/w.xml"
 
-          tap_text 'Recovery Preview'
+          tap_text 'Self Edit'
           dump_ui
-          grep -F 'Recovery Preview:' "$RUNNER_TEMP/w.xml"
-          grep -F 'kandidat • pilih manual' "$RUNNER_TEMP/w.xml"
+          grep -F 'Live: DIRTY • 1 perubahan' "$RUNNER_TEMP/w.xml"
 
-          adb exec-out screencap -p > app/build/assurance/tahap8-api30.png
+          tap_text 'TERAPKAN'
+          dump_ui
+          grep -F 'TERAPKAN: PASS • VERIFIED' "$RUNNER_TEMP/w.xml"
+
+          adb exec-out screencap -p > app/build/assurance/tahap9-api30.png
           {
             echo "API_LEVEL=$API_LEVEL"
             echo "EMULATOR_ABI=$ABI"
             echo "API30_APP_LAUNCH=PASS"
-            echo "TAHAP8_UI_TEXT=PASS"
-            echo "REPAIR_DEMO=PASS"
-            echo "HEALTH=PASS"
-            echo "RECOVERY_PREVIEW=PASS"
-            echo "TAHAP7_REGRESSION=PASS"
+            echo "TAHAP9_UI_TEXT=PASS"
+            echo "CAPABILITY_SCAN=PASS"
+            echo "LIVE_SESSION=PASS"
+            echo "SELF_EDIT_QUEUE=PASS"
+            echo "TERAPKAN=PASS"
+            echo "TAHAP8_REPAIR_REGRESSION=PASS"
             echo "APP_THEME_RUNTIME=PASS"
-          } > app/build/assurance/tahap8-api30-runtime.txt
+          } > app/build/assurance/tahap9-api30-runtime.txt
 
       - name: Finalize ASSET_SAFE package/runtime proof
         run: python3 app/scripts/asset_finalize.py
@@ -210,20 +229,20 @@ jobs:
       - name: Automatic R9 completeness and provenance closure
         run: python3 app/scripts/assurance_finalize.py
 
-      - name: Upload Tahap 8 unsigned package and assurance
+      - name: Upload Tahap 9 unsigned package and assurance
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
-          name: toolbox-tahap8-public-unsigned-ready-private-signing
+          name: toolbox-tahap9-public-unsigned-ready-private-signing
           path: |
             app/build/outputs/apk/release/app-release-unsigned.apk
             app/build/outputs/apk/release/app-release-unsigned.apk.sha256
             app/build/test-results/testDebugUnitTest/
-            app/build/assurance/tahap8-r1-r8-prebuild-evidence.json
-            app/build/assurance/tahap8-asset-prebuild-evidence.json
-            app/build/assurance/tahap8-asset-final-evidence.json
-            app/build/assurance/tahap8-mutation-evidence.json
-            app/build/assurance/tahap8-r1-r9-evidence.json
-            app/build/assurance/tahap8-api30-runtime.txt
-            app/build/assurance/tahap8-api30.png
+            app/build/assurance/tahap9-r1-r8-prebuild-evidence.json
+            app/build/assurance/tahap9-asset-prebuild-evidence.json
+            app/build/assurance/tahap9-asset-final-evidence.json
+            app/build/assurance/tahap9-mutation-evidence.json
+            app/build/assurance/tahap9-r1-r9-evidence.json
+            app/build/assurance/tahap9-api30-runtime.txt
+            app/build/assurance/tahap9-api30.png
           if-no-files-found: error
           retention-days: 7
