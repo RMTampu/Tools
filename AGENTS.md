@@ -355,3 +355,13 @@ Urutan wajib:
 Jika domain tidak berlaku, status harus `N_A_SCOPE_PROVEN`, bukan dilewati diam-diam.
 
 Workflow canonical aplikasi wajib menghasilkan evidence machine-readable R1-R9 dan meng-upload evidence bersama artifact. Perubahan teknis yang belum melewati gate ini tidak boleh disebut matang atau siap tahap berikutnya.
+
+## Baseline Permanen Tahap 7
+
+- Baseline/rollback anchor ToolBox yang sah adalah **Tahap 7**.
+- APK baseline canonical: `741ebcf799280fbba1b4c7d2e60ba157ba133e3f6545b3468882373150f024f7`.
+- Tahap 8 dan seterusnya adalah candidate/evolution, bukan baseline baru.
+- Tahap 8+ boleh memakai signed candidate tahap sebelumnya sebagai development predecessor, tetapi tidak boleh menyebutnya parent baseline atau rollback baseline.
+- Semua assurance/workflow/provenance Tahap 8+ wajib tetap mengikat `rollbackBaseline = Tahap 7`.
+- Record Tahap 8+ yang berstatus `REVOKED_NON_BASELINE` hanya historical candidate dan dilarang menjadi rollback anchor.
+
