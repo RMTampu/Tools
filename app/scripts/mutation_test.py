@@ -14,7 +14,7 @@ mutations=[
   "path":APP/"src/main/java/com/toolbox/tools/core/StableId.java",
   "old":'Pattern.compile("[a-z0-9][a-z0-9._-]{0,127}")',
   "new":'Pattern.compile(".+")',
-  "test":"com.toolbox.tools.library.AssetLibraryTest.unsafeSourceNameFailsBeforeStoragePathExists"
+  "test":"com.toolbox.tools.core.ProjectDefinitionCodecTest.invalidStableIdIsRejected"
  },
  {
   "name":"r1_component_exact_version_bypass",
