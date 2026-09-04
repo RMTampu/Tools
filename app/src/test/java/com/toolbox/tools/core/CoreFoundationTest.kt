@@ -31,4 +31,12 @@ class CoreFoundationTest {
         manager.start("engine")
         assertEquals(EngineState.RUNNING, manager.state("engine"))
     }
+
+    @Test
+    fun config_store_has_versioned_state() {
+        val store = ConfigStore(2)
+        store.put("mode", "normal")
+        assertEquals(2, store.version())
+        assertTrue(store.contains("mode"))
+    }
 }
