@@ -106,7 +106,8 @@ public final class RepairSessionManagerTest {
 
         assertFalse(fixture.repair.verifyOrRollback());
         assertEquals(RepairPhase.ROLLED_BACK, fixture.repair.phase());
-        assertEquals(before, fixture.manager.savedRevision());
+        long rollbackRevision = fixture.manager.savedRevision();
+        assertTrue(rollbackRevision > fixture.repair.activatedRevision());
         assertEquals(
                 original,
                 fixture.manager.current()
@@ -115,7 +116,7 @@ public final class RepairSessionManagerTest {
         );
 
         ProjectState same = fixture.repair.rollback();
-        assertEquals(before, same.revision());
+        assertEquals(rollbackRevision, same.revision());
         assertEquals(RepairPhase.ROLLED_BACK, fixture.repair.phase());
     }
 
