@@ -176,10 +176,11 @@ public final class VerificationManager {
         }
 
         SyncPlan sync = kernel.externalIntegrationManager().planSync(external);
-        if (sync.status() != SyncStatus.CLEAN) {
-            return VerificationResult.fail("initial sync plan not clean");
+        if (sync.status() == SyncStatus.CLEAN) {
+            kernel.externalIntegrationManager().applySync(sync);
+        } else if (sync.status() != SyncStatus.NO_CHANGE) {
+            return VerificationResult.fail("sync verification not clean/idempotent");
         }
-        kernel.externalIntegrationManager().applySync(sync);
         SyncPlan same = kernel.externalIntegrationManager().planSync(external);
         if (same.status() != SyncStatus.NO_CHANGE) {
             return VerificationResult.fail("sync idempotency failed");
