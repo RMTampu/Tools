@@ -21,8 +21,11 @@ public final class ComponentDefinition {
     private final String implementationRef;
     private final Map<String, PropertyContract> properties;
     private final Map<String, EventContract> events;
+    private final StateContract stateContract;
+    private final BindingContract bindingContract;
+    private final AccessibilityContract accessibilityContract;
     private final Set<String> capabilityRequirements;
-    private final Set<String> assetRequirements;
+    private final List<AssetDependencyRef> assetDependencies;
     private final List<DependencyRef> dependencies;
 
     public ComponentDefinition(
@@ -36,8 +39,11 @@ public final class ComponentDefinition {
             String implementationRef,
             List<PropertyContract> properties,
             List<EventContract> events,
+            StateContract stateContract,
+            BindingContract bindingContract,
+            AccessibilityContract accessibilityContract,
             Set<String> capabilityRequirements,
-            Set<String> assetRequirements,
+            List<AssetDependencyRef> assetDependencies,
             List<DependencyRef> dependencies
     ) {
         this.componentId = StableId.require(componentId, "componentId");
@@ -74,13 +80,20 @@ public final class ComponentDefinition {
         }
         this.events = Collections.unmodifiableMap(eventMap);
 
+        this.stateContract = Objects.requireNonNull(stateContract, "stateContract");
+        this.bindingContract = Objects.requireNonNull(bindingContract, "bindingContract");
+        this.accessibilityContract = Objects.requireNonNull(
+                accessibilityContract,
+                "accessibilityContract"
+        );
         this.capabilityRequirements = immutableIds(
                 capabilityRequirements,
                 "capabilityRequirement"
         );
-        this.assetRequirements = immutableIds(
-                assetRequirements,
-                "assetRequirement"
+        this.assetDependencies = Collections.unmodifiableList(
+                assetDependencies == null
+                        ? new ArrayList<>()
+                        : new ArrayList<>(assetDependencies)
         );
         this.dependencies = Collections.unmodifiableList(
                 dependencies == null
@@ -118,8 +131,11 @@ public final class ComponentDefinition {
     public String implementationRef() { return implementationRef; }
     public Map<String, PropertyContract> properties() { return properties; }
     public Map<String, EventContract> events() { return events; }
+    public StateContract stateContract() { return stateContract; }
+    public BindingContract bindingContract() { return bindingContract; }
+    public AccessibilityContract accessibilityContract() { return accessibilityContract; }
     public Set<String> capabilityRequirements() { return capabilityRequirements; }
-    public Set<String> assetRequirements() { return assetRequirements; }
+    public List<AssetDependencyRef> assetDependencies() { return assetDependencies; }
     public List<DependencyRef> dependencies() { return dependencies; }
 
     public ComponentDefinition withLifecycle(CatalogLifecycle next) {
@@ -134,8 +150,11 @@ public final class ComponentDefinition {
                 implementationRef,
                 new ArrayList<>(properties.values()),
                 new ArrayList<>(events.values()),
+                stateContract,
+                bindingContract,
+                accessibilityContract,
                 capabilityRequirements,
-                assetRequirements,
+                assetDependencies,
                 dependencies
         );
     }
