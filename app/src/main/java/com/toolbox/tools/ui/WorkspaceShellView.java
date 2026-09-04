@@ -136,7 +136,7 @@ public final class WorkspaceShellView extends FrameLayout {
 
         statusLine = UiKit.teks(
                 context,
-                "Siap • 5 engine aktif • autosave nonaktif",
+                "Siap • 5 engine aktif • simpan otomatis nonaktif",
                 10.5f,
                 UiKit.TEKS_REDUP
         );
@@ -290,7 +290,7 @@ public final class WorkspaceShellView extends FrameLayout {
         ));
         TextView divider = UiKit.teks(
                 getContext(),
-                "   •   Model sama • Sinkron dua arah aman",
+                "   •   Model sama • sinkron dua arah aman",
                 10.5f,
                 UiKit.TEKS_REDUP
         );
@@ -316,8 +316,8 @@ public final class WorkspaceShellView extends FrameLayout {
         TextView edit = UiKit.chip(
                 getContext(),
                 kernel.editorEnvironment().shell().editEnabled()
-                        ? "Edit ON"
-                        : "Edit OFF",
+                        ? "Edit AKTIF"
+                        : "Edit NONAKTIF",
                 kernel.editorEnvironment().shell().editEnabled()
         );
         LinearLayout.LayoutParams ep = new LinearLayout.LayoutParams(
@@ -618,7 +618,7 @@ public final class WorkspaceShellView extends FrameLayout {
                         "Freeze / Mode Simpan",
                         "Perbaikan & Kesehatan",
                         "Paket Evolusi Tanpa Rebuild",
-                        "Build & READY",
+                        "Bangun & SIAP",
                         "Diagnostik",
                         "Pengaturan"
                 ),
@@ -630,7 +630,7 @@ public final class WorkspaceShellView extends FrameLayout {
                         showFreeze();
                     } else if ("Perbaikan & Kesehatan".equals(value)) {
                         showHealth();
-                    } else if ("Build & READY".equals(value)) {
+                    } else if ("Bangun & SIAP".equals(value)) {
                         showBuild();
                     } else if ("Diagnostik".equals(value)) {
                         showDiagnostics();
@@ -738,10 +738,10 @@ public final class WorkspaceShellView extends FrameLayout {
                 Arrays.asList(
                         "Status: " + (report.isHealthy() ? "SEHAT" : "PERLU PERHATIAN"),
                         "Alasan: " + report.reasons().size(),
-                        "Repair Staging: tersedia",
+                        "Area Uji Perbaikan: tersedia",
                         "Aktivasi + Verifikasi: tersedia",
                         "Rollback Otomatis: tersedia",
-                        "Safe Mode: " + kernel.safeModeController().statusIndonesia()
+                        "Mode Aman: " + kernel.safeModeController().statusIndonesia()
                 ),
                 value -> {}
         );
@@ -752,7 +752,7 @@ public final class WorkspaceShellView extends FrameLayout {
                 new FullProductVerifier().verify(kernel);
         boolean buildReady = kernel.readyCoordinator().preview().isPass();
         showCommandOverlay(
-                "Build & READY",
+                "Bangun & SIAP",
                 Arrays.asList(
                         "Kelengkapan Produk: "
                                 + (product.isPass() ? "LULUS" : "BELUM LULUS"),
@@ -791,8 +791,8 @@ public final class WorkspaceShellView extends FrameLayout {
                     "Pemulihan & Backup",
                     Arrays.asList(
                             "Kandidat Pemulihan: " + candidates,
-                            "Final Recovery Snapshot: didukung",
-                            "Last Valid Recovery: didukung",
+                            "Titik Pemulihan Final: didukung",
+                            "Pemulihan Valid Terakhir: didukung",
                             "Riwayat Revisi: didukung",
                             "Backup Pengguna: " + kernel.productServices().backups().records().size(),
                             "Buat Backup Terverifikasi"
@@ -824,7 +824,7 @@ public final class WorkspaceShellView extends FrameLayout {
                         "Pratinjau perubahan: SIAP",
                         "Recovery point sebelum mutasi: WAJIB",
                         "Apply atomik: SIAP",
-                        "Health Check: SIAP",
+                        "Pemeriksaan Kesehatan: SIAP",
                         "Rollback: SIAP",
                         "Kode executable baru: memerlukan APK baru"
                 ),
@@ -836,7 +836,7 @@ public final class WorkspaceShellView extends FrameLayout {
         com.toolbox.tools.live.CapabilityScanResult scan =
                 kernel.capabilityScanner().scan(kernel.selfTargetDescriptor());
         showCommandOverlay(
-                "Capability Scan",
+                "Pemindaian Kapabilitas",
                 Arrays.asList(
                         "Target: " + kernel.selfTargetDescriptor().labelIndonesia(),
                         "Terinstal: " + (scan.installed() ? "YA" : "TIDAK"),
@@ -845,7 +845,7 @@ public final class WorkspaceShellView extends FrameLayout {
                         "Data: " + availability(scan, com.toolbox.tools.live.CapabilityArea.DATA),
                         "Pengikatan: " + availability(scan, com.toolbox.tools.live.CapabilityArea.BINDING),
                         "Aset: " + availability(scan, com.toolbox.tools.live.CapabilityArea.ASSET),
-                        "Runtime Apply: " + availability(scan, com.toolbox.tools.live.CapabilityArea.RUNTIME)
+                        "Penerapan Runtime: " + availability(scan, com.toolbox.tools.live.CapabilityArea.RUNTIME)
                 ),
                 value -> {}
         );
@@ -855,12 +855,12 @@ public final class WorkspaceShellView extends FrameLayout {
         showCommandOverlay(
                 "Edit ToolBox",
                 Arrays.asList(
-                        "Surface deklaratif: DAPAT DIEDIT",
+                        "Permukaan deklaratif: DAPAT DIEDIT",
                         "UI/Logika/Data/Pengikatan/Aset: capability-based",
                         "Kernel: TERPROTEKSI",
                         "Recovery Core: TERPROTEKSI",
                         "Safety Core: TERPROTEKSI",
-                        "Alur: Working → Staging → Validasi → Recovery → Aktivasi → Verifikasi"
+                        "Alur: Kerja → Area Uji → Validasi → Pemulihan → Aktivasi → Verifikasi"
                 ),
                 value -> {}
         );
