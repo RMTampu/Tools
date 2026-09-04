@@ -1,6 +1,8 @@
 package com.toolbox.tools.core;
 
+import java.io.File;
 import java.io.IOException;
+import java.util.Objects;
 
 public final class AppKernel {
     private final ToolRegistry toolRegistry;
@@ -26,9 +28,18 @@ public final class AppKernel {
     }
 
     public static AppKernel createDefault() {
+        return createWithStorage(new InMemoryStorageGateway());
+    }
+
+    public static AppKernel createPersistent(File workspaceFile) {
+        Objects.requireNonNull(workspaceFile, "workspaceFile");
+        return createWithStorage(new FileStorageGateway(workspaceFile));
+    }
+
+    private static AppKernel createWithStorage(StorageGateway storageGateway) {
         RecoveryManager recoveryManager = new RecoveryManager();
         WorkspaceManager workspaceManager = new WorkspaceManager(
-                new InMemoryStorageGateway(),
+                storageGateway,
                 recoveryManager
         );
         AppKernel kernel = new AppKernel(
