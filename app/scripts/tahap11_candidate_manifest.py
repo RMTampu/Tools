@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+import hashlib,json,os,re
+from pathlib import Path
+
+APP=Path(__file__).resolve().parents[1]
+OUT=APP/"build"/"assurance"
+OUT.mkdir(parents=True,exist_ok=True)
+
+runtime=(OUT/"tahap11-api30-runtime.txt").read_text()
+match=re.search(r"^IR_SHA256=([0-9a-f]{64})$",runtime,flags=re.MULTILINE)
+assert match,"IR_SHA256 missing"
+ir_sha=match.group(1)
+
+apk=APP/"build/outputs/apk/release/app-release-unsigned.apk"
+digest_file=Path(str(apk)+".sha256")
+assert apk.is_file() and digest_file.is_file()
+unsigned_sha=digest_file.read_text().strip().split()[0].lower()
+assert re.fullmatch(r"[0-9a-f]{64}",unsigned_sha)
+
+application_id="com.toolbox.tools"
+version_code=11
+version_name="11.0-tahap11-dev"
+parent="fbc39153bc121ed2d32bc9c24e9ff8f0e9b7730fcef01021f4adfd830fbd21ff"
+rollback="741ebcf799280fbba1b4c7d2e60ba157ba133e3f6545b3468882373150f024f7"
+
+canonical=(
+    "TBX_CANDIDATE_V1\n"
+    +application_id+"\n"
+    +str(version_code)+"\n"
+    +version_name+"\n"
+    +parent+"\n"
+    +ir_sha+"\n"
+    +unsigned_sha+"\n"
+)
+candidate_sha=hashlib.sha256(canonical.encode()).hexdigest()
+
+payload={
+    "schemaVersion":1,
+    "status":"PUBLIC_TAHAP_11_CANDIDATE",
+    "candidateId":"candidate."+candidate_sha,
+    "candidateSha256":candidate_sha,
+    "applicationId":application_id,
+    "versionCode":version_code,
+    "versionName":version_name,
+    "parentSignedApkSha256":parent,
+    "parentSignedCandidateStage":10,
+    "rollbackBaselineStage":7,
+    "rollbackBaselineApkSha256":rollback,
+    "irSha256":ir_sha,
+    "unsignedApkSha256":unsigned_sha,
+    "publicSourceRepository":os.environ.get("GITHUB_REPOSITORY","LOCAL"),
+    "publicSourceCommitSha":os.environ.get("GITHUB_SHA","LOCAL"),
+    "publicWorkflowRunId":os.environ.get("GITHUB_RUN_ID","LOCAL"),
+    "firebaseUsed":False,
+}
+(OUT/"tahap11-candidate-manifest.json").write_text(
+    json.dumps(payload,indent=2,sort_keys=True)+"\n"
+)
+print("TAHAP_11_CANDIDATE_IDENTITY = PASS")
+print("CANDIDATE_SHA256="+candidate_sha)
+print("ROLLBACK_BASELINE_TAHAP_7 = PASS")
+print("FIREBASE_USED = NO")
