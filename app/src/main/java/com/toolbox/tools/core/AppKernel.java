@@ -10,6 +10,11 @@ import com.toolbox.tools.library.DefaultLibraryFactory;
 import com.toolbox.tools.library.FileAssetStore;
 import com.toolbox.tools.library.InMemoryAssetStore;
 import com.toolbox.tools.library.LibraryManager;
+import com.toolbox.tools.live.CapabilityScanner;
+import com.toolbox.tools.live.DefaultLiveFactory;
+import com.toolbox.tools.live.LiveSessionManager;
+import com.toolbox.tools.live.SelfEditPolicy;
+import com.toolbox.tools.live.TargetDescriptor;
 import com.toolbox.tools.runtime.DefaultRuntimeFactory;
 import com.toolbox.tools.runtime.RuntimeEnvironment;
 import com.toolbox.tools.repair.HealthMonitor;
@@ -35,6 +40,9 @@ public final class AppKernel {
     private final RepairSessionManager repairSessionManager;
     private final RecoveryPreviewService recoveryPreviewService;
     private final HealthMonitor healthMonitor;
+    private final CapabilityScanner capabilityScanner;
+    private final TargetDescriptor selfTargetDescriptor;
+    private final LiveSessionManager liveSessionManager;
     private AppState state;
 
     public AppKernel(
@@ -77,6 +85,14 @@ public final class AppKernel {
                 this.projectManager
         );
         this.healthMonitor = new HealthMonitor();
+        this.capabilityScanner = new CapabilityScanner();
+        this.selfTargetDescriptor = DefaultLiveFactory.selfTarget();
+        this.liveSessionManager = new LiveSessionManager(
+                this.projectManager,
+                this.repairSessionManager,
+                new SelfEditPolicy(),
+                this.selfTargetDescriptor
+        );
         this.state = AppState.CREATED;
     }
 
@@ -176,7 +192,7 @@ public final class AppKernel {
             });
             configStore.put("targetApi", "30");
             configStore.put("targetAbi", "arm64");
-            configStore.put("tahap", "8");
+            configStore.put("tahap", "9");
             projectManager.bootstrap("project.default");
             state = AppState.READY;
         } catch (IOException | RuntimeException error) {
@@ -199,5 +215,8 @@ public final class AppKernel {
     public RepairSessionManager repairSessionManager() { return repairSessionManager; }
     public RecoveryPreviewService recoveryPreviewService() { return recoveryPreviewService; }
     public HealthMonitor healthMonitor() { return healthMonitor; }
+    public CapabilityScanner capabilityScanner() { return capabilityScanner; }
+    public TargetDescriptor selfTargetDescriptor() { return selfTargetDescriptor; }
+    public LiveSessionManager liveSessionManager() { return liveSessionManager; }
     public synchronized AppState state() { return state; }
 }
