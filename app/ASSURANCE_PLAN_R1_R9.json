@@ -1,12 +1,12 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "projectId": "ToolBox",
-  "stage": "Tahap 6",
-  "stageMap": "F",
+  "stage": "Tahap 7",
+  "stageMap": "G",
   "parentBaseline": {
-    "name": "Tahap 5",
-    "apkSha256": "717f36b59d9c005b17bfeee72b1de7f872ed3c6b406471e6b9d80c9efba91f49",
-    "publicR1R9RunId": "33845088359",
+    "name": "Tahap 6",
+    "apkSha256": "64f93a41bbf7623d5bfcc4a6a0bee69cc0ca613897f55c5fd004fcb7f335d878",
+    "publicR1R9RunId": "33848830996",
     "privateFinalRuntimePassed": true
   },
   "target": {
@@ -21,11 +21,11 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R1_LOGIC_INPUT.md",
       "methods": [
-        "five authoring sections share stable model identity",
-        "bounded validated search query",
-        "stable-id exact discovery",
-        "draft state machine",
-        "template exact-version publishing"
+        "stable external adapter identity",
+        "bounded external input",
+        "deterministic canonical normalization",
+        "explicit capability gate",
+        "sync conflict fail-closed"
       ],
       "proof": "unit + route gate + mutation"
     },
@@ -33,11 +33,11 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R2_CONCURRENCY_RESOURCE.md",
       "methods": [
-        "one heavy authoring section active",
-        "search result limit <=100",
-        "draft history <=32",
-        "immutable search results",
-        "no search-side execution"
+        "max 1000 external records",
+        "max 64 fields",
+        "max 4096 chars/value",
+        "sync history <=32",
+        "immutable normalized/export snapshots"
       ],
       "proof": "unit + source contract"
     },
@@ -45,10 +45,10 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R3_LIFECYCLE_STATE_RECOVERY.md",
       "methods": [
-        "DRAFT/VALIDATED/PUBLISHED/DISCARDED explicit lifecycle",
-        "terminal publish/discard",
-        "validated-to-edit returns DRAFT",
-        "authoring reuses Tahap5 editor lifecycle"
+        "cursor/revision sync lifecycle",
+        "NO_CHANGE idempotency",
+        "CONFLICT terminal until explicit resolution",
+        "offline/source failure separated from model corruption"
       ],
       "proof": "unit + regression"
     },
@@ -56,10 +56,11 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R4_PERSISTENCE_STORAGE_VERSION.md",
       "methods": [
-        "monotonic draft revision",
-        "registry unchanged before template publish",
-        "preview identity map without master mutation",
-        "parent baseline immutable"
+        "versioned external schema",
+        "deterministic export",
+        "SHA-256 export integrity",
+        "parent baseline immutable",
+        "export does not mutate working state"
       ],
       "proof": "unit + baseline binding"
     },
@@ -67,11 +68,11 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R5_SECURITY_NETWORK_BOUNDARY.md",
       "methods": [
-        "search is read-only",
-        "template dependency validation before publish",
-        "invalid/missing dependency fail closed",
-        "no arbitrary executable authoring payload",
-        "no public secret/network authority"
+        "external fields canonicalized",
+        "no executable payload loading",
+        "adapter capability least authority",
+        "external identifier preserved only as provenance",
+        "no public secret/network credential"
       ],
       "proof": "negative tests + source scan"
     },
@@ -79,11 +80,11 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R6_BUILD_DEPENDENCY_INSTALL.md",
       "methods": [
-        "versionCode above Tahap 5",
+        "versionCode above Tahap 6",
         "pinned JDK/Gradle/SDK",
         "API30 metadata",
         "APK digest",
-        "API30 interactive authoring witness"
+        "API30 interactive external integration witness"
       ],
       "proof": "GitHub Actions build/package/runtime"
     },
@@ -93,16 +94,15 @@
       "methods": [
         "native/JNI/plugin/reflection/dynamic-loader scope scan"
       ],
-      "proof": "no native/JNI/plugin/reflection/dynamic executable loader added in Tahap 6"
+      "proof": "no native/JNI/plugin/reflection/dynamic executable loader added in Tahap 7"
     },
     "R8": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R8_UI_DEVICE_POWER.md",
       "methods": [
-        "UI/Logic/Data/Binding/Asset authoring controls",
-        "search UI interaction",
-        "Bahasa Indonesia presentation",
-        "Stage5 shell regression",
+        "Indonesian external adapter UI",
+        "Import Demo/Export/Sync controls",
+        "Tahap6 authoring regression",
         "API30 UIAutomator witness"
       ],
       "proof": "unit + API30 emulator interaction"
@@ -112,8 +112,8 @@
       "sourceMethodDoc": "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md",
       "methods": [
         "R1-R8 traceability",
-        "Tahap6 mutation challenge",
-        "authoring/search/template interaction proof",
+        "Tahap7 mutation challenge",
+        "external route proof",
         "ASSET_SAFE regression",
         "unknown/skipped closure"
       ],
