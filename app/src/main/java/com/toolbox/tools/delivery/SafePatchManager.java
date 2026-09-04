@@ -12,6 +12,7 @@ public final class SafePatchManager {
     private final ProjectManager projectManager;
     private final RecoveryManager recoveryManager;
     private final RemotePatchVerifier remoteVerifier;
+    private final PatchActivationHook activationHook;
     private final ProjectValidator projectValidator=new ProjectValidator();
 
     public SafePatchManager(
@@ -19,9 +20,24 @@ public final class SafePatchManager {
             RecoveryManager recoveryManager,
             RemotePatchVerifier remoteVerifier
     ){
+        this(
+                projectManager,
+                recoveryManager,
+                remoteVerifier,
+                PatchActivationHook.NO_OP
+        );
+    }
+
+    public SafePatchManager(
+            ProjectManager projectManager,
+            RecoveryManager recoveryManager,
+            RemotePatchVerifier remoteVerifier,
+            PatchActivationHook activationHook
+    ){
         this.projectManager=Objects.requireNonNull(projectManager,"projectManager");
         this.recoveryManager=Objects.requireNonNull(recoveryManager,"recoveryManager");
         this.remoteVerifier=Objects.requireNonNull(remoteVerifier,"remoteVerifier");
+        this.activationHook=Objects.requireNonNull(activationHook,"activationHook");
     }
 
     public synchronized PatchApplyResult apply(
@@ -70,6 +86,7 @@ public final class SafePatchManager {
                         "patch validation failed: "+validation.message()
                 );
             }
+            activationHook.onActivated(committed);
 
             return new PatchApplyResult(
                     PatchApplyResult.State.APPLIED,
@@ -82,6 +99,7 @@ public final class SafePatchManager {
             }
             try{
                 ProjectState restored=projectManager.restoreRevision(baseRevision);
+                activationHook.onActivated(restored);
                 recoveryManager.clearRecoveryRequired();
                 return new PatchApplyResult(
                         PatchApplyResult.State.RESTORED,
@@ -102,6 +120,7 @@ public final class SafePatchManager {
     public synchronized PatchApplyResult restore(long revision){
         try{
             ProjectState restored=projectManager.restoreRevision(revision);
+            activationHook.onActivated(restored);
             recoveryManager.clearRecoveryRequired();
             return new PatchApplyResult(
                     PatchApplyResult.State.RESTORED,
