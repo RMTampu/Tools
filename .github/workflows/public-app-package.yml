@@ -202,7 +202,7 @@ jobs:
                   m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.attrib['bounds'])
                   if m:
                       l,t,r,b=map(int,m.groups())
-                      print((l+r)//2,(t+b)//2)
+                      print(l + max(1,(r-l)//4),(t+b)//2)
                       raise SystemExit(0)
           raise SystemExit("UI_TEXT_NOT_FOUND="+target)
           PY
