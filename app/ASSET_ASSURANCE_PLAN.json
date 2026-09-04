@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "projectId": "ToolBox",
-  "stage": "Tahap 5",
-  "stageMap": "E",
+  "stage": "Tahap 6",
+  "stageMap": "F",
   "statusPolicy": {
     "readyRequiresValidation": true,
     "unsupportedRuntimeTypesRemainDraft": true,
     "noSilentDuplicateMerge": true,
     "noOriginalEvictionByCacheCleanup": true,
-    "noTahap5AssetMutation": true
+    "noTahap6AssetMutation": true
   },
   "shippedAndroidAssets": [
     {
@@ -64,6 +64,6 @@
     "relink integrity",
     "canonical child path",
     "no executable payload loading",
-    "Tahap 3 asset contracts remain unchanged and validated in Tahap 5 package"
+    "Tahap 3 asset contracts remain unchanged and validated in Tahap 6 package"
   ]
 }
