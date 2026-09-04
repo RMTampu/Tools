@@ -17,7 +17,7 @@ import static org.junit.Assert.*;
 
 public final class AppKernelTest {
     @Test
-    public void defaultKernelPassesTahapElevenVerification() {
+    public void defaultKernelPassesFullProductVerification() {
         AppKernel kernel = AppKernel.createDefault();
 
         VerificationResult result = new VerificationManager().verify(kernel);
@@ -26,7 +26,8 @@ public final class AppKernelTest {
         assertEquals(AppState.READY, kernel.state());
         assertEquals("30", kernel.configStore().get("targetApi", ""));
         assertEquals("arm64", kernel.configStore().get("targetAbi", ""));
-        assertEquals("11", kernel.configStore().get("tahap", ""));
+        assertEquals("produk-penuh-v12", kernel.configStore().get("tahap", ""));
+        assertEquals("id", kernel.configStore().get("bahasaDefault", ""));
         assertNotNull(kernel.runtimeEnvironment());
         assertNotNull(kernel.editorEnvironment());
         assertNotNull(kernel.authoringWorkspace());
@@ -43,6 +44,16 @@ public final class AppKernelTest {
         assertNotNull(kernel.readyCoordinator());
         assertNotNull(kernel.remotePatchVerifier());
         assertNotNull(kernel.safePatchManager());
+        assertNotNull(kernel.productServices());
+        assertNotNull(kernel.productEngines());
+        assertNotNull(kernel.evolutionManager());
+        assertNotNull(kernel.safeModeController());
+        assertTrue(kernel.productEngines().semuaSiap());
+        assertEquals(6, kernel.engineManager().snapshot().size());
+        assertEquals(6, kernel.toolRegistry().size());
+        assertTrue(kernel.libraryManager().components().allReady().size() >= 18);
+        assertTrue(kernel.libraryManager().assets().allReady().size() >= 5);
+        assertTrue(kernel.libraryManager().templates().allReady().size() >= 4);
         assertTrue(
                 kernel.capabilityScanner()
                         .scan(kernel.selfTargetDescriptor())
