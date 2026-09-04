@@ -9,6 +9,7 @@ import com.toolbox.tools.core.ProjectValidator;
 import com.toolbox.tools.live.LiveSessionState;
 import com.toolbox.tools.repair.HealthState;
 import com.toolbox.tools.repair.RepairPhase;
+import com.toolbox.tools.product.FullProductVerifier;
 import com.toolbox.tools.runtime.RuntimeModelValidator;
 
 import java.util.ArrayList;
@@ -127,6 +128,24 @@ public final class BuildValidator {
             diagnostics.add(new BuildDiagnostic(
                     "build.android.target",
                     "Target Android 11/API30 arm64 tidak cocok"
+            ));
+        }
+
+        if (!"id".equals(kernel.configStore().get("bahasaDefault", ""))) {
+            diagnostics.add(new BuildDiagnostic(
+                    "build.language.indonesia.required",
+                    "Bahasa pengguna default wajib Bahasa Indonesia"
+            ));
+        }
+
+        FullProductVerifier.Result product =
+                new FullProductVerifier().verify(kernel);
+        if (!product.isPass()) {
+            diagnostics.add(new BuildDiagnostic(
+                    "build.product.incomplete",
+                    "Produk belum lengkap: "
+                            + product.available().size()
+                            + "/" + product.requiredCount()
             ));
         }
 
