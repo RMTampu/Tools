@@ -14,6 +14,9 @@ import com.toolbox.tools.integration.SyncStatus;
 import com.toolbox.tools.library.LibraryItemType;
 import com.toolbox.tools.library.LibraryKey;
 import com.toolbox.tools.library.VersionNumber;
+import com.toolbox.tools.live.CapabilityArea;
+import com.toolbox.tools.live.CapabilityAvailability;
+import com.toolbox.tools.live.CapabilityScanResult;
 import com.toolbox.tools.runtime.RenderTree;
 import com.toolbox.tools.runtime.Renderer;
 import com.toolbox.tools.runtime.RuntimeModelValidator;
@@ -39,8 +42,8 @@ public final class VerificationManager {
                 || !"arm64".equals(kernel.configStore().get("targetAbi", ""))) {
             return VerificationResult.fail("android target mismatch");
         }
-        if (!"8".equals(kernel.configStore().get("tahap", ""))) {
-            return VerificationResult.fail("tahap 8 configuration missing");
+        if (!"9".equals(kernel.configStore().get("tahap", ""))) {
+            return VerificationResult.fail("tahap 9 configuration missing");
         }
         if (kernel.recoveryManager().isRecoveryRequired()) {
             return VerificationResult.fail("recovery required");
@@ -224,6 +227,36 @@ public final class VerificationManager {
             return VerificationResult.fail("health requires recovery");
         }
 
-        return VerificationResult.pass("tahap 8 repair health recovery ready");
+        if (kernel.capabilityScanner() == null
+                || kernel.selfTargetDescriptor() == null
+                || kernel.liveSessionManager() == null) {
+            return VerificationResult.fail("capability/live services unavailable");
+        }
+
+        CapabilityScanResult capabilityScan =
+                kernel.capabilityScanner().scan(
+                        kernel.selfTargetDescriptor()
+                );
+        if (!capabilityScan.installed()
+                || !capabilityScan.liveAvailable()
+                || capabilityScan.status(CapabilityArea.UI)
+                != CapabilityAvailability.AVAILABLE
+                || capabilityScan.status(CapabilityArea.LOGIC)
+                != CapabilityAvailability.READ_ONLY
+                || capabilityScan.status(CapabilityArea.RUNTIME)
+                != CapabilityAvailability.AVAILABLE) {
+            return VerificationResult.fail("capability scan contract mismatch");
+        }
+
+        if (!kernel.liveSessionManager()
+                .selfEditPolicy()
+                .isDeclarativeEditable("screen.live.verification")
+                || kernel.liveSessionManager()
+                .selfEditPolicy()
+                .isDeclarativeEditable("kernel.security.core")) {
+            return VerificationResult.fail("self-edit protection mismatch");
+        }
+
+        return VerificationResult.pass("tahap 9 capability live self-edit ready");
     }
 }
