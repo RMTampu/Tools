@@ -26,3 +26,14 @@ Dokumen ini menjaga agar rancangan dan implementasi ToolBox matang sebelum fitur
 ## Aturan yang Tidak Dipakai Lagi
 
 Proses ini tidak memakai pola pemisahan pengembangan antar repository.
+
+## Marker Wajib Verifier Public
+
+Marker berikut wajib ada karena dipakai oleh verifier otomatis public component. Jangan hapus atau ubah teks marker tanpa memperbarui verifier terkait.
+
+- R1 LOGIC / INPUT
+- R9 VERIFICATION COMPLETENESS
+- R1-R8 APPLICABLE PREBUILD ANALYSIS
+- R9 PUBLIC EVIDENCE COMPLETENESS
+- PACKAGE_VALIDATION
+- READY_PRIVATE
