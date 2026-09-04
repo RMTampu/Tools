@@ -86,6 +86,18 @@ public final class CandidateIdentityTest {
                         "com.toolbox.tools",
                         10,
                         "10.0-tahap10-dev",
+                        "5555555555555555555555555555555555555555555555555555555555555555",
+                        IR,
+                        APK
+                ).sha256()
+        );
+
+        assertNotEquals(
+                base.sha256(),
+                factory.create(
+                        "com.toolbox.tools",
+                        10,
+                        "10.0-tahap10-dev",
                         PARENT,
                         IR,
                         "4444444444444444444444444444444444444444444444444444444444444444"
