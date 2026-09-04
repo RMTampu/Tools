@@ -20,22 +20,26 @@ public final class VerificationManager {
         if (!"arm64".equals(kernel.configStore().get("targetAbi", ""))) {
             return VerificationResult.fail("android abi target mismatch");
         }
-        if (!"2".equals(kernel.configStore().get("stage", ""))) {
-            return VerificationResult.fail("stage 2 configuration missing");
+        if (!"2".equals(kernel.configStore().get("tahap", ""))) {
+            return VerificationResult.fail("tahap 2 configuration missing");
         }
         if (kernel.recoveryManager().isRecoveryRequired()) {
             return VerificationResult.fail("recovery required");
         }
-        WorkspaceSnapshot workspace = kernel.workspaceManager().current();
-        if (workspace == null) {
-            return VerificationResult.fail("workspace missing");
+        ProjectState project = kernel.projectManager().current();
+        if (!"project.default".equals(project.projectId())) {
+            return VerificationResult.fail("project identity mismatch");
         }
-        if (!"toolbox.default".equals(workspace.workspaceId())) {
-            return VerificationResult.fail("workspace identity mismatch");
+        if (project.schemaVersion() != ProjectState.CURRENT_SCHEMA_VERSION) {
+            return VerificationResult.fail("project schema mismatch");
         }
-        if (workspace.schemaVersion() != WorkspaceSnapshot.CURRENT_SCHEMA_VERSION) {
-            return VerificationResult.fail("workspace schema mismatch");
+        if (project.buildModelVersion() != ProjectState.CURRENT_BUILD_MODEL_VERSION) {
+            return VerificationResult.fail("build model mismatch");
         }
-        return VerificationResult.pass("stage 2 workspace foundation ready");
+        if (kernel.projectManager().accessStatus() != ProjectAccessStatus.FOLDER_MISSING
+                && kernel.projectManager().accessStatus() != ProjectAccessStatus.PROJECT_OK) {
+            return VerificationResult.fail("project access invalid");
+        }
+        return VerificationResult.pass("tahap 2 project store ready");
     }
 }
