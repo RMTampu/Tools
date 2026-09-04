@@ -1,12 +1,12 @@
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "projectId": "ToolBox",
-  "stage": "Tahap 8",
-  "stageMap": "H",
+  "stage": "Tahap 9",
+  "stageMap": "I",
   "parentBaseline": {
-    "name": "Tahap 7",
-    "apkSha256": "741ebcf799280fbba1b4c7d2e60ba157ba133e3f6545b3468882373150f024f7",
-    "publicR1R9RunId": "33851807482",
+    "name": "Tahap 8",
+    "apkSha256": "1be38ee81c02ffc02882f883fdaa61caff6a9d462a5fcfdc6a8f520f06ee373a",
+    "publicR1R9RunId": "33855807724",
     "privateFinalRuntimePassed": true
   },
   "target": {
@@ -21,11 +21,11 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R1_LOGIC_INPUT.md",
       "methods": [
-        "stable repair identity",
-        "base revision gate",
-        "protected core gate",
-        "expected-change verification",
-        "invalid transition fail-closed"
+        "stable target/session/change identity",
+        "capability scan fail-closed",
+        "runtime capability gate",
+        "self-edit declarative gate",
+        "stale revision conflict"
       ],
       "proof": "unit + route gate + mutation"
     },
@@ -33,10 +33,11 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R2_CONCURRENCY_RESOURCE.md",
       "methods": [
-        "repair operations <=128",
-        "repair history <=32",
-        "immutable repair plan",
-        "bounded recovery candidates from existing stores"
+        "live changes <=64",
+        "live history <=32",
+        "immutable compare snapshot",
+        "one live self target session state",
+        "bounded target capability map"
       ],
       "proof": "unit + source contract"
     },
@@ -44,10 +45,10 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R3_LIFECYCLE_STATE_RECOVERY.md",
       "methods": [
-        "NEW/STAGED/ACTIVATED/VERIFIED/ROLLED_BACK/FAILED_SAFE lifecycle",
-        "recovery point before activation",
-        "verify-or-rollback",
-        "explicit recovery preview"
+        "CLOSED/OPEN/DIRTY/APPLIED/CONFLICT/FAILED_SAFE lifecycle",
+        "TERAPKAN only from dirty",
+        "no-change apply idempotent",
+        "repair verify/rollback reused"
       ],
       "proof": "unit + runtime"
     },
@@ -55,10 +56,10 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R4_PERSISTENCE_STORAGE_VERSION.md",
       "methods": [
-        "deterministic repair SHA-256",
-        "activation commits new revision",
-        "rollback restores pre-activation revision",
-        "parent baseline immutable"
+        "base revision binding",
+        "compare checksum SHA-256",
+        "TERAPKAN commits through Tahap8 repair pipeline",
+        "baseline Tahap8 immutable"
       ],
       "proof": "unit + baseline binding"
     },
@@ -66,9 +67,10 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R5_SECURITY_NETWORK_BOUNDARY.md",
       "methods": [
-        "kernel/recovery/safety/security resources protected",
-        "no executable repair payload",
-        "repair scoped to project identity",
+        "edit door least authority",
+        "no door downgrades writable capability",
+        "self-edit protects kernel/recovery/safety/security",
+        "no sandbox/signature bypass",
         "no public secrets"
       ],
       "proof": "negative tests + source scan"
@@ -77,11 +79,11 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R6_BUILD_DEPENDENCY_INSTALL.md",
       "methods": [
-        "versionCode above Tahap 7",
+        "versionCode above Tahap8",
         "pinned JDK/Gradle/SDK",
         "API30 metadata",
         "APK digest",
-        "API30 repair interaction witness"
+        "API30 capability/live/apply witness"
       ],
       "proof": "GitHub Actions build/package/runtime"
     },
@@ -91,15 +93,15 @@
       "methods": [
         "native/JNI/plugin/reflection/dynamic-loader scope scan"
       ],
-      "proof": "no native/JNI/plugin/reflection/dynamic executable loader added in Tahap 8"
+      "proof": "no native/JNI/plugin/reflection/dynamic executable loader added in Tahap9"
     },
     "R8": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R8_UI_DEVICE_POWER.md",
       "methods": [
-        "Repair Demo/Health/Recovery Preview controls",
-        "Indonesian diagnostics",
-        "Tahap7 regression",
+        "Capability Scan/Live/Self Edit/TERAPKAN controls",
+        "Indonesian status",
+        "Tahap8 repair controls regression",
         "API30 UIAutomator witness"
       ],
       "proof": "unit + API30 emulator interaction"
@@ -109,8 +111,8 @@
       "sourceMethodDoc": "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md",
       "methods": [
         "R1-R8 traceability",
-        "Tahap8 mutation challenge",
-        "repair route proof",
+        "Tahap9 mutation challenge",
+        "capability/live route proof",
         "ASSET_SAFE regression",
         "unknown/skipped closure"
       ],
