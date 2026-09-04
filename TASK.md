@@ -2,82 +2,79 @@
 
 ## Tugas Aktif
 
-Kerjakan **Tahap 5 = E — Bubble, Edge Panel, Floating Editor, dan pengeditan visual** pada repo publik utama `RMTampu/Tools`.
+Kerjakan **Tahap 6 = F — UI/Logic/Data/Binding/Asset terpadu, authoring, search, dan template** pada repo publik utama `RMTampu/Tools`.
 
-Baseline resmi aktif adalah **Baseline Tahap 4**, exact APK Android 11/API30/arm64 yang sudah signed, R1-R9 + ASSET_SAFE PASS, lulus Firebase final test, dan terkunci pada jalur private.
+Baseline resmi aktif adalah **Baseline Tahap 5**, exact APK Android 11/API30/arm64 yang sudah signed, R1-R9 + ASSET_SAFE PASS, lulus Firebase final test, dan terkunci.
 
-Tahap 5 wajib menambah kemampuan di atas Tahap 4. Baseline Tahap 4 tidak boleh dimodifikasi.
+Tahap 6 wajib menambah kemampuan di atas Tahap 5. Baseline Tahap 5 tidak boleh dimodifikasi.
 
-## Scope Tahap 5
+## Scope Tahap 6
 
-### E1 — Bubble Quick Access
-- draggable dan bounded.
-- tidak touch-through.
-- safe position portrait/landscape.
-- tap membuka/menutup panel.
-- Edit ON/OFF, Tool, Pengaturan, Floating Window.
-- reset shell selalu tersedia.
+### F1 — Unified Authoring Workspace
+- satu workspace memakai shared model Tahap 4 + shell/editor Tahap 5.
+- UI / Logic / Data / Binding / Asset adalah lima section authoring pada context yang sama.
+- hanya satu section heavy-active.
+- perpindahan section mempertahankan project identity dan working state.
+- setiap section memakai Stable ID, typed contract, dan diagnostic yang sama.
+- section tidak membuat clone model.
 
-### E2 — Contextual Multi-Function Edge Panel
-- satu panel; isi berubah menurut Editor Function, Edit ON/OFF, selected object, dan operation context.
-- header Back/breadcrumb/context title/close.
-- handle tap/drag/long-press + safe clamp.
-- UI / Logic / Data / Binding / Asset.
-- satu heavy function aktif pada satu waktu.
-- saat UI tanpa selection: Komponen / Template / Kit / Asset / Recent / Favorite.
-- saat object dipilih: menu capability-aware Style sampai Others.
+### F2 — Unified Search
+- search lintas Component / Template / Asset / Screen / Flow / Data Source / Binding / Action / Event.
+- query tervalidasi dan bounded.
+- hasil bounded, deterministic, stable-keyed, dan dapat difilter berdasarkan section/kind.
+- exact Stable ID dapat ditemukan tanpa bergantung label tampilan.
+- search tidak mengaktifkan/mengeksekusi item.
+- item unavailable/broken tidak dipromosikan sebagai valid result.
 
-### E3 — Floating Editor Framework
-- satu primary Floating Editor aktif.
-- draggable, pinned, close, safe bounds, IME-safe.
-- auto-placement menghindari selected object bila mungkin.
-- X hanya menutup editor; tidak revert Working State.
-- perubahan masuk Working State.
-- gesture edit = satu undo transaction.
+### F3 — Authoring Drafts
+- draft memakai Stable Draft ID + target section + revision.
+- draft lifecycle: DRAFT / VALIDATED / PUBLISHED / DISCARDED.
+- edit draft meningkatkan revision monotonik.
+- publish hanya dari VALIDATED.
+- publish/discard terminal dan fail-closed.
+- history draft bounded.
+- draft tidak mengubah registry/runtime sampai publish berhasil.
 
-### E4 — Visual Editing Working State
-- Stable Object ID.
-- selection dan add-to-screen tidak mengubah master component.
-- Visual/Properties/Code tetap memakai shared model Tahap 4.
-- edit OFF = normal interaction; edit ON = selection/edit.
-- EDIT/PREVIEW/TEST/LIVE state eksplisit.
-- Preview menyembunyikan overlay editor.
-- LIVE hanya jika capability tersedia.
-- lock protection per area.
-- move/resize/content/style/state/transform dan property editing memakai generic visual operation contract.
-- broken/unsupported operation = diagnostic, bukan silent mutation.
-- history bounded dan undo/redo kronologis.
+### F4 — Template Authoring
+- template draft mempunyai Stable Template ID, label Bahasa Indonesia, version, internal object IDs, component dependency, dan asset dependency.
+- validate dependency sebelum publish.
+- preview/instantiation plan menghasilkan identity map baru tanpa mengubah template master.
+- publish atomik ke Template Registry dan exact version.
+- duplicate version, missing dependency, invalid ID, atau archived dependency gagal tertutup.
+- template search langsung tersedia setelah publish.
 
-## Exit Gate Tahap 5
+## Exit Gate Tahap 6
 
 ```text
-BASELINE_TAHAP_4_UNCHANGED = YES
-VERSION_CODE_GT_TAHAP_4 = YES
-BUBBLE_BOUNDED = PASS
-BUBBLE_ORIENTATION_POSITION = PASS
-BUBBLE_NO_TOUCH_THROUGH = PASS
-EDGE_CONTEXTUAL = PASS
-ONE_HEAVY_FUNCTION = PASS
-EDGE_SAFE_CLAMP = PASS
-FLOATING_EDITOR_SINGLE_PRIMARY = PASS
-FLOATING_EDITOR_SAFE_PLACEMENT = PASS
-FLOATING_CLOSE_NO_REVERT = PASS
-VISUAL_WORKING_STATE = PASS
-STABLE_OBJECT_ID = PASS
-CAPABILITY_AWARE_MENU = PASS
-EDIT_OFF_NORMAL_INTERACTION = PASS
-EDIT_ON_SELECTION = PASS
-EDIT_PREVIEW_TEST_LIVE = PASS
-LIVE_CAPABILITY_GATE = PASS
-LOCK_PROTECTION = PASS
-GESTURE_ONE_UNDO_TRANSACTION = PASS
-UNDO_REDO_BOUNDED = PASS
-BROKEN_OPERATION_DIAGNOSTIC = PASS
+BASELINE_TAHAP_5_UNCHANGED = YES
+VERSION_CODE_GT_TAHAP_5 = YES
+UNIFIED_AUTHORING_WORKSPACE = PASS
+UI_SECTION = PASS
+LOGIC_SECTION = PASS
+DATA_SECTION = PASS
+BINDING_SECTION = PASS
+ASSET_SECTION = PASS
+ONE_HEAVY_SECTION = PASS
+SHARED_MODEL_NO_CLONE = PASS
+UNIFIED_SEARCH = PASS
+SEARCH_BOUNDED = PASS
+SEARCH_DETERMINISTIC = PASS
+SEARCH_STABLE_ID = PASS
+SEARCH_NO_EXECUTION = PASS
+AUTHORING_DRAFT_LIFECYCLE = PASS
+DRAFT_REVISION_MONOTONIC = PASS
+DRAFT_TERMINAL_STATE = PASS
+DRAFT_HISTORY_BOUNDED = PASS
+TEMPLATE_AUTHORING = PASS
+TEMPLATE_DEPENDENCY_VALIDATION = PASS
+TEMPLATE_PREVIEW_NO_MASTER_MUTATION = PASS
+TEMPLATE_EXACT_VERSION_PUBLISH = PASS
+TEMPLATE_SEARCH_AFTER_PUBLISH = PASS
 R1_R9_AUTOMATIC = PASS
 ASSET_SAFE_REGRESSION = PASS
 ANDROID_11_API30_BUILD = PASS
 PUBLIC_UNSIGNED_APK = PASS
-UNKNOWN_REQUIRED_TAHAP_5_BEHAVIOR = 0
+UNKNOWN_REQUIRED_TAHAP_6_BEHAVIOR = 0
 ```
 
 Private tetap hanya untuk signing, credential, Firebase final runtime test, baseline locking, dan release sensitif.
