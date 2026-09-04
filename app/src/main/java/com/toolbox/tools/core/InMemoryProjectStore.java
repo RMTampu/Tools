@@ -36,11 +36,22 @@ public final class InMemoryProjectStore implements ProjectStore {
         if (expectedRevision != currentRevision) {
             throw new StaleWriteException(expectedRevision, currentRevision);
         }
+        return publish(workingState, currentRevision + 1);
+    }
+
+    @Override
+    public synchronized ProjectState recoverRevision(long revision) throws IOException {
+        ProjectState candidate = loadRevision(revision);
+        return publish(candidate, currentRevision + 1);
+    }
+
+    private ProjectState publish(ProjectState workingState, long nextRevision)
+            throws IOException {
         ProjectValidationResult validation = new ProjectValidator().validate(workingState);
         if (!validation.isPass()) {
             throw new IOException("PROJECT_VALIDATION_FAILED:" + validation.message());
         }
-        ProjectState committed = workingState.withRevision(currentRevision + 1);
+        ProjectState committed = workingState.withRevision(nextRevision);
         currentRevision = committed.revision();
         revisions.put(currentRevision, committed);
         while (revisions.size() > FileProjectStore.MAX_REVISIONS) {
