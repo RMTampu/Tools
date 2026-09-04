@@ -26,6 +26,9 @@ import com.toolbox.tools.integration.ExportPackage;
 import com.toolbox.tools.integration.ExternalSnapshot;
 import com.toolbox.tools.integration.NormalizationResult;
 import com.toolbox.tools.integration.SyncPlan;
+import com.toolbox.tools.repair.HealthReport;
+import com.toolbox.tools.repair.RepairPlan;
+import com.toolbox.tools.repair.RepairValidationResult;
 
 import java.io.File;
 
@@ -40,6 +43,7 @@ public final class MainActivity extends Activity {
     private LinearLayout authoringBar;
     private TextView authoringStatus;
     private TextView integrationStatus;
+    private TextView repairStatus;
     private float downRawX;
     private float downRawY;
     private float startX;
@@ -61,7 +65,7 @@ public final class MainActivity extends Activity {
         root.setBackgroundColor(Color.rgb(8, 12, 18));
 
         TextView header = label(
-                "ToolBox Tahap 7\nAdapter • Normalisasi • Export • Sync\nUI • Logic • Data • Binding • Asset\n" + status,
+                "ToolBox Tahap 8\nRepair • Staging • Verify • Rollback • Health • Recovery\nUI • Logic • Data • Binding • Asset\n" + status,
                 18f
         );
         header.setGravity(Gravity.CENTER);
@@ -204,6 +208,23 @@ public final class MainActivity extends Activity {
         integrationStatus = label("Eksternal: Sumber Demo • siap", 13f);
         integrationStatus.setTextColor(Color.rgb(170, 255, 220));
         authoringBar.addView(integrationStatus);
+
+        LinearLayout repairRow = new LinearLayout(this);
+        repairRow.setOrientation(LinearLayout.HORIZONTAL);
+        TextView repairDemo = label("Repair Demo", 13f);
+        repairDemo.setOnClickListener(v -> runRepairDemo());
+        repairRow.addView(repairDemo);
+        TextView health = label("Health", 13f);
+        health.setOnClickListener(v -> showHealth());
+        repairRow.addView(health);
+        TextView recovery = label("Recovery Preview", 13f);
+        recovery.setOnClickListener(v -> showRecoveryPreview());
+        repairRow.addView(recovery);
+        authoringBar.addView(repairRow);
+
+        repairStatus = label("Repair: siap • Health: HEALTHY", 13f);
+        repairStatus.setTextColor(Color.rgb(255, 220, 150));
+        authoringBar.addView(repairStatus);
 
         FrameLayout.LayoutParams authoringParams =
                 new FrameLayout.LayoutParams(
@@ -403,6 +424,64 @@ public final class MainActivity extends Activity {
                 "Sync: " + plan.status().name()
                         + " • " + kernel.externalIntegrationManager().sync().cursor()
         );
+    }
+
+    private void runRepairDemo() {
+        try {
+            if (kernel.projectManager().savedRevision() <= 0) {
+                kernel.projectManager().save();
+            }
+
+            long baseRevision = kernel.projectManager().savedRevision();
+            RepairPlan plan = new RepairPlan(
+                    "repair.demo." + baseRevision,
+                    kernel.projectManager().current().projectId(),
+                    baseRevision,
+                    java.util.Collections.singletonMap(
+                            "screen.repair.demo",
+                            "Tahap 8 Repair Demo"
+                    ),
+                    java.util.Collections.emptySet()
+            );
+            RepairValidationResult staged =
+                    kernel.repairSessionManager().stage(plan);
+            if (!staged.isPass()) {
+                repairStatus.setText("Repair: STAGING GAGAL");
+                return;
+            }
+            kernel.repairSessionManager().activate();
+            boolean verified =
+                    kernel.repairSessionManager().verifyOrRollback();
+            repairStatus.setText(
+                    verified
+                            ? "Repair: VERIFIED • Recovery Point: PASS"
+                            : "Repair: ROLLED_BACK"
+            );
+        } catch (Exception error) {
+            repairStatus.setText("Repair: GAGAL AMAN");
+        }
+    }
+
+    private void showHealth() {
+        HealthReport report = kernel.healthMonitor().inspect(kernel);
+        repairStatus.setText(
+                "Health: " + report.state().name()
+                        + " • alasan " + report.reasons().size()
+        );
+    }
+
+    private void showRecoveryPreview() {
+        try {
+            int count = kernel.recoveryPreviewService()
+                    .candidates()
+                    .size();
+            repairStatus.setText(
+                    "Recovery Preview: " + count
+                            + " kandidat • pilih manual"
+            );
+        } catch (Exception error) {
+            repairStatus.setText("Recovery Preview: GAGAL AMAN");
+        }
     }
 
     private void persistBubblePosition(View view) {
