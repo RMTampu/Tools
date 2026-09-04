@@ -15,24 +15,35 @@ public final class ComponentValidator {
             return ComponentValidationResult.of(errors);
         }
 
+        if (definition.labelIndonesia().trim().isEmpty()) {
+            errors.add("COMPONENT_LABEL_INDONESIA_MISSING");
+        }
+        if (!definition.stateContract().stateIds().contains("state.normal")) {
+            errors.add("COMPONENT_NORMAL_STATE_MISSING");
+        }
+
         if (definition.iconAssetId() != null
-                && !assetRegistry.hasAnyVersion(definition.iconAssetId())) {
+                && assetRegistry.latestReady(definition.iconAssetId()) == null) {
             errors.add("ICON_ASSET_MISSING:" + definition.iconAssetId());
         }
 
-        for (String assetId : definition.assetRequirements()) {
-            if (!assetRegistry.hasAnyVersion(assetId)) {
-                errors.add("ASSET_DEPENDENCY_MISSING:" + assetId);
+        for (AssetDependencyRef dependency : definition.assetDependencies()) {
+            if (dependency.required()
+                    && !assetRegistry.hasCompatible(
+                    dependency.assetId(),
+                    dependency.versionRange())) {
+                errors.add("ASSET_DEPENDENCY_MISSING_OR_INCOMPATIBLE:"
+                        + dependency.assetId());
             }
         }
 
         for (DependencyRef dependency : definition.dependencies()) {
-            if (!componentRegistry.hasCompatible(
+            if (dependency.required()
+                    && !componentRegistry.hasCompatible(
                     dependency.dependencyId(),
                     dependency.versionRange())) {
-                if (dependency.required()) {
-                    errors.add("COMPONENT_DEPENDENCY_MISSING:" + dependency.dependencyId());
-                }
+                errors.add("COMPONENT_DEPENDENCY_MISSING_OR_INCOMPATIBLE:"
+                        + dependency.dependencyId());
             }
         }
 
