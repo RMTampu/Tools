@@ -1,5 +1,6 @@
 package com.toolbox.tools.core;
 
+import com.toolbox.tools.library.LibraryDependencyLock;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -210,6 +211,23 @@ public final class FileProjectStore implements ProjectStore {
             );
         }
 
+        String dependencyLock = committed.resources().get(
+                LibraryDependencyLock.PROJECT_RESOURCE_ID
+        );
+        if (dependencyLock != null) {
+            LibraryDependencyLock decodedLock =
+                    LibraryDependencyLock.decode(dependencyLock);
+            if (decodedLock.projectSchemaVersion() != committed.schemaVersion()
+                    || decodedLock.buildModelVersion()
+                    != committed.buildModelVersion()) {
+                throw new IOException("dependency.lock version mismatch");
+            }
+            writeAndSync(
+                    revisionDir.resolve("dependency.lock"),
+                    dependencyLock.getBytes(StandardCharsets.UTF_8)
+            );
+        }
+
         writeAndSync(
                 manifestFile,
                 manifest.encode().getBytes(StandardCharsets.UTF_8)
@@ -294,6 +312,7 @@ public final class FileProjectStore implements ProjectStore {
                     indexFile,
                     resourcesDir
             );
+            verifyDependencyLockFile(revisionDir, resources);
             ProjectState state = definitionCodec.decode(
                     encodedDefinition,
                     resources
@@ -313,6 +332,35 @@ public final class FileProjectStore implements ProjectStore {
             return state;
         } catch (IllegalArgumentException error) {
             throw new IOException("revision corrupt", error);
+        }
+    }
+
+    private void verifyDependencyLockFile(
+            Path revisionDir,
+            Map<String, String> resources
+    ) throws IOException {
+        Path lockFile = revisionDir.resolve("dependency.lock");
+        String resource = resources.get(LibraryDependencyLock.PROJECT_RESOURCE_ID);
+        if (resource == null) {
+            if (Files.exists(lockFile)) {
+                throw new IOException("orphan dependency.lock");
+            }
+            return;
+        }
+        if (!Files.isRegularFile(lockFile)) {
+            throw new IOException("dependency.lock missing");
+        }
+        String persisted = new String(
+                Files.readAllBytes(lockFile),
+                StandardCharsets.UTF_8
+        );
+        if (!resource.equals(persisted)) {
+            throw new IOException("dependency.lock resource mismatch");
+        }
+        try {
+            LibraryDependencyLock.decode(persisted);
+        } catch (IllegalArgumentException error) {
+            throw new IOException("dependency.lock invalid", error);
         }
     }
 
