@@ -176,6 +176,14 @@ Klaim perubahan tanpa bukti path dan hasil validasi dianggap gagal.
 
 
 
+## Rantai R1-R9 Wajib Saat Menyentuh Asset
+
+- Sebelum menyentuh asset, source asset, package, build artifact, registry binding, workflow build/test, atau file yang menentukan perilaku asset, agen wajib membaca dan mengikuti `R1_R9_ASSET_CHAIN.md`.
+- `R1_R9_ASSET_CHAIN.md` adalah rantai otoritatif yang menghubungkan `ASSET_SAFE_100_*`, `ASSET_ROUTE_PROOF_*`, `APP_SAFE_R1_*` sampai `APP_SAFE_R9_*`, gate prebuild, assurance plan komponen, validator, dan workflow.
+- Perintah user yang mengandung kata kerja seperti kerjakan, lanjut, lanjutkan, perbaiki, bangun, matangkan, uji, validasi, buat, atau sentuh asset harus menghasilkan aksi penuh mengikuti rantai tersebut sampai PASS, artifact siap, atau blocker nyata.
+- Agen dilarang menjawab dengan rencana, laporan parsial, checkpoint, atau status tanpa menyelesaikan rantai R1-R9 yang berlaku.
+- Jika chain file atau validator yang diperlukan belum ada, agen wajib membuat atau melengkapinya lebih dulu sebelum menyatakan pekerjaan asset selesai.
+
 ## R1-R9 Wajib Untuk Asset
 
 Setiap kali agen menyentuh asset, membuat asset, mengubah asset, memindahkan asset, menghapus asset, mengemas asset, atau memakai asset sebagai bagian build/test, agen wajib menerapkan hasil riset R1-R9.
