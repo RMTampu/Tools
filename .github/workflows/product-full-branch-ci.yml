@@ -1,0 +1,70 @@
+name: ToolBox Produk Penuh Branch CI
+
+on:
+  push:
+    branches: [produk-penuh-work]
+    paths:
+      - 'app/**'
+      - 'build.gradle'
+      - 'settings.gradle'
+      - '.github/workflows/product-full-branch-ci.yml'
+      - 'AGENTS.md'
+      - 'TASK.md'
+      - 'R1_R9_ASSET_CHAIN.md'
+      - 'APP_SAFE_R*.md'
+      - 'ASSET_SAFE_100_*'
+      - 'ASSET_ROUTE_PROOF_*'
+      - 'PREBUILD_ASSET_GATE.md'
+      - 'APPLICATION_SAFE_100_PROCESS.md'
+      - 'TEST_ROUTING_POLICY.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: toolbox-produk-penuh-branch-ci
+  cancel-in-progress: true
+
+jobs:
+  compile-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+
+      - name: Setup JDK
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '17.0.20+1'
+          java-package: jdk
+          architecture: x64
+          check-latest: false
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699
+        with:
+          cmdline-tools-version: '14742923'
+          packages: ''
+          log-accepted-android-sdk-licenses: 'false'
+
+      - name: Install API30
+        shell: bash
+        run: sdkmanager 'platform-tools' 'platforms;android-30' 'build-tools;34.0.0'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
+        with:
+          gradle-version: '8.2.1'
+          cache-disabled: true
+
+      - name: Compile and unit test
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle --no-daemon :app:testDebugUnitTest --rerun-tasks
+          gradle --no-daemon :app:assembleDebug :app:assembleRelease
+          echo 'PRODUK_PENUH_COMPILE = PASS'
