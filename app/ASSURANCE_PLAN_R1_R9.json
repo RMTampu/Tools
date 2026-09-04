@@ -1,13 +1,15 @@
 {
-  "schemaVersion": 11,
+  "schemaVersion": 12,
   "projectId": "ToolBox",
-  "stage": "Tahap 11",
-  "stageMap": "K",
+  "stage": "Produk Penuh v12",
+  "stageMap": "FULL_PRODUCT",
   "parentBaseline": {
-    "name": "Tahap 7",
-    "apkSha256": "741ebcf799280fbba1b4c7d2e60ba157ba133e3f6545b3468882373150f024f7",
-    "publicR1R9RunId": "33851807482",
+    "name": "Tahap 11",
+    "apkSha256": "f9dcffed7dc5d657c6dbd1c45933db6a4f6215f5145aee1849cc50f35038b76b",
+    "appPatchSha256": "c235da4f9078ee79f9ecbf796232896e806c09501dc0b7e5814970db042adf98",
+    "publicR1R9RunId": "33882297972",
     "privateFinalRuntimePassed": true,
+    "firebaseFinalRunId": "33884201621",
     "permanent": true,
     "rollbackAnchor": true
   },
@@ -23,103 +25,110 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R1_LOGIC_INPUT.md",
       "methods": [
-        "App.patch manifest and payload fail-closed validation",
-        "remote verification required before mutation",
-        "safe restore transition is explicit",
-        "candidate and rollback identities are exact"
+        "135 kebutuhan rancangan fail-closed",
+        "lima engine harus READY",
+        "runtime deklaratif menolak capability executable baru",
+        "input import dan patch dibatasi"
       ],
-      "proof": "unit + route gate + mutation"
+      "proof": "unit + full-product requirement audit + negative"
     },
     "R2": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R2_CONCURRENCY_RESOURCE.md",
       "methods": [
-        "patch payload bounded to 1MiB",
-        "immutable patch/proof records",
-        "synchronized patch application",
-        "no mutation during patch preview"
+        "single heavy tool active",
+        "resource guard",
+        "cache budget",
+        "scale benchmark",
+        "bounded background task"
       ],
-      "proof": "unit + source contract"
+      "proof": "unit + emulator + scale budget"
     },
     "R3": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R3_LIFECYCLE_STATE_RECOVERY.md",
       "methods": [
-        "final recovery snapshot before patch mutation",
-        "failed apply restores prior revision",
-        "explicit safe restore remains available",
-        "recovery-required blocks patch apply"
+        "app/screen lifecycle",
+        "freeze state machine",
+        "recovery snapshot",
+        "safe mode",
+        "editor context"
       ],
-      "proof": "unit + API30 runtime"
+      "proof": "unit + restart/emulator"
     },
     "R4": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R4_PERSISTENCE_STORAGE_VERSION.md",
       "methods": [
-        "patch schema version 1",
-        "payload and manifest SHA-256",
-        "permanent rollback Baseline Tahap7 immutable",
-        "Tahap10 signed predecessor immutable",
-        "revision continuity base to target"
+        "transactional save",
+        "revision/undo/redo",
+        "backup/recovery",
+        "asset original/cache separation",
+        "baseline Tahap11 immutable"
       ],
-      "proof": "unit + provenance"
+      "proof": "unit + package provenance"
     },
     "R5": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R5_SECURITY_NETWORK_BOUNDARY.md",
       "methods": [
-        "pinned release certificate trust anchor",
-        "SHA256withRSA/ECDSA remote signature verification",
-        "remote proof required before mutation",
-        "protected safety/recovery resources rejected",
-        "public source contains no private key",
-        "no Firebase in Tahap11 chain"
+        "import traversal/size protection",
+        "protected patch resources",
+        "pinned remote certificate",
+        "preview side-effect sandbox",
+        "public source contains no secret"
       ],
-      "proof": "cryptographic unit tests + source scan + private signing"
+      "proof": "unit + source scan + mutation"
     },
     "R6": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R6_BUILD_DEPENDENCY_INSTALL.md",
       "methods": [
-        "versionCode 11",
-        "pinned JDK/Gradle/SDK",
-        "API30 package metadata",
-        "public unsigned APK digest",
-        "private exact rebuild and signing",
-        "App.apk plus App.patch final package"
+        "versionCode 12",
+        "Android11 API30 package",
+        "public unsigned only",
+        "private signing only",
+        "dependency/toolchain pinned"
       ],
-      "proof": "GitHub Actions build/package/sign"
+      "proof": "GitHub Actions package metadata"
     },
     "R7": {
-      "applicability": "N_A_SCOPE_PROVEN",
+      "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R7_NATIVE_PLUGIN_RUNTIME.md",
       "methods": [
-        "no native/JNI/plugin/reflection/dynamic executable loader added by App.patch"
+        "engine extension contract",
+        "no arbitrary executable patch",
+        "no JNI/native loader",
+        "arm64 target contract"
       ],
-      "proof": "source scan"
+      "proof": "engine registry unit + source scan"
     },
     "R8": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R8_UI_DEVICE_POWER.md",
       "methods": [
-        "Patch Preview and Safe Restore controls",
-        "Tahap10 controls regression",
-        "Indonesian status",
-        "API30 UIAutomator witness"
+        "WYSIWYG shell",
+        "Bubble/Edge/Floating",
+        "Visual/Properti/Kode",
+        "Edit/Pratinjau/Uji/Langsung",
+        "Bahasa Indonesia",
+        "Gelap Neon",
+        "API30 screenshot and UI interaction"
       ],
-      "proof": "unit + API30 emulator interaction"
+      "proof": "API30 emulator structural/visual witness"
     },
     "R9": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md",
       "methods": [
+        "135/135 design traceability",
+        "5/5 engine closure",
         "R1-R8 traceability",
-        "Tahap11 mutation challenge",
-        "App.patch request provenance",
-        "ASSET_SAFE regression",
-        "unknown/skipped closure"
+        "mutation negative challenge",
+        "asset route closure",
+        "unknown/skipped/stale/mutation closure"
       ],
-      "proof": "automatic final evidence"
+      "proof": "machine-readable final evidence"
     }
   },
   "exitGate": {
@@ -128,16 +137,28 @@
     "staleEvidence": 0,
     "mutationEscape": 0,
     "assetUnknown": 0,
+    "designMissing": 0,
+    "requiredDesignSections": 135,
+    "toolEnginesReady": "5/5",
+    "defaultLanguage": "id",
     "privateContentIncluded": false,
     "firebaseUsed": false,
     "signingUsed": false,
     "finalSignedReleaseClaimed": false
   },
-  "developmentParentCandidate": {
-    "name": "Tahap 10",
-    "signedApkSha256": "fbc39153bc121ed2d32bc9c24e9ff8f0e9b7730fcef01021f4adfd830fbd21ff",
-    "publicR1R9RunId": "33871506902",
-    "privateSigned": true,
-    "baseline": false
+  "productContract": {
+    "designFile": "RANCANGAN_PRODUK_PENUH.md",
+    "requirementsFile": "app/FULL_PRODUCT_REQUIREMENTS.json",
+    "requiredDesignSections": 135,
+    "requiredToolEngines": [
+      "UI",
+      "LOGIC",
+      "DATA",
+      "BINDING",
+      "ASSET"
+    ],
+    "defaultLanguage": "id",
+    "theme": "Gelap Neon",
+    "patchWithoutRebuild": true
   }
 }
