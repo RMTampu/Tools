@@ -277,26 +277,39 @@ public final class ProjectManager {
         return save();
     }
 
-    public synchronized ProjectState restoreRevision(long revision)
+    public synchronized ProjectState previewRecovery(long revision)
             throws IOException {
         requireStarted();
         ProjectState candidate = store.loadRevision(revision);
         if (!candidate.projectId().equals(current.projectId())) {
             throw new IOException("recovery project identity mismatch");
         }
-        ProjectState working = ProjectState.restore(
-                current.projectId(),
-                ProjectState.CURRENT_SCHEMA_VERSION,
-                ProjectState.CURRENT_BUILD_MODEL_VERSION,
-                current.revision(),
-                candidate.lifecycle(),
-                candidate.resources(),
-                candidate.references(),
-                candidate.dependencyRefs()
-        );
-        current = working;
-        dirty = true;
-        return save();
+        return candidate;
+    }
+
+    public synchronized ProjectState restoreRevision(long revision)
+            throws IOException {
+        requireStarted();
+        ProjectState candidate = previewRecovery(revision);
+        ProjectValidationResult validation = validator.validate(candidate);
+        if (!validation.isPass()) {
+            throw new IOException("RECOVERY_VALIDATION_FAILED:" + validation.message());
+        }
+        try {
+            ProjectState recovered = store.recoverRevision(revision);
+            current = recovered;
+            savedRevision = recovered.revision();
+            dirty = false;
+            undo.clear();
+            redo.clear();
+            accessStatus = ProjectAccessStatus.PROJECT_OK;
+            recoveryManager.clearRecoveryRequired();
+            draftRecoveryStore.discard();
+            return recovered;
+        } catch (IOException error) {
+            recoveryManager.markRecoveryRequired();
+            throw error;
+        }
     }
 
     public synchronized boolean canUndo() {
