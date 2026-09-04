@@ -10,12 +10,21 @@ import java.nio.file.Path;
 public final class DraftRecoveryStore {
     private final Path file;
     private final ProjectCodec codec = new ProjectCodec();
+    private ProjectState memoryDraft;
+
+    public DraftRecoveryStore() {
+        this.file = null;
+    }
 
     public DraftRecoveryStore(File root) {
         this.file = root.toPath().resolve("recovery").resolve("draft.tbx");
     }
 
     public synchronized void writeDraft(ProjectState workingState) throws IOException {
+        if (file == null) {
+            memoryDraft = workingState;
+            return;
+        }
         Files.createDirectories(file.toAbsolutePath().getParent());
         byte[] bytes = codec.encode(workingState).getBytes(StandardCharsets.UTF_8);
         try (FileOutputStream stream = new FileOutputStream(file.toFile(), false)) {
@@ -26,6 +35,9 @@ public final class DraftRecoveryStore {
     }
 
     public synchronized ProjectState preview() throws IOException {
+        if (file == null) {
+            return memoryDraft;
+        }
         if (!Files.isRegularFile(file)) {
             return null;
         }
@@ -37,6 +49,9 @@ public final class DraftRecoveryStore {
     }
 
     public synchronized void discard() throws IOException {
-        Files.deleteIfExists(file);
+        memoryDraft = null;
+        if (file != null) {
+            Files.deleteIfExists(file);
+        }
     }
 }
