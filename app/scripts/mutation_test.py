@@ -18,10 +18,9 @@ mutations=[
  {
   "name":"bubble_safe_clamp_bypass",
   "path":APP/"src/main/java/com/toolbox/tools/editor/BubblePositionStore.java",
-  "old":"EditorPoint clamped = safeBounds.clampTopLeft(",
-  "new":"EditorPoint clamped = requested == null ? null : requested; /* mutation */ /*",
-  "test":"com.toolbox.tools.editor.BubbleShellTest.bubbleIsBoundedAndStoresPerOrientation",
-  "close_comment":true
+  "old":"return clamped;",
+  "new":"return requested;",
+  "test":"com.toolbox.tools.editor.BubbleShellTest.bubbleIsBoundedAndStoresPerOrientation"
  },
  {
   "name":"live_capability_gate_bypass",
@@ -59,10 +58,6 @@ for m in mutations:
     old=m["old"]
     assert old in original,(m["name"],"mutation target missing")
     mutated=original.replace(old,m["new"],1)
-    if m.get("close_comment"):
-        marker="                bubbleSize,\n                bubbleSize\n        );"
-        assert marker in mutated,(m["name"],"close marker missing")
-        mutated=mutated.replace(marker,marker+" */",1)
     try:
         p.write_text(mutated)
         result=subprocess.run(
