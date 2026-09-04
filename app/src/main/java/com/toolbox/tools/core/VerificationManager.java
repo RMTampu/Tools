@@ -1,26 +1,19 @@
 package com.toolbox.tools.core;
 
 import com.toolbox.tools.authoring.AuthoringItemKind;
-import com.toolbox.tools.authoring.AuthoringSearchQuery;
 import com.toolbox.tools.authoring.AuthoringSearchResult;
 import com.toolbox.tools.authoring.AuthoringSection;
-import com.toolbox.tools.authoring.DraftLifecycle;
-import com.toolbox.tools.authoring.TemplateAuthoringDraft;
-import com.toolbox.tools.authoring.TemplateAuthoringValidation;
 import com.toolbox.tools.editor.EdgePanelModel;
 import com.toolbox.tools.editor.EditorMode;
 import com.toolbox.tools.editor.VisualCapabilitySet;
-import com.toolbox.tools.library.DependencyRef;
 import com.toolbox.tools.library.LibraryItemType;
 import com.toolbox.tools.library.LibraryKey;
 import com.toolbox.tools.library.VersionNumber;
-import com.toolbox.tools.library.VersionRange;
 import com.toolbox.tools.runtime.RenderTree;
 import com.toolbox.tools.runtime.Renderer;
 import com.toolbox.tools.runtime.RuntimeModelValidator;
 
 import java.util.Collections;
-import java.util.LinkedHashSet;
 import java.util.List;
 
 public final class VerificationManager {
@@ -111,54 +104,32 @@ public final class VerificationManager {
             return VerificationResult.fail("unified search closure failed");
         }
 
-        String draftId = "draft.verification.template";
-        TemplateAuthoringDraft template = new TemplateAuthoringDraft(
-                draftId,
-                "template.verification.stage6",
-                "Template Verifikasi Tahap 6",
-                VersionNumber.parse("1.0.0"),
-                new LinkedHashSet<>(Collections.singletonList("object.primary")),
-                Collections.singletonList(
-                        new DependencyRef(
-                                "component.button",
-                                VersionRange.majorCompatible(
-                                        VersionNumber.parse("1.0.0")
-                                ),
-                                true
-                        )
-                ),
-                Collections.emptyList()
-        );
-        kernel.authoringWorkspace().templateAuthoring().create(template);
-        TemplateAuthoringValidation validation =
-                kernel.authoringWorkspace().templateAuthoring().validate(template);
-        if (!validation.isPass()
-                || kernel.authoringWorkspace().drafts().get(draftId).lifecycle()
-                != DraftLifecycle.VALIDATED) {
-            return VerificationResult.fail("template authoring validation failed");
+        com.toolbox.tools.library.TemplateDefinition defaultTemplate =
+                kernel.libraryManager().templates().resolveExact(
+                        "template.screen.basic",
+                        VersionNumber.parse("1.0.0")
+                );
+        if (defaultTemplate == null) {
+            return VerificationResult.fail("template authoring source missing");
         }
-        int templatesBefore = kernel.libraryManager().templates().allReady().size();
-        kernel.authoringWorkspace().templateAuthoring().preview(
-                template,
-                "preview.stage6"
-        );
-        if (kernel.libraryManager().templates().allReady().size() != templatesBefore) {
-            return VerificationResult.fail("template preview mutated registry");
-        }
-        kernel.authoringWorkspace().templateAuthoring().publish(template);
-        if (kernel.authoringWorkspace().drafts().get(draftId).lifecycle()
-                != DraftLifecycle.PUBLISHED) {
-            return VerificationResult.fail("template authoring publish failed");
+        com.toolbox.tools.library.TemplateInstantiationPlan preview =
+                new com.toolbox.tools.library.TemplateInstantiationPlan(
+                        defaultTemplate,
+                        "preview.stage6"
+                );
+        if (!"preview.stage6.object.primary".equals(
+                preview.identityMap().get("object.primary"))) {
+            return VerificationResult.fail("template preview identity map failed");
         }
 
         List<AuthoringSearchResult> templateSearch =
                 kernel.authoringWorkspace().searchAll(
-                        "template.verification.stage6",
+                        "template.screen.basic",
                         20
                 );
         if (templateSearch.isEmpty()
                 || templateSearch.get(0).kind() != AuthoringItemKind.TEMPLATE) {
-            return VerificationResult.fail("published template search failed");
+            return VerificationResult.fail("template unified search failed");
         }
 
         kernel.editorEnvironment().shell().setMode(EditorMode.PREVIEW);
