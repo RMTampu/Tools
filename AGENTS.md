@@ -334,3 +334,24 @@ Jika ada konflik antara dokumen lama dan instruksi ini, aturan ini menang.
 - Repo publik wajib menjalankan build/test otomatis melalui trigger `push`.
 - Repo private wajib memiliki preflight otomatis melalui trigger `push`, tetapi signing dan Firebase final tetap tidak boleh otomatis tanpa izin eksplisit.
 - Jika tool agen tidak memiliki `workflow_dispatch`, agen tetap dapat bekerja dengan commit/push karena workflow otomatis akan berjalan.
+
+
+## R1-R9 Otomatis Untuk Semua Pekerjaan Teknis
+
+Mulai dari Tahap 2, R1-R9 adalah default otomatis untuk setiap perubahan source, asset, workflow, package, persistence, UI, registry, build, test, atau perilaku aplikasi.
+
+Agen tidak boleh menunggu user mengingatkan untuk memakai R1-R9.
+
+Urutan wajib:
+1. baca `R1_R9_ASSET_CHAIN.md` dan `APP_SAFE_R1_*` sampai `APP_SAFE_R9_*`;
+2. petakan applicability setiap domain;
+3. jalankan prebuild assurance otomatis;
+4. jalankan unit/failure/integration tests;
+5. jalankan mutation/negative challenge R9;
+6. build/package;
+7. jalankan finalize completeness/provenance;
+8. hanya PASS jika UNKNOWN=0, SKIPPED=0, STALE_EVIDENCE=0, MUTATION_ESCAPE=0.
+
+Jika domain tidak berlaku, status harus `N_A_SCOPE_PROVEN`, bukan dilewati diam-diam.
+
+Workflow canonical aplikasi wajib menghasilkan evidence machine-readable R1-R9 dan meng-upload evidence bersama artifact. Perubahan teknis yang belum melewati gate ini tidak boleh disebut matang atau siap tahap berikutnya.
