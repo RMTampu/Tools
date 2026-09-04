@@ -4,7 +4,7 @@ plugins {
 
 android {
     namespace 'com.toolbox.tools'
-    compileSdk 35
+    compileSdk 30
 
     defaultConfig {
         applicationId 'com.toolbox.tools'
@@ -12,5 +12,10 @@ android {
         targetSdk 30
         versionCode 1
         versionName '1.0'
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
+}
+
+dependencies {
+    testImplementation 'junit:junit:4.13.2'
 }
