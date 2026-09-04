@@ -3,7 +3,7 @@ name: ToolBox Public Stage A Foundation CI
 on:
   push:
     branches: [main, stage-a-android-host-closure, stage-a-deterministic-reclosure]
-    paths: ['public-components/stage-a-foundation/**','public-components/stage-a-android-host/**','public-components/stage-a-integration/**','public-components/runtime-contracts/**','public-components/runtime-safety-contracts/**','.github/workflows/stage-a-foundation-ci.yml','AGENTS.md','GLOBAL_PUBLIC_PRIVATE_DEVELOPMENT_RULES.md','PETA-PEMAKAIAN-MD.md','REPOSITORY_INTEGRATION_POLICY.md','TEST_ROUTING_POLICY.md','AGENT_PROCEDURE_EXECUTION_RULES.md','APPLICATION_SAFE_100_PROCESS.md','APP_SAFE_R*.md']
+    paths: ['app/**','build.gradle','settings.gradle','public-components/stage-a-foundation/**','public-components/stage-a-android-host/**','public-components/stage-a-integration/**','public-components/runtime-contracts/**','public-components/runtime-safety-contracts/**','.github/workflows/stage-a-foundation-ci.yml','AGENTS.md','GLOBAL_PUBLIC_PRIVATE_DEVELOPMENT_RULES.md','PETA-PEMAKAIAN-MD.md','REPOSITORY_INTEGRATION_POLICY.md','TEST_ROUTING_POLICY.md','AGENT_PROCEDURE_EXECUTION_RULES.md','APPLICATION_SAFE_100_PROCESS.md','APP_SAFE_R*.md']
   pull_request:
     branches: [main]
     paths: ['public-components/stage-a-foundation/**','public-components/stage-a-android-host/**','public-components/stage-a-integration/**','public-components/runtime-contracts/**','public-components/runtime-safety-contracts/**','.github/workflows/stage-a-foundation-ci.yml']
