@@ -21,12 +21,15 @@ public final class ToolLifecycleManager {
     public synchronized void activate(String toolId) {
         String id = StableId.require(toolId, "toolId");
         State current = states.get(id);
-        if (current != State.LOADED && current != State.ACTIVE) {
-            throw new IllegalStateException("tool belum dimuat");
+        if (current == null || current == State.UNAVAILABLE) {
+            throw new IllegalStateException("tool tidak tersedia");
+        }
+        if (current == State.FAILED) {
+            throw new IllegalStateException("tool gagal dan harus dipulihkan");
         }
         for (Map.Entry<String, State> entry : states.entrySet()) {
             if (!entry.getKey().equals(id) && entry.getValue() == State.ACTIVE) {
-                entry.setValue(State.LOADED);
+                entry.setValue(State.COLD);
             }
         }
         states.put(id, State.ACTIVE);
