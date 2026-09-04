@@ -1,5 +1,7 @@
 package com.toolbox.tools.core;
 
+import com.toolbox.tools.editor.EditorMode;
+import com.toolbox.tools.editor.VisualCapabilitySet;
 import com.toolbox.tools.runtime.RenderTree;
 import com.toolbox.tools.runtime.Renderer;
 import com.toolbox.tools.runtime.RuntimeModelValidator;
@@ -13,7 +15,7 @@ import static org.junit.Assert.assertTrue;
 
 public final class AppKernelTest {
     @Test
-    public void defaultKernelPassesTahapFourVerification() {
+    public void defaultKernelPassesTahapFiveVerification() {
         AppKernel kernel = AppKernel.createDefault();
 
         VerificationResult result = new VerificationManager().verify(kernel);
@@ -22,8 +24,9 @@ public final class AppKernelTest {
         assertEquals(AppState.READY, kernel.state());
         assertEquals("30", kernel.configStore().get("targetApi", ""));
         assertEquals("arm64", kernel.configStore().get("targetAbi", ""));
-        assertEquals("4", kernel.configStore().get("tahap", ""));
+        assertEquals("5", kernel.configStore().get("tahap", ""));
         assertNotNull(kernel.runtimeEnvironment());
+        assertNotNull(kernel.editorEnvironment());
         assertEquals(
                 "screen.home",
                 kernel.runtimeEnvironment().model().startScreenId()
@@ -40,6 +43,18 @@ public final class AppKernelTest {
         );
         assertEquals(1, tree.nodes().size());
         assertTrue(tree.diagnostics().isEmpty());
+
+        assertEquals(
+                "Tambah ke Layar",
+                kernel.editorEnvironment()
+                        .shell()
+                        .edgePanel(VisualCapabilitySet.defaultEditable())
+                        .titleIndonesia()
+        );
+        kernel.editorEnvironment().shell().setMode(EditorMode.PREVIEW);
+        assertFalse(
+                kernel.editorEnvironment().shell().editorOverlayVisible()
+        );
     }
 
     @Test
