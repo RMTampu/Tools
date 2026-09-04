@@ -1,13 +1,15 @@
 package com.toolbox.tools.core
 
 class ToolRegistry {
-    private val tools = mutableMapOf<String, Any>()
+    private val tools = mutableMapOf<String, ToolContract>()
 
-    fun register(id: String, tool: Any) {
-        tools[id] = tool
+    fun register(tool: ToolContract): Boolean {
+        if (!CoreValidator.validateTool(tool)) return false
+        tools[tool.id] = tool
+        return true
     }
 
-    fun get(id: String): Any? = tools[id]
+    fun get(id: String): ToolContract? = tools[id]
 
     fun ids(): Set<String> = tools.keys
 }
