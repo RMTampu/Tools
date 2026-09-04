@@ -42,8 +42,10 @@ Baseline resmi adalah **Baseline Tahap 1**, exact APK Android 11/API30/arm64 yan
 
 ### B4 — Recovery contract
 - recovery candidates tidak dipilih diam-diam.
+- urutan: Final Recovery Snapshot → Last Valid Recovery → Last Valid Revision → Older Revision.
 - preview sebelum restore.
 - restore menerbitkan revision baru.
+- recovered draft tetap terpisah dari Save.
 - required/current valid tidak dihapus sebagai disposable history.
 
 ## Exit Gate Tahap 2
@@ -65,11 +67,15 @@ UNDO_HISTORY_BOUNDED = PASS
 REVISION_HISTORY = PASS
 CORRUPTION_DETECTION = PASS
 PREVIOUS_VALID_RECOVERY = PASS
+FINAL_RECOVERY_SNAPSHOT = PASS
+LAST_VALID_RECOVERY = PASS
 EXPLICIT_RECOVERY_PREVIEW = PASS
 DRAFT_NOT_SAVE = PASS
 MIGRATION = PASS
 REFERENCE_INTEGRITY = PASS
 ACCESS_LOSS_CLASSIFICATION = PASS
+SAF_PERSISTED_ACCESS = PASS
+RELINK_IDENTITY_CHECK = PASS
 ANDROID_11_API30_BUILD = PASS
 PUBLIC_UNSIGNED_APK = PASS
 UNKNOWN_REQUIRED_TAHAP_2_BEHAVIOR = 0
