@@ -6,6 +6,11 @@ import com.toolbox.tools.authoring.AuthoringSection;
 import com.toolbox.tools.editor.EdgePanelModel;
 import com.toolbox.tools.editor.EditorMode;
 import com.toolbox.tools.editor.VisualCapabilitySet;
+import com.toolbox.tools.integration.ExportPackage;
+import com.toolbox.tools.integration.ExternalSnapshot;
+import com.toolbox.tools.integration.NormalizationResult;
+import com.toolbox.tools.integration.SyncPlan;
+import com.toolbox.tools.integration.SyncStatus;
 import com.toolbox.tools.library.LibraryItemType;
 import com.toolbox.tools.library.LibraryKey;
 import com.toolbox.tools.library.VersionNumber;
@@ -32,8 +37,8 @@ public final class VerificationManager {
                 || !"arm64".equals(kernel.configStore().get("targetAbi", ""))) {
             return VerificationResult.fail("android target mismatch");
         }
-        if (!"6".equals(kernel.configStore().get("tahap", ""))) {
-            return VerificationResult.fail("tahap 6 configuration missing");
+        if (!"7".equals(kernel.configStore().get("tahap", ""))) {
+            return VerificationResult.fail("tahap 7 configuration missing");
         }
         if (kernel.recoveryManager().isRecoveryRequired()) {
             return VerificationResult.fail("recovery required");
@@ -145,6 +150,41 @@ public final class VerificationManager {
             return VerificationResult.fail("edge authoring panel missing");
         }
 
-        return VerificationResult.pass("tahap 6 unified authoring ready");
+        if (kernel.externalIntegrationManager() == null
+                || !"Sumber Demo".equals(
+                kernel.externalIntegrationManager().adapter().labelIndonesia())) {
+            return VerificationResult.fail("external adapter unavailable");
+        }
+
+        ExternalSnapshot external = kernel.externalIntegrationManager()
+                .demoSnapshot(1, "cursor.verification.1");
+        NormalizationResult normalized = kernel.externalIntegrationManager()
+                .importSnapshot(external);
+        if (!normalized.isPass()
+                || normalized.records().size() != 1
+                || !"adapter.demo.item.alpha".equals(
+                normalized.records().get(0).stableId())) {
+            return VerificationResult.fail("external normalization failed");
+        }
+
+        ExportPackage exported = kernel.externalIntegrationManager()
+                .export(normalized.records());
+        if (exported.sha256() == null
+                || !exported.sha256().matches("[0-9a-f]{64}")
+                || !exported.payload().startsWith("TBX_EXTERNAL_V1")) {
+            return VerificationResult.fail("deterministic export failed");
+        }
+
+        SyncPlan sync = kernel.externalIntegrationManager().planSync(external);
+        if (sync.status() != SyncStatus.CLEAN) {
+            return VerificationResult.fail("initial sync plan not clean");
+        }
+        kernel.externalIntegrationManager().applySync(sync);
+        SyncPlan same = kernel.externalIntegrationManager().planSync(external);
+        if (same.status() != SyncStatus.NO_CHANGE) {
+            return VerificationResult.fail("sync idempotency failed");
+        }
+
+        return VerificationResult.pass("tahap 7 external integration ready");
     }
 }
