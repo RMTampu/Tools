@@ -16,48 +16,55 @@ mutations=[
   "test":"com.toolbox.tools.core.ProjectDefinitionCodecTest.invalidStableIdIsRejected"
  },
  {
-  "name":"renderer_exact_component_bypass",
-  "path":APP/"src/main/java/com/toolbox/tools/library/ComponentRegistry.java",
-  "old":"return versions.get(version);",
-  "new":"return versions.lastEntry().getValue();",
-  "test":"com.toolbox.tools.runtime.RendererSharedModelTest.missingExactComponentProducesDiagnosticWithoutDeletingInstance"
+  "name":"bubble_safe_clamp_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/editor/BubblePositionStore.java",
+  "old":"EditorPoint clamped = safeBounds.clampTopLeft(",
+  "new":"EditorPoint clamped = requested == null ? null : requested; /* mutation */ /*",
+  "test":"com.toolbox.tools.editor.BubbleShellTest.bubbleIsBoundedAndStoresPerOrientation",
+  "close_comment":true
  },
  {
-  "name":"navigation_target_validation_bypass",
-  "path":APP/"src/main/java/com/toolbox/tools/runtime/NavigationManager.java",
-  "old":"if (model.screen(route.targetScreenId()) == null) {",
+  "name":"live_capability_gate_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/editor/EditorShellController.java",
+  "old":"if (next == EditorMode.LIVE && !liveCapability) {",
   "new":"if (false) {",
-  "test":"com.toolbox.tools.runtime.NavigationActionTest.brokenNavigationReferenceIsExplicitDiagnostic"
+  "test":"com.toolbox.tools.editor.BubbleShellTest.previewHidesOverlayAndLiveRequiresCapability"
  },
  {
-  "name":"binding_cycle_guard_bypass",
-  "path":APP/"src/main/java/com/toolbox/tools/runtime/BindingCycleGuard.java",
-  "old":"if (active.contains(key)) {",
-  "new":"if (false) {",
-  "test":"com.toolbox.tools.runtime.DataBindingTest.bindingCompatibilityIsExactAndTwoWayCycleIsSuppressed"
+  "name":"edge_capability_gate_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/editor/EdgePanelFactory.java",
+  "old":"if (capabilities.supports(capability)) {",
+  "new":"if (true) {",
+  "test":"com.toolbox.tools.editor.EdgeFloatingTest.edgeChangesContextAndOnlyShowsSupportedCapabilities"
  },
  {
-  "name":"flow_port_type_bypass",
-  "path":APP/"src/main/java/com/toolbox/tools/runtime/FlowValidator.java",
-  "old":"if (fromPort.type() != toPort.type()) {",
+  "name":"visual_lock_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/editor/VisualEditorSession.java",
+  "old":"if (lockSet(operation.objectId()).isLocked(operation.capability())) {",
   "new":"if (false) {",
-  "test":"com.toolbox.tools.runtime.FlowGraphTest.incompatiblePortConnectionFailsValidation"
+  "test":"com.toolbox.tools.editor.VisualEditorSessionTest.lockPreventsMutationAndRecordsDiagnostic"
  },
  {
-  "name":"watchdog_step_limit_bypass",
-  "path":APP/"src/main/java/com/toolbox/tools/runtime/FlowWatchdog.java",
-  "old":"if (steps > MAX_STEPS) {",
-  "new":"if (false) {",
-  "test":"com.toolbox.tools.runtime.FlowGraphTest.watchdogStopsStepAndTimeRunaway"
+  "name":"history_bound_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/editor/VisualHistory.java",
+  "old":"while (undo.size() > MAX_HISTORY) {",
+  "new":"while (false) {",
+  "test":"com.toolbox.tools.editor.VisualEditorSessionTest.historyIsBounded"
  }
 ]
 
 killed=[]
 for m in mutations:
     p=m["path"]; original=p.read_text()
-    assert m["old"] in original,(m["name"],"mutation target missing")
+    old=m["old"]
+    assert old in original,(m["name"],"mutation target missing")
+    mutated=original.replace(old,m["new"],1)
+    if m.get("close_comment"):
+        marker="                bubbleSize,\n                bubbleSize\n        );"
+        assert marker in mutated,(m["name"],"close marker missing")
+        mutated=mutated.replace(marker,marker+" */",1)
     try:
-        p.write_text(original.replace(m["old"],m["new"],1))
+        p.write_text(mutated)
         result=subprocess.run(
           ["gradle","--no-daemon",":app:testDebugUnitTest","--tests",m["test"],"--rerun-tasks"],
           cwd=REPO,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT
@@ -70,7 +77,7 @@ for m in mutations:
     finally:
         p.write_text(original)
 
-e={"schemaVersion":3,"stage":"Tahap 4","status":"PASS","mutationsTotal":len(mutations),"mutationsKilled":len(killed),"mutationsEscaped":0,"killed":killed}
-(OUT/"tahap4-mutation-evidence.json").write_text(json.dumps(e,indent=2,sort_keys=True)+"\n")
-print("TAHAP_4_R9_MUTATION = PASS")
+e={"schemaVersion":4,"stage":"Tahap 5","status":"PASS","mutationsTotal":len(mutations),"mutationsKilled":len(killed),"mutationsEscaped":0,"killed":killed}
+(OUT/"tahap5-mutation-evidence.json").write_text(json.dumps(e,indent=2,sort_keys=True)+"\n")
+print("TAHAP_5_R9_MUTATION = PASS")
 print("MUTATION_ESCAPE = 0")
