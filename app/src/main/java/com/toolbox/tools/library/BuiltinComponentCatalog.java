@@ -131,7 +131,12 @@ public final class BuiltinComponentCatalog {
                     VersionRange.majorCompatible(VersionNumber.parse("1.0.0")),
                     true
             ));
-            objects.add("object."+id.substring(id.lastIndexOf('.')+1)+"."+i++);
+            if ("template.screen.basic".equals(id) && i == 1) {
+                objects.add("object.primary");
+            } else {
+                objects.add("object."+id.substring(id.lastIndexOf('.')+1)+"."+i);
+            }
+            i++;
         }
         return new TemplateDefinition(
                 id,
