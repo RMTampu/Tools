@@ -1,5 +1,9 @@
 package com.toolbox.tools.core;
 
+import com.toolbox.tools.library.LibraryItemType;
+import com.toolbox.tools.library.LibraryKey;
+import com.toolbox.tools.library.VersionNumber;
+
 public final class VerificationManager {
     public VerificationResult verify(AppKernel kernel) {
         if (kernel == null) {
@@ -20,12 +24,13 @@ public final class VerificationManager {
         if (!"arm64".equals(kernel.configStore().get("targetAbi", ""))) {
             return VerificationResult.fail("android abi target mismatch");
         }
-        if (!"2".equals(kernel.configStore().get("tahap", ""))) {
-            return VerificationResult.fail("tahap 2 configuration missing");
+        if (!"3".equals(kernel.configStore().get("tahap", ""))) {
+            return VerificationResult.fail("tahap 3 configuration missing");
         }
         if (kernel.recoveryManager().isRecoveryRequired()) {
             return VerificationResult.fail("recovery required");
         }
+
         ProjectState project = kernel.projectManager().current();
         if (!"project.default".equals(project.projectId())) {
             return VerificationResult.fail("project identity mismatch");
@@ -40,6 +45,33 @@ public final class VerificationManager {
                 && kernel.projectManager().accessStatus() != ProjectAccessStatus.PROJECT_OK) {
             return VerificationResult.fail("project access invalid");
         }
-        return VerificationResult.pass("tahap 2 project store ready");
+
+        Object component = kernel.libraryManager().resolveExact(
+                new LibraryKey(
+                        LibraryItemType.COMPONENT,
+                        "component.button",
+                        VersionNumber.parse("1.0.0")
+                )
+        );
+        if (component == null) {
+            return VerificationResult.fail("default component unavailable");
+        }
+
+        Object template = kernel.libraryManager().resolveExact(
+                new LibraryKey(
+                        LibraryItemType.TEMPLATE,
+                        "template.screen.basic",
+                        VersionNumber.parse("1.0.0")
+                )
+        );
+        if (template == null) {
+            return VerificationResult.fail("default template unavailable");
+        }
+
+        if (kernel.assetStore() == null) {
+            return VerificationResult.fail("asset store unavailable");
+        }
+
+        return VerificationResult.pass("tahap 3 library foundation ready");
     }
 }
