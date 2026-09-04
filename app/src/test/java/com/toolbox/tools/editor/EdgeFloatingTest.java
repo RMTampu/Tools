@@ -34,16 +34,16 @@ public final class EdgeFloatingTest {
         );
         EdgePanelModel selected = shell.edgePanel(limited);
 
-        assertEquals("Edit Object", selected.titleIndonesia());
+        assertEquals("Edit Objek", selected.titleIndonesia());
         assertEquals(3, selected.items().size());
-        assertEquals("Size", selected.items().get(0).labelIndonesia());
+        assertEquals("Ukuran", selected.items().get(0).labelIndonesia());
 
         EdgePanelModel all = shell.edgePanel(
                 VisualCapabilitySet.defaultEditable()
         );
         assertEquals(20, all.items().size());
         assertTrue(all.items().stream().anyMatch(
-                item -> "Auto Connect Binding".equals(item.labelIndonesia())
+                item -> "Hubungkan Pengikatan Otomatis".equals(item.labelIndonesia())
         ));
 
         shell.activateFunction(EditorFunction.DATA);
