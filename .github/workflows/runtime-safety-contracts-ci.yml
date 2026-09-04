@@ -15,6 +15,13 @@ on:
       - 'AGENT_PROCEDURE_EXECUTION_RULES.md'
       - 'APPLICATION_SAFE_100_PROCESS.md'
       - 'APP_SAFE_R*.md'
+      - 'R1_R9_ASSET_CHAIN.md'
+      - 'ASSET_SAFE_100_RULES.md'
+      - 'ASSET_SAFE_100_PROCESS.md'
+      - 'ASSET_SAFE_100_METHODS.md'
+      - 'ASSET_ROUTE_PROOF_PROCESS.md'
+      - 'ASSET_ROUTE_PROOF_METHODS.md'
+      - 'PREBUILD_ASSET_GATE.md'
   workflow_dispatch:
 
 permissions:
