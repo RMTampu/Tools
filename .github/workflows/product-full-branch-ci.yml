@@ -224,8 +224,8 @@ jobs:
           tap_text 'Edit'
           assert_text 'Tambah ke Layar'
 
-          tap_text 'Buka Detail'
-          assert_text 'Edit Objek'
+          tap_text 'Komponen'
+          assert_text 'Gunakan nilai bawaan'
           assert_text 'Tutup'
           tap_text 'Tutup'
 
