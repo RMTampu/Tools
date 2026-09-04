@@ -89,7 +89,7 @@ public final class UiCanvasView extends FrameLayout {
 
         TextView eyebrow = UiKit.teks(
                 c,
-                "BERANDA  •  PREVIEW LANGSUNG",
+                "BERANDA  •  PRATINJAU LANGSUNG",
                 10f,
                 UiKit.NEON
         );
@@ -110,7 +110,7 @@ public final class UiCanvasView extends FrameLayout {
                 c,
                 kernel.declarativeRuntime().value(
                         "ui.screen.home.subtitle",
-                        "Layar ini adalah surface yang sama saat Edit aktif maupun nonaktif."
+                        "Layar ini adalah permukaan yang sama saat Edit aktif maupun nonaktif."
                 ),
                 12f,
                 UiKit.TEKS_REDUP
@@ -187,7 +187,7 @@ public final class UiCanvasView extends FrameLayout {
 
         TextView guide = UiKit.teks(
                 c,
-                "Area layout responsif • seret tombol saat Edit aktif",
+                "Area tata letak responsif • seret tombol saat Edit aktif",
                 10f,
                 UiKit.TEKS_REDUP
         );
