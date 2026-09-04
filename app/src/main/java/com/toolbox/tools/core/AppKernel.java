@@ -6,6 +6,9 @@ import com.toolbox.tools.build.ApplicationIrBuilder;
 import com.toolbox.tools.build.BuildValidator;
 import com.toolbox.tools.build.CandidateIdentityFactory;
 import com.toolbox.tools.build.ReadyCoordinator;
+import com.toolbox.tools.delivery.RemotePatchVerifier;
+import com.toolbox.tools.delivery.RemoteTrustAnchor;
+import com.toolbox.tools.delivery.SafePatchManager;
 import com.toolbox.tools.editor.DefaultEditorFactory;
 import com.toolbox.tools.editor.EditorEnvironment;
 import com.toolbox.tools.integration.ExternalIntegrationManager;
@@ -51,6 +54,8 @@ public final class AppKernel {
     private final ApplicationIrBuilder applicationIrBuilder;
     private final CandidateIdentityFactory candidateIdentityFactory;
     private final ReadyCoordinator readyCoordinator;
+    private final RemotePatchVerifier remotePatchVerifier;
+    private final SafePatchManager safePatchManager;
     private AppState state;
 
     public AppKernel(
@@ -108,6 +113,12 @@ public final class AppKernel {
                 this,
                 this.buildValidator,
                 this.applicationIrBuilder
+        );
+        this.remotePatchVerifier = RemoteTrustAnchor.createVerifier();
+        this.safePatchManager = new SafePatchManager(
+                this.projectManager,
+                this.recoveryManager,
+                this.remotePatchVerifier
         );
         this.state = AppState.CREATED;
     }
@@ -208,7 +219,7 @@ public final class AppKernel {
             });
             configStore.put("targetApi", "30");
             configStore.put("targetAbi", "arm64");
-            configStore.put("tahap", "10");
+            configStore.put("tahap", "11");
             projectManager.bootstrap("project.default");
             state = AppState.READY;
         } catch (IOException | RuntimeException error) {
@@ -238,5 +249,7 @@ public final class AppKernel {
     public ApplicationIrBuilder applicationIrBuilder() { return applicationIrBuilder; }
     public CandidateIdentityFactory candidateIdentityFactory() { return candidateIdentityFactory; }
     public ReadyCoordinator readyCoordinator() { return readyCoordinator; }
+    public RemotePatchVerifier remotePatchVerifier() { return remotePatchVerifier; }
+    public SafePatchManager safePatchManager() { return safePatchManager; }
     public synchronized AppState state() { return state; }
 }
