@@ -29,6 +29,10 @@ public final class UiKit {
         return Math.round(value * c.getResources().getDisplayMetrics().density);
     }
 
+    public static int dp(Context c, float value) {
+        return Math.round(value * c.getResources().getDisplayMetrics().density);
+    }
+
     public static TextView teks(
             Context c,
             String text,
