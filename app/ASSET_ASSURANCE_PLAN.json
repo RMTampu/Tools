@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
   "projectId": "ToolBox",
-  "stage": "Tahap 10",
-  "stageMap": "J",
+  "stage": "Tahap 11",
+  "stageMap": "K",
   "statusPolicy": {
     "readyRequiresValidation": true,
     "unsupportedRuntimeTypesRemainDraft": true,
     "noSilentDuplicateMerge": true,
     "noOriginalEvictionByCacheCleanup": true,
-    "noTahap10AssetMutation": true
+    "noTahap11AssetMutation": true
   },
   "shippedAndroidAssets": [
     {
@@ -68,9 +68,12 @@
     "repair plan cannot bypass managed asset validation or protected safety/recovery boundaries",
     "live/self-edit cannot bypass managed asset validation or protected safety/recovery boundaries",
     "capability scan never grants writable asset capability without a valid edit door",
-    "Tahap 3 asset contracts remain unchanged and validated in Tahap 10 package",
+    "Tahap 3 asset contracts remain unchanged and validated in Tahap 11 package",
     "IR references managed assets only by validated stable metadata and SHA-256",
     "candidate/signing path cannot bypass AssetPayloadValidator or public/private boundary",
-    "Firebase is not used by Tahap 10 completion chain"
+    "Firebase is not used by Tahap 11 completion chain",
+    "App.patch is declarative data and never an executable class/native payload",
+    "remote verification must pass before patch mutation",
+    "safe restore snapshot exists before patch mutation"
   ]
 }
