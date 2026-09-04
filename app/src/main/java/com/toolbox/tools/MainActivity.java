@@ -95,7 +95,9 @@ public final class MainActivity extends Activity {
         objectParams.gravity = Gravity.CENTER;
         root.addView(canvasObject, objectParams);
         canvasObject.setOnClickListener(v -> {
-            if (!kernel.editorEnvironment().shell().editEnabled()) return;
+            if (!kernel.editorEnvironment().shell().selectionAvailable()) {
+                return;
+            }
             kernel.editorEnvironment().shell().selectObject(
                     "object.home.primary"
             );
