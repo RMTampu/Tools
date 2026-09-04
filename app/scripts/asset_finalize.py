@@ -7,7 +7,7 @@ from pathlib import Path
 
 APP=Path(__file__).resolve().parents[1]
 OUT=APP/"build"/"assurance"
-pre=json.loads((OUT/"tahap6-asset-prebuild-evidence.json").read_text())
+pre=json.loads((OUT/"tahap7-asset-prebuild-evidence.json").read_text())
 assert pre["status"]=="ASSET_SAFE_100_DEVELOPMENT_PREBUILD_PASS"
 assert pre["unknownAssets"]==0
 assert pre["missingRequiredAssets"]==0
@@ -30,14 +30,14 @@ result=subprocess.run(
 )
 assert "style/AppTheme" in result.stdout
 
-runtime=(OUT/"tahap6-api30-runtime.txt").read_text()
+runtime=(OUT/"tahap7-api30-runtime.txt").read_text()
 assert "API30_APP_LAUNCH=PASS" in runtime
-assert "TAHAP6_UI_TEXT=PASS" in runtime
+assert "TAHAP7_UI_TEXT=PASS" in runtime
 assert "API_LEVEL=30" in runtime
 
 evidence={
  "schemaVersion":1,
- "stage":"Tahap 6",
+ "stage":"Tahap 7",
  "status":"ASSET_SAFE_100_DEVELOPMENT_PASS",
  "requiredAssets":pre["expectedAssetCount"],
  "packagedAssetsProven":pre["expectedAssetCount"],
@@ -49,8 +49,8 @@ evidence={
  "runtimeWitnessAbi":"x86_64",
  "finalArm64SignedRuntimeClaimed":False
 }
-(OUT/"tahap6-asset-final-evidence.json").write_text(
+(OUT/"tahap7-asset-final-evidence.json").write_text(
     json.dumps(evidence,indent=2,sort_keys=True)+"\n"
 )
-print("TAHAP_6_ASSET_SAFE_CHAIN = PASS")
+print("TAHAP_7_ASSET_SAFE_CHAIN = PASS")
 print("UNPROVEN_REQUIRED_ASSETS = 0")
