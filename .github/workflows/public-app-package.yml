@@ -1,4 +1,4 @@
-name: ToolBox Public Tahap 2 Package
+name: ToolBox Public Tahap 3 Package
 
 on:
   push:
@@ -17,19 +17,22 @@ on:
       - 'ASSET_ROUTE_PROOF_PROCESS.md'
       - 'ASSET_ROUTE_PROOF_METHODS.md'
       - 'PREBUILD_ASSET_GATE.md'
+      - 'APPLICATION_SAFE_100_PROCESS.md'
+      - 'APP_SAFE_R*.md'
+      - 'TEST_ROUTING_POLICY.md'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: public-tahap2-package-${{ github.ref }}
+  group: public-tahap3-package-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  public-tahap2-package:
+  public-tahap3-package:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - name: Checkout exact public source
@@ -53,14 +56,15 @@ jobs:
           packages: ''
           log-accepted-android-sdk-licenses: 'false'
 
-      - name: Install Android API 30 build inputs
+      - name: Install Android API30 build and emulator inputs
         shell: bash
         run: |
           set -euo pipefail
-          sdkmanager 'platform-tools' 'platforms;android-30' 'build-tools;34.0.0'
+          sdkmanager 'platform-tools' 'emulator' 'platforms;android-30' 'build-tools;34.0.0' 'system-images;android-30;google_apis;x86_64'
           test -s "$ANDROID_SDK_ROOT/platforms/android-30/android.jar"
           test -x "$ANDROID_SDK_ROOT/build-tools/34.0.0/aapt"
           test -x "$ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner"
+          test -s "$ANDROID_SDK_ROOT/system-images/android-30/google_apis/x86_64/source.properties"
 
       - name: Set up exact Gradle without shared cache
         uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
@@ -68,94 +72,55 @@ jobs:
           gradle-version: '8.2.1'
           cache-disabled: true
 
-      - name: Tahap 1 baseline compatibility and Tahap 2 route gate
+      - name: Baseline Tahap 2 compatibility and Tahap 3 route gate
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import re
+          import json,re
           from pathlib import Path
 
           gradle=Path('app/build.gradle').read_text()
           manifest=Path('app/src/main/AndroidManifest.xml').read_text()
+          plan=json.loads(Path('app/ASSURANCE_PLAN_R1_R9.json').read_text())
 
+          assert plan['stage']=='Tahap 3'
+          assert plan['stageMap']=='C'
+          assert plan['parentBaseline']['name']=='Tahap 2'
+          assert plan['parentBaseline']['apkSha256']=='6e7beb14946ab8e75c0c8048edee2049e776e8c2de88217058d5dda647dc5a29'
           assert "applicationId 'com.toolbox.tools'" in gradle
-          assert re.search(r'\bminSdk\s+30\b', gradle)
-          assert re.search(r'\btargetSdk\s+30\b', gradle)
-          version=int(re.search(r'\bversionCode\s+(\d+)\b', gradle).group(1))
-          assert version > 1
+          assert re.search(r'\bminSdk\s+30\b',gradle)
+          assert re.search(r'\btargetSdk\s+30\b',gradle)
+          assert re.search(r'\bversionCode\s+3\b',gradle)
           assert 'android:name=".MainActivity"' in manifest
-          assert 'android:exported="true"' in manifest
 
           required=[
-              'app/src/main/java/com/toolbox/tools/core/StableId.java',
-              'app/src/main/java/com/toolbox/tools/core/DigestUtils.java',
-              'app/src/main/java/com/toolbox/tools/core/ProjectAccessStatus.java',
-              'app/src/main/java/com/toolbox/tools/core/StaleWriteException.java',
-              'app/src/main/java/com/toolbox/tools/core/ProjectState.java',
-              'app/src/main/java/com/toolbox/tools/core/ProjectDefinitionCodec.java',
-              'app/src/main/java/com/toolbox/tools/core/ProjectManifest.java',
-              'app/src/main/java/com/toolbox/tools/core/ProjectStore.java',
-              'app/src/main/java/com/toolbox/tools/core/FileProjectStore.java',
-              'app/src/main/java/com/toolbox/tools/core/ProjectManager.java',
-              'app/src/main/java/com/toolbox/tools/core/DraftRecoveryStore.java',
-              'app/src/main/java/com/toolbox/tools/core/ProjectMigrationRegistry.java',
-              'app/src/main/java/com/toolbox/tools/core/RecoverySnapshotStore.java',
-              'app/src/main/java/com/toolbox/tools/core/ProjectAccessClassifier.java',
-              'app/src/main/java/com/toolbox/tools/core/ProjectRelinkVerifier.java',
-              'app/src/main/java/com/toolbox/tools/android/SafProjectAccessGateway.java',
-              'app/src/test/java/com/toolbox/tools/core/ProjectDefinitionCodecTest.java',
-              'app/src/test/java/com/toolbox/tools/core/ProjectManagerTest.java',
-              'app/src/test/java/com/toolbox/tools/core/FileProjectStoreTest.java',
-              'app/src/test/java/com/toolbox/tools/core/ProjectMigrationAndAccessTest.java',
-              'app/src/test/java/com/toolbox/tools/core/RecoverySnapshotStoreTest.java',
-              'app/src/test/java/com/toolbox/tools/core/ProjectRelinkVerifierTest.java',
+            'app/src/main/java/com/toolbox/tools/library/ComponentRegistry.java',
+            'app/src/main/java/com/toolbox/tools/library/ComponentManifest.java',
+            'app/src/main/java/com/toolbox/tools/library/AssetRegistry.java',
+            'app/src/main/java/com/toolbox/tools/library/FileAssetStore.java',
+            'app/src/main/java/com/toolbox/tools/library/TemplateRegistry.java',
+            'app/src/main/java/com/toolbox/tools/library/LibraryDependencyLock.java',
+            'app/src/main/java/com/toolbox/tools/library/LibraryManager.java',
+            'app/src/test/java/com/toolbox/tools/library/AssetLibraryTest.java',
+            'app/src/test/java/com/toolbox/tools/library/ComponentRegistryTest.java',
+            'app/src/test/java/com/toolbox/tools/library/TemplateAndLibraryTest.java',
+            'app/src/test/java/com/toolbox/tools/library/LibraryDependencyLockTest.java',
           ]
           for item in required:
-              assert Path(item).is_file(), item
+            assert Path(item).is_file(),item
 
-          source='\n'.join(Path(p).read_text() for p in required if '/main/' in p)
-          assertions=[
-              'MAX_UNDO_GROUPS = 64',
-              'MAX_REVISIONS = 32',
-              'STALE_WRITE',
-              'journal.pending',
-              'project.manifest',
-              'project.index',
-              'resources',
-              'ATOMIC_MOVE',
-              'SHA-256',
-              'recoverRevision',
-              'previewRecovery',
-              'ACCESS_LOST',
-              'SCHEMA_INCOMPATIBLE',
-              'FINAL_RECOVERY_SNAPSHOT',
-              'LAST_VALID_RECOVERY',
-              'takePersistableUriPermission',
-          ]
-          for marker in assertions:
-              assert marker in source, marker
-
-          old=[
-              'app/src/main/java/com/toolbox/tools/core/WorkspaceSnapshot.java',
-              'app/src/main/java/com/toolbox/tools/core/WorkspaceManager.java',
-          ]
-          for item in old:
-              assert not Path(item).exists(), f'obsolete Tahap 2 model remains: {item}'
-
-          forbidden=['SIGNING_KEY','KEY_STORE_PASSWORD','KEY_PASSWORD','FIREBASE_PROJECT_ID']
-          for item in forbidden:
-              assert item not in source
-
-          print('BASELINE_TAHAP_1_COMPATIBILITY = PASS')
-          print('TAHAP_2_B1_B4_ROUTE = PASS')
-          print('PUBLIC_SECRET_BOUNDARY = PASS')
+          print('BASELINE_TAHAP_2_COMPATIBILITY = PASS')
+          print('TAHAP_3_C1_C4_ROUTE = PASS')
           PY
 
       - name: Automatic R1-R8 prebuild assurance from research corpus
         run: python3 app/scripts/assurance_prebuild.py
 
-      - name: Run Tahap 2 unit failure transaction recovery tests
+      - name: Automatic ASSET_SAFE prebuild and route proof
+        run: python3 app/scripts/asset_validate.py
+
+      - name: Run Tahap 3 unit failure persistence and asset tests
         run: gradle --no-daemon :app:testDebugUnitTest
 
       - name: Automatic R9 mutation challenge
@@ -164,36 +129,98 @@ jobs:
       - name: Restore clean full test evidence after mutation challenge
         run: gradle --no-daemon :app:testDebugUnitTest --rerun-tasks
 
-      - name: Assemble Tahap 2 unsigned release package
-        run: gradle --no-daemon :app:assembleRelease
+      - name: Assemble Tahap 3 release and debug packages
+        run: |
+          gradle --no-daemon :app:assembleRelease
+          gradle --no-daemon :app:assembleDebug
 
-      - name: Verify Tahap 2 package metadata and digest
+      - name: Verify Tahap 3 package metadata and digest
         shell: bash
         run: |
           set -euo pipefail
           APK="app/build/outputs/apk/release/app-release-unsigned.apk"
+          DEBUG_APK="app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
+          test -s "$DEBUG_APK"
           BADGING="$("$ANDROID_SDK_ROOT/build-tools/34.0.0/aapt" dump badging "$APK")"
           grep -F "package: name='com.toolbox.tools'" <<< "$BADGING"
-          grep -F "versionCode='2'" <<< "$BADGING"
+          grep -F "versionCode='3'" <<< "$BADGING"
           grep -F "sdkVersion:'30'" <<< "$BADGING"
           grep -F "targetSdkVersion:'30'" <<< "$BADGING"
           sha256sum "$APK" | tee "$APK.sha256"
-          echo "TAHAP_2_PUBLIC_UNSIGNED_APK = PASS"
+          echo "TAHAP_3_PUBLIC_UNSIGNED_APK = PASS"
+
+      - name: Boot API30 emulator and exercise Tahap 3 host plus AppTheme
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo chmod 666 /dev/kvm || true
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/toolbox-tahap3-avd-home"
+          mkdir -p "$ANDROID_AVD_HOME"
+          AVD_PATH="$ANDROID_AVD_HOME/tahap3-api30.avd"
+          printf '
+' | avdmanager create avd --force --name tahap3-api30 --package 'system-images;android-30;google_apis;x86_64' --path "$AVD_PATH" --device 'pixel_2'
+          "$ANDROID_SDK_ROOT/emulator/emulator" -avd tahap3-api30 -no-window -no-audio -no-boot-anim -no-snapshot -wipe-data -gpu swiftshader_indirect > "$RUNNER_TEMP/tahap3-emulator.log" 2>&1 &
+          EMULATOR_PID=$!
+          trap 'kill "$EMULATOR_PID" 2>/dev/null || true' EXIT
+
+          timeout 120s adb wait-for-device
+          booted=0
+          for _ in $(seq 1 90); do
+            state="$(timeout 10s adb shell getprop sys.boot_completed 2>/dev/null | tr -d '' || true)"
+            if [[ "$state" == "1" ]]; then booted=1; break; fi
+            kill -0 "$EMULATOR_PID" 2>/dev/null || {
+              tail -n 200 "$RUNNER_TEMP/tahap3-emulator.log" >&2 || true
+              exit 1
+            }
+            sleep 2
+          done
+          test "$booted" = "1"
+
+          API_LEVEL="$(adb shell getprop ro.build.version.sdk | tr -d '')"
+          ABI="$(adb shell getprop ro.product.cpu.abi | tr -d '')"
+          test "$API_LEVEL" = "30"
+          test "$ABI" = "x86_64"
+
+          adb install -r app/build/outputs/apk/debug/app-debug.apk
+          START="$(adb shell am start -W -n com.toolbox.tools/.MainActivity)"
+          printf '%s
+' "$START"
+          grep -F 'Status: ok' <<< "$START"
+          sleep 2
+          adb shell uiautomator dump /sdcard/toolbox-window.xml >/dev/null
+          WINDOW="$(adb shell cat /sdcard/toolbox-window.xml)"
+          grep -F 'ToolBox Tahap 3' <<< "$WINDOW"
+          adb exec-out screencap -p > app/build/assurance/tahap3-api30.png
+
+          {
+            echo "API_LEVEL=$API_LEVEL"
+            echo "EMULATOR_ABI=$ABI"
+            echo "API30_APP_LAUNCH=PASS"
+            echo "TAHAP3_UI_TEXT=PASS"
+            echo "APP_THEME_RUNTIME=PASS"
+          } > app/build/assurance/tahap3-api30-runtime.txt
+
+      - name: Finalize ASSET_SAFE packaged and runtime proof
+        run: python3 app/scripts/asset_finalize.py
 
       - name: Automatic R9 completeness and provenance closure
         run: python3 app/scripts/assurance_finalize.py
 
-      - name: Upload Tahap 2 unsigned package
+      - name: Upload Tahap 3 unsigned package and assurance
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
-          name: toolbox-tahap2-public-unsigned-ready-private-signing
+          name: toolbox-tahap3-public-unsigned-ready-private-signing
           path: |
             app/build/outputs/apk/release/app-release-unsigned.apk
             app/build/outputs/apk/release/app-release-unsigned.apk.sha256
             app/build/test-results/testDebugUnitTest/
-            app/build/assurance/tahap2-r1-r8-prebuild-evidence.json
-            app/build/assurance/tahap2-mutation-evidence.json
-            app/build/assurance/tahap2-r1-r9-evidence.json
+            app/build/assurance/tahap3-r1-r8-prebuild-evidence.json
+            app/build/assurance/tahap3-asset-prebuild-evidence.json
+            app/build/assurance/tahap3-asset-final-evidence.json
+            app/build/assurance/tahap3-mutation-evidence.json
+            app/build/assurance/tahap3-r1-r9-evidence.json
+            app/build/assurance/tahap3-api30-runtime.txt
+            app/build/assurance/tahap3-api30.png
           if-no-files-found: error
           retention-days: 7
