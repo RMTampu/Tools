@@ -52,6 +52,8 @@ required=[
  "src/main/java/com/toolbox/tools/runtime/SharedRuntimeModel.java",
  "src/main/java/com/toolbox/tools/runtime/Renderer.java",
  "src/main/java/com/toolbox/tools/runtime/NavigationManager.java",
+ "src/main/java/com/toolbox/tools/runtime/DiagnosticCode.java",
+ "src/main/java/com/toolbox/tools/runtime/ActionContract.java",
  "src/main/java/com/toolbox/tools/runtime/ActionRegistry.java",
  "src/main/java/com/toolbox/tools/runtime/EventActionCompatibility.java",
  "src/main/java/com/toolbox/tools/runtime/CompositeAction.java",
