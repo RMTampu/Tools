@@ -9,7 +9,7 @@ public final class AppKernel {
     private final EngineManager engineManager;
     private final ConfigStore configStore;
     private final RecoveryManager recoveryManager;
-    private final WorkspaceManager workspaceManager;
+    private final ProjectManager projectManager;
     private AppState state;
 
     public AppKernel(
@@ -17,37 +17,49 @@ public final class AppKernel {
             EngineManager engineManager,
             ConfigStore configStore,
             RecoveryManager recoveryManager,
-            WorkspaceManager workspaceManager
+            ProjectManager projectManager
     ) {
-        this.toolRegistry = toolRegistry;
-        this.engineManager = engineManager;
-        this.configStore = configStore;
-        this.recoveryManager = recoveryManager;
-        this.workspaceManager = workspaceManager;
+        this.toolRegistry = Objects.requireNonNull(toolRegistry, "toolRegistry");
+        this.engineManager = Objects.requireNonNull(engineManager, "engineManager");
+        this.configStore = Objects.requireNonNull(configStore, "configStore");
+        this.recoveryManager = Objects.requireNonNull(recoveryManager, "recoveryManager");
+        this.projectManager = Objects.requireNonNull(projectManager, "projectManager");
         this.state = AppState.CREATED;
     }
 
     public static AppKernel createDefault() {
-        return createWithStorage(new InMemoryStorageGateway());
-    }
-
-    public static AppKernel createPersistent(File workspaceFile) {
-        Objects.requireNonNull(workspaceFile, "workspaceFile");
-        return createWithStorage(new FileStorageGateway(workspaceFile));
-    }
-
-    private static AppKernel createWithStorage(StorageGateway storageGateway) {
-        RecoveryManager recoveryManager = new RecoveryManager();
-        WorkspaceManager workspaceManager = new WorkspaceManager(
-                storageGateway,
-                recoveryManager
+        RecoveryManager recovery = new RecoveryManager();
+        ProjectManager projectManager = new ProjectManager(
+                new InMemoryProjectStore(),
+                new DraftRecoveryStore(),
+                recovery,
+                new ProjectMigrationRegistry()
         );
+        return create(recovery, projectManager);
+    }
+
+    public static AppKernel createPersistent(File projectRoot) {
+        Objects.requireNonNull(projectRoot, "projectRoot");
+        RecoveryManager recovery = new RecoveryManager();
+        ProjectManager projectManager = new ProjectManager(
+                new FileProjectStore(projectRoot),
+                new DraftRecoveryStore(projectRoot),
+                recovery,
+                new ProjectMigrationRegistry()
+        );
+        return create(recovery, projectManager);
+    }
+
+    private static AppKernel create(
+            RecoveryManager recovery,
+            ProjectManager projectManager
+    ) {
         AppKernel kernel = new AppKernel(
                 new ToolRegistry(),
                 new EngineManager(),
                 new ConfigStore(),
-                recoveryManager,
-                workspaceManager
+                recovery,
+                projectManager
         );
         kernel.initialize();
         return kernel;
@@ -56,7 +68,7 @@ public final class AppKernel {
     public synchronized void initialize() {
         state = AppState.INITIALIZING;
         try {
-            toolRegistry.register(new ToolDescriptor("foundation", "Foundation", "2.0"));
+            toolRegistry.register(new ToolDescriptor("foundation", "Foundation", "1.0"));
             engineManager.register(new EngineContract() {
                 @Override
                 public String id() {
@@ -70,8 +82,8 @@ public final class AppKernel {
             });
             configStore.put("targetApi", "30");
             configStore.put("targetAbi", "arm64");
-            configStore.put("stage", "2");
-            workspaceManager.bootstrap("toolbox.default");
+            configStore.put("tahap", "2");
+            projectManager.bootstrap("project.default");
             state = AppState.READY;
         } catch (IOException | RuntimeException error) {
             recoveryManager.markRecoveryRequired();
@@ -95,8 +107,8 @@ public final class AppKernel {
         return recoveryManager;
     }
 
-    public WorkspaceManager workspaceManager() {
-        return workspaceManager;
+    public ProjectManager projectManager() {
+        return projectManager;
     }
 
     public synchronized AppState state() {
