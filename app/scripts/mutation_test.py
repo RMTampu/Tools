@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json,subprocess
 from pathlib import Path
+
 APP=Path(__file__).resolve().parents[1]
 REPO=APP.parent
 OUT=APP/"build"/"assurance"
@@ -15,46 +16,46 @@ mutations=[
   "test":"com.toolbox.tools.core.ProjectDefinitionCodecTest.invalidStableIdIsRejected"
  },
  {
-  "name":"capability_edit_door_bypass",
-  "path":APP/"src/main/java/com/toolbox/tools/live/CapabilityScanner.java",
-  "old":"&& target.editDoor() == EditDoor.NONE",
-  "new":"&& false",
-  "test":"com.toolbox.tools.live.CapabilityScannerTest.noEditDoorCannotClaimWritableCapability"
- },
- {
-  "name":"live_runtime_gate_bypass",
-  "path":APP/"src/main/java/com/toolbox/tools/live/LiveSessionManager.java",
-  "old":"if (!target.installed() || !scan.liveAvailable()) {",
+  "name":"ready_dirty_gate_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/build/BuildValidator.java",
+  "old":"if (kernel.projectManager().hasUnsavedChanges()) {",
   "new":"if (false) {",
-  "test":"com.toolbox.tools.live.LiveSessionManagerTest.liveRuntimeGateRejectsUnavailableTarget"
+  "test":"com.toolbox.tools.build.ReadyCoordinatorTest.dirtyProjectBlocksReady"
  },
  {
-  "name":"self_edit_policy_bypass",
-  "path":APP/"src/main/java/com/toolbox/tools/live/SelfEditPolicy.java",
-  "old":"if (!isDeclarativeEditable(resourceId)) {",
-  "new":"if (false) {",
-  "test":"com.toolbox.tools.live.LiveSessionManagerTest.selfEditRejectsProtectedAndNonDeclarativeSurfaces"
+  "name":"ready_live_gate_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/build/BuildValidator.java",
+  "old":"if (live == LiveSessionState.DIRTY",
+  "new":"if (false && live == LiveSessionState.DIRTY",
+  "test":"com.toolbox.tools.build.ReadyCoordinatorTest.dirtyLiveSessionBlocksReady"
  },
  {
-  "name":"live_stale_revision_bypass",
-  "path":APP/"src/main/java/com/toolbox/tools/live/LiveSessionManager.java",
-  "old":"if (projectManager.savedRevision() != baseRevision",
-  "new":"if (false && projectManager.savedRevision() != baseRevision",
-  "test":"com.toolbox.tools.live.LiveSessionManagerTest.staleBaseRevisionBecomesConflictWithoutOverwrite"
+  "name":"ready_repair_gate_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/build/BuildValidator.java",
+  "old":"if (repair == RepairPhase.STAGED",
+  "new":"if (false && repair == RepairPhase.STAGED",
+  "test":"com.toolbox.tools.build.ReadyCoordinatorTest.stagedRepairBlocksReady"
  },
  {
-  "name":"live_selection_gate_bypass",
-  "path":APP/"src/main/java/com/toolbox/tools/editor/EditorShellController.java",
-  "old":"return editEnabled && mode == EditorMode.EDIT;",
-  "new":"return editEnabled;",
-  "test":"com.toolbox.tools.editor.BubbleShellTest.previewHidesOverlayAndLiveRequiresCapability"
+  "name":"ready_final_recovery_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/build/ReadyCoordinator.java",
+  "old":"kernel.projectManager().captureFinalRecoverySnapshot();",
+  "new":"/* mutation: recovery snapshot bypass */",
+  "test":"com.toolbox.tools.build.ReadyCoordinatorTest.readyPreviewIsReadOnlyAndPublishIsRevisioned"
  },
  {
-  "name":"live_history_bound_bypass",
-  "path":APP/"src/main/java/com/toolbox/tools/live/LiveSessionManager.java",
-  "old":"while (history.size() > MAX_HISTORY) {",
-  "new":"while (false) {",
-  "test":"com.toolbox.tools.live.LiveSessionManagerTest.liveChangeAndHistoryBudgetsAreBounded"
+  "name":"ir_raw_payload_leak",
+  "path":APP/"src/main/java/com/toolbox/tools/build/ApplicationIrBuilder.java",
+  "old":"sha256(entry.getValue())",
+  "new":"entry.getValue()",
+  "test":"com.toolbox.tools.build.ApplicationIrTest.irIsDeterministicStableKeyedAndReadOnly"
+ },
+ {
+  "name":"candidate_parent_identity_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/build/CandidateIdentityFactory.java",
+  "old":"+ parentSignedApkSha256 + "\\n"",
+  "new":"+ "" + "\\n"",
+  "test":"com.toolbox.tools.build.CandidateIdentityTest.everyIdentityInputChangesCandidate"
  }
 ]
 
@@ -64,14 +65,19 @@ for mutation in mutations:
     original=path.read_text()
     assert mutation["old"] in original,(mutation["name"],"target missing")
     try:
-        path.write_text(original.replace(mutation["old"],mutation["new"],1))
+        path.write_text(original.replace(
+            mutation["old"],mutation["new"],1
+        ))
         result=subprocess.run(
             [
-                "gradle","--no-daemon",":app:testDebugUnitTest",
-                "--tests",mutation["test"],"--rerun-tasks"
+                "gradle","--no-daemon",
+                ":app:testDebugUnitTest",
+                "--tests",mutation["test"],
+                "--rerun-tasks"
             ],
             cwd=REPO,text=True,
-            stdout=subprocess.PIPE,stderr=subprocess.STDOUT
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT
         )
         if result.returncode==0:
             print(result.stdout)
@@ -82,16 +88,16 @@ for mutation in mutations:
         path.write_text(original)
 
 evidence={
-    "schemaVersion":8,
-    "stage":"Tahap 9",
+    "schemaVersion":9,
+    "stage":"Tahap 10",
     "status":"PASS",
     "mutationsTotal":len(mutations),
     "mutationsKilled":len(killed),
     "mutationsEscaped":0,
     "killed":killed
 }
-(OUT/"tahap9-mutation-evidence.json").write_text(
+(OUT/"tahap10-mutation-evidence.json").write_text(
     json.dumps(evidence,indent=2,sort_keys=True)+"\n"
 )
-print("TAHAP_9_R9_MUTATION = PASS")
+print("TAHAP_10_R9_MUTATION = PASS")
 print("MUTATION_ESCAPE = 0")
