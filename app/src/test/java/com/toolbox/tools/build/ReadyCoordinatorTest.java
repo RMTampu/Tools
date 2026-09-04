@@ -43,8 +43,13 @@ public final class ReadyCoordinatorTest {
                 ready.revision(),
                 kernel.projectManager().savedRevision()
         );
-        assertFalse(
-                kernel.projectManager().recoveryCandidates().isEmpty()
+        assertTrue(
+                kernel.projectManager()
+                        .recoveryCandidates()
+                        .stream()
+                        .anyMatch(candidate ->
+                                candidate.kind()
+                                        == com.toolbox.tools.core.RecoveryCandidate.Kind.FINAL_RECOVERY_SNAPSHOT)
         );
         assertTrue(
                 kernel.buildValidator()
