@@ -17,6 +17,8 @@ import com.toolbox.tools.library.VersionNumber;
 import com.toolbox.tools.runtime.RenderTree;
 import com.toolbox.tools.runtime.Renderer;
 import com.toolbox.tools.runtime.RuntimeModelValidator;
+import com.toolbox.tools.repair.HealthState;
+import com.toolbox.tools.repair.RepairPlan;
 
 import java.util.Collections;
 import java.util.List;
@@ -37,8 +39,8 @@ public final class VerificationManager {
                 || !"arm64".equals(kernel.configStore().get("targetAbi", ""))) {
             return VerificationResult.fail("android target mismatch");
         }
-        if (!"7".equals(kernel.configStore().get("tahap", ""))) {
-            return VerificationResult.fail("tahap 7 configuration missing");
+        if (!"8".equals(kernel.configStore().get("tahap", ""))) {
+            return VerificationResult.fail("tahap 8 configuration missing");
         }
         if (kernel.recoveryManager().isRecoveryRequired()) {
             return VerificationResult.fail("recovery required");
@@ -186,6 +188,42 @@ public final class VerificationManager {
             return VerificationResult.fail("sync idempotency failed");
         }
 
-        return VerificationResult.pass("tahap 7 external integration ready");
+        if (kernel.repairSessionManager() == null
+                || kernel.recoveryPreviewService() == null
+                || kernel.healthMonitor() == null) {
+            return VerificationResult.fail("repair/recovery services unavailable");
+        }
+
+        RepairPlan checksumA = new RepairPlan(
+                "repair.verification",
+                project.projectId(),
+                Math.max(1, kernel.projectManager().savedRevision()),
+                Collections.singletonMap(
+                        "screen.verification",
+                        "verification"
+                ),
+                Collections.emptySet()
+        );
+        RepairPlan checksumB = new RepairPlan(
+                "repair.verification",
+                project.projectId(),
+                Math.max(1, kernel.projectManager().savedRevision()),
+                Collections.singletonMap(
+                        "screen.verification",
+                        "verification"
+                ),
+                Collections.emptySet()
+        );
+        if (!checksumA.checksum().equals(checksumB.checksum())
+                || !checksumA.checksum().matches("[0-9a-f]{64}")) {
+            return VerificationResult.fail("repair checksum not deterministic");
+        }
+
+        HealthState health = kernel.healthMonitor().inspect(kernel).state();
+        if (health == HealthState.RECOVERY_REQUIRED) {
+            return VerificationResult.fail("health requires recovery");
+        }
+
+        return VerificationResult.pass("tahap 8 repair health recovery ready");
     }
 }
