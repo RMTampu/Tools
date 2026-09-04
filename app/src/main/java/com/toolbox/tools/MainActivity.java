@@ -26,6 +26,12 @@ import com.toolbox.tools.integration.ExportPackage;
 import com.toolbox.tools.integration.ExternalSnapshot;
 import com.toolbox.tools.integration.NormalizationResult;
 import com.toolbox.tools.integration.SyncPlan;
+import com.toolbox.tools.live.CapabilityArea;
+import com.toolbox.tools.live.CapabilityScanResult;
+import com.toolbox.tools.live.LiveApplyResult;
+import com.toolbox.tools.live.LiveChange;
+import com.toolbox.tools.live.LiveChangeOperation;
+import com.toolbox.tools.live.LiveSessionState;
 import com.toolbox.tools.repair.HealthReport;
 import com.toolbox.tools.repair.RepairPlan;
 import com.toolbox.tools.repair.RepairValidationResult;
@@ -44,6 +50,7 @@ public final class MainActivity extends Activity {
     private TextView authoringStatus;
     private TextView integrationStatus;
     private TextView repairStatus;
+    private TextView liveStatus;
     private float downRawX;
     private float downRawY;
     private float startX;
@@ -65,7 +72,7 @@ public final class MainActivity extends Activity {
         root.setBackgroundColor(Color.rgb(8, 12, 18));
 
         TextView header = label(
-                "ToolBox Tahap 8\nRepair • Staging • Verify • Rollback • Health • Recovery\nUI • Logic • Data • Binding • Asset\n" + status,
+                "ToolBox Tahap 9\nCapability Scan • Live • TERAPKAN • Self Edit\nRepair • Recovery • UI • Logic • Data • Binding • Asset\n" + status,
                 18f
         );
         header.setGravity(Gravity.CENTER);
@@ -191,6 +198,26 @@ public final class MainActivity extends Activity {
         authoringStatus = label("Authoring: UI • siap", 13f);
         authoringStatus.setTextColor(Color.rgb(180, 220, 255));
         authoringBar.addView(authoringStatus);
+
+        LinearLayout liveRow = new LinearLayout(this);
+        liveRow.setOrientation(LinearLayout.HORIZONTAL);
+        TextView scan = label("Capability Scan", 12f);
+        scan.setOnClickListener(v -> scanCapabilities());
+        liveRow.addView(scan);
+        TextView live = label("Live", 12f);
+        live.setOnClickListener(v -> openLiveSession());
+        liveRow.addView(live);
+        TextView selfEdit = label("Self Edit", 12f);
+        selfEdit.setOnClickListener(v -> queueSelfEdit());
+        liveRow.addView(selfEdit);
+        TextView apply = label("TERAPKAN", 12f);
+        apply.setOnClickListener(v -> applyLiveSession());
+        liveRow.addView(apply);
+        authoringBar.addView(liveRow);
+
+        liveStatus = label("Live: belum dipindai", 12f);
+        liveStatus.setTextColor(Color.rgb(255, 190, 245));
+        authoringBar.addView(liveStatus);
 
         LinearLayout integrationRow = new LinearLayout(this);
         integrationRow.setOrientation(LinearLayout.HORIZONTAL);
@@ -386,6 +413,101 @@ public final class MainActivity extends Activity {
                     .append(first.stableId());
         }
         authoringStatus.setText(text.toString());
+    }
+
+    private void scanCapabilities() {
+        CapabilityScanResult result = kernel.capabilityScanner()
+                .scan(kernel.selfTargetDescriptor());
+        liveStatus.setText(
+                "Capability: UI "
+                        + result.status(CapabilityArea.UI).name()
+                        + " • Runtime "
+                        + result.status(CapabilityArea.RUNTIME).name()
+        );
+    }
+
+    private void openLiveSession() {
+        try {
+            if (kernel.projectManager().hasUnsavedChanges()
+                    || kernel.projectManager().savedRevision() <= 0) {
+                kernel.projectManager().save();
+            }
+            CapabilityScanResult scan = kernel.capabilityScanner()
+                    .scan(kernel.selfTargetDescriptor());
+            kernel.liveSessionManager().open(
+                    "live.toolbox.self",
+                    kernel.selfTargetDescriptor(),
+                    scan
+            );
+            kernel.editorEnvironment()
+                    .shell()
+                    .setLiveCapability(scan.liveAvailable());
+            kernel.editorEnvironment()
+                    .shell()
+                    .setMode(com.toolbox.tools.editor.EditorMode.LIVE);
+            liveStatus.setText("Live: OPEN • ToolBox Sendiri");
+        } catch (Exception error) {
+            liveStatus.setText("Live: GAGAL AMAN");
+        }
+    }
+
+    private void queueSelfEdit() {
+        try {
+            if (kernel.liveSessionManager().state()
+                    == LiveSessionState.CLOSED) {
+                openLiveSession();
+            }
+            if (kernel.liveSessionManager().state()
+                    != LiveSessionState.OPEN
+                    && kernel.liveSessionManager().state()
+                    != LiveSessionState.APPLIED
+                    && kernel.liveSessionManager().state()
+                    != LiveSessionState.DIRTY) {
+                liveStatus.setText("Self Edit: LIVE TIDAK SIAP");
+                return;
+            }
+            kernel.liveSessionManager().queue(
+                    new LiveChange(
+                            "change.self.screen",
+                            "screen.self.live",
+                            LiveChangeOperation.UPSERT,
+                            "Tahap 9 Self Edit"
+                    )
+            );
+            liveStatus.setText(
+                    "Live: DIRTY • "
+                            + kernel.liveSessionManager()
+                            .queuedChangeCount()
+                            + " perubahan"
+            );
+        } catch (Exception error) {
+            liveStatus.setText("Self Edit: DILINDUNGI/GAGAL");
+        }
+    }
+
+    private void applyLiveSession() {
+        try {
+            LiveApplyResult result =
+                    kernel.liveSessionManager().terapkan();
+            if (result.isPass()
+                    && result.state() == LiveSessionState.APPLIED) {
+                liveStatus.setText(
+                        "TERAPKAN: PASS • "
+                                + kernel.repairSessionManager()
+                                .phase()
+                                .name()
+                );
+            } else {
+                liveStatus.setText(
+                        "TERAPKAN: "
+                                + result.state().name()
+                                + " • "
+                                + result.message()
+                );
+            }
+        } catch (Exception error) {
+            liveStatus.setText("TERAPKAN: GAGAL AMAN");
+        }
     }
 
     private void runExternalImport() {
