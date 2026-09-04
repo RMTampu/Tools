@@ -2,62 +2,64 @@
 
 ## Tugas Aktif
 
-Kerjakan **Tahap 7 = G — Adapter sumber eksternal, normalisasi, export, dan sync** pada repo publik utama `RMTampu/Tools`.
+Kerjakan **Tahap 8 = H — Repair, staging/activate/verify, rollback, health, dan recovery** pada repo publik utama `RMTampu/Tools`.
 
-Baseline resmi aktif adalah **Baseline Tahap 6** dengan APK SHA-256 `64f93a41bbf7623d5bfcc4a6a0bee69cc0ca613897f55c5fd004fcb7f335d878`.
+Baseline resmi aktif adalah **Baseline Tahap 7** dengan APK SHA-256 `741ebcf799280fbba1b4c7d2e60ba157ba133e3f6545b3468882373150f024f7`.
 
-Tahap 7 menambah kemampuan di atas Tahap 6; Baseline Tahap 6 tidak boleh dimodifikasi.
+Tahap 8 menambah kemampuan di atas Tahap 7; Baseline Tahap 7 tidak boleh dimodifikasi.
 
-### G1 — External Adapter Contract
-- adapter punya Stable ID, label Bahasa Indonesia, capability IMPORT/EXPORT/SYNC, dan schema version.
-- external payload dibatasi ukuran/jumlah.
-- raw external identity dipertahankan sebagai provenance, bukan dijadikan executable authority.
-- adapter tidak boleh bypass Android sandbox/signature.
+### H1 — Repair Plan + Staging
+- repair mempunyai Stable ID, base revision, bounded upsert/delete set, dan deterministic checksum.
+- staging hanya menerima plan yang cocok dengan project identity/revision.
+- invalid reference/schema/resource budget gagal tertutup.
+- staging tidak mengubah project aktif.
 
-### G2 — Normalization
-- data eksternal dinormalisasi ke canonical record dengan Stable ID.
-- field names divalidasi, values bounded, duplicate ID fail-closed.
-- canonical ordering deterministic.
-- invalid/unknown input menghasilkan diagnostic, tidak masuk working model diam-diam.
+### H2 — Activate + Verify
+- alur wajib: Working State → Staging → Validate → Recovery Point → Activate → Verify.
+- activate hanya dari STAGED.
+- recovery point dibuat sebelum mutasi.
+- verification memeriksa project integrity + expected changes + health.
+- verified repair menjadi terminal VERIFIED.
 
-### G3 — Deterministic Export
-- export memakai snapshot immutable dari model canonical.
-- output deterministic, versioned, checksum SHA-256.
-- export tidak mengubah working state/registry.
-- unsupported target/version fail-closed.
+### H3 — Rollback + Failure Isolation
+- verification gagal tidak boleh dibiarkan sebagai state aktif diam-diam.
+- rollback kembali ke pre-activation revision/recovery point.
+- rollback explicit dan idempotent.
+- failed/invalid transition menghasilkan diagnostic.
+- repair history bounded.
 
-### G4 — Sync
-- sync memakai explicit cursor/revision.
-- remote/local change dibandingkan dengan last-known state.
-- konflik tidak silent overwrite; status CONFLICT wajib eksplisit.
-- apply hanya untuk plan CLEAN.
-- sync history bounded dan idempotent untuk cursor yang sama.
-- offline/no-source/invalid-source dibedakan dari corruption.
+### H4 — Health + Recovery
+- health membedakan HEALTHY / DEGRADED / RECOVERY_REQUIRED.
+- health mencakup kernel/project/access/recovery/runtime/editor/external integration.
+- recovery candidate dapat dipreview sebelum restore.
+- tidak ada auto-pilih recovery candidate.
+- protected safety/recovery core tidak boleh diedit melalui repair plan.
 
-## Exit Gate Tahap 7
+## Exit Gate Tahap 8
 
 ```text
-BASELINE_TAHAP_6_UNCHANGED = YES
-VERSION_CODE_GT_TAHAP_6 = YES
-EXTERNAL_ADAPTER_CONTRACT = PASS
-ADAPTER_CAPABILITY_GATE = PASS
-NORMALIZATION = PASS
-NORMALIZATION_BOUNDED = PASS
-DUPLICATE_EXTERNAL_ID_FAIL_CLOSED = PASS
-DETERMINISTIC_EXPORT = PASS
-EXPORT_CHECKSUM = PASS
-EXPORT_NO_WORKING_STATE_MUTATION = PASS
-SYNC_CURSOR = PASS
-SYNC_CONFLICT_EXPLICIT = PASS
-SYNC_CLEAN_APPLY = PASS
-SYNC_IDEMPOTENT = PASS
-SYNC_HISTORY_BOUNDED = PASS
-EXTERNAL_PRESENTATION_INDONESIA = PASS
+BASELINE_TAHAP_7_UNCHANGED = YES
+VERSION_CODE_GT_TAHAP_7 = YES
+REPAIR_PLAN = PASS
+REPAIR_PLAN_BOUNDED = PASS
+REPAIR_CHECKSUM_DETERMINISTIC = PASS
+STAGING_NO_ACTIVE_MUTATION = PASS
+BASE_REVISION_GATE = PASS
+ACTIVATE_ONLY_FROM_STAGED = PASS
+RECOVERY_POINT_BEFORE_ACTIVATE = PASS
+VERIFY_AFTER_ACTIVATE = PASS
+VERIFY_EXPECTED_CHANGES = PASS
+ROLLBACK_ON_FAILURE = PASS
+ROLLBACK_IDEMPOTENT = PASS
+REPAIR_HISTORY_BOUNDED = PASS
+HEALTH_CLASSIFICATION = PASS
+RECOVERY_PREVIEW_EXPLICIT = PASS
+PROTECTED_CORE_GATE = PASS
 R1_R9_AUTOMATIC = PASS
 ASSET_SAFE_REGRESSION = PASS
 ANDROID_11_API30_BUILD = PASS
 PUBLIC_UNSIGNED_APK = PASS
-UNKNOWN_REQUIRED_TAHAP_7_BEHAVIOR = 0
+UNKNOWN_REQUIRED_TAHAP_8_BEHAVIOR = 0
 ```
 
 Private tetap hanya untuk signing, credential, Firebase final runtime test, baseline locking, dan release sensitif.
