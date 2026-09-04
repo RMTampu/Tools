@@ -2,6 +2,10 @@ package com.toolbox.tools.core;
 
 import com.toolbox.tools.authoring.DefaultAuthoringFactory;
 import com.toolbox.tools.authoring.UnifiedAuthoringWorkspace;
+import com.toolbox.tools.build.ApplicationIrBuilder;
+import com.toolbox.tools.build.BuildValidator;
+import com.toolbox.tools.build.CandidateIdentityFactory;
+import com.toolbox.tools.build.ReadyCoordinator;
 import com.toolbox.tools.editor.DefaultEditorFactory;
 import com.toolbox.tools.editor.EditorEnvironment;
 import com.toolbox.tools.integration.ExternalIntegrationManager;
@@ -43,6 +47,10 @@ public final class AppKernel {
     private final CapabilityScanner capabilityScanner;
     private final TargetDescriptor selfTargetDescriptor;
     private final LiveSessionManager liveSessionManager;
+    private final BuildValidator buildValidator;
+    private final ApplicationIrBuilder applicationIrBuilder;
+    private final CandidateIdentityFactory candidateIdentityFactory;
+    private final ReadyCoordinator readyCoordinator;
     private AppState state;
 
     public AppKernel(
@@ -92,6 +100,14 @@ public final class AppKernel {
                 this.repairSessionManager,
                 new SelfEditPolicy(),
                 this.selfTargetDescriptor
+        );
+        this.buildValidator = new BuildValidator();
+        this.applicationIrBuilder = new ApplicationIrBuilder();
+        this.candidateIdentityFactory = new CandidateIdentityFactory();
+        this.readyCoordinator = new ReadyCoordinator(
+                this,
+                this.buildValidator,
+                this.applicationIrBuilder
         );
         this.state = AppState.CREATED;
     }
@@ -192,7 +208,7 @@ public final class AppKernel {
             });
             configStore.put("targetApi", "30");
             configStore.put("targetAbi", "arm64");
-            configStore.put("tahap", "9");
+            configStore.put("tahap", "10");
             projectManager.bootstrap("project.default");
             state = AppState.READY;
         } catch (IOException | RuntimeException error) {
@@ -218,5 +234,9 @@ public final class AppKernel {
     public CapabilityScanner capabilityScanner() { return capabilityScanner; }
     public TargetDescriptor selfTargetDescriptor() { return selfTargetDescriptor; }
     public LiveSessionManager liveSessionManager() { return liveSessionManager; }
+    public BuildValidator buildValidator() { return buildValidator; }
+    public ApplicationIrBuilder applicationIrBuilder() { return applicationIrBuilder; }
+    public CandidateIdentityFactory candidateIdentityFactory() { return candidateIdentityFactory; }
+    public ReadyCoordinator readyCoordinator() { return readyCoordinator; }
     public synchronized AppState state() { return state; }
 }
