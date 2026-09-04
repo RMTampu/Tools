@@ -41,7 +41,11 @@ public final class InMemoryProjectStore implements ProjectStore {
 
     @Override
     public synchronized ProjectState recoverRevision(long revision) throws IOException {
-        ProjectState candidate = loadRevision(revision);
+        return recoverState(loadRevision(revision));
+    }
+
+    @Override
+    public synchronized ProjectState recoverState(ProjectState candidate) throws IOException {
         return publish(candidate, currentRevision + 1);
     }
 
