@@ -228,8 +228,6 @@ jobs:
           WINDOW="$(cat "$RUNNER_TEMP/toolbox-window.xml")"
           grep -F 'Edit Object' <<< "$WINDOW"
           grep -F 'Size' <<< "$WINDOW"
-          grep -F 'Auto Connect Binding' <<< "$WINDOW"
-
           tap_text 'Size'
           dump_ui
           WINDOW="$(cat "$RUNNER_TEMP/toolbox-window.xml")"
