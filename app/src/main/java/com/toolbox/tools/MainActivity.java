@@ -20,6 +20,8 @@ import com.toolbox.tools.build.ApplicationIr;
 import com.toolbox.tools.build.CandidateIdentity;
 import com.toolbox.tools.core.AppKernel;
 import com.toolbox.tools.core.VerificationManager;
+import com.toolbox.tools.delivery.PatchManifest;
+import com.toolbox.tools.delivery.PatchPayload;
 import com.toolbox.tools.editor.EditorFunction;
 import com.toolbox.tools.editor.EdgeItem;
 import com.toolbox.tools.editor.EdgePanelModel;
@@ -53,6 +55,7 @@ public final class MainActivity extends Activity {
     private TextView integrationStatus;
     private TextView repairStatus;
     private TextView buildStatus;
+    private TextView patchStatus;
     private ApplicationIr lastIr;
     private TextView liveStatus;
     private float downRawX;
@@ -76,7 +79,7 @@ public final class MainActivity extends Activity {
         root.setBackgroundColor(Color.rgb(8, 12, 18));
 
         TextView header = label(
-                "ToolBox Tahap 10\nREADY • Validator • IR • Candidate Identity\nCapability • Live • Repair • UI • Data • Asset\n" + status,
+                "ToolBox Tahap 11\nApp.apk • App.patch • Remote Verify • Safe Restore\nREADY • Validator • IR • Candidate Identity\nCapability • Live • Repair • UI • Data • Asset\n" + status,
                 18f
         );
         header.setGravity(Gravity.CENTER);
@@ -275,6 +278,20 @@ public final class MainActivity extends Activity {
         buildStatus = label("Build: READY belum dipublish", 12f);
         buildStatus.setTextColor(Color.rgb(160, 245, 255));
         authoringBar.addView(buildStatus);
+
+        LinearLayout patchRow = new LinearLayout(this);
+        patchRow.setOrientation(LinearLayout.HORIZONTAL);
+        TextView patchPreview = label("Patch Preview", 12f);
+        patchPreview.setOnClickListener(v -> previewPatch());
+        patchRow.addView(patchPreview);
+        TextView safeRestore = label("Safe Restore", 12f);
+        safeRestore.setOnClickListener(v -> createSafeRestorePoint());
+        patchRow.addView(safeRestore);
+        authoringBar.addView(patchRow);
+
+        patchStatus = label("Patch: remote verification wajib", 12f);
+        patchStatus.setTextColor(Color.rgb(190, 255, 190));
+        authoringBar.addView(patchStatus);
 
         FrameLayout.LayoutParams authoringParams =
                 new FrameLayout.LayoutParams(
@@ -670,9 +687,9 @@ public final class MainActivity extends Activity {
             CandidateIdentity identity =
                     kernel.candidateIdentityFactory().create(
                             "com.toolbox.tools",
-                            10,
-                            "10.0-tahap10-dev",
-                            "8f6f504c8f289926ad88550ab2686b801efc3ac12536c9e57f807b208461a116",
+                            11,
+                            "11.0-tahap11-dev",
+                            "fbc39153bc121ed2d32bc9c24e9ff8f0e9b7730fcef01021f4adfd830fbd21ff",
                             lastIr.sha256(),
                             "0000000000000000000000000000000000000000000000000000000000000000"
                     );
@@ -682,6 +699,53 @@ public final class MainActivity extends Activity {
             );
         } catch (Exception error) {
             buildStatus.setText("Candidate Preview: GAGAL AMAN");
+        }
+    }
+
+    private void previewPatch() {
+        try {
+            if (kernel.projectManager().savedRevision() <= 0
+                    || kernel.projectManager().hasUnsavedChanges()) {
+                kernel.projectManager().save();
+            }
+            long base = kernel.projectManager().savedRevision();
+            PatchPayload payload = new PatchPayload(
+                    java.util.Collections.singletonMap(
+                            "app.release.preview",
+                            "ToolBox Tahap 11"
+                    ),
+                    java.util.Collections.emptySet()
+            );
+            PatchManifest manifest = new PatchManifest(
+                    "patch.preview." + base,
+                    kernel.projectManager().current().projectId(),
+                    base,
+                    base + 1,
+                    "fbc39153bc121ed2d32bc9c24e9ff8f0e9b7730fcef01021f4adfd830fbd21ff",
+                    "1111111111111111111111111111111111111111111111111111111111111111",
+                    "741ebcf799280fbba1b4c7d2e60ba157ba133e3f6545b3468882373150f024f7",
+                    payload.sha256()
+            );
+            patchStatus.setText(
+                    "Patch Preview: PASS • "
+                            + manifest.contentSha256().substring(0, 12)
+                            + " • remote proof wajib"
+            );
+        } catch (Exception error) {
+            patchStatus.setText("Patch Preview: GAGAL AMAN");
+        }
+    }
+
+    private void createSafeRestorePoint() {
+        try {
+            if (kernel.projectManager().savedRevision() <= 0
+                    || kernel.projectManager().hasUnsavedChanges()) {
+                kernel.projectManager().save();
+            }
+            kernel.projectManager().captureFinalRecoverySnapshot();
+            patchStatus.setText("Safe Restore: PASS • recovery point");
+        } catch (Exception error) {
+            patchStatus.setText("Safe Restore: GAGAL AMAN");
         }
     }
 
