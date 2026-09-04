@@ -1,12 +1,7 @@
 package com.toolbox.tools.library;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedHashSet;
-
 public final class DefaultLibraryFactory {
-    private DefaultLibraryFactory() {
-    }
+    private DefaultLibraryFactory() {}
 
     public static LibraryManager create() {
         ComponentRegistry components = new ComponentRegistry();
@@ -15,89 +10,18 @@ public final class DefaultLibraryFactory {
         DependencyResolver resolver = new DependencyResolver();
         ComponentValidator validator = new ComponentValidator();
 
-        ComponentDefinition buttonDraft = new ComponentDefinition(
-                "component.button",
-                "text.component.button",
-                "Tombol",
-                "category.input",
-                null,
-                VersionNumber.parse("1.0.0"),
-                CatalogLifecycle.DRAFT,
-                "implementation.android.button",
-                Arrays.asList(
-                        new PropertyContract(
-                                "property.text",
-                                PropertyType.TEXT,
-                                false,
-                                true,
-                                "Tombol",
-                                Collections.emptySet()
-                        ),
-                        new PropertyContract(
-                                "property.enabled",
-                                PropertyType.BOOLEAN,
-                                false,
-                                true,
-                                "true",
-                                Collections.emptySet()
-                        )
-                ),
-                Collections.singletonList(
-                        new EventContract(
-                                "event.click",
-                                Collections.singleton("action.ui")
-                        )
-                ),
-                new StateContract(
-                        new LinkedHashSet<>(
-                                Arrays.asList(
-                                        "state.normal",
-                                        "state.pressed",
-                                        "state.disabled"
-                                )
-                        )
-                ),
-                new BindingContract(
-                        "binding.profile.default",
-                        Collections.singleton("binding.text"),
-                        true
-                ),
-                new AccessibilityContract(
-                        "accessibility.role.button",
-                        true,
-                        true
-                ),
-                Collections.emptySet(),
-                Collections.emptyList(),
-                Collections.emptyList()
-        );
-        components.publishReady(buttonDraft, validator, assets);
+        for (ComponentDefinition draft : BuiltinComponentCatalog.components()) {
+            components.publishReady(draft, validator, assets);
+        }
 
-        TemplateDefinition emptyScreenDraft = new TemplateDefinition(
-                "template.screen.basic",
-                "Layar Dasar",
-                VersionNumber.parse("1.0.0"),
-                CatalogLifecycle.DRAFT,
-                new LinkedHashSet<>(
-                        Collections.singletonList("object.primary")
-                ),
-                Collections.singletonList(
-                        new DependencyRef(
-                                "component.button",
-                                VersionRange.majorCompatible(
-                                        VersionNumber.parse("1.0.0")
-                                ),
-                                true
-                        )
-                ),
-                Collections.emptyList()
-        );
-        templates.publishReady(
-                emptyScreenDraft,
-                resolver,
-                components,
-                assets
-        );
+        for (TemplateDefinition draft : BuiltinComponentCatalog.templates()) {
+            templates.publishReady(
+                    draft,
+                    resolver,
+                    components,
+                    assets
+            );
+        }
 
         return new LibraryManager(components, assets, templates);
     }
