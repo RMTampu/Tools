@@ -91,7 +91,7 @@ assert set(plan["managedAssetDraftOnlyKinds"])=={
 
 evidence={
  "schemaVersion":1,
- "stage":"Tahap 3",
+ "stage":"Tahap 4",
  "status":"ASSET_SAFE_100_DEVELOPMENT_PREBUILD_PASS",
  "expectedAssetCount":len(expected),
  "resolvedAssetCount":len(asset_evidence),
@@ -104,9 +104,9 @@ evidence={
  "shippedAssets":asset_evidence,
  "finalSignedRuntimeClaimed":False
 }
-(OUT/"tahap3-asset-prebuild-evidence.json").write_text(
+(OUT/"tahap4-asset-prebuild-evidence.json").write_text(
     json.dumps(evidence,indent=2,sort_keys=True)+"\n"
 )
-print("TAHAP_3_ASSET_PREBUILD = PASS")
+print("TAHAP_4_ASSET_PREBUILD = PASS")
 print("EXPECTED_ASSET_SET = CLOSED")
 print("ASSET_ROUTE_PROOF = PASS")
