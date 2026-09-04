@@ -174,6 +174,45 @@ Laporan akhir untuk pekerjaan teknis wajib menyebutkan:
 
 Klaim perubahan tanpa bukti path dan hasil validasi dianggap gagal.
 
+
+## Standar Kerja Sampai PASS
+
+Aturan ini menjelaskan pola kerja wajib yang harus diikuti setiap agen baru.
+
+Jika pengguna meminta pekerjaan dilakukan, agen wajib bekerja seperti ini:
+
+1. baca AGENTS.md, TASK.md, dan file kerja terkait;
+2. tentukan target akhir teknis dari konteks terbaru;
+3. lakukan perubahan nyata pada source, asset, test, workflow, build, atau konfigurasi;
+4. jalankan test/build/workflow yang relevan;
+5. pantau run aktif sampai selesai;
+6. jika run gagal, baca log job yang gagal;
+7. perbaiki penyebab gagal;
+8. push ulang atau jalankan ulang;
+9. ulangi sampai PASS, artifact siap, atau blocker nyata;
+10. baru beri laporan akhir.
+
+Agen tidak boleh berhenti setelah:
+
+- menemukan gap;
+- membuat commit;
+- membuat workflow;
+- mengirim run;
+- melihat run masih berjalan;
+- melihat run gagal tanpa membaca log;
+- memberi kalimat "saya lanjutkan";
+- memberi ringkasan progres.
+
+Laporan akhir yang sah hanya boleh diberikan jika salah satu kondisi ini terpenuhi:
+
+- test/build/workflow sudah PASS;
+- APK/package/capsule/artifact sudah dibuat dan siap tahap berikutnya;
+- blocker nyata ditemukan dan semua aksi aman sudah dilakukan.
+
+Jika target adalah paket siap private signing, agen wajib berhenti hanya setelah paket publik unsigned berhasil dibuat, artifact tersedia, digest tercatat, dan run validasi terkait PASS.
+
+Jika pengguna berkata "lanjut", agen wajib melanjutkan dari run/commit/tahap aktif terakhir, bukan memulai debat atau memberi rangkuman.
+
 ## Batas Berhenti yang Sah
 
 Agen hanya boleh berhenti sebelum pekerjaan tuntas jika ada blocker nyata, yaitu:
