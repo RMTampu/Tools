@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import hashlib,json,re
 from pathlib import Path
+
 APP=Path(__file__).resolve().parents[1]
 REPO=APP.parent
 OUT=APP/"build"/"assurance"
@@ -8,15 +9,17 @@ OUT.mkdir(parents=True,exist_ok=True)
 
 plan=json.loads((APP/"ASSURANCE_PLAN_R1_R9.json").read_text())
 asset=json.loads((APP/"ASSET_ASSURANCE_PLAN.json").read_text())
-assert plan["stage"]=="Tahap 9" and plan["stageMap"]=="I"
-assert plan["parentBaseline"]["name"]=="Tahap 8"
-assert plan["parentBaseline"]["apkSha256"]=="1be38ee81c02ffc02882f883fdaa61caff6a9d462a5fcfdc6a8f520f06ee373a"
-assert asset["stage"]=="Tahap 9" and asset["stageMap"]=="I"
+
+assert plan["stage"]=="Tahap 10" and plan["stageMap"]=="J"
+assert plan["parentBaseline"]["name"]=="Tahap 9"
+assert plan["parentBaseline"]["apkSha256"]=="8f6f504c8f289926ad88550ab2686b801efc3ac12536c9e57f807b208461a116"
+assert asset["stage"]=="Tahap 10" and asset["stageMap"]=="J"
 
 method_counts={}
 for i in range(1,10):
     domain=f"R{i}"
     doc=REPO/plan["domains"][domain]["sourceMethodDoc"]
+    assert doc.is_file(),doc
     text=doc.read_text()
     methods=re.findall(rf"^### R{i}-M\d+",text,flags=re.MULTILINE)
     assert methods,(domain,"research corpus missing")
@@ -36,40 +39,39 @@ manifest=(APP/"src/main/AndroidManifest.xml").read_text()
 assert "applicationId 'com.toolbox.tools'" in gradle
 assert re.search(r"\bminSdk\s+30\b",gradle)
 assert re.search(r"\btargetSdk\s+30\b",gradle)
-assert re.search(r"\bversionCode\s+9\b",gradle)
+assert re.search(r"\bversionCode\s+10\b",gradle)
+assert "versionName '10.0-tahap10-dev'" in gradle
 assert 'android:name=".MainActivity"' in manifest
 
 required=[
     "src/main/java/com/toolbox/tools/core/AppKernel.java",
-    "src/main/java/com/toolbox/tools/core/VerificationManager.java",
-    "src/main/java/com/toolbox/tools/repair/RepairSessionManager.java",
-    "src/main/java/com/toolbox/tools/editor/EditorShellController.java",
-    "src/main/java/com/toolbox/tools/live/TargetDescriptor.java",
-    "src/main/java/com/toolbox/tools/live/CapabilityScanner.java",
-    "src/main/java/com/toolbox/tools/live/CapabilityScanResult.java",
-    "src/main/java/com/toolbox/tools/live/LiveSessionManager.java",
-    "src/main/java/com/toolbox/tools/live/LiveCompareResult.java",
-    "src/main/java/com/toolbox/tools/live/SelfEditPolicy.java",
-    "src/main/java/com/toolbox/tools/live/DefaultLiveFactory.java",
-    "src/test/java/com/toolbox/tools/live/CapabilityScannerTest.java",
-    "src/test/java/com/toolbox/tools/live/LiveSessionManagerTest.java",
+    "src/main/java/com/toolbox/tools/core/ProjectManager.java",
+    "src/main/java/com/toolbox/tools/build/BuildValidator.java",
+    "src/main/java/com/toolbox/tools/build/BuildValidationResult.java",
+    "src/main/java/com/toolbox/tools/build/ReadyCoordinator.java",
+    "src/main/java/com/toolbox/tools/build/ApplicationIr.java",
+    "src/main/java/com/toolbox/tools/build/ApplicationIrBuilder.java",
+    "src/main/java/com/toolbox/tools/build/CandidateIdentity.java",
+    "src/main/java/com/toolbox/tools/build/CandidateIdentityFactory.java",
+    "src/test/java/com/toolbox/tools/build/ReadyCoordinatorTest.java",
+    "src/test/java/com/toolbox/tools/build/ApplicationIrTest.java",
+    "src/test/java/com/toolbox/tools/build/CandidateIdentityTest.java",
 ]
 for rel in required:
     assert (APP/rel).is_file(),rel
 
 combined="\n".join((APP/rel).read_text() for rel in required)
 for marker in [
-    "MAX_CHANGES = 64",
-    "MAX_HISTORY = 32",
-    "LIVE_RUNTIME_UNAVAILABLE",
-    "LIVE_EDIT_BRIDGE_UNAVAILABLE",
-    "LIVE_BASE_REVISION_CONFLICT",
-    "SELF_EDIT_PROTECTED_CORE",
-    "repairSessionManager.stage",
-    "verifyOrRollback",
-    "CapabilityAvailability.READ_ONLY",
-    "TERAPKAN_PASS",
-    "selectionAvailable",
+    "MAX_CANONICAL_BYTES = 2 * 1024 * 1024",
+    "captureFinalRecoverySnapshot",
+    "ProjectLifecycle.READY",
+    "build.project.dirty",
+    "build.live.unsafe",
+    "build.repair.pending",
+    "TBX_APPLICATION_IR_V1",
+    "sha256(entry.getValue())",
+    "TBX_CANDIDATE_V1",
+    "candidate.",
 ]:
     assert marker in combined,marker
 
@@ -96,30 +98,29 @@ for path in sorted((APP/"src").rglob("*")):
         hashes[path.relative_to(REPO).as_posix()]=hashlib.sha256(path.read_bytes()).hexdigest()
 
 evidence={
-    "schemaVersion":8,
+    "schemaVersion":9,
     "projectId":"ToolBox",
-    "stage":"Tahap 9",
-    "stageMap":"I",
+    "stage":"Tahap 10",
+    "stageMap":"J",
     "status":"PASS",
     "parentBaseline":{
-        "name":"Tahap 8",
+        "name":"Tahap 9",
         "apkSha256":plan["parentBaseline"]["apkSha256"],
         "unchangedByPublicWork":True
     },
     "androidApi":30,
-    "versionCode":9,
+    "versionCode":10,
     "researchMethodCounts":method_counts,
     "domains":{
         k:{"applicability":v["applicability"],"prebuild":"PASS"}
         for k,v in plan["domains"].items()
     },
-    "live":{
-        "capabilityScan":"BOUND",
-        "editDoorGate":"BOUND",
-        "session":"BOUNDED",
-        "compare":"READ_ONLY",
-        "terapkan":"REPAIR_PIPELINE",
-        "selfEdit":"DECLARATIVE_PROTECTED"
+    "build":{
+        "readyGate":"BOUND",
+        "validator":"BOUND",
+        "ir":"DETERMINISTIC_SHA256",
+        "candidateIdentity":"BOUND",
+        "firebaseUsed":False
     },
     "assetChain":"BOUND",
     "r7":"N_A_SCOPE_PROVEN",
@@ -128,14 +129,13 @@ evidence={
         "privateContentIncluded":False,
         "firebaseUsed":False,
         "signingUsed":False,
-        "sandboxBypassAdded":False,
         "arbitraryExecutableRuntimeAdded":False
     }
 }
-(OUT/"tahap9-r1-r8-prebuild-evidence.json").write_text(
+(OUT/"tahap10-r1-r8-prebuild-evidence.json").write_text(
     json.dumps(evidence,indent=2,sort_keys=True)+"\n"
 )
-print("TAHAP_9_R1_R8_PREBUILD = PASS")
+print("TAHAP_10_R1_R8_PREBUILD = PASS")
 print("R1_R9_RESEARCH_CORPUS = BOUND")
 print("ASSET_SAFE_CHAIN = BOUND")
-print("R7 = N_A_SCOPE_PROVEN")
+print("FIREBASE_USED = NO")
