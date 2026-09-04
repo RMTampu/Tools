@@ -2,77 +2,74 @@
 
 ## Tugas Aktif
 
-Kerjakan **Tahap 3 = C — Komponen, asset, template, versi, dependency, dan Library** pada repo publik utama `RMTampu/Tools`.
+Kerjakan **Tahap 4 = D — Renderer, model bersama, navigation, event/action, data, binding, dan flow** pada repo publik utama `RMTampu/Tools`.
 
-Baseline resmi aktif adalah **Baseline Tahap 2**, exact APK Android 11/API30/arm64 yang sudah signed, R1-R9 PASS, dan lulus Firebase final test pada jalur private.
+Baseline resmi aktif adalah **Baseline Tahap 3**, exact APK Android 11/API30/arm64 yang sudah signed, R1-R9 + ASSET_SAFE PASS, lulus Firebase final test, dan terkunci pada jalur private.
 
-Tahap 3 wajib menambah kemampuan di atas Tahap 2. Baseline Tahap 2 tidak boleh dibongkar atau dimodifikasi.
+Tahap 4 wajib menambah kemampuan di atas Tahap 3. Baseline Tahap 3 tidak boleh dimodifikasi.
 
-## Scope Tahap 3
+## Scope Tahap 4
 
-### C1 — Component Definition / Registry / Instance
-- Stable Component ID.
-- metadata: label Bahasa Indonesia, category, icon reference, version, lifecycle, implementation reference.
-- typed Property Contract dan Event Contract.
-- capability/asset/dependency requirements.
-- lifecycle `DRAFT / READY / DEPRECATED / ARCHIVED`.
-- READY hanya jika validation PASS.
-- project instance pin ke exact component version; update tidak boleh silent.
-- missing component = `COMPONENT_UNAVAILABLE`, instance tidak dihapus.
+### D1 — Shared model + renderer
+- Visual / Properties / Code membaca model runtime/declarative yang sama.
+- Screen memakai Stable Screen ID.
+- Render tree derived/rebuildable, bukan source of truth.
+- Renderer tidak menyimpan clone screen.
+- broken component/reference tetap menjadi diagnostic, tidak silent-delete.
 
-### C2 — Asset Identity / Integrity / Store
-- Stable Asset ID; consumer tidak bergantung pada path/nama file.
-- original persistent terpisah dari preview/cache.
-- SHA-256, type/MIME, size budget, version dan source metadata.
-- duplicate candidate berbasis content hash.
-- missing/broken asset tidak dihapus diam-diam.
-- relink mempertahankan Stable Asset ID hanya jika integrity/contract valid.
-- clear cache tidak boleh menghapus original.
-- path traversal/canonical path ambiguity fail-closed.
+### D2 — Navigation + Event/Action
+- Navigation berdasarkan Stable Screen ID + typed parameters.
+- Back stack hanya Screen ID + lightweight parameters/state.
+- Action Registry memakai typed input/output, permission requirement, execution mode, timeout/cancellation/idempotency metadata.
+- Event Binding hanya menghubungkan compatible event/action contracts.
+- Composite action memiliki ordered steps + success/failure/fallback/compensation metadata.
+- broken navigation = `BROKEN_NAVIGATION_REFERENCE`.
 
-### C3 — Template
-- Stable Template ID dan version.
-- template = titik awal reusable, bukan linked component master.
-- dependency closure ke component/asset.
-- lifecycle + validation.
-- inserted object tetap editable dan memperoleh identity baru.
-- template incompatible/missing dependency fail-closed.
+### D3 — Data + Binding
+- Data Source / Field memakai Stable ID + typed contract.
+- query/page menghasilkan working subset.
+- dynamic list identity memakai stable data-item key, bukan index.
+- one-way dan two-way binding.
+- two-way memakai origin/version token + cycle suppression.
+- derived value pure; side effect tetap melalui Action/Logic.
+- ambiguous/incompatible binding tidak auto-connect.
 
-### C4 — Version / Dependency / Library
-- semantic version parser + compatibility range.
-- exact Stable ID mapping; nama mirip tidak boleh auto-connect.
-- dependency resolver menghasilkan missing/incompatible diagnostics.
-- Component Library + Asset Library + Template Library dalam satu Library Manager.
-- search metadata ringan, favorite/recent, exact lookup.
-- Library Master dipisahkan dari project instance.
+### D4 — Declarative Flow Graph
+- Stable Flow/Node ID.
+- explicit connection/port compatibility.
+- branch TRUE/FALSE.
+- async START/SUCCESS/FAILURE/CANCELLED/TIMEOUT.
+- loop explicit exit + iteration/time limit.
+- watchdog limit.
+- diagram coordinate hanya editor metadata; graph logic tidak bergantung posisi.
+- hanya active flow yang perlu dimaterialisasi penuh.
 
-## Exit Gate Tahap 3
+## Exit Gate Tahap 4
 
 ```text
-BASELINE_TAHAP_2_UNCHANGED = YES
-VERSION_CODE_GT_TAHAP_2 = YES
-COMPONENT_STABLE_ID = PASS
-COMPONENT_VERSION_PINNING = PASS
-COMPONENT_READY_GATE = PASS
-PROPERTY_CONTRACT = PASS
-EVENT_CONTRACT = PASS
-ASSET_STABLE_ID = PASS
-ASSET_SHA256 = PASS
-ASSET_ORIGINAL_CACHE_SEPARATION = PASS
-ASSET_DUPLICATE_DETECTION = PASS
-ASSET_RELINK_INTEGRITY = PASS
-ASSET_PATH_BOUNDARY = PASS
-TEMPLATE_ID_VERSION = PASS
-TEMPLATE_DEPENDENCY_CLOSURE = PASS
-SEMVER_COMPATIBILITY = PASS
-DEPENDENCY_RESOLUTION = PASS
-LIBRARY_EXACT_LOOKUP = PASS
-LIBRARY_SEARCH = PASS
+BASELINE_TAHAP_3_UNCHANGED = YES
+VERSION_CODE_GT_TAHAP_3 = YES
+SHARED_MODEL = PASS
+RENDER_TREE_DERIVED = PASS
+STABLE_SCREEN_ID = PASS
+NAVIGATION_REFERENCE_VALIDATION = PASS
+LIGHTWEIGHT_BACK_STACK = PASS
+ACTION_REGISTRY = PASS
+EVENT_ACTION_COMPATIBILITY = PASS
+COMPOSITE_ACTION = PASS
+DATA_SOURCE_CONTRACT = PASS
+PAGED_QUERY = PASS
+STABLE_DATA_ITEM_KEY = PASS
+ONE_WAY_BINDING = PASS
+TWO_WAY_CYCLE_SUPPRESSION = PASS
+FLOW_GRAPH = PASS
+BRANCH_ASYNC_LOOP = PASS
+FLOW_WATCHDOG = PASS
+BROKEN_REFERENCE_DIAGNOSTICS = PASS
 R1_R9_AUTOMATIC = PASS
-ASSET_SAFE_CHAIN = PASS
 ANDROID_11_API30_BUILD = PASS
 PUBLIC_UNSIGNED_APK = PASS
-UNKNOWN_REQUIRED_TAHAP_3_BEHAVIOR = 0
+UNKNOWN_REQUIRED_TAHAP_4_BEHAVIOR = 0
 ```
 
 Private tetap hanya untuk signing, credential, Firebase final runtime test, baseline locking, dan release sensitif.
