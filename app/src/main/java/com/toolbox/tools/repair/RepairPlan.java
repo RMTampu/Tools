@@ -33,6 +33,7 @@ public final class RepairPlan {
         if (baseRevision <= 0) {
             throw new IllegalArgumentException("repair baseRevision must be > 0");
         }
+        this.baseRevision = baseRevision;
         if (upserts == null || deletes == null
                 || upserts.size() + deletes.size() > MAX_OPERATIONS) {
             throw new IllegalArgumentException("repair operation budget exceeded");
