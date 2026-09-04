@@ -97,7 +97,7 @@ public final class UiCanvasView extends FrameLayout {
 
         TextView title = UiKit.judul(
                 c,
-                kernel.declarativeRuntime().value(
+                resource(
                         "ui.screen.home.title",
                         "Bangun aplikasi secara visual"
                 ),
@@ -108,7 +108,7 @@ public final class UiCanvasView extends FrameLayout {
 
         TextView sub = UiKit.teks(
                 c,
-                kernel.declarativeRuntime().value(
+                resource(
                         "ui.screen.home.subtitle",
                         "Layar ini adalah permukaan yang sama saat Edit aktif maupun nonaktif."
                 ),
@@ -201,10 +201,7 @@ public final class UiCanvasView extends FrameLayout {
 
         primaryButton = UiKit.judul(
                 c,
-                kernel.declarativeRuntime().value(
-                        "ui.object.home.primary.text",
-                        "Buka Detail"
-                ),
+                resource("ui.object.home.primary.text", "Buka Detail"),
                 13f
         );
         primaryButton.setGravity(Gravity.CENTER);
@@ -216,16 +213,45 @@ public final class UiCanvasView extends FrameLayout {
                 14,
                 1
         ));
-        FrameLayout.LayoutParams bp = new FrameLayout.LayoutParams(
-                UiKit.dp(c, 148),
-                UiKit.dp(c, 46)
+        int buttonWidth = integerResource(
+                "ui.object.home.primary.width.dp",
+                148
         );
-        bp.leftMargin = UiKit.dp(c, 18);
-        bp.topMargin = UiKit.dp(c, 50);
+        int buttonHeight = integerResource(
+                "ui.object.home.primary.height.dp",
+                46
+        );
+        FrameLayout.LayoutParams bp = new FrameLayout.LayoutParams(
+                UiKit.dp(c, buttonWidth),
+                UiKit.dp(c, buttonHeight)
+        );
+        bp.leftMargin = UiKit.dp(
+                c,
+                integerResource(
+                        "ui.object.home.primary.position.x.dp",
+                        18
+                )
+        );
+        bp.topMargin = UiKit.dp(
+                c,
+                integerResource(
+                        "ui.object.home.primary.position.y.dp",
+                        50
+                )
+        );
         freeArea.addView(primaryButton, bp);
         primaryButton.setOnTouchListener(this::handlePrimaryTouch);
         primaryButton.setOnClickListener(v -> {
-            if (!dragging) selectPrimary();
+            if (dragging) return;
+            if (kernel.editorEnvironment().shell().selectionAvailable()) {
+                selectPrimary();
+            } else {
+                android.widget.Toast.makeText(
+                        getContext(),
+                        "Aksi aplikasi dijalankan: membuka layar Detail.",
+                        android.widget.Toast.LENGTH_SHORT
+                ).show();
+            }
         });
 
         UiKit.ruang(card, c, 12);
@@ -335,6 +361,22 @@ public final class UiCanvasView extends FrameLayout {
         }
     }
 
+    private String resource(String id, String fallback) {
+        String value = kernel.projectManager()
+                .current()
+                .resources()
+                .get(id);
+        return value == null ? fallback : value;
+    }
+
+    private int integerResource(String id, int fallback) {
+        try {
+            return Integer.parseInt(resource(id, String.valueOf(fallback)));
+        } catch (NumberFormatException error) {
+            return fallback;
+        }
+    }
+
     private void commitPosition(View view) {
         try {
             VisualEditTransaction tx = new VisualEditTransaction(
@@ -357,6 +399,22 @@ public final class UiCanvasView extends FrameLayout {
             kernel.editorEnvironment().visualSession().apply(
                     tx,
                     VisualCapabilitySet.defaultEditable()
+            );
+            java.util.LinkedHashMap<String, String> updates =
+                    new java.util.LinkedHashMap<>();
+            updates.put(
+                    "ui.object.home.primary.position.x.dp",
+                    String.valueOf(Math.round(view.getX()
+                            / getResources().getDisplayMetrics().density))
+            );
+            updates.put(
+                    "ui.object.home.primary.position.y.dp",
+                    String.valueOf(Math.round(view.getY()
+                            / getResources().getDisplayMetrics().density))
+            );
+            kernel.projectManager().applyResourceTransaction(
+                    updates,
+                    java.util.Collections.emptySet()
             );
             selectPrimary();
         } catch (RuntimeException ignored) {
