@@ -13,6 +13,7 @@ import java.util.TreeMap;
 public final class ComponentRegistry {
     private final Map<String, NavigableMap<VersionNumber, ComponentDefinition>> definitions =
             new LinkedHashMap<>();
+    private final Map<String, ComponentManifest> manifests = new LinkedHashMap<>();
 
     public synchronized void register(ComponentDefinition definition) {
         String id = StableId.require(definition.componentId(), "componentId");
@@ -22,6 +23,7 @@ public final class ComponentRegistry {
             throw new IllegalArgumentException("component version already registered");
         }
         versions.put(definition.version(), definition);
+        manifests.put(key(id, definition.version()), ComponentManifest.from(definition));
     }
 
     public synchronized void publishReady(
@@ -53,6 +55,14 @@ public final class ComponentRegistry {
                 definitions.get(StableId.require(componentId, "componentId"));
         if (versions == null) return null;
         return versions.get(version);
+    }
+
+    public synchronized ComponentManifest manifestExact(
+            String componentId,
+            VersionNumber version
+    ) {
+        StableId.require(componentId, "componentId");
+        return manifests.get(key(componentId, version));
     }
 
     public synchronized ComponentDefinition latestReady(String componentId) {
@@ -100,5 +110,9 @@ public final class ComponentRegistry {
         out.sort(Comparator.comparing(ComponentDefinition::componentId)
                 .thenComparing(ComponentDefinition::version));
         return Collections.unmodifiableList(out);
+    }
+
+    private static String key(String id, VersionNumber version) {
+        return id + "@" + version.toString();
     }
 }
