@@ -43,6 +43,13 @@ mutations=[
   "test":"com.toolbox.tools.live.LiveSessionManagerTest.staleBaseRevisionBecomesConflictWithoutOverwrite"
  },
  {
+  "name":"live_selection_gate_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/editor/EditorShellController.java",
+  "old":"return editEnabled && mode == EditorMode.EDIT;",
+  "new":"return editEnabled;",
+  "test":"com.toolbox.tools.editor.BubbleShellTest.previewHidesOverlayAndLiveRequiresCapability"
+ },
+ {
   "name":"live_history_bound_bypass",
   "path":APP/"src/main/java/com/toolbox/tools/live/LiveSessionManager.java",
   "old":"while (history.size() > MAX_HISTORY) {",
