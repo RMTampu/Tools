@@ -175,6 +175,35 @@ Laporan akhir untuk pekerjaan teknis wajib menyebutkan:
 Klaim perubahan tanpa bukti path dan hasil validasi dianggap gagal.
 
 
+
+## R1-R9 Wajib Untuk Asset
+
+Setiap kali agen menyentuh asset, membuat asset, mengubah asset, memindahkan asset, menghapus asset, mengemas asset, atau memakai asset sebagai bagian build/test, agen wajib menerapkan hasil riset R1-R9.
+
+R1-R9 bukan saran dan bukan dokumentasi pasif. R1-R9 adalah gate wajib untuk pematangan asset.
+
+Agen wajib membaca file R1-R9 yang relevan sebelum mengubah asset, termasuk file seperti APP_SAFE_R1 sampai APP_SAFE_R9, ASSET_SAFE_100_RULES, ASSET_SAFE_100_PROCESS, ASSET_SAFE_100_METHODS, ASSET_ROUTE_PROOF_PROCESS, dan ASSET_ROUTE_PROOF_METHODS jika tersedia di repository.
+
+Setiap perubahan asset wajib dibuktikan melalui:
+
+1. R1 logic/input;
+2. R2 concurrency/resource;
+3. R3 lifecycle/state/recovery;
+4. R4 persistence/storage/version;
+5. R5 security/network/boundary;
+6. R6 build/dependency/install;
+7. R7 native/plugin/runtime;
+8. R8 UI/device/power;
+9. R9 verification/completeness.
+
+Jika asset belum bisa lolos R1-R9, agen wajib memperbaiki asset atau jalur validasinya selama masih dalam scope dan tidak membutuhkan secret/private credential.
+
+Agen tidak boleh menyatakan asset matang, siap build, siap package, siap private signing, atau siap release sebelum R1-R9 yang relevan PASS atau blocker nyata tercatat.
+
+Jika workflow atau script R1-R9 tersedia, agen wajib menjalankannya dan memantau hasilnya sampai selesai. Jika gagal, agen wajib membaca log, memperbaiki, dan mengulang sampai PASS atau blocker nyata.
+
+Jika belum ada workflow/script R1-R9 untuk asset yang disentuh, agen wajib membuat validator minimal yang sesuai scope asset tersebut sebelum menyatakan pekerjaan selesai.
+
 ## Standar Kerja Sampai PASS
 
 Aturan ini menjelaskan pola kerja wajib yang harus diikuti setiap agen baru.
