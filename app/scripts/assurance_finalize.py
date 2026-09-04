@@ -23,7 +23,8 @@ assert asset_final["unknownAssets"]==0
 assert asset_final["unprovenRequiredAssets"]==0
 assert candidate["status"]=="PUBLIC_TAHAP_10_CANDIDATE"
 assert candidate["firebaseUsed"] is False
-assert candidate["parentSignedApkSha256"]==plan["parentBaseline"]["apkSha256"]
+assert candidate["parentSignedApkSha256"]==plan["developmentParentCandidate"]["signedApkSha256"]
+assert candidate["rollbackBaselineApkSha256"]==plan["parentBaseline"]["apkSha256"]
 
 xml_files=sorted((BUILD/"test-results"/"testDebugUnitTest").glob("TEST-*.xml"))
 assert xml_files,"JUnit evidence missing"
@@ -82,8 +83,16 @@ evidence={
     "sourceCommitSha":os.environ.get("GITHUB_SHA","LOCAL"),
     "workflowRunId":os.environ.get("GITHUB_RUN_ID","LOCAL"),
     "parentBaseline":{
-        "name":"Tahap 9",
+        "name":"Tahap 7",
         "apkSha256":plan["parentBaseline"]["apkSha256"],
+        "permanent":True,
+        "rollbackAnchor":True,
+        "unchanged":True
+    },
+    "developmentParentCandidate":{
+        "name":"Tahap 9",
+        "signedApkSha256":plan["developmentParentCandidate"]["signedApkSha256"],
+        "baseline":False,
         "unchanged":True
     },
     "r1ToR9":{
@@ -107,7 +116,8 @@ evidence={
         "api30Runtime":"PASS",
         "packageMetadata":"PASS",
         "unsignedApkDigest":"PASS",
-        "parentTahap9SignedIdentity":"PASS",
+        "rollbackBaselineTahap7":"PASS",
+        "developmentParentTahap9SignedIdentity":"PASS",
         "readyPreviewReadOnly":"PASS",
         "readyLifecycle":"PASS",
         "finalRecoveryBeforeReady":"PASS",
