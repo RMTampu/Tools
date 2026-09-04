@@ -72,6 +72,22 @@ public final class LibraryDependencyLockTest {
     }
 
     @Test
+    public void dependencyLockChecksumMutationFailsClosed() {
+        LibraryDependencyLock lock = LibraryDependencyLock.empty(1, 1)
+                .withComponent(
+                        "component.button",
+                        VersionNumber.parse("1.0.0")
+                );
+        String encoded = lock.encode();
+        org.junit.Assert.assertThrows(
+                IllegalArgumentException.class,
+                () -> LibraryDependencyLock.decode(
+                        encoded.replace("component.button=1.0.0", "component.button=9.0.0")
+                )
+        );
+    }
+
+    @Test
     public void lockDoesNotResolveAgainstWrongOrMissingVersion() {
         LibraryManager library = DefaultLibraryFactory.create();
         LibraryDependencyLock good = LibraryDependencyLock.empty(1, 1)
