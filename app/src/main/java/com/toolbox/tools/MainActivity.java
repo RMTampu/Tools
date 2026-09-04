@@ -11,6 +11,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 import com.toolbox.tools.core.AppKernel;
@@ -26,6 +27,7 @@ public final class MainActivity extends Activity {
     private AppKernel kernel;
     private FrameLayout root;
     private LinearLayout edgePanel;
+    private ScrollView edgeScroll;
     private LinearLayout floatingEditor;
     private TextView canvasObject;
     private TextView bubble;
@@ -88,13 +90,22 @@ public final class MainActivity extends Activity {
                 Color.rgb(0, 255, 190),
                 16
         ));
+        edgeScroll = new ScrollView(this);
+        edgeScroll.setFillViewport(true);
+        edgeScroll.addView(
+                edgePanel,
+                new ScrollView.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+        );
         FrameLayout.LayoutParams edgeParams =
                 new FrameLayout.LayoutParams(dp(230), ViewGroup.LayoutParams.MATCH_PARENT);
         edgeParams.gravity = Gravity.END;
         edgeParams.topMargin = dp(24);
         edgeParams.bottomMargin = dp(24);
-        edgePanel.setVisibility(View.GONE);
-        root.addView(edgePanel, edgeParams);
+        edgeScroll.setVisibility(View.GONE);
+        root.addView(edgeScroll, edgeParams);
 
         floatingEditor = new LinearLayout(this);
         floatingEditor.setOrientation(LinearLayout.VERTICAL);
@@ -168,8 +179,11 @@ public final class MainActivity extends Activity {
                             .shell()
                             .bubbleController()
                             .tap();
-                    edgePanel.setVisibility(open ? View.VISIBLE : View.GONE);
-                    if (open) renderEdge();
+                    edgeScroll.setVisibility(open ? View.VISIBLE : View.GONE);
+                    if (open) {
+                        edgeScroll.scrollTo(0, 0);
+                        renderEdge();
+                    }
                 }
                 return true;
             default:
