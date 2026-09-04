@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-import json
-import subprocess
+import json,subprocess
 from pathlib import Path
 
 APP=Path(__file__).resolve().parents[1]
@@ -10,87 +9,68 @@ OUT.mkdir(parents=True,exist_ok=True)
 
 mutations=[
  {
-  "name":"r1_stable_id_domain_escape",
+  "name":"stable_id_escape",
   "path":APP/"src/main/java/com/toolbox/tools/core/StableId.java",
   "old":'Pattern.compile("[a-z0-9][a-z0-9._-]{0,127}")',
   "new":'Pattern.compile(".+")',
   "test":"com.toolbox.tools.core.ProjectDefinitionCodecTest.invalidStableIdIsRejected"
  },
  {
-  "name":"r1_component_exact_version_bypass",
+  "name":"renderer_exact_component_bypass",
   "path":APP/"src/main/java/com/toolbox/tools/library/ComponentRegistry.java",
   "old":"return versions.get(version);",
   "new":"return versions.lastEntry().getValue();",
-  "test":"com.toolbox.tools.library.ComponentRegistryTest.readyComponentHasCompleteManifestAndExactVersionPinning"
+  "test":"com.toolbox.tools.runtime.RendererSharedModelTest.missingExactComponentProducesDiagnosticWithoutDeletingInstance"
  },
  {
-  "name":"r4_asset_hash_bypass",
-  "path":APP/"src/main/java/com/toolbox/tools/library/FileAssetStore.java",
-  "old":"if (!DigestUtils.sha256(bytes).equals(descriptor.sha256())) {",
+  "name":"navigation_target_validation_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/runtime/NavigationManager.java",
+  "old":"if (model.screen(route.targetScreenId()) == null) {",
   "new":"if (false) {",
-  "test":"com.toolbox.tools.library.AssetLibraryTest.fileStoreKeepsOriginalWhenCacheIsClearedAndRelinkIsHashBound"
+  "test":"com.toolbox.tools.runtime.NavigationActionTest.brokenNavigationReferenceIsExplicitDiagnostic"
  },
  {
-  "name":"asset_runtime_validator_bypass",
-  "path":APP/"src/main/java/com/toolbox/tools/library/AssetPayloadValidator.java",
-  "old":'errors.add("ASSET_RUNTIME_TYPE_VALIDATOR_REQUIRED");',
-  "new":'/* mutation: runtime type accepted */',
-  "test":"com.toolbox.tools.library.AssetLibraryTest.invalidJsonAndUnsupportedRuntimeTypeCannotBecomeReady"
+  "name":"binding_cycle_guard_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/runtime/BindingCycleGuard.java",
+  "old":"if (active.contains(key)) {",
+  "new":"if (false) {",
+  "test":"com.toolbox.tools.runtime.DataBindingTest.bindingCompatibilityIsExactAndTwoWayCycleIsSuppressed"
  },
  {
-  "name":"component_dependency_gate_bypass",
-  "path":APP/"src/main/java/com/toolbox/tools/library/ComponentValidator.java",
-  "old":"if (dependency.required()\n                    && !componentRegistry.hasCompatible(",
-  "new":"if (false && dependency.required()\n                    && !componentRegistry.hasCompatible(",
-  "test":"com.toolbox.tools.library.ComponentRegistryTest.unresolvedRequiredDependencyBlocksReady"
+  "name":"flow_port_type_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/runtime/FlowValidator.java",
+  "old":"if (fromPort.type() != toPort.type()) {",
+  "new":"if (false) {",
+  "test":"com.toolbox.tools.runtime.FlowGraphTest.incompatiblePortConnectionFailsValidation"
  },
  {
-  "name":"dependency_lock_integrity_bypass",
-  "path":APP/"src/main/java/com/toolbox/tools/library/LibraryDependencyLock.java",
-  "old":"|| !MessageDigest.isEqual(",
-  "new":"|| false && !MessageDigest.isEqual(",
-  "test":"com.toolbox.tools.library.LibraryDependencyLockTest.dependencyLockChecksumMutationFailsClosed"
+  "name":"watchdog_step_limit_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/runtime/FlowWatchdog.java",
+  "old":"if (steps > MAX_STEPS) {",
+  "new":"if (false) {",
+  "test":"com.toolbox.tools.runtime.FlowGraphTest.watchdogStopsStepAndTimeRunaway"
  }
 ]
 
 killed=[]
-for mutation in mutations:
-    path=mutation["path"]
-    original=path.read_text()
-    assert mutation["old"] in original,(mutation["name"],"mutation target missing")
+for m in mutations:
+    p=m["path"]; original=p.read_text()
+    assert m["old"] in original,(m["name"],"mutation target missing")
     try:
-        path.write_text(original.replace(mutation["old"],mutation["new"],1))
+        p.write_text(original.replace(m["old"],m["new"],1))
         result=subprocess.run(
-            [
-              "gradle","--no-daemon",
-              ":app:testDebugUnitTest",
-              "--tests",mutation["test"],
-              "--rerun-tasks"
-            ],
-            cwd=REPO,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT
+          ["gradle","--no-daemon",":app:testDebugUnitTest","--tests",m["test"],"--rerun-tasks"],
+          cwd=REPO,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT
         )
         if result.returncode==0:
             print(result.stdout)
-            raise SystemExit("MUTATION_ESCAPED="+mutation["name"])
-        killed.append(mutation["name"])
-        print("MUTATION_KILLED="+mutation["name"])
+            raise SystemExit("MUTATION_ESCAPED="+m["name"])
+        killed.append(m["name"])
+        print("MUTATION_KILLED="+m["name"])
     finally:
-        path.write_text(original)
+        p.write_text(original)
 
-evidence={
- "schemaVersion":2,
- "stage":"Tahap 3",
- "status":"PASS",
- "mutationsTotal":len(mutations),
- "mutationsKilled":len(killed),
- "mutationsEscaped":0,
- "killed":killed
-}
-(OUT/"tahap3-mutation-evidence.json").write_text(
-    json.dumps(evidence,indent=2,sort_keys=True)+"\n"
-)
-print("TAHAP_3_R9_MUTATION = PASS")
+e={"schemaVersion":3,"stage":"Tahap 4","status":"PASS","mutationsTotal":len(mutations),"mutationsKilled":len(killed),"mutationsEscaped":0,"killed":killed}
+(OUT/"tahap4-mutation-evidence.json").write_text(json.dumps(e,indent=2,sort_keys=True)+"\n")
+print("TAHAP_4_R9_MUTATION = PASS")
 print("MUTATION_ESCAPE = 0")
