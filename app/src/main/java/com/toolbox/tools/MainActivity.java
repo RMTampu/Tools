@@ -324,7 +324,6 @@ public final class MainActivity extends Activity {
             authoringStatus.setText(
                     "Authoring: " + labelIndonesia + " • siap"
             );
-            edgePanel.setVisibility(View.GONE);
             edgeScroll.setVisibility(View.GONE);
         });
         row.addView(item);
