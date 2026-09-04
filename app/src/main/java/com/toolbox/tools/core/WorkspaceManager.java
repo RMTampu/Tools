@@ -35,7 +35,11 @@ public final class WorkspaceManager {
             savedRevision = current.revision();
             undo.clear();
             redo.clear();
-            recoveryManager.clearRecoveryRequired();
+            if (storageGateway.recoveredFromBackup()) {
+                recoveryManager.markRecoveryRequired();
+            } else {
+                recoveryManager.clearRecoveryRequired();
+            }
         } catch (IOException | RuntimeException error) {
             recoveryManager.markRecoveryRequired();
             if (error instanceof IOException) {
@@ -126,7 +130,11 @@ public final class WorkspaceManager {
             savedRevision = loaded.revision();
             undo.clear();
             redo.clear();
-            recoveryManager.clearRecoveryRequired();
+            if (storageGateway.recoveredFromBackup()) {
+                recoveryManager.markRecoveryRequired();
+            } else {
+                recoveryManager.clearRecoveryRequired();
+            }
         } catch (IOException | RuntimeException error) {
             recoveryManager.markRecoveryRequired();
             if (error instanceof IOException) {
