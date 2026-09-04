@@ -19,7 +19,7 @@ public final class MainActivity extends Activity {
 
         TextView view = new TextView(this);
         view.setGravity(Gravity.CENTER);
-        view.setText("ToolBox Foundation Stage 1\n" + status);
+        view.setText("ToolBox Stage 2\nWorkspace / Save / Revision / Recovery\n" + status);
         view.setTextSize(18f);
         setContentView(view);
     }
