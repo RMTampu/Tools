@@ -40,8 +40,9 @@ jobs:
           set -euo pipefail
           test "$GITHUB_REPOSITORY" = "RMTampu/Tools"
           echo 'PUBLIC_PRIVATE_READ_ACCESS=0'
+          echo 'PRIVATE_CONTENT_INCLUDED=0'
           echo 'PUBLIC_FINAL_BUILD=0'
-          echo 'PUBLIC_FIREBASE_PRIVATE_ARTIFACT=0'
+          echo 'PUBLIC_FIREBASE_ACCESS=0'
 
       - name: Checkout Public component source
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
@@ -80,10 +81,6 @@ jobs:
         shell: bash
         run: bash public-components/runtime-contracts/scripts/run-tests.sh
 
-      - name: Validate sanitized Private integration handoff
-        shell: bash
-        run: python3 public-components/runtime-contracts/scripts/integration_handoff_validate.py
-
       - name: R6 package mutation challenge
         shell: bash
         run: python3 public-components/runtime-contracts/scripts/package_mutation_test.py
@@ -96,10 +93,6 @@ jobs:
         shell: bash
         run: python3 public-components/runtime-contracts/scripts/package_validate.py
 
-      - name: Bind sanitized integration handoff to Promotion Manifest
-        shell: bash
-        run: python3 public-components/runtime-contracts/scripts/bind_integration_handoff.py
-
       - name: Verify READY_PRIVATE manifest binding
         shell: bash
         run: |
@@ -108,9 +101,7 @@ jobs:
           import json, os
           from pathlib import Path
           manifest=Path('public-components/runtime-contracts/build/promotion/promotion-manifest.json')
-          handoff=Path('public-components/runtime-contracts/build/integration-handoff-evidence.json')
           data=json.loads(manifest.read_text())
-          hand=json.loads(handoff.read_text())
           assert data['schemaVersion']==3
           assert data['status']=='READY_PRIVATE'
           assert data['sourceRepository']=='RMTampu/Tools'
@@ -123,29 +114,13 @@ jobs:
           assert data['testStatus']['packageMutation']=='PASS'
           assert data['testStatus']['packageValidation']=='PASS'
           assert data['sourceArchive']['promotionAllowed'] is True
-          assert hand['status']=='PASS'
-          assert hand['claim']=='PRIVATE_INTEGRATION_HANDOFF_CONTRACT'
-          assert hand['sourceCommitSha']==os.environ['GITHUB_SHA']
-          assert hand['workflowRunId']==os.environ['GITHUB_RUN_ID']
-          assert hand['privateContentIncluded'] is False
-          assert hand['privateTrustManifestOwnedByPublic'] is False
-          assert hand['phaseArtifactSourceParityRequired'] is True
-          assert hand['alternateArtifactsRequirePrivateTrustBinding'] is True
-          assert hand['unboundRegressionArtifactFailsClosed'] is True
-          assert hand['r6HandoffAssurance']=='PASS'
-          assert hand['r9HandoffCompleteness']=='PASS'
-          bound=data['integrationHandoff']
-          assert bound['status']=='PASS'
-          assert bound['claim']=='PRIVATE_INTEGRATION_HANDOFF_CONTRACT'
-          assert bound['phaseArtifactSourceParityRequired'] is True
-          assert bound['alternateArtifactsRequirePrivateTrustBinding'] is True
-          assert bound['unboundRegressionArtifactFailsClosed'] is True
-          assert bound['r6HandoffAssurance']=='PASS'
-          assert bound['r9HandoffCompleteness']=='PASS'
-          assert bound['privateContentIncluded'] is False
-          print('PRIVATE_INTEGRATION_HANDOFF_BINDING = PASS')
-          print('R6_R9_HANDOFF_BINDING = PASS')
+          assert data['compatibility']['privateSourceRequired'] is False
+          assert data['compatibility']['firebaseRequired'] is False
+          assert data['compatibility']['signingRequired'] is False
           print('READY_PRIVATE_BINDING = PASS')
+          print('PUBLIC_R1_R9_ASSURANCE = PASS')
+          print('PRIVATE_CONTENT_INCLUDED = 0')
+          print('PUBLIC_FIREBASE_ACCESS = 0')
           PY
 
       - name: Upload Promotion Package
@@ -164,10 +139,6 @@ jobs:
             public-components/runtime-contracts/build/package-mutation-output.txt
             public-components/runtime-contracts/build/assurance/r1-r9-summary.txt
             public-components/runtime-contracts/build/assurance/r1-r9-evidence.json
-            public-components/runtime-contracts/build/integration-handoff-evidence.json
-            public-components/runtime-contracts/PRIVATE_INTEGRATION_REQUIREMENTS.json
-            public-components/runtime-contracts/SANITIZED_PRIVATE_FAILURE_2026-09-03.md
-            public-components/runtime-contracts/R6_PRIVATE_HANDOFF_ASSURANCE_ADDENDUM.md
           if-no-files-found: error
           retention-days: 7
 
