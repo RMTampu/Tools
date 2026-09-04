@@ -16,15 +16,19 @@ public final class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
 
         File projectRoot = new File(getFilesDir(), "projects/project.default");
-        AppKernel kernel = AppKernel.createPersistent(projectRoot);
+        File assetLibraryRoot = new File(getFilesDir(), "library/assets");
+        AppKernel kernel = AppKernel.createPersistent(
+                projectRoot,
+                assetLibraryRoot
+        );
         VerificationManager verifier = new VerificationManager();
         String status = verifier.verify(kernel).isPass() ? "LULUS" : "GAGAL";
 
         TextView view = new TextView(this);
         view.setGravity(Gravity.CENTER);
         view.setText(
-                "ToolBox Tahap 2\n"
-                        + "Penyimpanan Proyek • Simpan • Revisi • Pemulihan\n"
+                "ToolBox Tahap 3\n"
+                        + "Komponen • Asset • Template • Library\n"
                         + status
         );
         view.setTextSize(18f);
