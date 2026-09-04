@@ -2,6 +2,7 @@ package com.toolbox.tools.core;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.LinkedHashMap;
@@ -15,6 +16,7 @@ public final class ProjectManager {
 
     private final ProjectStore store;
     private final DraftRecoveryStore draftRecoveryStore;
+    private final RecoverySnapshotStore recoverySnapshotStore;
     private final RecoveryManager recoveryManager;
     private final ProjectMigrationRegistry migrationRegistry;
     private final ProjectValidator validator = new ProjectValidator();
@@ -32,10 +34,30 @@ public final class ProjectManager {
             RecoveryManager recoveryManager,
             ProjectMigrationRegistry migrationRegistry
     ) {
+        this(
+                store,
+                draftRecoveryStore,
+                new RecoverySnapshotStore(),
+                recoveryManager,
+                migrationRegistry
+        );
+    }
+
+    public ProjectManager(
+            ProjectStore store,
+            DraftRecoveryStore draftRecoveryStore,
+            RecoverySnapshotStore recoverySnapshotStore,
+            RecoveryManager recoveryManager,
+            ProjectMigrationRegistry migrationRegistry
+    ) {
         this.store = java.util.Objects.requireNonNull(store, "store");
         this.draftRecoveryStore = java.util.Objects.requireNonNull(
                 draftRecoveryStore,
                 "draftRecoveryStore"
+        );
+        this.recoverySnapshotStore = java.util.Objects.requireNonNull(
+                recoverySnapshotStore,
+                "recoverySnapshotStore"
         );
         this.recoveryManager = java.util.Objects.requireNonNull(
                 recoveryManager,
@@ -199,8 +221,14 @@ public final class ProjectManager {
             savedRevision = committed.revision();
             dirty = false;
             accessStatus = ProjectAccessStatus.PROJECT_OK;
-            recoveryManager.clearRecoveryRequired();
             draftRecoveryStore.discard();
+
+            try {
+                recoverySnapshotStore.captureLastValid(committed);
+                recoveryManager.clearRecoveryRequired();
+            } catch (IOException recoveryError) {
+                recoveryManager.markRecoveryRequired();
+            }
             return committed;
         } catch (IOException error) {
             recoveryManager.markRecoveryRequired();
@@ -252,9 +280,85 @@ public final class ProjectManager {
         return draftRecoveryStore.preview();
     }
 
+    public synchronized void captureFinalRecoverySnapshot() throws IOException {
+        requireStarted();
+        if (dirty || savedRevision <= 0 || current.revision() != savedRevision) {
+            throw new IllegalStateException(
+                    "final recovery snapshot requires a clean saved revision"
+            );
+        }
+        recoverySnapshotStore.captureFinal(current);
+    }
+
     public synchronized List<RecoveryCandidate> recoveryCandidates()
             throws IOException {
-        return store.recoveryCandidates();
+        List<RecoveryCandidate> out = new ArrayList<>();
+        out.addAll(recoverySnapshotStore.candidates());
+        out.addAll(store.recoveryCandidates());
+        return out;
+    }
+
+    public synchronized ProjectState previewRecoveryCandidate(
+            RecoveryCandidate candidate
+    ) throws IOException {
+        requireStarted();
+        if (candidate == null) {
+            throw new NullPointerException("candidate");
+        }
+
+        ProjectState preview;
+        switch (candidate.kind()) {
+            case FINAL_RECOVERY_SNAPSHOT:
+            case LAST_VALID_RECOVERY:
+                preview = recoverySnapshotStore.preview(candidate.kind());
+                break;
+            case LAST_VALID_REVISION:
+            case OLDER_REVISION:
+                preview = store.loadRevision(candidate.revision());
+                break;
+            default:
+                throw new IllegalArgumentException(
+                        "draft recovery is previewed separately"
+                );
+        }
+
+        if (preview == null || !preview.projectId().equals(current.projectId())) {
+            throw new IOException("recovery project identity mismatch");
+        }
+        return preview;
+    }
+
+    public synchronized ProjectState restoreRecoveryCandidate(
+            RecoveryCandidate candidate
+    ) throws IOException {
+        ProjectState preview = previewRecoveryCandidate(candidate);
+        ProjectValidationResult validation = validator.validate(preview);
+        if (!validation.isPass()) {
+            throw new IOException("RECOVERY_VALIDATION_FAILED:" + validation.message());
+        }
+
+        try {
+            ProjectState recovered;
+            switch (candidate.kind()) {
+                case FINAL_RECOVERY_SNAPSHOT:
+                case LAST_VALID_RECOVERY:
+                    recovered = store.recoverState(preview);
+                    break;
+                case LAST_VALID_REVISION:
+                case OLDER_REVISION:
+                    recovered = store.recoverRevision(candidate.revision());
+                    break;
+                default:
+                    throw new IllegalArgumentException(
+                            "draft recovery cannot be silently restored"
+                    );
+            }
+            adoptRecovered(recovered);
+            return recovered;
+        } catch (IOException error) {
+            recoveryManager.markRecoveryRequired();
+            throw error;
+        }
     }
 
     public synchronized ProjectState previewMigration() {
@@ -297,14 +401,7 @@ public final class ProjectManager {
         }
         try {
             ProjectState recovered = store.recoverRevision(revision);
-            current = recovered;
-            savedRevision = recovered.revision();
-            dirty = false;
-            undo.clear();
-            redo.clear();
-            accessStatus = ProjectAccessStatus.PROJECT_OK;
-            recoveryManager.clearRecoveryRequired();
-            draftRecoveryStore.discard();
+            adoptRecovered(recovered);
             return recovered;
         } catch (IOException error) {
             recoveryManager.markRecoveryRequired();
@@ -318,6 +415,22 @@ public final class ProjectManager {
 
     public synchronized boolean canRedo() {
         return !redo.isEmpty();
+    }
+
+    private void adoptRecovered(ProjectState recovered) throws IOException {
+        current = recovered;
+        savedRevision = recovered.revision();
+        dirty = false;
+        undo.clear();
+        redo.clear();
+        accessStatus = ProjectAccessStatus.PROJECT_OK;
+        recoveryManager.clearRecoveryRequired();
+        draftRecoveryStore.discard();
+        try {
+            recoverySnapshotStore.captureLastValid(recovered);
+        } catch (IOException recoveryError) {
+            recoveryManager.markRecoveryRequired();
+        }
     }
 
     private static void pushBounded(
