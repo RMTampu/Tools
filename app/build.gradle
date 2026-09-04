@@ -11,7 +11,7 @@ android {
         minSdk 30
         targetSdk 30
         versionCode 2
-        versionName '2.0-stage2-dev'
+        versionName '2.0-tahap2-dev'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
 
