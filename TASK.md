@@ -2,67 +2,73 @@
 
 ## Tugas Aktif
 
-Kerjakan **Tahap 9 = I — Capability Scan, Live Session, TERAPKAN, compare/history, dan self-edit terproteksi** pada repo publik utama `RMTampu/Tools`.
+Kerjakan **Tahap 10 = J — READY, validator/IR, private build, signing, final candidate identity** pada repo publik utama `RMTampu/Tools`.
 
-Baseline resmi aktif adalah **Baseline Tahap 8** dengan APK SHA-256 `1be38ee81c02ffc02882f883fdaa61caff6a9d462a5fcfdc6a8f520f06ee373a`.
+Baseline parent aktif adalah **Tahap 9** dengan signed APK SHA-256 `8f6f504c8f289926ad88550ab2686b801efc3ac12536c9e57f807b208461a116`.
 
-Tahap 9 menambah kemampuan di atas Tahap 8; Baseline Tahap 8 tidak boleh dimodifikasi.
+Instruksi user untuk rangkaian ini:
+- selesaikan Tahap 8, 9, dan 10 beruntun;
+- APK tiap tahap ditandatangani;
+- **jangan menjalankan Firebase**;
+- laporan hanya setelah seluruh rangkaian selesai.
 
-### I1 — Capability Scan
-- target punya Stable Target ID dan status installed.
-- area UI / Logic / Data / Binding / Asset / Runtime diklasifikasi AVAILABLE / READ_ONLY / UNAVAILABLE.
-- scanner fail-closed saat target tidak installed.
-- capability AVAILABLE tidak boleh diberikan bila tidak ada edit door yang sah.
-- hasil scan deterministic dan read-only.
+Tahap 10 menambah kemampuan di atas Tahap 9; APK Tahap 9 tidak boleh dimodifikasi.
 
-### I2 — Live Session
-- LIVE hanya dapat dibuka bila Runtime capability AVAILABLE.
-- session mempunyai Stable Session ID, target ID, base revision, dan explicit state.
-- change set bounded dan stable-keyed.
-- session tidak mengubah project aktif sebelum TERAPKAN.
-- stale base revision menghasilkan CONFLICT, bukan overwrite.
+### J1 — READY Gate
+- READY adalah lifecycle eksplisit, bukan label UI.
+- READY hanya boleh dibuat dari project identity/schema/reference/runtime yang valid.
+- Working Project wajib bersih sebelum READY.
+- recovery required, live DIRTY/CONFLICT/FAILED_SAFE, atau repair STAGED/ACTIVATED/FAILED_SAFE memblokir READY.
+- final recovery point dibuat sebelum lifecycle READY dipublish.
+- transition READY terverifikasi dan revisioned.
 
-### I3 — TERAPKAN + Compare/History
-- compare menampilkan queued change tanpa mutasi.
-- TERAPKAN menggunakan jalur aman Tahap 8: stage → recovery point → activate → verify/rollback.
-- apply hanya untuk session DIRTY dan target/bridge yang sah.
-- history bounded.
-- repeated apply tanpa change baru tidak boleh melakukan mutasi kedua.
-- failed apply masuk FAILED_SAFE atau CONFLICT dengan diagnostic eksplisit.
+### J2 — Build Validator + Deterministic IR
+- validator meliputi project, runtime, library, health, live, repair, Android target, dan public/private boundary.
+- IR immutable, versioned, deterministic, canonical, stable-keyed, bounded.
+- IR memuat project/revision/resources/references/dependencies serta IDs runtime/library.
+- resource payload direpresentasikan dengan SHA-256, bukan dieksekusi oleh builder.
+- IR build tidak memutasi project/runtime/library.
 
-### I4 — Self Edit Protected
-- ToolBox self-edit hanya pada declarative/editable surfaces.
-- kernel / recovery / safety / security core selalu protected.
-- self-edit tidak boleh bypass Android sandbox/signature.
-- self-edit menggunakan project identity dan repair pipeline yang sama.
-- LIVE/TERAPKAN untuk self target tidak mengubah baseline APK; hanya Working Project State.
+### J3 — Candidate Identity
+- candidate identity mengikat applicationId, versionCode, versionName, parent signed APK, IR SHA-256, dan unsigned APK SHA-256.
+- candidate ID deterministic dan SHA-256 based.
+- exact public source commit + public R1-R9 run + unsigned APK digest wajib masuk provenance.
+- candidate identity berubah bila salah satu input identitas berubah.
 
-## Exit Gate Tahap 9
+### J4 — Private Build + Signing Tanpa Firebase
+- private hanya mengambil exact public Tahap 10 PASS candidate.
+- rebuild unsigned exact harus cocok digest publik.
+- signing memakai certificate yang sama dengan Tahap 8/9.
+- verifikasi zipalign, package metadata, v2/v3 signature, certificate SHA-256, dan signed APK SHA-256.
+- **Firebase / Test Lab dilarang untuk rangkaian ini.**
+- hasil akhir Tahap 10 adalah signed APK + provenance + signature verification.
+
+## Exit Gate Tahap 10
 
 ```text
-BASELINE_TAHAP_8_UNCHANGED = YES
-VERSION_CODE_GT_TAHAP_8 = YES
-CAPABILITY_SCAN = PASS
-CAPABILITY_SCAN_FAIL_CLOSED = PASS
-CAPABILITY_AREA_CLASSIFICATION = PASS
-EDIT_DOOR_GATE = PASS
-LIVE_SESSION = PASS
-LIVE_RUNTIME_GATE = PASS
-LIVE_CHANGE_BOUNDED = PASS
-LIVE_NO_PREAPPLY_MUTATION = PASS
-LIVE_STALE_REVISION_CONFLICT = PASS
-COMPARE_READ_ONLY = PASS
-TERAPKAN_REPAIR_PIPELINE = PASS
-TERAPKAN_IDEMPOTENT = PASS
-LIVE_HISTORY_BOUNDED = PASS
-SELF_EDIT_DECLARATIVE_ONLY = PASS
-SELF_EDIT_PROTECTED_CORE = PASS
-SELF_EDIT_NO_BASELINE_MUTATION = PASS
+PARENT_TAHAP_9_SIGNED_IDENTITY = PASS
+VERSION_CODE_GT_TAHAP_9 = YES
+READY_PREVIEW_READ_ONLY = PASS
+READY_REQUIRES_CLEAN_PROJECT = PASS
+READY_RECOVERY_POINT_BEFORE_PUBLISH = PASS
+READY_REVISIONED = PASS
+READY_BLOCKS_UNSAFE_LIVE_REPAIR = PASS
+BUILD_VALIDATOR = PASS
+IR_VERSIONED = PASS
+IR_DETERMINISTIC = PASS
+IR_STABLE_KEYED = PASS
+IR_RESOURCE_SHA256 = PASS
+IR_NO_MUTATION = PASS
+CANDIDATE_IDENTITY = PASS
+CANDIDATE_IDENTITY_DETERMINISTIC = PASS
+CANDIDATE_IDENTITY_INPUT_SENSITIVE = PASS
 R1_R9_AUTOMATIC = PASS
 ASSET_SAFE_REGRESSION = PASS
 ANDROID_11_API30_BUILD = PASS
 PUBLIC_UNSIGNED_APK = PASS
-UNKNOWN_REQUIRED_TAHAP_9_BEHAVIOR = 0
+PRIVATE_SIGNING = PASS
+SIGNATURE_V3_API30 = PASS
+CERTIFICATE_CONTINUITY = PASS
+FIREBASE_USED = NO
+UNKNOWN_REQUIRED_TAHAP_10_BEHAVIOR = 0
 ```
-
-Private tetap hanya untuk signing, credential, Firebase final runtime test, baseline locking, dan release sensitif.
