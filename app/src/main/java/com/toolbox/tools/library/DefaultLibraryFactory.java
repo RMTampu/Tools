@@ -48,8 +48,27 @@ public final class DefaultLibraryFactory {
                                 Collections.singleton("action.ui")
                         )
                 ),
+                new StateContract(
+                        new LinkedHashSet<>(
+                                Arrays.asList(
+                                        "state.normal",
+                                        "state.pressed",
+                                        "state.disabled"
+                                )
+                        )
+                ),
+                new BindingContract(
+                        "binding.profile.default",
+                        Collections.singleton("binding.text"),
+                        true
+                ),
+                new AccessibilityContract(
+                        "accessibility.role.button",
+                        true,
+                        true
+                ),
                 Collections.emptySet(),
-                Collections.emptySet(),
+                Collections.emptyList(),
                 Collections.emptyList()
         );
         components.publishReady(buttonDraft, validator, assets);
