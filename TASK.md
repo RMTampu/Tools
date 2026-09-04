@@ -2,74 +2,82 @@
 
 ## Tugas Aktif
 
-Kerjakan **Tahap 4 = D — Renderer, model bersama, navigation, event/action, data, binding, dan flow** pada repo publik utama `RMTampu/Tools`.
+Kerjakan **Tahap 5 = E — Bubble, Edge Panel, Floating Editor, dan pengeditan visual** pada repo publik utama `RMTampu/Tools`.
 
-Baseline resmi aktif adalah **Baseline Tahap 3**, exact APK Android 11/API30/arm64 yang sudah signed, R1-R9 + ASSET_SAFE PASS, lulus Firebase final test, dan terkunci pada jalur private.
+Baseline resmi aktif adalah **Baseline Tahap 4**, exact APK Android 11/API30/arm64 yang sudah signed, R1-R9 + ASSET_SAFE PASS, lulus Firebase final test, dan terkunci pada jalur private.
 
-Tahap 4 wajib menambah kemampuan di atas Tahap 3. Baseline Tahap 3 tidak boleh dimodifikasi.
+Tahap 5 wajib menambah kemampuan di atas Tahap 4. Baseline Tahap 4 tidak boleh dimodifikasi.
 
-## Scope Tahap 4
+## Scope Tahap 5
 
-### D1 — Shared model + renderer
-- Visual / Properties / Code membaca model runtime/declarative yang sama.
-- Screen memakai Stable Screen ID.
-- Render tree derived/rebuildable, bukan source of truth.
-- Renderer tidak menyimpan clone screen.
-- broken component/reference tetap menjadi diagnostic, tidak silent-delete.
+### E1 — Bubble Quick Access
+- draggable dan bounded.
+- tidak touch-through.
+- safe position portrait/landscape.
+- tap membuka/menutup panel.
+- Edit ON/OFF, Tool, Pengaturan, Floating Window.
+- reset shell selalu tersedia.
 
-### D2 — Navigation + Event/Action
-- Navigation berdasarkan Stable Screen ID + typed parameters.
-- Back stack hanya Screen ID + lightweight parameters/state.
-- Action Registry memakai typed input/output, permission requirement, execution mode, timeout/cancellation/idempotency metadata.
-- Event Binding hanya menghubungkan compatible event/action contracts.
-- Composite action memiliki ordered steps + success/failure/fallback/compensation metadata.
-- broken navigation = `BROKEN_NAVIGATION_REFERENCE`.
+### E2 — Contextual Multi-Function Edge Panel
+- satu panel; isi berubah menurut Editor Function, Edit ON/OFF, selected object, dan operation context.
+- header Back/breadcrumb/context title/close.
+- handle tap/drag/long-press + safe clamp.
+- UI / Logic / Data / Binding / Asset.
+- satu heavy function aktif pada satu waktu.
+- saat UI tanpa selection: Komponen / Template / Kit / Asset / Recent / Favorite.
+- saat object dipilih: menu capability-aware Style sampai Others.
 
-### D3 — Data + Binding
-- Data Source / Field memakai Stable ID + typed contract.
-- query/page menghasilkan working subset.
-- dynamic list identity memakai stable data-item key, bukan index.
-- one-way dan two-way binding.
-- two-way memakai origin/version token + cycle suppression.
-- derived value pure; side effect tetap melalui Action/Logic.
-- ambiguous/incompatible binding tidak auto-connect.
+### E3 — Floating Editor Framework
+- satu primary Floating Editor aktif.
+- draggable, pinned, close, safe bounds, IME-safe.
+- auto-placement menghindari selected object bila mungkin.
+- X hanya menutup editor; tidak revert Working State.
+- perubahan masuk Working State.
+- gesture edit = satu undo transaction.
 
-### D4 — Declarative Flow Graph
-- Stable Flow/Node ID.
-- explicit connection/port compatibility.
-- branch TRUE/FALSE.
-- async START/SUCCESS/FAILURE/CANCELLED/TIMEOUT.
-- loop explicit exit + iteration/time limit.
-- watchdog limit.
-- diagram coordinate hanya editor metadata; graph logic tidak bergantung posisi.
-- hanya active flow yang perlu dimaterialisasi penuh.
+### E4 — Visual Editing Working State
+- Stable Object ID.
+- selection dan add-to-screen tidak mengubah master component.
+- Visual/Properties/Code tetap memakai shared model Tahap 4.
+- edit OFF = normal interaction; edit ON = selection/edit.
+- EDIT/PREVIEW/TEST/LIVE state eksplisit.
+- Preview menyembunyikan overlay editor.
+- LIVE hanya jika capability tersedia.
+- lock protection per area.
+- move/resize/content/style/state/transform dan property editing memakai generic visual operation contract.
+- broken/unsupported operation = diagnostic, bukan silent mutation.
+- history bounded dan undo/redo kronologis.
 
-## Exit Gate Tahap 4
+## Exit Gate Tahap 5
 
 ```text
-BASELINE_TAHAP_3_UNCHANGED = YES
-VERSION_CODE_GT_TAHAP_3 = YES
-SHARED_MODEL = PASS
-RENDER_TREE_DERIVED = PASS
-STABLE_SCREEN_ID = PASS
-NAVIGATION_REFERENCE_VALIDATION = PASS
-LIGHTWEIGHT_BACK_STACK = PASS
-ACTION_REGISTRY = PASS
-EVENT_ACTION_COMPATIBILITY = PASS
-COMPOSITE_ACTION = PASS
-DATA_SOURCE_CONTRACT = PASS
-PAGED_QUERY = PASS
-STABLE_DATA_ITEM_KEY = PASS
-ONE_WAY_BINDING = PASS
-TWO_WAY_CYCLE_SUPPRESSION = PASS
-FLOW_GRAPH = PASS
-BRANCH_ASYNC_LOOP = PASS
-FLOW_WATCHDOG = PASS
-BROKEN_REFERENCE_DIAGNOSTICS = PASS
+BASELINE_TAHAP_4_UNCHANGED = YES
+VERSION_CODE_GT_TAHAP_4 = YES
+BUBBLE_BOUNDED = PASS
+BUBBLE_ORIENTATION_POSITION = PASS
+BUBBLE_NO_TOUCH_THROUGH = PASS
+EDGE_CONTEXTUAL = PASS
+ONE_HEAVY_FUNCTION = PASS
+EDGE_SAFE_CLAMP = PASS
+FLOATING_EDITOR_SINGLE_PRIMARY = PASS
+FLOATING_EDITOR_SAFE_PLACEMENT = PASS
+FLOATING_CLOSE_NO_REVERT = PASS
+VISUAL_WORKING_STATE = PASS
+STABLE_OBJECT_ID = PASS
+CAPABILITY_AWARE_MENU = PASS
+EDIT_OFF_NORMAL_INTERACTION = PASS
+EDIT_ON_SELECTION = PASS
+EDIT_PREVIEW_TEST_LIVE = PASS
+LIVE_CAPABILITY_GATE = PASS
+LOCK_PROTECTION = PASS
+GESTURE_ONE_UNDO_TRANSACTION = PASS
+UNDO_REDO_BOUNDED = PASS
+BROKEN_OPERATION_DIAGNOSTIC = PASS
 R1_R9_AUTOMATIC = PASS
+ASSET_SAFE_REGRESSION = PASS
 ANDROID_11_API30_BUILD = PASS
 PUBLIC_UNSIGNED_APK = PASS
-UNKNOWN_REQUIRED_TAHAP_4_BEHAVIOR = 0
+UNKNOWN_REQUIRED_TAHAP_5_BEHAVIOR = 0
 ```
 
 Private tetap hanya untuk signing, credential, Firebase final runtime test, baseline locking, dan release sensitif.
