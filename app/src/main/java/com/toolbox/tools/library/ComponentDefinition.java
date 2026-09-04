@@ -1,0 +1,121 @@
+package com.toolbox.tools.library;
+
+import com.toolbox.tools.core.StableId;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+
+public final class ComponentDefinition {
+    private final String componentId;
+    private final String labelId;
+    private final String categoryId;
+    private final String iconAssetId;
+    private final VersionNumber version;
+    private final CatalogLifecycle lifecycle;
+    private final String implementationRef;
+    private final Map<String, PropertyContract> properties;
+    private final Map<String, EventContract> events;
+    private final Set<String> capabilityRequirements;
+    private final Set<String> assetRequirements;
+    private final List<DependencyRef> dependencies;
+
+    public ComponentDefinition(
+            String componentId,
+            String labelId,
+            String categoryId,
+            String iconAssetId,
+            VersionNumber version,
+            CatalogLifecycle lifecycle,
+            String implementationRef,
+            List<PropertyContract> properties,
+            List<EventContract> events,
+            Set<String> capabilityRequirements,
+            Set<String> assetRequirements,
+            List<DependencyRef> dependencies
+    ) {
+        this.componentId = StableId.require(componentId, "componentId");
+        this.labelId = StableId.require(labelId, "labelId");
+        this.categoryId = StableId.require(categoryId, "categoryId");
+        this.iconAssetId = iconAssetId == null ? null : StableId.require(iconAssetId, "iconAssetId");
+        this.version = Objects.requireNonNull(version, "version");
+        this.lifecycle = Objects.requireNonNull(lifecycle, "lifecycle");
+        this.implementationRef = StableId.require(implementationRef, "implementationRef");
+
+        LinkedHashMap<String, PropertyContract> propertyMap = new LinkedHashMap<>();
+        if (properties != null) {
+            for (PropertyContract property : properties) {
+                if (propertyMap.put(property.propertyId(), property) != null) {
+                    throw new IllegalArgumentException("duplicate propertyId");
+                }
+            }
+        }
+        this.properties = Collections.unmodifiableMap(propertyMap);
+
+        LinkedHashMap<String, EventContract> eventMap = new LinkedHashMap<>();
+        if (events != null) {
+            for (EventContract event : events) {
+                if (eventMap.put(event.eventId(), event) != null) {
+                    throw new IllegalArgumentException("duplicate eventId");
+                }
+            }
+        }
+        this.events = Collections.unmodifiableMap(eventMap);
+
+        this.capabilityRequirements = immutableIds(
+                capabilityRequirements, "capabilityRequirement"
+        );
+        this.assetRequirements = immutableIds(
+                assetRequirements, "assetRequirement"
+        );
+        this.dependencies = Collections.unmodifiableList(
+                dependencies == null
+                        ? new ArrayList<>()
+                        : new ArrayList<>(dependencies)
+        );
+    }
+
+    private static Set<String> immutableIds(Set<String> input, String field) {
+        LinkedHashSet<String> out = new LinkedHashSet<>();
+        if (input != null) {
+            for (String item : input) {
+                out.add(StableId.require(item, field));
+            }
+        }
+        return Collections.unmodifiableSet(out);
+    }
+
+    public String componentId() { return componentId; }
+    public String labelId() { return labelId; }
+    public String categoryId() { return categoryId; }
+    public String iconAssetId() { return iconAssetId; }
+    public VersionNumber version() { return version; }
+    public CatalogLifecycle lifecycle() { return lifecycle; }
+    public String implementationRef() { return implementationRef; }
+    public Map<String, PropertyContract> properties() { return properties; }
+    public Map<String, EventContract> events() { return events; }
+    public Set<String> capabilityRequirements() { return capabilityRequirements; }
+    public Set<String> assetRequirements() { return assetRequirements; }
+    public List<DependencyRef> dependencies() { return dependencies; }
+
+    public ComponentDefinition withLifecycle(CatalogLifecycle next) {
+        return new ComponentDefinition(
+                componentId,
+                labelId,
+                categoryId,
+                iconAssetId,
+                version,
+                next,
+                implementationRef,
+                new ArrayList<>(properties.values()),
+                new ArrayList<>(events.values()),
+                capabilityRequirements,
+                assetRequirements,
+                dependencies
+        );
+    }
+}
