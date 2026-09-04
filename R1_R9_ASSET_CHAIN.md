@@ -49,6 +49,7 @@ Aturan ini berlaku global di repo ini. Jika perintah user mengandung kata kerja 
 - `ASSET_SAFE_100_RULES.md`
 - `GLOBAL_PUBLIC_PRIVATE_DEVELOPMENT_RULES.md`
 - `PREBUILD_ASSET_GATE.md`
+- `R1_R9_ASSET_CHAIN.md`
 - `TASK.md`
 - `TEST_ROUTING_POLICY.md`
 - `public-components/runtime-contracts/ASSURANCE_R1_R9.md`
