@@ -72,6 +72,15 @@ public final class UnifiedAuthoringSearchTest {
                 library,
                 runtime
         );
+        assertFalse(
+                new AuthoringSearchQuery(
+                        "",
+                        AuthoringSection.LOGIC,
+                        null,
+                        20
+                ).accepts(AuthoringItemKind.COMPONENT)
+        );
+
         List<AuthoringSearchResult> logic = index.search(
                 new AuthoringSearchQuery(
                         "",
