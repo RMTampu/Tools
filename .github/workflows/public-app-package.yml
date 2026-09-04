@@ -32,49 +32,115 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: Checkout public source
-        uses: actions/checkout@v4
+      - name: Checkout exact public source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - name: Set up exact Temurin JDK
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: '17.0.20+1'
+          java-package: jdk
+          architecture: x64
+          check-latest: false
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699
+        with:
+          cmdline-tools-version: '14742923'
+          packages: ''
+          log-accepted-android-sdk-licenses: 'false'
 
       - name: Install Android API 30 build inputs
         shell: bash
         run: |
           set -euo pipefail
           sdkmanager 'platform-tools' 'platforms;android-30' 'build-tools;34.0.0'
-          test -s "$ANDROID_HOME/platforms/android-30/android.jar"
+          test -s "$ANDROID_SDK_ROOT/platforms/android-30/android.jar"
+          test -x "$ANDROID_SDK_ROOT/build-tools/34.0.0/aapt"
+          test -x "$ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner"
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - name: Set up exact Gradle without shared cache
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
         with:
           gradle-version: '8.2.1'
+          cache-disabled: true
 
-      - name: Run public app unit tests
+      - name: Stage 2 baseline compatibility and route gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+
+          gradle=Path('app/build.gradle').read_text()
+          manifest=Path('app/src/main/AndroidManifest.xml').read_text()
+
+          assert "applicationId 'com.toolbox.tools'" in gradle
+          assert re.search(r'\bminSdk\s+30\b', gradle)
+          assert re.search(r'\btargetSdk\s+30\b', gradle)
+          version=int(re.search(r'\bversionCode\s+(\d+)\b', gradle).group(1))
+          assert version > 1
+          assert 'android:name=".MainActivity"' in manifest
+          assert 'android:exported="true"' in manifest
+
+          required=[
+              'app/src/main/java/com/toolbox/tools/core/WorkspaceSnapshot.java',
+              'app/src/main/java/com/toolbox/tools/core/WorkspaceCodec.java',
+              'app/src/main/java/com/toolbox/tools/core/StorageGateway.java',
+              'app/src/main/java/com/toolbox/tools/core/InMemoryStorageGateway.java',
+              'app/src/main/java/com/toolbox/tools/core/FileStorageGateway.java',
+              'app/src/main/java/com/toolbox/tools/core/WorkspaceManager.java',
+              'app/src/test/java/com/toolbox/tools/core/WorkspaceCodecTest.java',
+              'app/src/test/java/com/toolbox/tools/core/WorkspaceManagerTest.java',
+              'app/src/test/java/com/toolbox/tools/core/FileStorageGatewayTest.java',
+          ]
+          for item in required:
+              assert Path(item).is_file(), item
+
+          source='\n'.join(Path(p).read_text() for p in required if '/main/' in p)
+          assert 'MAX_HISTORY = 64' in source
+          assert 'MAX_ENTRIES = 256' in source
+          assert 'ATOMIC_MOVE' in source
+          assert 'SHA-256' in source
+          assert 'recoveredFromBackup' in source
+
+          forbidden=['SIGNING_KEY','KEY_STORE_PASSWORD','KEY_PASSWORD','FIREBASE_PROJECT_ID']
+          for item in forbidden:
+              assert item not in source
+
+          print('STAGE2_BASELINE_VERSION_GATE = PASS')
+          print('STAGE2_STORAGE_ROUTE_GATE = PASS')
+          print('PUBLIC_SECRET_BOUNDARY = PASS')
+          PY
+
+      - name: Run Stage 2 public app unit and failure tests
         run: gradle --no-daemon :app:testDebugUnitTest
 
-      - name: Assemble unsigned release package
+      - name: Assemble Stage 2 unsigned release package
         run: gradle --no-daemon :app:assembleRelease
 
-      - name: Verify package is ready for private signing
+      - name: Verify Stage 2 package metadata and digest
         shell: bash
         run: |
           set -euo pipefail
           APK="app/build/outputs/apk/release/app-release-unsigned.apk"
           test -s "$APK"
-          sha256sum "$APK" | tee app/build/outputs/apk/release/app-release-unsigned.apk.sha256
-          echo "PUBLIC_APP_UNSIGNED_RELEASE_READY_FOR_PRIVATE_SIGNING=1"
+          BADGING="$("$ANDROID_SDK_ROOT/build-tools/34.0.0/aapt" dump badging "$APK")"
+          grep -F "package: name='com.toolbox.tools'" <<< "$BADGING"
+          grep -F "versionCode='2'" <<< "$BADGING"
+          grep -F "sdkVersion:'30'" <<< "$BADGING"
+          grep -F "targetSdkVersion:'30'" <<< "$BADGING"
+          sha256sum "$APK" | tee "$APK.sha256"
+          echo "STAGE2_PUBLIC_UNSIGNED_RELEASE_READY_FOR_PRIVATE_SIGNING=1"
 
-      - name: Upload unsigned package for private signing
-        uses: actions/upload-artifact@v4
+      - name: Upload Stage 2 unsigned package
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
-          name: toolbox-public-app-unsigned-ready-private-signing
+          name: toolbox-stage2-public-app-unsigned-ready-private-signing
           path: |
             app/build/outputs/apk/release/app-release-unsigned.apk
             app/build/outputs/apk/release/app-release-unsigned.apk.sha256
