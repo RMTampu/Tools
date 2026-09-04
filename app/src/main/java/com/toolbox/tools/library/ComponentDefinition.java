@@ -13,6 +13,7 @@ import java.util.Set;
 public final class ComponentDefinition {
     private final String componentId;
     private final String labelId;
+    private final String labelIndonesia;
     private final String categoryId;
     private final String iconAssetId;
     private final VersionNumber version;
@@ -27,6 +28,7 @@ public final class ComponentDefinition {
     public ComponentDefinition(
             String componentId,
             String labelId,
+            String labelIndonesia,
             String categoryId,
             String iconAssetId,
             VersionNumber version,
@@ -40,11 +42,17 @@ public final class ComponentDefinition {
     ) {
         this.componentId = StableId.require(componentId, "componentId");
         this.labelId = StableId.require(labelId, "labelId");
+        this.labelIndonesia = requireLabel(labelIndonesia);
         this.categoryId = StableId.require(categoryId, "categoryId");
-        this.iconAssetId = iconAssetId == null ? null : StableId.require(iconAssetId, "iconAssetId");
+        this.iconAssetId = iconAssetId == null
+                ? null
+                : StableId.require(iconAssetId, "iconAssetId");
         this.version = Objects.requireNonNull(version, "version");
         this.lifecycle = Objects.requireNonNull(lifecycle, "lifecycle");
-        this.implementationRef = StableId.require(implementationRef, "implementationRef");
+        this.implementationRef = StableId.require(
+                implementationRef,
+                "implementationRef"
+        );
 
         LinkedHashMap<String, PropertyContract> propertyMap = new LinkedHashMap<>();
         if (properties != null) {
@@ -67,16 +75,27 @@ public final class ComponentDefinition {
         this.events = Collections.unmodifiableMap(eventMap);
 
         this.capabilityRequirements = immutableIds(
-                capabilityRequirements, "capabilityRequirement"
+                capabilityRequirements,
+                "capabilityRequirement"
         );
         this.assetRequirements = immutableIds(
-                assetRequirements, "assetRequirement"
+                assetRequirements,
+                "assetRequirement"
         );
         this.dependencies = Collections.unmodifiableList(
                 dependencies == null
                         ? new ArrayList<>()
                         : new ArrayList<>(dependencies)
         );
+    }
+
+    private static String requireLabel(String value) {
+        Objects.requireNonNull(value, "labelIndonesia");
+        String trimmed = value.trim();
+        if (trimmed.isEmpty() || trimmed.length() > 120) {
+            throw new IllegalArgumentException("component label invalid");
+        }
+        return trimmed;
     }
 
     private static Set<String> immutableIds(Set<String> input, String field) {
@@ -91,6 +110,7 @@ public final class ComponentDefinition {
 
     public String componentId() { return componentId; }
     public String labelId() { return labelId; }
+    public String labelIndonesia() { return labelIndonesia; }
     public String categoryId() { return categoryId; }
     public String iconAssetId() { return iconAssetId; }
     public VersionNumber version() { return version; }
@@ -106,6 +126,7 @@ public final class ComponentDefinition {
         return new ComponentDefinition(
                 componentId,
                 labelId,
+                labelIndonesia,
                 categoryId,
                 iconAssetId,
                 version,
