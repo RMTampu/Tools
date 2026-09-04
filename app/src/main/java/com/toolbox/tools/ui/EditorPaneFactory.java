@@ -102,10 +102,10 @@ public final class EditorPaneFactory {
                 propertyRow(root, c, "Sumber", "data.items");
                 propertyRow(root, c, "Kunci item", "field.id");
                 propertyRow(root, c, "Paging", "20 item");
-                propertyRow(root, c, "Mock Data", "Aktif untuk pratinjau");
+                propertyRow(root, c, "Data Contoh", "Aktif untuk pratinjau");
                 break;
             case BINDING:
-                propertyRow(root, c, "Profil", "Profil Binding Bawaan");
+                propertyRow(root, c, "Profil", "Profil Pengikatan Bawaan");
                 propertyRow(root, c, "Mode", "Satu arah");
                 propertyRow(root, c, "Target ambigu", "Tidak ditebak");
                 propertyRow(root, c, "Siklus", "Dicegah otomatis");
@@ -144,8 +144,8 @@ public final class EditorPaneFactory {
         root.addView(UiKit.judul(c, "Representasi Deklaratif", 18f));
         TextView note = UiKit.teks(
                 c,
-                "Kode adalah fallback lanjutan. ToolBox tidak mengeksekusi "
-                        + "kode arbitrary yang diunduh di host.",
+                "Kode adalah jalur cadangan lanjutan. ToolBox tidak mengeksekusi "
+                        + "kode sembarang yang diunduh di host.",
                 11.5f,
                 UiKit.TEKS_REDUP
         );
@@ -197,7 +197,7 @@ public final class EditorPaneFactory {
         summary.addView(statusChip(c, "Layar: 2", UiKit.NEON_BIRU));
         summary.addView(statusChip(c, "Komponen: "
                 + kernel.libraryManager().components().allReady().size(), UiKit.NEON));
-        summary.addView(statusChip(c, "Edit tanpa clone", UiKit.NEON));
+        summary.addView(statusChip(c, "Edit tanpa penyalinan", UiKit.NEON));
         root.addView(horizontal(c, summary));
 
         UiKit.ruang(root, c, 8);
@@ -249,8 +249,8 @@ public final class EditorPaneFactory {
         LinearLayout chips = UiKit.baris(c);
         chips.addView(statusChip(c, "Alur: "
                 + kernel.runtimeEnvironment().model().flows().size(), UiKit.NEON));
-        chips.addView(statusChip(c, "Watchdog aktif", UiKit.NEON_BIRU));
-        chips.addView(statusChip(c, "Async aman", UiKit.NEON_BIRU));
+        chips.addView(statusChip(c, "Pengawas aktif", UiKit.NEON_BIRU));
+        chips.addView(statusChip(c, "Asinkron aman", UiKit.NEON_BIRU));
         root.addView(horizontal(c, chips));
         return scroll;
     }
@@ -269,7 +269,7 @@ public final class EditorPaneFactory {
 
         TextView desc = UiKit.teks(
                 c,
-                "Sumber • Koleksi • Tabel • Field • Relasi • Query • Mock Data",
+                "Sumber • Koleksi • Tabel • Field • Relasi • Query • Data Contoh",
                 11.5f,
                 UiKit.TEKS_REDUP
         );
@@ -299,7 +299,7 @@ public final class EditorPaneFactory {
             LinearLayout actions = UiKit.baris(c);
             actions.addView(UiKit.tombol(c, "+ Tambah Field", false),
                     new LinearLayout.LayoutParams(0, UiKit.dp(c, 42), 1));
-            actions.addView(UiKit.tombol(c, "Mock Data", false),
+            actions.addView(UiKit.tombol(c, "Data Contoh", false),
                     new LinearLayout.LayoutParams(0, UiKit.dp(c, 42), 1));
             card.addView(actions);
             root.addView(card);
@@ -322,7 +322,7 @@ public final class EditorPaneFactory {
         LinearLayout header = UiKit.baris(c);
         TextView title = UiKit.judul(c, "Pusat Pengikatan", 18f);
         header.addView(title, new LinearLayout.LayoutParams(0, UiKit.dp(c, 44), 1));
-        TextView auto = UiKit.tombol(c, "Auto Hubungkan Semua", true);
+        TextView auto = UiKit.tombol(c, "Hubungkan Semua Otomatis", true);
         header.addView(auto);
         root.addView(header);
 
@@ -398,7 +398,7 @@ public final class EditorPaneFactory {
                 {"Template", String.valueOf(kernel.libraryManager().templates().allReady().size())},
                 {"Tema", "Gelap Neon"},
                 {"Token", String.valueOf(kernel.productServices().themes().snapshot().size())},
-                {"Import", "Validasi Aman"}
+                {"Impor", "Validasi Aman"}
         };
         for (String[] item : cards) {
             LinearLayout card = card(c);
