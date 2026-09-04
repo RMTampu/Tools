@@ -45,8 +45,8 @@ public final class VerificationManager {
                 || !"arm64".equals(kernel.configStore().get("targetAbi", ""))) {
             return VerificationResult.fail("android target mismatch");
         }
-        if (!"10".equals(kernel.configStore().get("tahap", ""))) {
-            return VerificationResult.fail("tahap 10 configuration missing");
+        if (!"11".equals(kernel.configStore().get("tahap", ""))) {
+            return VerificationResult.fail("tahap 11 configuration missing");
         }
         if (kernel.recoveryManager().isRecoveryRequired()) {
             return VerificationResult.fail("recovery required");
@@ -263,8 +263,10 @@ public final class VerificationManager {
         if (kernel.buildValidator() == null
                 || kernel.applicationIrBuilder() == null
                 || kernel.candidateIdentityFactory() == null
-                || kernel.readyCoordinator() == null) {
-            return VerificationResult.fail("Tahap 10 build services unavailable");
+                || kernel.readyCoordinator() == null
+                || kernel.remotePatchVerifier() == null
+                || kernel.safePatchManager() == null) {
+            return VerificationResult.fail("Tahap 11 build/delivery services unavailable");
         }
 
         ProjectState beforeReadyPreview =
@@ -305,7 +307,7 @@ public final class VerificationManager {
         String previewUnsigned =
                 "0000000000000000000000000000000000000000000000000000000000000000";
         String parentSigned =
-                "8f6f504c8f289926ad88550ab2686b801efc3ac12536c9e57f807b208461a116";
+                "fbc39153bc121ed2d32bc9c24e9ff8f0e9b7730fcef01021f4adfd830fbd21ff";
         CandidateIdentity firstCandidate =
                 kernel.candidateIdentityFactory().create(
                         "com.toolbox.tools",
@@ -334,7 +336,7 @@ public final class VerificationManager {
         }
 
         return VerificationResult.pass(
-                "tahap 10 READY IR candidate identity ready"
+                "tahap 11 READY IR App.patch safe restore ready"
         );
     }
 }
