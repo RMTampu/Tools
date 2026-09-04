@@ -11,8 +11,13 @@ plan=json.loads((APP/"ASSURANCE_PLAN_R1_R9.json").read_text())
 asset=json.loads((APP/"ASSET_ASSURANCE_PLAN.json").read_text())
 
 assert plan["stage"]=="Tahap 10" and plan["stageMap"]=="J"
-assert plan["parentBaseline"]["name"]=="Tahap 9"
-assert plan["parentBaseline"]["apkSha256"]=="8f6f504c8f289926ad88550ab2686b801efc3ac12536c9e57f807b208461a116"
+assert plan["parentBaseline"]["name"]=="Tahap 7"
+assert plan["parentBaseline"]["apkSha256"]=="741ebcf799280fbba1b4c7d2e60ba157ba133e3f6545b3468882373150f024f7"
+assert plan["parentBaseline"]["permanent"] is True
+assert plan["parentBaseline"]["rollbackAnchor"] is True
+assert plan["developmentParentCandidate"]["name"]=="Tahap 9"
+assert plan["developmentParentCandidate"]["signedApkSha256"]=="8f6f504c8f289926ad88550ab2686b801efc3ac12536c9e57f807b208461a116"
+assert plan["developmentParentCandidate"]["baseline"] is False
 assert asset["stage"]=="Tahap 10" and asset["stageMap"]=="J"
 
 method_counts={}
@@ -104,8 +109,16 @@ evidence={
     "stageMap":"J",
     "status":"PASS",
     "parentBaseline":{
-        "name":"Tahap 9",
+        "name":"Tahap 7",
         "apkSha256":plan["parentBaseline"]["apkSha256"],
+        "permanent":True,
+        "rollbackAnchor":True,
+        "unchangedByPublicWork":True
+    },
+    "developmentParentCandidate":{
+        "name":"Tahap 9",
+        "signedApkSha256":plan["developmentParentCandidate"]["signedApkSha256"],
+        "baseline":False,
         "unchangedByPublicWork":True
     },
     "androidApi":30,
@@ -138,4 +151,6 @@ evidence={
 print("TAHAP_10_R1_R8_PREBUILD = PASS")
 print("R1_R9_RESEARCH_CORPUS = BOUND")
 print("ASSET_SAFE_CHAIN = BOUND")
+print("ROLLBACK_BASELINE_TAHAP_7 = PASS")
+print("DEVELOPMENT_PARENT_TAHAP_9 = PASS")
 print("FIREBASE_USED = NO")
