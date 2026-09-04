@@ -10,7 +10,7 @@ public final class DefaultLiveFactory {
         EnumMap<CapabilityArea, CapabilityAvailability> declared =
                 new EnumMap<>(CapabilityArea.class);
         declared.put(CapabilityArea.UI, CapabilityAvailability.AVAILABLE);
-        declared.put(CapabilityArea.LOGIC, CapabilityAvailability.READ_ONLY);
+        declared.put(CapabilityArea.LOGIC, CapabilityAvailability.AVAILABLE);
         declared.put(CapabilityArea.DATA, CapabilityAvailability.AVAILABLE);
         declared.put(CapabilityArea.BINDING, CapabilityAvailability.AVAILABLE);
         declared.put(CapabilityArea.ASSET, CapabilityAvailability.AVAILABLE);
