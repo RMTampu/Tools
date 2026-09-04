@@ -17,7 +17,7 @@ import static org.junit.Assert.*;
 
 public final class AppKernelTest {
     @Test
-    public void defaultKernelPassesTahapSevenVerification() {
+    public void defaultKernelPassesTahapEightVerification() {
         AppKernel kernel = AppKernel.createDefault();
 
         VerificationResult result = new VerificationManager().verify(kernel);
@@ -26,11 +26,18 @@ public final class AppKernelTest {
         assertEquals(AppState.READY, kernel.state());
         assertEquals("30", kernel.configStore().get("targetApi", ""));
         assertEquals("arm64", kernel.configStore().get("targetAbi", ""));
-        assertEquals("7", kernel.configStore().get("tahap", ""));
+        assertEquals("8", kernel.configStore().get("tahap", ""));
         assertNotNull(kernel.runtimeEnvironment());
         assertNotNull(kernel.editorEnvironment());
         assertNotNull(kernel.authoringWorkspace());
         assertNotNull(kernel.externalIntegrationManager());
+        assertNotNull(kernel.repairSessionManager());
+        assertNotNull(kernel.recoveryPreviewService());
+        assertNotNull(kernel.healthMonitor());
+        assertEquals(
+                com.toolbox.tools.repair.HealthState.HEALTHY,
+                kernel.healthMonitor().inspect(kernel).state()
+        );
 
         assertSame(
                 kernel.runtimeEnvironment(),
