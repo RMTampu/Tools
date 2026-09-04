@@ -147,11 +147,11 @@ public final class LiveSessionManagerTest {
             throws Exception {
         Fixture fixture = fixture();
         TargetDescriptor unavailable = new TargetDescriptor(
-                "target.unavailable",
-                "Target Tidak Tersedia",
+                "target.toolbox.self",
+                "ToolBox Tidak Terpasang",
                 false,
-                false,
-                EditDoor.NONE,
+                true,
+                EditDoor.DECLARATIVE,
                 null
         );
         CapabilityScanResult scan =
