@@ -1,0 +1,1961 @@
+{
+  "schemaVersion": 1,
+  "product": "ToolBox",
+  "sourceDesign": "RANCANGAN_PRODUK_PENUH.md",
+  "sourceRevision": "3d00522e8f7ac5d644606dc81767c5fbe0079920",
+  "requiredSectionCount": 135,
+  "language": "id",
+  "baseline": {
+    "stage": 11,
+    "apkSha256": "f9dcffed7dc5d657c6dbd1c45933db6a4f6215f5145aee1849cc50f35038b76b"
+  },
+  "candidate": {
+    "versionCode": 12,
+    "versionName": "12.0-produk-penuh"
+  },
+  "firebasePolicy": "REQUIRES_EXPLICIT_USER_PERMISSION",
+  "signingPolicy": "PRIVATE_ONLY",
+  "requirements": [
+    {
+      "id": "RANCANGAN_001",
+      "section": 1,
+      "title": "Identitas Produk",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/editor/EditorShellController.java",
+        "app/src/main/java/com/toolbox/tools/product/ToolLifecycleManager.java",
+        "app/src/main/java/com/toolbox/tools/product/EditorContextStore.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_002",
+      "section": 2,
+      "title": "Prinsip Besar",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/editor/EditorShellController.java",
+        "app/src/main/java/com/toolbox/tools/product/ToolLifecycleManager.java",
+        "app/src/main/java/com/toolbox/tools/product/EditorContextStore.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_003",
+      "section": 3,
+      "title": "Arsitektur Rumah ToolBox — Fondasi dan Override Terkini",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/editor/EditorShellController.java",
+        "app/src/main/java/com/toolbox/tools/product/ToolLifecycleManager.java",
+        "app/src/main/java/com/toolbox/tools/product/EditorContextStore.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_004",
+      "section": 4,
+      "title": "Halaman sebagai Wujud Tool/Engine",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/editor/EditorShellController.java",
+        "app/src/main/java/com/toolbox/tools/product/ToolLifecycleManager.java",
+        "app/src/main/java/com/toolbox/tools/product/EditorContextStore.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_005",
+      "section": 5,
+      "title": "Lifecycle Tool",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/editor/EditorShellController.java",
+        "app/src/main/java/com/toolbox/tools/product/ToolLifecycleManager.java",
+        "app/src/main/java/com/toolbox/tools/product/EditorContextStore.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_006",
+      "section": 6,
+      "title": "Shell UI ToolBox — Override Terkini",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/editor/EditorShellController.java",
+        "app/src/main/java/com/toolbox/tools/product/ToolLifecycleManager.java",
+        "app/src/main/java/com/toolbox/tools/product/EditorContextStore.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_007",
+      "section": 7,
+      "title": "Bubble — Draggable Priority Overlay + Floating Window Trigger",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/editor/EditorShellController.java",
+        "app/src/main/java/com/toolbox/tools/product/ToolLifecycleManager.java",
+        "app/src/main/java/com/toolbox/tools/product/EditorContextStore.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_008",
+      "section": 8,
+      "title": "Multi-Function Edge Panel",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/editor/EditorShellController.java",
+        "app/src/main/java/com/toolbox/tools/product/ToolLifecycleManager.java",
+        "app/src/main/java/com/toolbox/tools/product/EditorContextStore.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_009",
+      "section": 9,
+      "title": "Live Interactive UI Workspace",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/editor/EditorShellController.java",
+        "app/src/main/java/com/toolbox/tools/product/ToolLifecycleManager.java",
+        "app/src/main/java/com/toolbox/tools/product/EditorContextStore.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_010",
+      "section": 10,
+      "title": "Edit OFF dan Edit ON",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/editor/EditorShellController.java",
+        "app/src/main/java/com/toolbox/tools/product/ToolLifecycleManager.java",
+        "app/src/main/java/com/toolbox/tools/product/EditorContextStore.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_011",
+      "section": 11,
+      "title": "No-Cloning Editing",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/editor/EditorShellController.java",
+        "app/src/main/java/com/toolbox/tools/product/ToolLifecycleManager.java",
+        "app/src/main/java/com/toolbox/tools/product/EditorContextStore.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_012",
+      "section": 12,
+      "title": "Visual State Hold Saat Masuk Edit",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/editor/EditorShellController.java",
+        "app/src/main/java/com/toolbox/tools/product/ToolLifecycleManager.java",
+        "app/src/main/java/com/toolbox/tools/product/EditorContextStore.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_013",
+      "section": 13,
+      "title": "Manual Save Murni",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/editor/EditorShellController.java",
+        "app/src/main/java/com/toolbox/tools/product/ToolLifecycleManager.java",
+        "app/src/main/java/com/toolbox/tools/product/EditorContextStore.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_014",
+      "section": 14,
+      "title": "Undo / Redo",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/editor/EditorShellController.java",
+        "app/src/main/java/com/toolbox/tools/product/ToolLifecycleManager.java",
+        "app/src/main/java/com/toolbox/tools/product/EditorContextStore.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_015",
+      "section": 15,
+      "title": "Per-Screen Working Sector",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/editor/EditorShellController.java",
+        "app/src/main/java/com/toolbox/tools/product/ToolLifecycleManager.java",
+        "app/src/main/java/com/toolbox/tools/product/EditorContextStore.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_016",
+      "section": 16,
+      "title": "Non-Linear Round-Trip Editing",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/editor/EditorShellController.java",
+        "app/src/main/java/com/toolbox/tools/product/ToolLifecycleManager.java",
+        "app/src/main/java/com/toolbox/tools/product/EditorContextStore.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_017",
+      "section": 17,
+      "title": "Mode Visual / Properties / Code",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/editor/EditorShellController.java",
+        "app/src/main/java/com/toolbox/tools/product/ToolLifecycleManager.java",
+        "app/src/main/java/com/toolbox/tools/product/EditorContextStore.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_018",
+      "section": 18,
+      "title": "Project Store",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/core/ProjectManager.java",
+        "app/src/main/java/com/toolbox/tools/core/ProjectState.java",
+        "app/src/main/java/com/toolbox/tools/product/ProjectGraphManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_019",
+      "section": 19,
+      "title": "Hybrid Per-Screen Store",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/core/ProjectManager.java",
+        "app/src/main/java/com/toolbox/tools/core/ProjectState.java",
+        "app/src/main/java/com/toolbox/tools/product/ProjectGraphManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_020",
+      "section": 20,
+      "title": "project.json dan project.manifest",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/core/ProjectManager.java",
+        "app/src/main/java/com/toolbox/tools/core/ProjectState.java",
+        "app/src/main/java/com/toolbox/tools/product/ProjectGraphManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_021",
+      "section": 21,
+      "title": "Transactional Save",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/core/ProjectManager.java",
+        "app/src/main/java/com/toolbox/tools/core/ProjectState.java",
+        "app/src/main/java/com/toolbox/tools/product/ProjectGraphManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_022",
+      "section": 22,
+      "title": "Revision & Single Writer per Resource",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/core/ProjectManager.java",
+        "app/src/main/java/com/toolbox/tools/core/ProjectState.java",
+        "app/src/main/java/com/toolbox/tools/product/ProjectGraphManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_023",
+      "section": 23,
+      "title": "Schema & Versioning",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/core/ProjectManager.java",
+        "app/src/main/java/com/toolbox/tools/core/ProjectState.java",
+        "app/src/main/java/com/toolbox/tools/product/ProjectGraphManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_024",
+      "section": 24,
+      "title": "Stable Identity",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/core/ProjectManager.java",
+        "app/src/main/java/com/toolbox/tools/core/ProjectState.java",
+        "app/src/main/java/com/toolbox/tools/product/ProjectGraphManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_025",
+      "section": 25,
+      "title": "Tombstone & Undo Restore",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/core/ProjectManager.java",
+        "app/src/main/java/com/toolbox/tools/core/ProjectState.java",
+        "app/src/main/java/com/toolbox/tools/product/ProjectGraphManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_026",
+      "section": 26,
+      "title": "Generated Index & Dependency Graph",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/core/ProjectManager.java",
+        "app/src/main/java/com/toolbox/tools/core/ProjectState.java",
+        "app/src/main/java/com/toolbox/tools/product/ProjectGraphManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_027",
+      "section": 27,
+      "title": "Impact Tracking",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/core/ProjectManager.java",
+        "app/src/main/java/com/toolbox/tools/core/ProjectState.java",
+        "app/src/main/java/com/toolbox/tools/product/ProjectGraphManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_028",
+      "section": 28,
+      "title": "Component Registry",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinComponentCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/ComponentRegistry.java",
+        "app/src/main/java/com/toolbox/tools/runtime/DefaultRuntimeFactory.java",
+        "app/src/main/java/com/toolbox/tools/runtime/BindingValidator.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_029",
+      "section": 29,
+      "title": "Repository Component Registry Inventory",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinComponentCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/ComponentRegistry.java",
+        "app/src/main/java/com/toolbox/tools/runtime/DefaultRuntimeFactory.java",
+        "app/src/main/java/com/toolbox/tools/runtime/BindingValidator.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_030",
+      "section": 30,
+      "title": "Property Contract",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinComponentCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/ComponentRegistry.java",
+        "app/src/main/java/com/toolbox/tools/runtime/DefaultRuntimeFactory.java",
+        "app/src/main/java/com/toolbox/tools/runtime/BindingValidator.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_031",
+      "section": 31,
+      "title": "Event Contract",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinComponentCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/ComponentRegistry.java",
+        "app/src/main/java/com/toolbox/tools/runtime/DefaultRuntimeFactory.java",
+        "app/src/main/java/com/toolbox/tools/runtime/BindingValidator.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_032",
+      "section": 32,
+      "title": "Action Registry",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinComponentCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/ComponentRegistry.java",
+        "app/src/main/java/com/toolbox/tools/runtime/DefaultRuntimeFactory.java",
+        "app/src/main/java/com/toolbox/tools/runtime/BindingValidator.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_033",
+      "section": 33,
+      "title": "Compatibility Matching",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinComponentCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/ComponentRegistry.java",
+        "app/src/main/java/com/toolbox/tools/runtime/DefaultRuntimeFactory.java",
+        "app/src/main/java/com/toolbox/tools/runtime/BindingValidator.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_034",
+      "section": 34,
+      "title": "Composite Action",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinComponentCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/ComponentRegistry.java",
+        "app/src/main/java/com/toolbox/tools/runtime/DefaultRuntimeFactory.java",
+        "app/src/main/java/com/toolbox/tools/runtime/BindingValidator.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_035",
+      "section": 35,
+      "title": "Navigation Contract",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinComponentCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/ComponentRegistry.java",
+        "app/src/main/java/com/toolbox/tools/runtime/DefaultRuntimeFactory.java",
+        "app/src/main/java/com/toolbox/tools/runtime/BindingValidator.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_036",
+      "section": 36,
+      "title": "Back Stack",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinComponentCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/ComponentRegistry.java",
+        "app/src/main/java/com/toolbox/tools/runtime/DefaultRuntimeFactory.java",
+        "app/src/main/java/com/toolbox/tools/runtime/BindingValidator.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_037",
+      "section": 37,
+      "title": "Data Source Contract",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinComponentCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/ComponentRegistry.java",
+        "app/src/main/java/com/toolbox/tools/runtime/DefaultRuntimeFactory.java",
+        "app/src/main/java/com/toolbox/tools/runtime/BindingValidator.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_038",
+      "section": 38,
+      "title": "Data Binding",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinComponentCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/ComponentRegistry.java",
+        "app/src/main/java/com/toolbox/tools/runtime/DefaultRuntimeFactory.java",
+        "app/src/main/java/com/toolbox/tools/runtime/BindingValidator.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_039",
+      "section": 39,
+      "title": "Lazy/Paged Data Access",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinComponentCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/ComponentRegistry.java",
+        "app/src/main/java/com/toolbox/tools/runtime/DefaultRuntimeFactory.java",
+        "app/src/main/java/com/toolbox/tools/runtime/BindingValidator.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_040",
+      "section": 40,
+      "title": "Dynamic List Item Identity",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinComponentCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/ComponentRegistry.java",
+        "app/src/main/java/com/toolbox/tools/runtime/DefaultRuntimeFactory.java",
+        "app/src/main/java/com/toolbox/tools/runtime/BindingValidator.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_041",
+      "section": 41,
+      "title": "Broken Reference Model",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinComponentCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/ComponentRegistry.java",
+        "app/src/main/java/com/toolbox/tools/runtime/DefaultRuntimeFactory.java",
+        "app/src/main/java/com/toolbox/tools/runtime/BindingValidator.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_042",
+      "section": 42,
+      "title": "Logic / Flow Editor",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/ui/LogicGraphView.java",
+        "app/src/main/java/com/toolbox/tools/ui/UiCanvasView.java",
+        "app/src/main/java/com/toolbox/tools/product/VisualLayoutEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/StateVariantEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/AnimationEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/LocalizationManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_043",
+      "section": 43,
+      "title": "Branch, Loop, Async",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/ui/LogicGraphView.java",
+        "app/src/main/java/com/toolbox/tools/ui/UiCanvasView.java",
+        "app/src/main/java/com/toolbox/tools/product/VisualLayoutEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/StateVariantEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/AnimationEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/LocalizationManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_044",
+      "section": 44,
+      "title": "List-First → Auto Diagram Materialization",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/ui/LogicGraphView.java",
+        "app/src/main/java/com/toolbox/tools/ui/UiCanvasView.java",
+        "app/src/main/java/com/toolbox/tools/product/VisualLayoutEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/StateVariantEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/AnimationEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/LocalizationManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_045",
+      "section": 45,
+      "title": "Component Definition, Instance, Template",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/ui/LogicGraphView.java",
+        "app/src/main/java/com/toolbox/tools/ui/UiCanvasView.java",
+        "app/src/main/java/com/toolbox/tools/product/VisualLayoutEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/StateVariantEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/AnimationEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/LocalizationManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_046",
+      "section": 46,
+      "title": "UI State & State Variant",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/ui/LogicGraphView.java",
+        "app/src/main/java/com/toolbox/tools/ui/UiCanvasView.java",
+        "app/src/main/java/com/toolbox/tools/product/VisualLayoutEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/StateVariantEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/AnimationEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/LocalizationManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_047",
+      "section": 47,
+      "title": "Animation Model",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/ui/LogicGraphView.java",
+        "app/src/main/java/com/toolbox/tools/ui/UiCanvasView.java",
+        "app/src/main/java/com/toolbox/tools/product/VisualLayoutEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/StateVariantEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/AnimationEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/LocalizationManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_048",
+      "section": 48,
+      "title": "Design Token & Theme",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/ui/LogicGraphView.java",
+        "app/src/main/java/com/toolbox/tools/ui/UiCanvasView.java",
+        "app/src/main/java/com/toolbox/tools/product/VisualLayoutEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/StateVariantEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/AnimationEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/LocalizationManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_049",
+      "section": 49,
+      "title": "Responsive Layout",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/ui/LogicGraphView.java",
+        "app/src/main/java/com/toolbox/tools/ui/UiCanvasView.java",
+        "app/src/main/java/com/toolbox/tools/product/VisualLayoutEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/StateVariantEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/AnimationEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/LocalizationManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_050",
+      "section": 50,
+      "title": "Adaptive Size & Orientation",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/ui/LogicGraphView.java",
+        "app/src/main/java/com/toolbox/tools/ui/UiCanvasView.java",
+        "app/src/main/java/com/toolbox/tools/product/VisualLayoutEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/StateVariantEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/AnimationEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/LocalizationManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_051",
+      "section": 51,
+      "title": "Grid, Guide, Snapping",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/ui/LogicGraphView.java",
+        "app/src/main/java/com/toolbox/tools/ui/UiCanvasView.java",
+        "app/src/main/java/com/toolbox/tools/product/VisualLayoutEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/StateVariantEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/AnimationEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/LocalizationManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_052",
+      "section": 52,
+      "title": "Multi-Select & Group Editing",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/ui/LogicGraphView.java",
+        "app/src/main/java/com/toolbox/tools/ui/UiCanvasView.java",
+        "app/src/main/java/com/toolbox/tools/product/VisualLayoutEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/StateVariantEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/AnimationEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/LocalizationManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_053",
+      "section": 53,
+      "title": "Parent/Child & Reparenting",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/ui/LogicGraphView.java",
+        "app/src/main/java/com/toolbox/tools/ui/UiCanvasView.java",
+        "app/src/main/java/com/toolbox/tools/product/VisualLayoutEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/StateVariantEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/AnimationEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/LocalizationManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_054",
+      "section": 54,
+      "title": "Object Lock",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/ui/LogicGraphView.java",
+        "app/src/main/java/com/toolbox/tools/ui/UiCanvasView.java",
+        "app/src/main/java/com/toolbox/tools/product/VisualLayoutEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/StateVariantEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/AnimationEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/LocalizationManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_055",
+      "section": 55,
+      "title": "Layer, Z-Order, Hit Test",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/ui/LogicGraphView.java",
+        "app/src/main/java/com/toolbox/tools/ui/UiCanvasView.java",
+        "app/src/main/java/com/toolbox/tools/product/VisualLayoutEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/StateVariantEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/AnimationEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/LocalizationManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_056",
+      "section": 56,
+      "title": "Pointer Behavior & Event Propagation",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/ui/LogicGraphView.java",
+        "app/src/main/java/com/toolbox/tools/ui/UiCanvasView.java",
+        "app/src/main/java/com/toolbox/tools/product/VisualLayoutEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/StateVariantEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/AnimationEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/LocalizationManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_057",
+      "section": 57,
+      "title": "Input, Gesture, Focus",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/ui/LogicGraphView.java",
+        "app/src/main/java/com/toolbox/tools/ui/UiCanvasView.java",
+        "app/src/main/java/com/toolbox/tools/product/VisualLayoutEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/StateVariantEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/AnimationEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/LocalizationManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_058",
+      "section": 58,
+      "title": "Safe Area & Insets",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/ui/LogicGraphView.java",
+        "app/src/main/java/com/toolbox/tools/ui/UiCanvasView.java",
+        "app/src/main/java/com/toolbox/tools/product/VisualLayoutEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/StateVariantEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/AnimationEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/LocalizationManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_059",
+      "section": 59,
+      "title": "Zoom / Pan & Coordinate Space",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/ui/LogicGraphView.java",
+        "app/src/main/java/com/toolbox/tools/ui/UiCanvasView.java",
+        "app/src/main/java/com/toolbox/tools/product/VisualLayoutEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/StateVariantEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/AnimationEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/LocalizationManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_060",
+      "section": 60,
+      "title": "Accessibility & Semantic Contract",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/ui/LogicGraphView.java",
+        "app/src/main/java/com/toolbox/tools/ui/UiCanvasView.java",
+        "app/src/main/java/com/toolbox/tools/product/VisualLayoutEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/StateVariantEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/AnimationEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/LocalizationManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_061",
+      "section": 61,
+      "title": "Text & Localization",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/ui/LogicGraphView.java",
+        "app/src/main/java/com/toolbox/tools/ui/UiCanvasView.java",
+        "app/src/main/java/com/toolbox/tools/product/VisualLayoutEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/StateVariantEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/AnimationEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/LocalizationManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_062",
+      "section": 62,
+      "title": "Conditional Properties",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/ui/LogicGraphView.java",
+        "app/src/main/java/com/toolbox/tools/ui/UiCanvasView.java",
+        "app/src/main/java/com/toolbox/tools/product/VisualLayoutEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/StateVariantEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/AnimationEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/LocalizationManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_063",
+      "section": 63,
+      "title": "Asset Identity",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinAssetCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/AssetRegistry.java",
+        "app/src/main/java/com/toolbox/tools/library/FileAssetStore.java",
+        "app/src/main/java/com/toolbox/tools/product/CacheManager.java",
+        "app/src/main/java/com/toolbox/tools/product/BackupManager.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportSecurityValidator.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportMergeManager.java",
+        "app/src/main/java/com/toolbox/tools/product/PermissionManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_064",
+      "section": 64,
+      "title": "Original vs Preview",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinAssetCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/AssetRegistry.java",
+        "app/src/main/java/com/toolbox/tools/library/FileAssetStore.java",
+        "app/src/main/java/com/toolbox/tools/product/CacheManager.java",
+        "app/src/main/java/com/toolbox/tools/product/BackupManager.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportSecurityValidator.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportMergeManager.java",
+        "app/src/main/java/com/toolbox/tools/product/PermissionManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_065",
+      "section": 65,
+      "title": "Asset Loading",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinAssetCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/AssetRegistry.java",
+        "app/src/main/java/com/toolbox/tools/library/FileAssetStore.java",
+        "app/src/main/java/com/toolbox/tools/product/CacheManager.java",
+        "app/src/main/java/com/toolbox/tools/product/BackupManager.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportSecurityValidator.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportMergeManager.java",
+        "app/src/main/java/com/toolbox/tools/product/PermissionManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_066",
+      "section": 66,
+      "title": "Unused/Missing/Duplicate Asset",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinAssetCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/AssetRegistry.java",
+        "app/src/main/java/com/toolbox/tools/library/FileAssetStore.java",
+        "app/src/main/java/com/toolbox/tools/product/CacheManager.java",
+        "app/src/main/java/com/toolbox/tools/product/BackupManager.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportSecurityValidator.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportMergeManager.java",
+        "app/src/main/java/com/toolbox/tools/product/PermissionManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_067",
+      "section": 67,
+      "title": "Cache Manager",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinAssetCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/AssetRegistry.java",
+        "app/src/main/java/com/toolbox/tools/library/FileAssetStore.java",
+        "app/src/main/java/com/toolbox/tools/product/CacheManager.java",
+        "app/src/main/java/com/toolbox/tools/product/BackupManager.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportSecurityValidator.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportMergeManager.java",
+        "app/src/main/java/com/toolbox/tools/product/PermissionManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_068",
+      "section": 68,
+      "title": "Manual Cache Cleanup",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinAssetCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/AssetRegistry.java",
+        "app/src/main/java/com/toolbox/tools/library/FileAssetStore.java",
+        "app/src/main/java/com/toolbox/tools/product/CacheManager.java",
+        "app/src/main/java/com/toolbox/tools/product/BackupManager.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportSecurityValidator.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportMergeManager.java",
+        "app/src/main/java/com/toolbox/tools/product/PermissionManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_069",
+      "section": 69,
+      "title": "Recovery",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinAssetCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/AssetRegistry.java",
+        "app/src/main/java/com/toolbox/tools/library/FileAssetStore.java",
+        "app/src/main/java/com/toolbox/tools/product/CacheManager.java",
+        "app/src/main/java/com/toolbox/tools/product/BackupManager.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportSecurityValidator.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportMergeManager.java",
+        "app/src/main/java/com/toolbox/tools/product/PermissionManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_070",
+      "section": 70,
+      "title": "Incremental Snapshot & Previous Valid",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinAssetCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/AssetRegistry.java",
+        "app/src/main/java/com/toolbox/tools/library/FileAssetStore.java",
+        "app/src/main/java/com/toolbox/tools/product/CacheManager.java",
+        "app/src/main/java/com/toolbox/tools/product/BackupManager.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportSecurityValidator.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportMergeManager.java",
+        "app/src/main/java/com/toolbox/tools/product/PermissionManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_071",
+      "section": 71,
+      "title": "Recovery Storage List",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinAssetCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/AssetRegistry.java",
+        "app/src/main/java/com/toolbox/tools/library/FileAssetStore.java",
+        "app/src/main/java/com/toolbox/tools/product/CacheManager.java",
+        "app/src/main/java/com/toolbox/tools/product/BackupManager.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportSecurityValidator.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportMergeManager.java",
+        "app/src/main/java/com/toolbox/tools/product/PermissionManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_072",
+      "section": 72,
+      "title": "Backup",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinAssetCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/AssetRegistry.java",
+        "app/src/main/java/com/toolbox/tools/library/FileAssetStore.java",
+        "app/src/main/java/com/toolbox/tools/product/CacheManager.java",
+        "app/src/main/java/com/toolbox/tools/product/BackupManager.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportSecurityValidator.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportMergeManager.java",
+        "app/src/main/java/com/toolbox/tools/product/PermissionManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_073",
+      "section": 73,
+      "title": "SAF & User-Owned Storage",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinAssetCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/AssetRegistry.java",
+        "app/src/main/java/com/toolbox/tools/library/FileAssetStore.java",
+        "app/src/main/java/com/toolbox/tools/product/CacheManager.java",
+        "app/src/main/java/com/toolbox/tools/product/BackupManager.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportSecurityValidator.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportMergeManager.java",
+        "app/src/main/java/com/toolbox/tools/product/PermissionManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_074",
+      "section": 74,
+      "title": "Access-Loss & Re-linking",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinAssetCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/AssetRegistry.java",
+        "app/src/main/java/com/toolbox/tools/library/FileAssetStore.java",
+        "app/src/main/java/com/toolbox/tools/product/CacheManager.java",
+        "app/src/main/java/com/toolbox/tools/product/BackupManager.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportSecurityValidator.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportMergeManager.java",
+        "app/src/main/java/com/toolbox/tools/product/PermissionManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_075",
+      "section": 75,
+      "title": "Security Boundary Project Store",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinAssetCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/AssetRegistry.java",
+        "app/src/main/java/com/toolbox/tools/library/FileAssetStore.java",
+        "app/src/main/java/com/toolbox/tools/product/CacheManager.java",
+        "app/src/main/java/com/toolbox/tools/product/BackupManager.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportSecurityValidator.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportMergeManager.java",
+        "app/src/main/java/com/toolbox/tools/product/PermissionManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_076",
+      "section": 76,
+      "title": "Secret Separation",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinAssetCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/AssetRegistry.java",
+        "app/src/main/java/com/toolbox/tools/library/FileAssetStore.java",
+        "app/src/main/java/com/toolbox/tools/product/CacheManager.java",
+        "app/src/main/java/com/toolbox/tools/product/BackupManager.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportSecurityValidator.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportMergeManager.java",
+        "app/src/main/java/com/toolbox/tools/product/PermissionManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_077",
+      "section": 77,
+      "title": "Import Security",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinAssetCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/AssetRegistry.java",
+        "app/src/main/java/com/toolbox/tools/library/FileAssetStore.java",
+        "app/src/main/java/com/toolbox/tools/product/CacheManager.java",
+        "app/src/main/java/com/toolbox/tools/product/BackupManager.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportSecurityValidator.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportMergeManager.java",
+        "app/src/main/java/com/toolbox/tools/product/PermissionManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_078",
+      "section": 78,
+      "title": "Import vs Merge",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinAssetCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/AssetRegistry.java",
+        "app/src/main/java/com/toolbox/tools/library/FileAssetStore.java",
+        "app/src/main/java/com/toolbox/tools/product/CacheManager.java",
+        "app/src/main/java/com/toolbox/tools/product/BackupManager.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportSecurityValidator.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportMergeManager.java",
+        "app/src/main/java/com/toolbox/tools/product/PermissionManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_079",
+      "section": 79,
+      "title": "Export Contract",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinAssetCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/AssetRegistry.java",
+        "app/src/main/java/com/toolbox/tools/library/FileAssetStore.java",
+        "app/src/main/java/com/toolbox/tools/product/CacheManager.java",
+        "app/src/main/java/com/toolbox/tools/product/BackupManager.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportSecurityValidator.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportMergeManager.java",
+        "app/src/main/java/com/toolbox/tools/product/PermissionManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_080",
+      "section": 80,
+      "title": "Permission Contract",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/library/BuiltinAssetCatalog.java",
+        "app/src/main/java/com/toolbox/tools/library/AssetRegistry.java",
+        "app/src/main/java/com/toolbox/tools/library/FileAssetStore.java",
+        "app/src/main/java/com/toolbox/tools/product/CacheManager.java",
+        "app/src/main/java/com/toolbox/tools/product/BackupManager.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportSecurityValidator.java",
+        "app/src/main/java/com/toolbox/tools/product/ImportMergeManager.java",
+        "app/src/main/java/com/toolbox/tools/product/PermissionManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_081",
+      "section": 81,
+      "title": "App & Screen Lifecycle",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/AppLifecycleManager.java",
+        "app/src/main/java/com/toolbox/tools/product/BackgroundTaskManager.java",
+        "app/src/main/java/com/toolbox/tools/product/PreviewSandbox.java",
+        "app/src/main/java/com/toolbox/tools/product/ClipboardService.java",
+        "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
+        "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_082",
+      "section": 82,
+      "title": "Background Task Contract",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/AppLifecycleManager.java",
+        "app/src/main/java/com/toolbox/tools/product/BackgroundTaskManager.java",
+        "app/src/main/java/com/toolbox/tools/product/PreviewSandbox.java",
+        "app/src/main/java/com/toolbox/tools/product/ClipboardService.java",
+        "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
+        "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_083",
+      "section": 83,
+      "title": "Safety Boundary Live Preview",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/AppLifecycleManager.java",
+        "app/src/main/java/com/toolbox/tools/product/BackgroundTaskManager.java",
+        "app/src/main/java/com/toolbox/tools/product/PreviewSandbox.java",
+        "app/src/main/java/com/toolbox/tools/product/ClipboardService.java",
+        "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
+        "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_084",
+      "section": 84,
+      "title": "Preview Data Sandbox",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/AppLifecycleManager.java",
+        "app/src/main/java/com/toolbox/tools/product/BackgroundTaskManager.java",
+        "app/src/main/java/com/toolbox/tools/product/PreviewSandbox.java",
+        "app/src/main/java/com/toolbox/tools/product/ClipboardService.java",
+        "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
+        "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_085",
+      "section": 85,
+      "title": "Editor Context State",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/AppLifecycleManager.java",
+        "app/src/main/java/com/toolbox/tools/product/BackgroundTaskManager.java",
+        "app/src/main/java/com/toolbox/tools/product/PreviewSandbox.java",
+        "app/src/main/java/com/toolbox/tools/product/ClipboardService.java",
+        "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
+        "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_086",
+      "section": 86,
+      "title": "Editor Metadata vs Runtime Data",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/AppLifecycleManager.java",
+        "app/src/main/java/com/toolbox/tools/product/BackgroundTaskManager.java",
+        "app/src/main/java/com/toolbox/tools/product/PreviewSandbox.java",
+        "app/src/main/java/com/toolbox/tools/product/ClipboardService.java",
+        "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
+        "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_087",
+      "section": 87,
+      "title": "Copy/Paste Clipboard",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/AppLifecycleManager.java",
+        "app/src/main/java/com/toolbox/tools/product/BackgroundTaskManager.java",
+        "app/src/main/java/com/toolbox/tools/product/PreviewSandbox.java",
+        "app/src/main/java/com/toolbox/tools/product/ClipboardService.java",
+        "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
+        "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_088",
+      "section": 88,
+      "title": "Diagnostics",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/AppLifecycleManager.java",
+        "app/src/main/java/com/toolbox/tools/product/BackgroundTaskManager.java",
+        "app/src/main/java/com/toolbox/tools/product/PreviewSandbox.java",
+        "app/src/main/java/com/toolbox/tools/product/ClipboardService.java",
+        "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
+        "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_089",
+      "section": 89,
+      "title": "Detect → Suggest → Fix",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/AppLifecycleManager.java",
+        "app/src/main/java/com/toolbox/tools/product/BackgroundTaskManager.java",
+        "app/src/main/java/com/toolbox/tools/product/PreviewSandbox.java",
+        "app/src/main/java/com/toolbox/tools/product/ClipboardService.java",
+        "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
+        "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_090",
+      "section": 90,
+      "title": "Incremental Validation",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/AppLifecycleManager.java",
+        "app/src/main/java/com/toolbox/tools/product/BackgroundTaskManager.java",
+        "app/src/main/java/com/toolbox/tools/product/PreviewSandbox.java",
+        "app/src/main/java/com/toolbox/tools/product/ClipboardService.java",
+        "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
+        "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_091",
+      "section": 91,
+      "title": "Build Contract Validator",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/build/BuildValidator.java",
+        "app/src/main/java/com/toolbox/tools/build/ApplicationIr.java",
+        "app/src/main/java/com/toolbox/tools/build/CandidateIdentityFactory.java",
+        "app/src/main/java/com/toolbox/tools/engine/ProductEngineSuite.java",
+        "app/src/main/java/com/toolbox/tools/core/EngineManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_092",
+      "section": 92,
+      "title": "Canonical Build Model / IR",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/build/BuildValidator.java",
+        "app/src/main/java/com/toolbox/tools/build/ApplicationIr.java",
+        "app/src/main/java/com/toolbox/tools/build/CandidateIdentityFactory.java",
+        "app/src/main/java/com/toolbox/tools/engine/ProductEngineSuite.java",
+        "app/src/main/java/com/toolbox/tools/core/EngineManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_093",
+      "section": 93,
+      "title": "Build Package",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/build/BuildValidator.java",
+        "app/src/main/java/com/toolbox/tools/build/ApplicationIr.java",
+        "app/src/main/java/com/toolbox/tools/build/CandidateIdentityFactory.java",
+        "app/src/main/java/com/toolbox/tools/engine/ProductEngineSuite.java",
+        "app/src/main/java/com/toolbox/tools/core/EngineManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_094",
+      "section": 94,
+      "title": "Build Handoff — Repository Terkini",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/build/BuildValidator.java",
+        "app/src/main/java/com/toolbox/tools/build/ApplicationIr.java",
+        "app/src/main/java/com/toolbox/tools/build/CandidateIdentityFactory.java",
+        "app/src/main/java/com/toolbox/tools/engine/ProductEngineSuite.java",
+        "app/src/main/java/com/toolbox/tools/core/EngineManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_095",
+      "section": 95,
+      "title": "Signing",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/build/BuildValidator.java",
+        "app/src/main/java/com/toolbox/tools/build/ApplicationIr.java",
+        "app/src/main/java/com/toolbox/tools/build/CandidateIdentityFactory.java",
+        "app/src/main/java/com/toolbox/tools/engine/ProductEngineSuite.java",
+        "app/src/main/java/com/toolbox/tools/core/EngineManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_096",
+      "section": 96,
+      "title": "Build Artifact Traceability",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/build/BuildValidator.java",
+        "app/src/main/java/com/toolbox/tools/build/ApplicationIr.java",
+        "app/src/main/java/com/toolbox/tools/build/CandidateIdentityFactory.java",
+        "app/src/main/java/com/toolbox/tools/engine/ProductEngineSuite.java",
+        "app/src/main/java/com/toolbox/tools/core/EngineManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_097",
+      "section": 97,
+      "title": "Tool / Engine Extension Contract",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/build/BuildValidator.java",
+        "app/src/main/java/com/toolbox/tools/build/ApplicationIr.java",
+        "app/src/main/java/com/toolbox/tools/build/CandidateIdentityFactory.java",
+        "app/src/main/java/com/toolbox/tools/engine/ProductEngineSuite.java",
+        "app/src/main/java/com/toolbox/tools/core/EngineManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_098",
+      "section": 98,
+      "title": "No Direct Inter-Tool Dependency",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/build/BuildValidator.java",
+        "app/src/main/java/com/toolbox/tools/build/ApplicationIr.java",
+        "app/src/main/java/com/toolbox/tools/build/CandidateIdentityFactory.java",
+        "app/src/main/java/com/toolbox/tools/engine/ProductEngineSuite.java",
+        "app/src/main/java/com/toolbox/tools/core/EngineManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_099",
+      "section": 99,
+      "title": "Mandatory Lifecycle Compliance",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/build/BuildValidator.java",
+        "app/src/main/java/com/toolbox/tools/build/ApplicationIr.java",
+        "app/src/main/java/com/toolbox/tools/build/CandidateIdentityFactory.java",
+        "app/src/main/java/com/toolbox/tools/engine/ProductEngineSuite.java",
+        "app/src/main/java/com/toolbox/tools/core/EngineManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_100",
+      "section": 100,
+      "title": "Failure Isolation",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/build/BuildValidator.java",
+        "app/src/main/java/com/toolbox/tools/build/ApplicationIr.java",
+        "app/src/main/java/com/toolbox/tools/build/CandidateIdentityFactory.java",
+        "app/src/main/java/com/toolbox/tools/engine/ProductEngineSuite.java",
+        "app/src/main/java/com/toolbox/tools/core/EngineManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_101",
+      "section": 101,
+      "title": "Executable Runtime Boundary",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/build/BuildValidator.java",
+        "app/src/main/java/com/toolbox/tools/build/ApplicationIr.java",
+        "app/src/main/java/com/toolbox/tools/build/CandidateIdentityFactory.java",
+        "app/src/main/java/com/toolbox/tools/engine/ProductEngineSuite.java",
+        "app/src/main/java/com/toolbox/tools/core/EngineManager.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_102",
+      "section": 102,
+      "title": "Installed Target / Edit Bridge — Override Terkini",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/live/LiveSessionManager.java",
+        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java",
+        "app/src/main/java/com/toolbox/tools/product/EvolutionManager.java",
+        "app/src/main/java/com/toolbox/tools/delivery/SafePatchManager.java",
+        "app/src/main/java/com/toolbox/tools/product/FreezeEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/SafeModeController.java",
+        "app/src/main/java/com/toolbox/tools/repair/HealthMonitor.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_103",
+      "section": 103,
+      "title": "Declarative Update Package",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/live/LiveSessionManager.java",
+        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java",
+        "app/src/main/java/com/toolbox/tools/product/EvolutionManager.java",
+        "app/src/main/java/com/toolbox/tools/delivery/SafePatchManager.java",
+        "app/src/main/java/com/toolbox/tools/product/FreezeEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/SafeModeController.java",
+        "app/src/main/java/com/toolbox/tools/repair/HealthMonitor.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_104",
+      "section": 104,
+      "title": "Update Apply Pipeline",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/live/LiveSessionManager.java",
+        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java",
+        "app/src/main/java/com/toolbox/tools/product/EvolutionManager.java",
+        "app/src/main/java/com/toolbox/tools/delivery/SafePatchManager.java",
+        "app/src/main/java/com/toolbox/tools/product/FreezeEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/SafeModeController.java",
+        "app/src/main/java/com/toolbox/tools/repair/HealthMonitor.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_105",
+      "section": 105,
+      "title": "Freeze Engine",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/live/LiveSessionManager.java",
+        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java",
+        "app/src/main/java/com/toolbox/tools/product/EvolutionManager.java",
+        "app/src/main/java/com/toolbox/tools/delivery/SafePatchManager.java",
+        "app/src/main/java/com/toolbox/tools/product/FreezeEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/SafeModeController.java",
+        "app/src/main/java/com/toolbox/tools/repair/HealthMonitor.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_106",
+      "section": 106,
+      "title": "Freeze State Machine",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/live/LiveSessionManager.java",
+        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java",
+        "app/src/main/java/com/toolbox/tools/product/EvolutionManager.java",
+        "app/src/main/java/com/toolbox/tools/delivery/SafePatchManager.java",
+        "app/src/main/java/com/toolbox/tools/product/FreezeEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/SafeModeController.java",
+        "app/src/main/java/com/toolbox/tools/repair/HealthMonitor.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_107",
+      "section": 107,
+      "title": "Safe Mode / Safe UI",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/live/LiveSessionManager.java",
+        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java",
+        "app/src/main/java/com/toolbox/tools/product/EvolutionManager.java",
+        "app/src/main/java/com/toolbox/tools/delivery/SafePatchManager.java",
+        "app/src/main/java/com/toolbox/tools/product/FreezeEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/SafeModeController.java",
+        "app/src/main/java/com/toolbox/tools/repair/HealthMonitor.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_108",
+      "section": 108,
+      "title": "Health Check",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/live/LiveSessionManager.java",
+        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java",
+        "app/src/main/java/com/toolbox/tools/product/EvolutionManager.java",
+        "app/src/main/java/com/toolbox/tools/delivery/SafePatchManager.java",
+        "app/src/main/java/com/toolbox/tools/product/FreezeEngine.java",
+        "app/src/main/java/com/toolbox/tools/product/SafeModeController.java",
+        "app/src/main/java/com/toolbox/tools/repair/HealthMonitor.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_109",
+      "section": 109,
+      "title": "Memory Architecture",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/ResourceGuard.java",
+        "app/src/main/java/com/toolbox/tools/product/ScaleBenchmarkHarness.java",
+        "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
+        "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java",
+        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md"
+      ]
+    },
+    {
+      "id": "RANCANGAN_110",
+      "section": 110,
+      "title": "Per-Screen Memory Budget",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/ResourceGuard.java",
+        "app/src/main/java/com/toolbox/tools/product/ScaleBenchmarkHarness.java",
+        "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
+        "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java",
+        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md"
+      ]
+    },
+    {
+      "id": "RANCANGAN_111",
+      "section": 111,
+      "title": "Overdraw & Rendering Cost",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/ResourceGuard.java",
+        "app/src/main/java/com/toolbox/tools/product/ScaleBenchmarkHarness.java",
+        "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
+        "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java",
+        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md"
+      ]
+    },
+    {
+      "id": "RANCANGAN_112",
+      "section": 112,
+      "title": "Memory Leak Discipline",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/ResourceGuard.java",
+        "app/src/main/java/com/toolbox/tools/product/ScaleBenchmarkHarness.java",
+        "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
+        "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java",
+        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md"
+      ]
+    },
+    {
+      "id": "RANCANGAN_113",
+      "section": 113,
+      "title": "Test & Benchmark Contract",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/ResourceGuard.java",
+        "app/src/main/java/com/toolbox/tools/product/ScaleBenchmarkHarness.java",
+        "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
+        "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java",
+        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md"
+      ]
+    },
+    {
+      "id": "RANCANGAN_114",
+      "section": 114,
+      "title": "Soak Test",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/ResourceGuard.java",
+        "app/src/main/java/com/toolbox/tools/product/ScaleBenchmarkHarness.java",
+        "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
+        "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java",
+        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md"
+      ]
+    },
+    {
+      "id": "RANCANGAN_115",
+      "section": 115,
+      "title": "Crash/Transaction Test",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/ResourceGuard.java",
+        "app/src/main/java/com/toolbox/tools/product/ScaleBenchmarkHarness.java",
+        "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
+        "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java",
+        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md"
+      ]
+    },
+    {
+      "id": "RANCANGAN_116",
+      "section": 116,
+      "title": "Scale Classes",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/ResourceGuard.java",
+        "app/src/main/java/com/toolbox/tools/product/ScaleBenchmarkHarness.java",
+        "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
+        "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java",
+        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md"
+      ]
+    },
+    {
+      "id": "RANCANGAN_117",
+      "section": 117,
+      "title": "External File Integrity",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/ResourceGuard.java",
+        "app/src/main/java/com/toolbox/tools/product/ScaleBenchmarkHarness.java",
+        "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
+        "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java",
+        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md"
+      ]
+    },
+    {
+      "id": "RANCANGAN_118",
+      "section": 118,
+      "title": "Build-Time Dependency Determinism",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/ResourceGuard.java",
+        "app/src/main/java/com/toolbox/tools/product/ScaleBenchmarkHarness.java",
+        "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
+        "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java",
+        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md"
+      ]
+    },
+    {
+      "id": "RANCANGAN_119",
+      "section": 119,
+      "title": "Audit Agent Integration",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/ResourceGuard.java",
+        "app/src/main/java/com/toolbox/tools/product/ScaleBenchmarkHarness.java",
+        "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
+        "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java",
+        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md"
+      ]
+    },
+    {
+      "id": "RANCANGAN_120",
+      "section": 120,
+      "title": "Automatic Repair Policy",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/ResourceGuard.java",
+        "app/src/main/java/com/toolbox/tools/product/ScaleBenchmarkHarness.java",
+        "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
+        "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java",
+        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md"
+      ]
+    },
+    {
+      "id": "RANCANGAN_121",
+      "section": 121,
+      "title": "Diagnostic Codes Bersama",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/ResourceGuard.java",
+        "app/src/main/java/com/toolbox/tools/product/ScaleBenchmarkHarness.java",
+        "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
+        "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java",
+        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md"
+      ]
+    },
+    {
+      "id": "RANCANGAN_122",
+      "section": 122,
+      "title": "Prioritas Source of Truth",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/FullProductVerifier.java",
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_123",
+      "section": 123,
+      "title": "Invariant Utama",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/FullProductVerifier.java",
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_124",
+      "section": 124,
+      "title": "Alur Kerja Project dari Awal sampai APK",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/FullProductVerifier.java",
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_125",
+      "section": 125,
+      "title": "Alur UI Editor — Terkini",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/FullProductVerifier.java",
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_126",
+      "section": 126,
+      "title": "Alur Asset ke Object",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/FullProductVerifier.java",
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_127",
+      "section": 127,
+      "title": "Alur Binding",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/FullProductVerifier.java",
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_128",
+      "section": 128,
+      "title": "Alur Logic",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/FullProductVerifier.java",
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_129",
+      "section": 129,
+      "title": "Alur Repair / Evolution",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/FullProductVerifier.java",
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_130",
+      "section": 130,
+      "title": "Alur Freeze",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/FullProductVerifier.java",
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_131",
+      "section": 131,
+      "title": "Arsitektur RAM Ringkas",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/FullProductVerifier.java",
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_132",
+      "section": 132,
+      "title": "Arsitektur Penyimpanan Ringkas",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/FullProductVerifier.java",
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_133",
+      "section": 133,
+      "title": "Batas Antara Rancangan dan Implementasi",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/FullProductVerifier.java",
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_134",
+      "section": 134,
+      "title": "Bentuk Teknis ToolBox Saat Matang",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/FullProductVerifier.java",
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java"
+      ]
+    },
+    {
+      "id": "RANCANGAN_135",
+      "section": 135,
+      "title": "Kesimpulan Arsitektur",
+      "required": true,
+      "status": "IMPLEMENTED_AND_MUST_PASS",
+      "evidenceFiles": [
+        "app/src/main/java/com/toolbox/tools/product/FullProductVerifier.java",
+        "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
+        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java"
+      ]
+    }
+  ]
+}
