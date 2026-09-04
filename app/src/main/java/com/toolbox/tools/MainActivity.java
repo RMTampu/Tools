@@ -14,6 +14,8 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import com.toolbox.tools.authoring.AuthoringSearchResult;
+import com.toolbox.tools.authoring.AuthoringSection;
 import com.toolbox.tools.core.AppKernel;
 import com.toolbox.tools.core.VerificationManager;
 import com.toolbox.tools.editor.EditorFunction;
@@ -31,6 +33,8 @@ public final class MainActivity extends Activity {
     private LinearLayout floatingEditor;
     private TextView canvasObject;
     private TextView bubble;
+    private LinearLayout authoringBar;
+    private TextView authoringStatus;
     private float downRawX;
     private float downRawY;
     private float startX;
@@ -52,7 +56,7 @@ public final class MainActivity extends Activity {
         root.setBackgroundColor(Color.rgb(8, 12, 18));
 
         TextView header = label(
-                "ToolBox Tahap 5\nVisual Editor • Bubble • Edge Panel • Floating Editor\n" + status,
+                "ToolBox Tahap 6\nUI • Logic • Data • Binding • Asset\nAuthoring • Search • Template\n" + status,
                 18f
         );
         header.setGravity(Gravity.CENTER);
@@ -146,6 +150,49 @@ public final class MainActivity extends Activity {
         bubbleParams.topMargin = dp(100);
         root.addView(bubble, bubbleParams);
         bubble.setOnTouchListener(this::onBubbleTouch);
+
+        authoringBar = new LinearLayout(this);
+        authoringBar.setOrientation(LinearLayout.VERTICAL);
+        authoringBar.setPadding(dp(10), dp(8), dp(10), dp(8));
+        authoringBar.setBackground(rounded(
+                Color.rgb(12, 20, 28),
+                Color.rgb(90, 170, 255),
+                12
+        ));
+
+        LinearLayout sectionRow = new LinearLayout(this);
+        sectionRow.setOrientation(LinearLayout.HORIZONTAL);
+        addAuthoringSection(sectionRow, "UI", AuthoringSection.UI);
+        addAuthoringSection(sectionRow, "Logic", AuthoringSection.LOGIC);
+        addAuthoringSection(sectionRow, "Data", AuthoringSection.DATA);
+        addAuthoringSection(sectionRow, "Binding", AuthoringSection.BINDING);
+        addAuthoringSection(sectionRow, "Asset", AuthoringSection.ASSET);
+        authoringBar.addView(sectionRow);
+
+        LinearLayout actionRow = new LinearLayout(this);
+        actionRow.setOrientation(LinearLayout.HORIZONTAL);
+        TextView search = label("Cari Tombol", 13f);
+        search.setOnClickListener(v -> renderAuthoringSearch("Tombol"));
+        actionRow.addView(search);
+        TextView template = label("Cari Template", 13f);
+        template.setOnClickListener(v -> renderAuthoringSearch("template.screen.basic"));
+        actionRow.addView(template);
+        authoringBar.addView(actionRow);
+
+        authoringStatus = label("Authoring: UI • siap", 13f);
+        authoringStatus.setTextColor(Color.rgb(180, 220, 255));
+        authoringBar.addView(authoringStatus);
+
+        FrameLayout.LayoutParams authoringParams =
+                new FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT
+                );
+        authoringParams.gravity = Gravity.BOTTOM;
+        authoringParams.leftMargin = dp(8);
+        authoringParams.rightMargin = dp(8);
+        authoringParams.bottomMargin = dp(8);
+        root.addView(authoringBar, authoringParams);
 
         setContentView(root);
         root.post(this::restoreBubblePosition);
@@ -264,6 +311,39 @@ public final class MainActivity extends Activity {
         floatingEditor.setX(point.x());
         floatingEditor.setY(point.y());
         floatingEditor.setVisibility(View.VISIBLE);
+    }
+
+    private void addAuthoringSection(
+            LinearLayout row,
+            String labelIndonesia,
+            AuthoringSection section
+    ) {
+        TextView item = label(labelIndonesia, 13f);
+        item.setOnClickListener(v -> {
+            kernel.authoringWorkspace().activate(section);
+            authoringStatus.setText(
+                    "Authoring: " + labelIndonesia + " • siap"
+            );
+            edgePanel.setVisibility(View.GONE);
+            edgeScroll.setVisibility(View.GONE);
+        });
+        row.addView(item);
+    }
+
+    private void renderAuthoringSearch(String query) {
+        java.util.List<AuthoringSearchResult> results =
+                kernel.authoringWorkspace().searchAll(query, 12);
+        StringBuilder text = new StringBuilder();
+        text.append("Cari: ").append(query).append(" • ")
+                .append(results.size()).append(" hasil");
+        if (!results.isEmpty()) {
+            AuthoringSearchResult first = results.get(0);
+            text.append("\n")
+                    .append(first.kind().name())
+                    .append(" • ")
+                    .append(first.stableId());
+        }
+        authoringStatus.setText(text.toString());
     }
 
     private void persistBubblePosition(View view) {
