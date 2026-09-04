@@ -1,13 +1,13 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "projectId": "ToolBox",
-  "stage": "Tahap 9",
-  "stageMap": "I",
+  "stage": "Tahap 10",
+  "stageMap": "J",
   "parentBaseline": {
-    "name": "Tahap 8",
-    "apkSha256": "1be38ee81c02ffc02882f883fdaa61caff6a9d462a5fcfdc6a8f520f06ee373a",
-    "publicR1R9RunId": "33855807724",
-    "privateFinalRuntimePassed": true
+    "name": "Tahap 9",
+    "apkSha256": "8f6f504c8f289926ad88550ab2686b801efc3ac12536c9e57f807b208461a116",
+    "publicR1R9RunId": "33866101946",
+    "privateSigned": true
   },
   "target": {
     "androidApi": 30,
@@ -21,11 +21,11 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R1_LOGIC_INPUT.md",
       "methods": [
-        "stable target/session/change identity",
-        "capability scan fail-closed",
-        "runtime capability gate",
-        "self-edit declarative gate",
-        "stale revision conflict"
+        "READY lifecycle gate",
+        "build validator fail-closed",
+        "candidate identity binds exact inputs",
+        "stable deterministic IR",
+        "invalid lifecycle transition blocked"
       ],
       "proof": "unit + route gate + mutation"
     },
@@ -33,11 +33,10 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R2_CONCURRENCY_RESOURCE.md",
       "methods": [
-        "live changes <=64",
-        "live history <=32",
-        "immutable compare snapshot",
-        "one live self target session state",
-        "bounded target capability map"
+        "IR canonical bytes <=2MiB",
+        "immutable IR/candidate records",
+        "no shared-state mutation during preview/build",
+        "bounded project/library inputs inherited"
       ],
       "proof": "unit + source contract"
     },
@@ -45,10 +44,10 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R3_LIFECYCLE_STATE_RECOVERY.md",
       "methods": [
-        "CLOSED/OPEN/DIRTY/APPLIED/CONFLICT/FAILED_SAFE lifecycle",
-        "TERAPKAN only from dirty",
-        "no-change apply idempotent",
-        "repair verify/rollback reused"
+        "final recovery snapshot before READY",
+        "READY revisioned transition",
+        "dirty/live/repair unsafe states block READY",
+        "READY preview read-only"
       ],
       "proof": "unit + runtime"
     },
@@ -56,10 +55,11 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R4_PERSISTENCE_STORAGE_VERSION.md",
       "methods": [
-        "base revision binding",
-        "compare checksum SHA-256",
-        "TERAPKAN commits through Tahap8 repair pipeline",
-        "baseline Tahap8 immutable"
+        "IR version 1",
+        "resource SHA-256 projection",
+        "candidate SHA-256 provenance",
+        "parent signed Tahap9 immutable",
+        "READY saved revision"
       ],
       "proof": "unit + baseline binding"
     },
@@ -67,11 +67,10 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R5_SECURITY_NETWORK_BOUNDARY.md",
       "methods": [
-        "edit door least authority",
-        "no door downgrades writable capability",
-        "self-edit protects kernel/recovery/safety/security",
-        "no sandbox/signature bypass",
-        "no public secrets"
+        "IR never executes resource payload",
+        "public source contains no signing secret",
+        "candidate identity binds parent APK and unsigned APK",
+        "no Firebase in Tahap10 chain"
       ],
       "proof": "negative tests + source scan"
     },
@@ -79,13 +78,13 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R6_BUILD_DEPENDENCY_INSTALL.md",
       "methods": [
-        "versionCode above Tahap8",
+        "versionCode 10",
         "pinned JDK/Gradle/SDK",
         "API30 metadata",
-        "APK digest",
-        "API30 capability/live/apply witness"
+        "public unsigned APK digest",
+        "private exact rebuild and signing"
       ],
-      "proof": "GitHub Actions build/package/runtime"
+      "proof": "GitHub Actions build/package/sign"
     },
     "R7": {
       "applicability": "N_A_SCOPE_PROVEN",
@@ -93,15 +92,15 @@
       "methods": [
         "native/JNI/plugin/reflection/dynamic-loader scope scan"
       ],
-      "proof": "no native/JNI/plugin/reflection/dynamic executable loader added in Tahap9"
+      "proof": "no native/JNI/plugin/reflection/dynamic executable loader added in Tahap10"
     },
     "R8": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R8_UI_DEVICE_POWER.md",
       "methods": [
-        "Capability Scan/Live/Self Edit/TERAPKAN controls",
+        "READY/Buat IR/Candidate Preview controls",
         "Indonesian status",
-        "Tahap8 repair controls regression",
+        "Tahap9 controls regression",
         "API30 UIAutomator witness"
       ],
       "proof": "unit + API30 emulator interaction"
@@ -111,8 +110,8 @@
       "sourceMethodDoc": "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md",
       "methods": [
         "R1-R8 traceability",
-        "Tahap9 mutation challenge",
-        "capability/live route proof",
+        "Tahap10 mutation challenge",
+        "candidate manifest proof",
         "ASSET_SAFE regression",
         "unknown/skipped closure"
       ],
