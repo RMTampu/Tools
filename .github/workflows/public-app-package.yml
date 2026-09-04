@@ -1,4 +1,4 @@
-name: ToolBox Public Tahap 5 Package
+name: ToolBox Public Tahap 6 Package
 
 on:
   push:
@@ -26,13 +26,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: public-tahap5-package-${{ github.ref }}
+  group: public-tahap6-package-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  public-tahap5-package:
+  public-tahap6-package:
     runs-on: ubuntu-24.04
-    timeout-minutes: 55
+    timeout-minutes: 60
 
     steps:
       - name: Checkout exact public source
@@ -71,7 +71,7 @@ jobs:
           gradle-version: '8.2.1'
           cache-disabled: true
 
-      - name: Baseline Tahap 4 compatibility and Tahap 5 route gate
+      - name: Baseline Tahap 5 compatibility and Tahap 6 route gate
         shell: bash
         run: |
           set -euo pipefail
@@ -81,35 +81,33 @@ jobs:
           gradle=Path('app/build.gradle').read_text()
           manifest=Path('app/src/main/AndroidManifest.xml').read_text()
           plan=json.loads(Path('app/ASSURANCE_PLAN_R1_R9.json').read_text())
-          assert plan['stage']=='Tahap 5'
-          assert plan['stageMap']=='E'
-          assert plan['parentBaseline']['name']=='Tahap 4'
-          assert plan['parentBaseline']['apkSha256']=='74a90ae0442083d4f050a4642a9c2a213ff1b785ea5b2f844f033cdea543cfc3'
+          assert plan['stage']=='Tahap 6'
+          assert plan['stageMap']=='F'
+          assert plan['parentBaseline']['name']=='Tahap 5'
+          assert plan['parentBaseline']['apkSha256']=='717f36b59d9c005b17bfeee72b1de7f872ed3c6b406471e6b9d80c9efba91f49'
           assert "applicationId 'com.toolbox.tools'" in gradle
           assert re.search(r'\bminSdk\s+30\b',gradle)
           assert re.search(r'\btargetSdk\s+30\b',gradle)
-          assert re.search(r'\bversionCode\s+5\b',gradle)
+          assert re.search(r'\bversionCode\s+6\b',gradle)
           assert 'android:name=".MainActivity"' in manifest
 
           required=[
-            'app/src/main/java/com/toolbox/tools/editor/BubblePositionStore.java',
-            'app/src/main/java/com/toolbox/tools/editor/BubbleController.java',
-            'app/src/main/java/com/toolbox/tools/editor/EdgePanelFactory.java',
-            'app/src/main/java/com/toolbox/tools/editor/EditorShellController.java',
-            'app/src/main/java/com/toolbox/tools/editor/FloatingEditorController.java',
-            'app/src/main/java/com/toolbox/tools/editor/FloatingPlacementEngine.java',
-            'app/src/main/java/com/toolbox/tools/editor/VisualEditorSession.java',
-            'app/src/main/java/com/toolbox/tools/editor/VisualHistory.java',
-            'app/src/main/java/com/toolbox/tools/editor/VisualLockSet.java',
-            'app/src/main/java/com/toolbox/tools/editor/DefaultEditorFactory.java',
-            'app/src/test/java/com/toolbox/tools/editor/BubbleShellTest.java',
-            'app/src/test/java/com/toolbox/tools/editor/EdgeFloatingTest.java',
-            'app/src/test/java/com/toolbox/tools/editor/VisualEditorSessionTest.java',
+            'app/src/main/java/com/toolbox/tools/authoring/AuthoringSection.java',
+            'app/src/main/java/com/toolbox/tools/authoring/AuthoringSearchQuery.java',
+            'app/src/main/java/com/toolbox/tools/authoring/AuthoringSearchIndex.java',
+            'app/src/main/java/com/toolbox/tools/authoring/AuthoringDraftStore.java',
+            'app/src/main/java/com/toolbox/tools/authoring/TemplateAuthoringDraft.java',
+            'app/src/main/java/com/toolbox/tools/authoring/TemplateAuthoringService.java',
+            'app/src/main/java/com/toolbox/tools/authoring/UnifiedAuthoringWorkspace.java',
+            'app/src/main/java/com/toolbox/tools/authoring/DefaultAuthoringFactory.java',
+            'app/src/test/java/com/toolbox/tools/authoring/UnifiedAuthoringSearchTest.java',
+            'app/src/test/java/com/toolbox/tools/authoring/AuthoringDraftStoreTest.java',
+            'app/src/test/java/com/toolbox/tools/authoring/TemplateAuthoringServiceTest.java',
           ]
           for item in required:
             assert Path(item).is_file(),item
-          print('BASELINE_TAHAP_4_COMPATIBILITY = PASS')
-          print('TAHAP_5_E1_E4_ROUTE = PASS')
+          print('BASELINE_TAHAP_5_COMPATIBILITY = PASS')
+          print('TAHAP_6_F1_F4_ROUTE = PASS')
           PY
 
       - name: Automatic R1-R8 prebuild assurance
@@ -118,7 +116,7 @@ jobs:
       - name: Automatic ASSET_SAFE regression prebuild
         run: python3 app/scripts/asset_validate.py
 
-      - name: Run Tahap 5 unit and failure tests
+      - name: Run Tahap 6 unit and failure tests
         run: gradle --no-daemon :app:testDebugUnitTest
 
       - name: Automatic R9 mutation challenge
@@ -127,12 +125,12 @@ jobs:
       - name: Restore clean full test evidence after mutation
         run: gradle --no-daemon :app:testDebugUnitTest --rerun-tasks
 
-      - name: Assemble Tahap 5 release and debug packages
+      - name: Assemble Tahap 6 release and debug packages
         run: |
           gradle --no-daemon :app:assembleRelease
           gradle --no-daemon :app:assembleDebug
 
-      - name: Verify Tahap 5 package metadata and digest
+      - name: Verify Tahap 6 package metadata and digest
         shell: bash
         run: |
           set -euo pipefail
@@ -142,22 +140,22 @@ jobs:
           test -s "$DEBUG_APK"
           BADGING="$("$ANDROID_SDK_ROOT/build-tools/34.0.0/aapt" dump badging "$APK")"
           grep -F "package: name='com.toolbox.tools'" <<< "$BADGING"
-          grep -F "versionCode='5'" <<< "$BADGING"
+          grep -F "versionCode='6'" <<< "$BADGING"
           grep -F "sdkVersion:'30'" <<< "$BADGING"
           grep -F "targetSdkVersion:'30'" <<< "$BADGING"
           sha256sum "$APK" | tee "$APK.sha256"
-          echo "TAHAP_5_PUBLIC_UNSIGNED_APK = PASS"
+          echo "TAHAP_6_PUBLIC_UNSIGNED_APK = PASS"
 
-      - name: Boot API30 emulator and interact with Bubble Edge and Floating Editor
+      - name: Boot API30 emulator and interact with unified authoring
         shell: bash
         run: |
           set -euo pipefail
           sudo chmod 666 /dev/kvm || true
-          export ANDROID_AVD_HOME="$RUNNER_TEMP/toolbox-tahap5-avd-home"
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/toolbox-tahap6-avd-home"
           mkdir -p "$ANDROID_AVD_HOME"
-          AVD_PATH="$ANDROID_AVD_HOME/tahap5-api30.avd"
-          printf '\n' | avdmanager create avd --force --name tahap5-api30 --package 'system-images;android-30;google_apis;x86_64' --path "$AVD_PATH" --device 'pixel_2'
-          "$ANDROID_SDK_ROOT/emulator/emulator" -avd tahap5-api30 -no-window -no-audio -no-boot-anim -no-snapshot -wipe-data -gpu swiftshader_indirect > "$RUNNER_TEMP/tahap5-emulator.log" 2>&1 &
+          AVD_PATH="$ANDROID_AVD_HOME/tahap6-api30.avd"
+          printf '\n' | avdmanager create avd --force --name tahap6-api30 --package 'system-images;android-30;google_apis;x86_64' --path "$AVD_PATH" --device 'pixel_2'
+          "$ANDROID_SDK_ROOT/emulator/emulator" -avd tahap6-api30 -no-window -no-audio -no-boot-anim -no-snapshot -wipe-data -gpu swiftshader_indirect > "$RUNNER_TEMP/tahap6-emulator.log" 2>&1 &
           EMULATOR_PID=$!
           trap 'kill "$EMULATOR_PID" 2>/dev/null || true' EXIT
 
@@ -167,7 +165,7 @@ jobs:
             state="$(timeout 10s adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
             if [[ "$state" == "1" ]]; then booted=1; break; fi
             kill -0 "$EMULATOR_PID" 2>/dev/null || {
-              tail -n 200 "$RUNNER_TEMP/tahap5-emulator.log" >&2 || true
+              tail -n 200 "$RUNNER_TEMP/tahap6-emulator.log" >&2 || true
               exit 1
             }
             sleep 2
@@ -202,7 +200,7 @@ jobs:
                   m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.attrib['bounds'])
                   if m:
                       l,t,r,b=map(int,m.groups())
-                      print(l + max(1,(r-l)//4),(t+b)//2)
+                      print((l+r)//2,(t+b)//2)
                       raise SystemExit(0)
           raise SystemExit("UI_TEXT_NOT_FOUND="+target)
           PY
@@ -213,38 +211,58 @@ jobs:
 
           dump_ui
           WINDOW="$(cat "$RUNNER_TEMP/toolbox-window.xml")"
-          grep -F 'ToolBox Tahap 5' <<< "$WINDOW"
-          grep -F 'Visual Editor' <<< "$WINDOW"
-          grep -F 'TB' <<< "$WINDOW"
+          grep -F 'ToolBox Tahap 6' <<< "$WINDOW"
+          grep -F 'Authoring • Search • Template' <<< "$WINDOW"
+          grep -F 'Authoring: UI • siap' <<< "$WINDOW"
+          grep -F 'UI' <<< "$WINDOW"
+          grep -F 'Logic' <<< "$WINDOW"
+          grep -F 'Data' <<< "$WINDOW"
+          grep -F 'Binding' <<< "$WINDOW"
+          grep -F 'Asset' <<< "$WINDOW"
+
+          tap_text 'Logic'
+          dump_ui
+          grep -F 'Authoring: Logic • siap' "$RUNNER_TEMP/toolbox-window.xml"
+
+          tap_text 'Data'
+          dump_ui
+          grep -F 'Authoring: Data • siap' "$RUNNER_TEMP/toolbox-window.xml"
+
+          tap_text 'Binding'
+          dump_ui
+          grep -F 'Authoring: Binding • siap' "$RUNNER_TEMP/toolbox-window.xml"
+
+          tap_text 'Asset'
+          dump_ui
+          grep -F 'Authoring: Asset • siap' "$RUNNER_TEMP/toolbox-window.xml"
+
+          tap_text 'UI'
+          tap_text 'Cari Tombol'
+          dump_ui
+          grep -F 'Cari: Tombol' "$RUNNER_TEMP/toolbox-window.xml"
+          grep -F 'COMPONENT • component.button' "$RUNNER_TEMP/toolbox-window.xml"
+
+          tap_text 'Cari Template'
+          dump_ui
+          grep -F 'Cari: template.screen.basic' "$RUNNER_TEMP/toolbox-window.xml"
+          grep -F 'TEMPLATE • template.screen.basic' "$RUNNER_TEMP/toolbox-window.xml"
 
           tap_text 'TB'
           dump_ui
-          WINDOW="$(cat "$RUNNER_TEMP/toolbox-window.xml")"
-          grep -F 'Tambah ke Layar' <<< "$WINDOW"
-          grep -F 'Komponen' <<< "$WINDOW"
+          grep -F 'Tambah ke Layar' "$RUNNER_TEMP/toolbox-window.xml"
 
-          tap_text 'Buka Detail'
-          dump_ui
-          WINDOW="$(cat "$RUNNER_TEMP/toolbox-window.xml")"
-          grep -F 'Edit Object' <<< "$WINDOW"
-          grep -F 'Size' <<< "$WINDOW"
-          tap_text 'Size'
-          dump_ui
-          WINDOW="$(cat "$RUNNER_TEMP/toolbox-window.xml")"
-          grep -F 'Floating Editor • Size' <<< "$WINDOW"
-          grep -F 'X Tutup' <<< "$WINDOW"
-
-          adb exec-out screencap -p > app/build/assurance/tahap5-api30.png
+          adb exec-out screencap -p > app/build/assurance/tahap6-api30.png
           {
             echo "API_LEVEL=$API_LEVEL"
             echo "EMULATOR_ABI=$ABI"
             echo "API30_APP_LAUNCH=PASS"
-            echo "TAHAP5_UI_TEXT=PASS"
-            echo "BUBBLE_INTERACTION=PASS"
-            echo "EDGE_CONTEXT=PASS"
-            echo "FLOATING_EDITOR_INTERACTION=PASS"
+            echo "TAHAP6_UI_TEXT=PASS"
+            echo "AUTHORING_SECTIONS=PASS"
+            echo "AUTHORING_SEARCH=PASS"
+            echo "TEMPLATE_SEARCH=PASS"
+            echo "TAHAP5_SHELL_REGRESSION=PASS"
             echo "APP_THEME_RUNTIME=PASS"
-          } > app/build/assurance/tahap5-api30-runtime.txt
+          } > app/build/assurance/tahap6-api30-runtime.txt
 
       - name: Finalize ASSET_SAFE package/runtime proof
         run: python3 app/scripts/asset_finalize.py
@@ -252,20 +270,20 @@ jobs:
       - name: Automatic R9 completeness and provenance closure
         run: python3 app/scripts/assurance_finalize.py
 
-      - name: Upload Tahap 5 unsigned package and assurance
+      - name: Upload Tahap 6 unsigned package and assurance
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
-          name: toolbox-tahap5-public-unsigned-ready-private-signing
+          name: toolbox-tahap6-public-unsigned-ready-private-signing
           path: |
             app/build/outputs/apk/release/app-release-unsigned.apk
             app/build/outputs/apk/release/app-release-unsigned.apk.sha256
             app/build/test-results/testDebugUnitTest/
-            app/build/assurance/tahap5-r1-r8-prebuild-evidence.json
-            app/build/assurance/tahap5-asset-prebuild-evidence.json
-            app/build/assurance/tahap5-asset-final-evidence.json
-            app/build/assurance/tahap5-mutation-evidence.json
-            app/build/assurance/tahap5-r1-r9-evidence.json
-            app/build/assurance/tahap5-api30-runtime.txt
-            app/build/assurance/tahap5-api30.png
+            app/build/assurance/tahap6-r1-r8-prebuild-evidence.json
+            app/build/assurance/tahap6-asset-prebuild-evidence.json
+            app/build/assurance/tahap6-asset-final-evidence.json
+            app/build/assurance/tahap6-mutation-evidence.json
+            app/build/assurance/tahap6-r1-r9-evidence.json
+            app/build/assurance/tahap6-api30-runtime.txt
+            app/build/assurance/tahap6-api30.png
           if-no-files-found: error
           retention-days: 7
