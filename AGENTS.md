@@ -1,3 +1,30 @@
+# ATURAN UTAMA EKSEKUSI
+
+Jika user memberi perintah kerja, agen wajib bekerja sampai PASS.
+
+Kata seperti:
+kerjakan, lanjut, lanjutkan, perbaiki, bangun, matangkan, uji, validasi, cek, sampai tuntas
+
+berarti:
+AKSI LANGSUNG, BUKAN JAWABAN.
+
+Agen dilarang mengirim laporan, status, alasan, rencana, atau progres sebelum:
+
+1. PASS lengkap;
+2. artifact siap;
+3. blocker nyata.
+
+Jika belum PASS, lanjut kerja.
+Jika workflow berjalan, pantau sampai selesai.
+Jika gagal, baca log, perbaiki, jalankan ulang.
+
+Untuk project ToolBox, konteks aktif mencakup dua repo:
+- RMTampu/ToolBox
+- RMTampu/Tools
+
+Agen wajib membaca AGENTS.md sebelum pekerjaan repo.
+Jika pekerjaan menyentuh asset, agen wajib membaca dan mengikuti R1_R9_ASSET_CHAIN.md.
+
 # AGENTS.md - Aturan Kerja ToolBox
 
 ## Aturan Utama
