@@ -1,8 +1,8 @@
 package com.toolbox.tools.core;
 
-import com.toolbox.tools.library.LibraryItemType;
-import com.toolbox.tools.library.LibraryKey;
-import com.toolbox.tools.library.VersionNumber;
+import com.toolbox.tools.runtime.RenderTree;
+import com.toolbox.tools.runtime.Renderer;
+import com.toolbox.tools.runtime.RuntimeModelValidator;
 
 import org.junit.Test;
 
@@ -13,36 +13,33 @@ import static org.junit.Assert.assertTrue;
 
 public final class AppKernelTest {
     @Test
-    public void defaultKernelPassesTahapThreeVerification() {
+    public void defaultKernelPassesTahapFourVerification() {
         AppKernel kernel = AppKernel.createDefault();
 
         VerificationResult result = new VerificationManager().verify(kernel);
 
         assertTrue(result.message(), result.isPass());
         assertEquals(AppState.READY, kernel.state());
-        assertTrue(kernel.toolRegistry().contains("foundation"));
-        assertTrue(kernel.engineManager().contains("foundation-engine"));
         assertEquals("30", kernel.configStore().get("targetApi", ""));
         assertEquals("arm64", kernel.configStore().get("targetAbi", ""));
-        assertEquals("3", kernel.configStore().get("tahap", ""));
-        assertNotNull(kernel.projectManager().current());
-        assertEquals("project.default", kernel.projectManager().current().projectId());
+        assertEquals("4", kernel.configStore().get("tahap", ""));
+        assertNotNull(kernel.runtimeEnvironment());
+        assertEquals(
+                "screen.home",
+                kernel.runtimeEnvironment().model().startScreenId()
+        );
+        assertTrue(
+                new RuntimeModelValidator()
+                        .validate(kernel.runtimeEnvironment())
+                        .isEmpty()
+        );
 
-        assertNotNull(kernel.libraryManager().resolveExact(
-                new LibraryKey(
-                        LibraryItemType.COMPONENT,
-                        "component.button",
-                        VersionNumber.parse("1.0.0")
-                )
-        ));
-        assertNotNull(kernel.libraryManager().resolveExact(
-                new LibraryKey(
-                        LibraryItemType.TEMPLATE,
-                        "template.screen.basic",
-                        VersionNumber.parse("1.0.0")
-                )
-        ));
-        assertNotNull(kernel.assetStore());
+        RenderTree tree = new Renderer().materialize(
+                kernel.runtimeEnvironment().model().screen("screen.home"),
+                kernel.runtimeEnvironment().components()
+        );
+        assertEquals(1, tree.nodes().size());
+        assertTrue(tree.diagnostics().isEmpty());
     }
 
     @Test
