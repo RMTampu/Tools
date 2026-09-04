@@ -95,13 +95,23 @@ public final class UiCanvasView extends FrameLayout {
         );
         screen.addView(eyebrow);
 
-        TextView title = UiKit.judul(c, "Bangun aplikasi secara visual", 22f);
+        TextView title = UiKit.judul(
+                c,
+                kernel.declarativeRuntime().value(
+                        "ui.screen.home.title",
+                        "Bangun aplikasi secara visual"
+                ),
+                22f
+        );
         title.setPadding(0, UiKit.dp(c, 8), 0, UiKit.dp(c, 4));
         screen.addView(title);
 
         TextView sub = UiKit.teks(
                 c,
-                "Layar ini adalah surface yang sama saat Edit aktif maupun nonaktif.",
+                kernel.declarativeRuntime().value(
+                        "ui.screen.home.subtitle",
+                        "Layar ini adalah surface yang sama saat Edit aktif maupun nonaktif."
+                ),
                 12f,
                 UiKit.TEKS_REDUP
         );
@@ -189,7 +199,14 @@ public final class UiCanvasView extends FrameLayout {
         gp.topMargin = UiKit.dp(c, 8);
         freeArea.addView(guide, gp);
 
-        primaryButton = UiKit.judul(c, "Buka Detail", 13f);
+        primaryButton = UiKit.judul(
+                c,
+                kernel.declarativeRuntime().value(
+                        "ui.object.home.primary.text",
+                        "Buka Detail"
+                ),
+                13f
+        );
         primaryButton.setGravity(Gravity.CENTER);
         primaryButton.setTextColor(UiKit.LATAR);
         primaryButton.setBackground(UiKit.kartuPx(
