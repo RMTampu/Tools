@@ -1,18 +1,27 @@
 package com.toolbox.tools.core;
 
+import com.toolbox.tools.authoring.AuthoringItemKind;
+import com.toolbox.tools.authoring.AuthoringSearchQuery;
+import com.toolbox.tools.authoring.AuthoringSearchResult;
+import com.toolbox.tools.authoring.AuthoringSection;
+import com.toolbox.tools.authoring.DraftLifecycle;
+import com.toolbox.tools.authoring.TemplateAuthoringDraft;
+import com.toolbox.tools.authoring.TemplateAuthoringValidation;
 import com.toolbox.tools.editor.EdgePanelModel;
 import com.toolbox.tools.editor.EditorMode;
 import com.toolbox.tools.editor.VisualCapabilitySet;
-import com.toolbox.tools.editor.VisualEditOperation;
-import com.toolbox.tools.editor.VisualEditTransaction;
+import com.toolbox.tools.library.DependencyRef;
 import com.toolbox.tools.library.LibraryItemType;
 import com.toolbox.tools.library.LibraryKey;
 import com.toolbox.tools.library.VersionNumber;
+import com.toolbox.tools.library.VersionRange;
 import com.toolbox.tools.runtime.RenderTree;
 import com.toolbox.tools.runtime.Renderer;
 import com.toolbox.tools.runtime.RuntimeModelValidator;
 
 import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.List;
 
 public final class VerificationManager {
     public VerificationResult verify(AppKernel kernel) {
@@ -30,8 +39,8 @@ public final class VerificationManager {
                 || !"arm64".equals(kernel.configStore().get("targetAbi", ""))) {
             return VerificationResult.fail("android target mismatch");
         }
-        if (!"5".equals(kernel.configStore().get("tahap", ""))) {
-            return VerificationResult.fail("tahap 5 configuration missing");
+        if (!"6".equals(kernel.configStore().get("tahap", ""))) {
+            return VerificationResult.fail("tahap 6 configuration missing");
         }
         if (kernel.recoveryManager().isRecoveryRequired()) {
             return VerificationResult.fail("recovery required");
@@ -72,49 +81,84 @@ public final class VerificationManager {
         }
 
         if (kernel.editorEnvironment() == null
-                || kernel.editorEnvironment().visualSession()
-                .object("object.home.primary") == null) {
-            return VerificationResult.fail("editor working state missing");
+                || kernel.authoringWorkspace() == null) {
+            return VerificationResult.fail("editor/authoring workspace missing");
         }
 
-        EdgePanelModel addPanel = kernel.editorEnvironment()
-                .shell()
-                .edgePanel(VisualCapabilitySet.defaultEditable());
-        if (!"Tambah ke Layar".equals(addPanel.titleIndonesia())
-                || addPanel.items().isEmpty()) {
-            return VerificationResult.fail("edge add panel missing");
+        Object runtimeIdentity = kernel.authoringWorkspace().runtime();
+        if (runtimeIdentity != kernel.runtimeEnvironment()) {
+            return VerificationResult.fail("authoring cloned runtime model");
         }
 
-        kernel.editorEnvironment().shell().selectObject(
-                "object.home.primary"
-        );
-        EdgePanelModel editPanel = kernel.editorEnvironment()
-                .shell()
-                .edgePanel(VisualCapabilitySet.defaultEditable());
-        if (!"Edit Object".equals(editPanel.titleIndonesia())
-                || editPanel.items().size() < 10) {
-            return VerificationResult.fail("capability edge panel incomplete");
+        for (AuthoringSection section : AuthoringSection.values()) {
+            kernel.authoringWorkspace().activate(section);
+            if (kernel.authoringWorkspace().activeSection() != section) {
+                return VerificationResult.fail("authoring section activation failed");
+            }
+        }
+        kernel.authoringWorkspace().activate(AuthoringSection.UI);
+
+        List<AuthoringSearchResult> componentSearch =
+                kernel.authoringWorkspace().searchAll("component.button", 20);
+        if (componentSearch.isEmpty()
+                || componentSearch.get(0).kind() != AuthoringItemKind.COMPONENT) {
+            return VerificationResult.fail("unified stable-id search failed");
         }
 
-        kernel.editorEnvironment().visualSession().apply(
-                new VisualEditTransaction(
-                        "verification.edit",
-                        Collections.singletonList(
-                                new VisualEditOperation(
-                                        "object.home.primary",
-                                        com.toolbox.tools.editor.VisualCapability.CONTENT,
-                                        "property.text",
-                                        "Buka Detail"
-                                )
+        List<AuthoringSearchResult> broad =
+                kernel.authoringWorkspace().searchAll("", 100);
+        if (broad.size() < 6 || broad.size() > 100) {
+            return VerificationResult.fail("unified search closure failed");
+        }
+
+        String draftId = "draft.verification.template";
+        TemplateAuthoringDraft template = new TemplateAuthoringDraft(
+                draftId,
+                "template.verification.stage6",
+                "Template Verifikasi Tahap 6",
+                VersionNumber.parse("1.0.0"),
+                new LinkedHashSet<>(Collections.singletonList("object.primary")),
+                Collections.singletonList(
+                        new DependencyRef(
+                                "component.button",
+                                VersionRange.majorCompatible(
+                                        VersionNumber.parse("1.0.0")
+                                ),
+                                true
                         )
                 ),
-                VisualCapabilitySet.defaultEditable()
+                Collections.emptyList()
         );
-        if (!kernel.editorEnvironment().visualSession().undo()) {
-            return VerificationResult.fail("editor undo unavailable");
+        kernel.authoringWorkspace().templateAuthoring().create(template);
+        TemplateAuthoringValidation validation =
+                kernel.authoringWorkspace().templateAuthoring().validate(template);
+        if (!validation.isPass()
+                || kernel.authoringWorkspace().drafts().get(draftId).lifecycle()
+                != DraftLifecycle.VALIDATED) {
+            return VerificationResult.fail("template authoring validation failed");
         }
-        if (!kernel.editorEnvironment().visualSession().redo()) {
-            return VerificationResult.fail("editor redo unavailable");
+        int templatesBefore = kernel.libraryManager().templates().allReady().size();
+        kernel.authoringWorkspace().templateAuthoring().preview(
+                template,
+                "preview.stage6"
+        );
+        if (kernel.libraryManager().templates().allReady().size() != templatesBefore) {
+            return VerificationResult.fail("template preview mutated registry");
+        }
+        kernel.authoringWorkspace().templateAuthoring().publish(template);
+        if (kernel.authoringWorkspace().drafts().get(draftId).lifecycle()
+                != DraftLifecycle.PUBLISHED) {
+            return VerificationResult.fail("template authoring publish failed");
+        }
+
+        List<AuthoringSearchResult> templateSearch =
+                kernel.authoringWorkspace().searchAll(
+                        "template.verification.stage6",
+                        20
+                );
+        if (templateSearch.isEmpty()
+                || templateSearch.get(0).kind() != AuthoringItemKind.TEMPLATE) {
+            return VerificationResult.fail("published template search failed");
         }
 
         kernel.editorEnvironment().shell().setMode(EditorMode.PREVIEW);
@@ -123,6 +167,13 @@ public final class VerificationManager {
         }
         kernel.editorEnvironment().shell().setMode(EditorMode.EDIT);
 
-        return VerificationResult.pass("tahap 5 visual editor ready");
+        EdgePanelModel addPanel = kernel.editorEnvironment()
+                .shell()
+                .edgePanel(VisualCapabilitySet.defaultEditable());
+        if (addPanel.items().isEmpty()) {
+            return VerificationResult.fail("edge authoring panel missing");
+        }
+
+        return VerificationResult.pass("tahap 6 unified authoring ready");
     }
 }
