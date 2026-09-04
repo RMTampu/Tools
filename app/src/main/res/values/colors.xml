@@ -1,0 +1,12 @@
+<resources>
+    <color name="tb_latar">#071016</color>
+    <color name="tb_permukaan">#0D1B24</color>
+    <color name="tb_permukaan_2">#112832</color>
+    <color name="tb_garis">#244650</color>
+    <color name="tb_neon">#00F0B5</color>
+    <color name="tb_neon_biru">#4CC9FF</color>
+    <color name="tb_teks">#E8FFF8</color>
+    <color name="tb_teks_redup">#8FB8AE</color>
+    <color name="tb_bahaya">#FF6B7A</color>
+    <color name="tb_peringatan">#FFD166</color>
+</resources>
