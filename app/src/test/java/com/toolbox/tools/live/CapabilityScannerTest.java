@@ -23,7 +23,7 @@ public final class CapabilityScannerTest {
                 result.status(CapabilityArea.UI)
         );
         assertEquals(
-                CapabilityAvailability.READ_ONLY,
+                CapabilityAvailability.AVAILABLE,
                 result.status(CapabilityArea.LOGIC)
         );
         assertEquals(
