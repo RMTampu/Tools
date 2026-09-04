@@ -16,6 +16,23 @@ public final class AssetRegistry {
     private final Map<String, List<AssetDescriptor>> byDigest =
             new LinkedHashMap<>();
 
+    public synchronized AssetStatus publishReady(
+            AssetDescriptor draft,
+            byte[] payload,
+            AssetPayloadValidator validator
+    ) {
+        if (draft.lifecycle() == CatalogLifecycle.ARCHIVED) {
+            throw new IllegalArgumentException("archived asset cannot become READY");
+        }
+        AssetValidationResult validation = validator.validateReady(draft, payload);
+        if (!validation.isPass()) {
+            throw new IllegalArgumentException(
+                    "asset validation failed: " + validation.message()
+            );
+        }
+        return register(draft.withLifecycle(CatalogLifecycle.READY));
+    }
+
     public synchronized AssetStatus register(AssetDescriptor descriptor) {
         String id = StableId.require(descriptor.assetId(), "assetId");
         NavigableMap<VersionNumber, AssetDescriptor> versions =
