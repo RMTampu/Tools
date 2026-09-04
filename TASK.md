@@ -2,79 +2,62 @@
 
 ## Tugas Aktif
 
-Kerjakan **Tahap 6 = F — UI/Logic/Data/Binding/Asset terpadu, authoring, search, dan template** pada repo publik utama `RMTampu/Tools`.
+Kerjakan **Tahap 7 = G — Adapter sumber eksternal, normalisasi, export, dan sync** pada repo publik utama `RMTampu/Tools`.
 
-Baseline resmi aktif adalah **Baseline Tahap 5**, exact APK Android 11/API30/arm64 yang sudah signed, R1-R9 + ASSET_SAFE PASS, lulus Firebase final test, dan terkunci.
+Baseline resmi aktif adalah **Baseline Tahap 6** dengan APK SHA-256 `64f93a41bbf7623d5bfcc4a6a0bee69cc0ca613897f55c5fd004fcb7f335d878`.
 
-Tahap 6 wajib menambah kemampuan di atas Tahap 5. Baseline Tahap 5 tidak boleh dimodifikasi.
+Tahap 7 menambah kemampuan di atas Tahap 6; Baseline Tahap 6 tidak boleh dimodifikasi.
 
-## Scope Tahap 6
+### G1 — External Adapter Contract
+- adapter punya Stable ID, label Bahasa Indonesia, capability IMPORT/EXPORT/SYNC, dan schema version.
+- external payload dibatasi ukuran/jumlah.
+- raw external identity dipertahankan sebagai provenance, bukan dijadikan executable authority.
+- adapter tidak boleh bypass Android sandbox/signature.
 
-### F1 — Unified Authoring Workspace
-- satu workspace memakai shared model Tahap 4 + shell/editor Tahap 5.
-- UI / Logic / Data / Binding / Asset adalah lima section authoring pada context yang sama.
-- hanya satu section heavy-active.
-- perpindahan section mempertahankan project identity dan working state.
-- setiap section memakai Stable ID, typed contract, dan diagnostic yang sama.
-- section tidak membuat clone model.
+### G2 — Normalization
+- data eksternal dinormalisasi ke canonical record dengan Stable ID.
+- field names divalidasi, values bounded, duplicate ID fail-closed.
+- canonical ordering deterministic.
+- invalid/unknown input menghasilkan diagnostic, tidak masuk working model diam-diam.
 
-### F2 — Unified Search
-- search lintas Component / Template / Asset / Screen / Flow / Data Source / Binding / Action / Event.
-- query tervalidasi dan bounded.
-- hasil bounded, deterministic, stable-keyed, dan dapat difilter berdasarkan section/kind.
-- exact Stable ID dapat ditemukan tanpa bergantung label tampilan.
-- search tidak mengaktifkan/mengeksekusi item.
-- item unavailable/broken tidak dipromosikan sebagai valid result.
+### G3 — Deterministic Export
+- export memakai snapshot immutable dari model canonical.
+- output deterministic, versioned, checksum SHA-256.
+- export tidak mengubah working state/registry.
+- unsupported target/version fail-closed.
 
-### F3 — Authoring Drafts
-- draft memakai Stable Draft ID + target section + revision.
-- draft lifecycle: DRAFT / VALIDATED / PUBLISHED / DISCARDED.
-- edit draft meningkatkan revision monotonik.
-- publish hanya dari VALIDATED.
-- publish/discard terminal dan fail-closed.
-- history draft bounded.
-- draft tidak mengubah registry/runtime sampai publish berhasil.
+### G4 — Sync
+- sync memakai explicit cursor/revision.
+- remote/local change dibandingkan dengan last-known state.
+- konflik tidak silent overwrite; status CONFLICT wajib eksplisit.
+- apply hanya untuk plan CLEAN.
+- sync history bounded dan idempotent untuk cursor yang sama.
+- offline/no-source/invalid-source dibedakan dari corruption.
 
-### F4 — Template Authoring
-- template draft mempunyai Stable Template ID, label Bahasa Indonesia, version, internal object IDs, component dependency, dan asset dependency.
-- validate dependency sebelum publish.
-- preview/instantiation plan menghasilkan identity map baru tanpa mengubah template master.
-- publish atomik ke Template Registry dan exact version.
-- duplicate version, missing dependency, invalid ID, atau archived dependency gagal tertutup.
-- template search langsung tersedia setelah publish.
-
-## Exit Gate Tahap 6
+## Exit Gate Tahap 7
 
 ```text
-BASELINE_TAHAP_5_UNCHANGED = YES
-VERSION_CODE_GT_TAHAP_5 = YES
-UNIFIED_AUTHORING_WORKSPACE = PASS
-UI_SECTION = PASS
-LOGIC_SECTION = PASS
-DATA_SECTION = PASS
-BINDING_SECTION = PASS
-ASSET_SECTION = PASS
-ONE_HEAVY_SECTION = PASS
-SHARED_MODEL_NO_CLONE = PASS
-UNIFIED_SEARCH = PASS
-SEARCH_BOUNDED = PASS
-SEARCH_DETERMINISTIC = PASS
-SEARCH_STABLE_ID = PASS
-SEARCH_NO_EXECUTION = PASS
-AUTHORING_DRAFT_LIFECYCLE = PASS
-DRAFT_REVISION_MONOTONIC = PASS
-DRAFT_TERMINAL_STATE = PASS
-DRAFT_HISTORY_BOUNDED = PASS
-TEMPLATE_AUTHORING = PASS
-TEMPLATE_DEPENDENCY_VALIDATION = PASS
-TEMPLATE_PREVIEW_NO_MASTER_MUTATION = PASS
-TEMPLATE_EXACT_VERSION_PUBLISH = PASS
-TEMPLATE_SEARCH_AFTER_PUBLISH = PASS
+BASELINE_TAHAP_6_UNCHANGED = YES
+VERSION_CODE_GT_TAHAP_6 = YES
+EXTERNAL_ADAPTER_CONTRACT = PASS
+ADAPTER_CAPABILITY_GATE = PASS
+NORMALIZATION = PASS
+NORMALIZATION_BOUNDED = PASS
+DUPLICATE_EXTERNAL_ID_FAIL_CLOSED = PASS
+DETERMINISTIC_EXPORT = PASS
+EXPORT_CHECKSUM = PASS
+EXPORT_NO_WORKING_STATE_MUTATION = PASS
+SYNC_CURSOR = PASS
+SYNC_CONFLICT_EXPLICIT = PASS
+SYNC_CLEAN_APPLY = PASS
+SYNC_IDEMPOTENT = PASS
+SYNC_HISTORY_BOUNDED = PASS
+EXTERNAL_PRESENTATION_INDONESIA = PASS
 R1_R9_AUTOMATIC = PASS
 ASSET_SAFE_REGRESSION = PASS
 ANDROID_11_API30_BUILD = PASS
 PUBLIC_UNSIGNED_APK = PASS
-UNKNOWN_REQUIRED_TAHAP_6_BEHAVIOR = 0
+UNKNOWN_REQUIRED_TAHAP_7_BEHAVIOR = 0
 ```
 
 Private tetap hanya untuk signing, credential, Firebase final runtime test, baseline locking, dan release sensitif.
