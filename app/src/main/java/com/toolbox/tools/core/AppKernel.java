@@ -1,5 +1,7 @@
 package com.toolbox.tools.core;
 
+import com.toolbox.tools.editor.DefaultEditorFactory;
+import com.toolbox.tools.editor.EditorEnvironment;
 import com.toolbox.tools.library.AssetStore;
 import com.toolbox.tools.library.DefaultLibraryFactory;
 import com.toolbox.tools.library.FileAssetStore;
@@ -21,6 +23,7 @@ public final class AppKernel {
     private final LibraryManager libraryManager;
     private final AssetStore assetStore;
     private final RuntimeEnvironment runtimeEnvironment;
+    private final EditorEnvironment editorEnvironment;
     private AppState state;
 
     public AppKernel(
@@ -31,7 +34,8 @@ public final class AppKernel {
             ProjectManager projectManager,
             LibraryManager libraryManager,
             AssetStore assetStore,
-            RuntimeEnvironment runtimeEnvironment
+            RuntimeEnvironment runtimeEnvironment,
+            EditorEnvironment editorEnvironment
     ) {
         this.toolRegistry = Objects.requireNonNull(toolRegistry, "toolRegistry");
         this.engineManager = Objects.requireNonNull(engineManager, "engineManager");
@@ -43,6 +47,10 @@ public final class AppKernel {
         this.runtimeEnvironment = Objects.requireNonNull(
                 runtimeEnvironment,
                 "runtimeEnvironment"
+        );
+        this.editorEnvironment = Objects.requireNonNull(
+                editorEnvironment,
+                "editorEnvironment"
         );
         this.state = AppState.CREATED;
     }
@@ -62,7 +70,8 @@ public final class AppKernel {
                 projectManager,
                 library,
                 new InMemoryAssetStore(),
-                DefaultRuntimeFactory.create(library.components())
+                DefaultRuntimeFactory.create(library.components()),
+                DefaultEditorFactory.create()
         );
     }
 
@@ -97,7 +106,8 @@ public final class AppKernel {
                 projectManager,
                 library,
                 new FileAssetStore(assetLibraryRoot),
-                DefaultRuntimeFactory.create(library.components())
+                DefaultRuntimeFactory.create(library.components()),
+                DefaultEditorFactory.create()
         );
     }
 
@@ -106,7 +116,8 @@ public final class AppKernel {
             ProjectManager projectManager,
             LibraryManager libraryManager,
             AssetStore assetStore,
-            RuntimeEnvironment runtimeEnvironment
+            RuntimeEnvironment runtimeEnvironment,
+            EditorEnvironment editorEnvironment
     ) {
         AppKernel kernel = new AppKernel(
                 new ToolRegistry(),
@@ -116,7 +127,8 @@ public final class AppKernel {
                 projectManager,
                 libraryManager,
                 assetStore,
-                runtimeEnvironment
+                runtimeEnvironment,
+                editorEnvironment
         );
         kernel.initialize();
         return kernel;
@@ -139,7 +151,7 @@ public final class AppKernel {
             });
             configStore.put("targetApi", "30");
             configStore.put("targetAbi", "arm64");
-            configStore.put("tahap", "4");
+            configStore.put("tahap", "5");
             projectManager.bootstrap("project.default");
             state = AppState.READY;
         } catch (IOException | RuntimeException error) {
@@ -156,5 +168,6 @@ public final class AppKernel {
     public LibraryManager libraryManager() { return libraryManager; }
     public AssetStore assetStore() { return assetStore; }
     public RuntimeEnvironment runtimeEnvironment() { return runtimeEnvironment; }
+    public EditorEnvironment editorEnvironment() { return editorEnvironment; }
     public synchronized AppState state() { return state; }
 }
