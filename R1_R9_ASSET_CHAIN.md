@@ -58,6 +58,10 @@ Aturan ini berlaku global di repo ini. Jika perintah user mengandung kata kerja 
 - `public-components/stage-a-android-host/ASSURANCE_PLAN_R1_R9.json`
 - `public-components/stage-a-foundation/ASSURANCE_PLAN_R1_R9.json`
 
+## Mode Senyap Untuk Pekerjaan Asset
+
+Saat pekerjaan menyentuh asset, agen wajib bekerja tanpa chat progres. Laporan hanya boleh muncul setelah seluruh rantai R1-R9 PASS, artifact siap untuk private signing/final test, atau blocker nyata menghentikan pekerjaan. Trigger workflow bukan hasil akhir; agen wajib memantau run, membaca log, memperbaiki error, dan mengulang sampai exit gate tercapai.
+
 ## Protokol Saat Menyentuh Asset
 
 1. Baca `AGENTS.md`, lalu dokumen ini, lalu MD pada urutan rantai yang relevan.
