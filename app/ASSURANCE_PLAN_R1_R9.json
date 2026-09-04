@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 9,
+  "schemaVersion": 11,
   "projectId": "ToolBox",
-  "stage": "Tahap 10",
-  "stageMap": "J",
+  "stage": "Tahap 11",
+  "stageMap": "K",
   "parentBaseline": {
     "name": "Tahap 7",
     "apkSha256": "741ebcf799280fbba1b4c7d2e60ba157ba133e3f6545b3468882373150f024f7",
@@ -23,11 +23,10 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R1_LOGIC_INPUT.md",
       "methods": [
-        "READY lifecycle gate",
-        "build validator fail-closed",
-        "candidate identity binds exact inputs",
-        "stable deterministic IR",
-        "invalid lifecycle transition blocked"
+        "App.patch manifest and payload fail-closed validation",
+        "remote verification required before mutation",
+        "safe restore transition is explicit",
+        "candidate and rollback identities are exact"
       ],
       "proof": "unit + route gate + mutation"
     },
@@ -35,10 +34,10 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R2_CONCURRENCY_RESOURCE.md",
       "methods": [
-        "IR canonical bytes <=2MiB",
-        "immutable IR/candidate records",
-        "no shared-state mutation during preview/build",
-        "bounded project/library inputs inherited"
+        "patch payload bounded to 1MiB",
+        "immutable patch/proof records",
+        "synchronized patch application",
+        "no mutation during patch preview"
       ],
       "proof": "unit + source contract"
     },
@@ -46,46 +45,48 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R3_LIFECYCLE_STATE_RECOVERY.md",
       "methods": [
-        "final recovery snapshot before READY",
-        "READY revisioned transition",
-        "dirty/live/repair unsafe states block READY",
-        "READY preview read-only"
+        "final recovery snapshot before patch mutation",
+        "failed apply restores prior revision",
+        "explicit safe restore remains available",
+        "recovery-required blocks patch apply"
       ],
-      "proof": "unit + runtime"
+      "proof": "unit + API30 runtime"
     },
     "R4": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R4_PERSISTENCE_STORAGE_VERSION.md",
       "methods": [
-        "IR version 1",
-        "resource SHA-256 projection",
-        "candidate SHA-256 provenance",
+        "patch schema version 1",
+        "payload and manifest SHA-256",
         "permanent rollback Baseline Tahap7 immutable",
-        "READY saved revision",
-        "Tahap9 development predecessor identity immutable"
+        "Tahap10 signed predecessor immutable",
+        "revision continuity base to target"
       ],
-      "proof": "unit + baseline binding"
+      "proof": "unit + provenance"
     },
     "R5": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R5_SECURITY_NETWORK_BOUNDARY.md",
       "methods": [
-        "IR never executes resource payload",
-        "public source contains no signing secret",
-        "candidate identity binds development predecessor APK and unsigned APK",
-        "no Firebase in Tahap10 chain"
+        "pinned release certificate trust anchor",
+        "SHA256withRSA/ECDSA remote signature verification",
+        "remote proof required before mutation",
+        "protected safety/recovery resources rejected",
+        "public source contains no private key",
+        "no Firebase in Tahap11 chain"
       ],
-      "proof": "negative tests + source scan"
+      "proof": "cryptographic unit tests + source scan + private signing"
     },
     "R6": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R6_BUILD_DEPENDENCY_INSTALL.md",
       "methods": [
-        "versionCode 10",
+        "versionCode 11",
         "pinned JDK/Gradle/SDK",
-        "API30 metadata",
+        "API30 package metadata",
         "public unsigned APK digest",
-        "private exact rebuild and signing"
+        "private exact rebuild and signing",
+        "App.apk plus App.patch final package"
       ],
       "proof": "GitHub Actions build/package/sign"
     },
@@ -93,17 +94,17 @@
       "applicability": "N_A_SCOPE_PROVEN",
       "sourceMethodDoc": "APP_SAFE_R7_NATIVE_PLUGIN_RUNTIME.md",
       "methods": [
-        "native/JNI/plugin/reflection/dynamic-loader scope scan"
+        "no native/JNI/plugin/reflection/dynamic executable loader added by App.patch"
       ],
-      "proof": "no native/JNI/plugin/reflection/dynamic executable loader added in Tahap10"
+      "proof": "source scan"
     },
     "R8": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R8_UI_DEVICE_POWER.md",
       "methods": [
-        "READY/Buat IR/Candidate Preview controls",
+        "Patch Preview and Safe Restore controls",
+        "Tahap10 controls regression",
         "Indonesian status",
-        "Tahap9 controls regression",
         "API30 UIAutomator witness"
       ],
       "proof": "unit + API30 emulator interaction"
@@ -113,8 +114,8 @@
       "sourceMethodDoc": "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md",
       "methods": [
         "R1-R8 traceability",
-        "Tahap10 mutation challenge",
-        "candidate manifest proof",
+        "Tahap11 mutation challenge",
+        "App.patch request provenance",
         "ASSET_SAFE regression",
         "unknown/skipped closure"
       ],
@@ -133,9 +134,9 @@
     "finalSignedReleaseClaimed": false
   },
   "developmentParentCandidate": {
-    "name": "Tahap 9",
-    "signedApkSha256": "8f6f504c8f289926ad88550ab2686b801efc3ac12536c9e57f807b208461a116",
-    "publicR1R9RunId": "33866101946",
+    "name": "Tahap 10",
+    "signedApkSha256": "fbc39153bc121ed2d32bc9c24e9ff8f0e9b7730fcef01021f4adfd830fbd21ff",
+    "publicR1R9RunId": "33871506902",
     "privateSigned": true,
     "baseline": false
   }
