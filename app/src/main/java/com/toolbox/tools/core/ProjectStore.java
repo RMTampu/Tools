@@ -10,6 +10,8 @@ public interface ProjectStore {
 
     ProjectState recoverRevision(long revision) throws IOException;
 
+    ProjectState recoverState(ProjectState candidate) throws IOException;
+
     ProjectState loadRevision(long revision) throws IOException;
 
     List<RecoveryCandidate> recoveryCandidates() throws IOException;
