@@ -100,7 +100,6 @@ public final class ProductServices {
         }) {
             toolLifecycle.register(tool);
         }
-        toolLifecycle.load("tool.ui");
         toolLifecycle.activate("tool.ui");
     }
 
