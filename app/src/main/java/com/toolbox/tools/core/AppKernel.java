@@ -9,10 +9,12 @@ import com.toolbox.tools.build.ReadyCoordinator;
 import com.toolbox.tools.delivery.RemotePatchVerifier;
 import com.toolbox.tools.delivery.RemoteTrustAnchor;
 import com.toolbox.tools.delivery.SafePatchManager;
+import com.toolbox.tools.engine.ProductEngineSuite;
 import com.toolbox.tools.editor.DefaultEditorFactory;
 import com.toolbox.tools.editor.EditorEnvironment;
 import com.toolbox.tools.integration.ExternalIntegrationManager;
 import com.toolbox.tools.library.AssetStore;
+import com.toolbox.tools.library.BuiltinAssetCatalog;
 import com.toolbox.tools.library.DefaultLibraryFactory;
 import com.toolbox.tools.library.FileAssetStore;
 import com.toolbox.tools.library.InMemoryAssetStore;
@@ -27,6 +29,9 @@ import com.toolbox.tools.runtime.RuntimeEnvironment;
 import com.toolbox.tools.repair.HealthMonitor;
 import com.toolbox.tools.repair.RecoveryPreviewService;
 import com.toolbox.tools.repair.RepairSessionManager;
+import com.toolbox.tools.product.EvolutionManager;
+import com.toolbox.tools.product.ProductServices;
+import com.toolbox.tools.product.SafeModeController;
 
 import java.io.File;
 import java.io.IOException;
@@ -56,6 +61,10 @@ public final class AppKernel {
     private final ReadyCoordinator readyCoordinator;
     private final RemotePatchVerifier remotePatchVerifier;
     private final SafePatchManager safePatchManager;
+    private final ProductServices productServices;
+    private final EvolutionManager evolutionManager;
+    private final SafeModeController safeModeController;
+    private ProductEngineSuite productEngines;
     private AppState state;
 
     public AppKernel(
@@ -119,6 +128,15 @@ public final class AppKernel {
                 this.projectManager,
                 this.recoveryManager,
                 this.remotePatchVerifier
+        );
+        this.productServices = new ProductServices(this.projectManager);
+        this.evolutionManager = new EvolutionManager(
+                this.safePatchManager,
+                this.remotePatchVerifier
+        );
+        this.safeModeController = new SafeModeController(
+                this.projectManager,
+                this.recoveryManager
         );
         this.state = AppState.CREATED;
     }
@@ -205,7 +223,7 @@ public final class AppKernel {
     public synchronized void initialize() {
         state = AppState.INITIALIZING;
         try {
-            toolRegistry.register(new ToolDescriptor("foundation", "Foundation", "1.0"));
+            toolRegistry.register(new ToolDescriptor("foundation", "Fondasi", "12.0"));
             engineManager.register(new EngineContract() {
                 @Override
                 public String id() {
@@ -217,9 +235,22 @@ public final class AppKernel {
                     return true;
                 }
             });
+            BuiltinAssetCatalog.install(
+                    libraryManager.assets(),
+                    assetStore
+            );
+            productEngines = ProductEngineSuite.register(
+                    toolRegistry,
+                    engineManager,
+                    editorEnvironment,
+                    runtimeEnvironment,
+                    libraryManager,
+                    assetStore
+            );
             configStore.put("targetApi", "30");
             configStore.put("targetAbi", "arm64");
-            configStore.put("tahap", "11");
+            configStore.put("tahap", "produk-penuh-v12");
+            configStore.put("bahasaDefault", "id");
             projectManager.bootstrap("project.default");
             state = AppState.READY;
         } catch (IOException | RuntimeException error) {
@@ -251,5 +282,9 @@ public final class AppKernel {
     public ReadyCoordinator readyCoordinator() { return readyCoordinator; }
     public RemotePatchVerifier remotePatchVerifier() { return remotePatchVerifier; }
     public SafePatchManager safePatchManager() { return safePatchManager; }
+    public ProductServices productServices() { return productServices; }
+    public ProductEngineSuite productEngines() { return productEngines; }
+    public EvolutionManager evolutionManager() { return evolutionManager; }
+    public SafeModeController safeModeController() { return safeModeController; }
     public synchronized AppState state() { return state; }
 }
