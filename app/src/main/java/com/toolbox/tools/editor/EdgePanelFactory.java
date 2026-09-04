@@ -26,48 +26,48 @@ public final class EdgePanelFactory {
                         : addToScreen();
             case LOGIC:
                 return contextual(
-                        "Logic",
-                        "Editor / Logic",
+                        "Logika",
+                        "Editor / Logika",
                         "Event",
-                        "Action",
-                        "Condition",
-                        "Flow",
-                        "Variable",
-                        "Function"
+                        "Aksi",
+                        "Kondisi",
+                        "Alur",
+                        "Variabel",
+                        "Fungsi"
                 );
             case DATA:
                 return contextual(
                         "Data",
                         "Editor / Data",
-                        "Source",
-                        "Collection",
-                        "Table",
+                        "Sumber",
+                        "Koleksi",
+                        "Tabel",
                         "Field",
-                        "Relation",
+                        "Relasi",
                         "Query",
-                        "Mock Data"
+                        "Data Contoh"
                 );
             case BINDING:
                 return contextual(
-                        "Binding",
-                        "Editor / Binding",
-                        "Auto Connect",
+                        "Pengikatan",
+                        "Editor / Pengikatan",
+                        "Hubungkan Otomatis",
                         "Status",
-                        "Issues",
-                        "Map",
-                        "Usage",
-                        "History"
+                        "Masalah",
+                        "Peta",
+                        "Penggunaan",
+                        "Riwayat"
                 );
             case ASSET:
                 return contextual(
-                        "Asset",
-                        "Editor / Asset",
-                        "Category",
-                        "Import",
-                        "Preview",
-                        "Usage",
-                        "Compatibility",
-                        "Dependency"
+                        "Aset",
+                        "Editor / Aset",
+                        "Kategori",
+                        "Impor",
+                        "Pratinjau",
+                        "Penggunaan",
+                        "Kompatibilitas",
+                        "Dependensi"
                 );
             default:
                 throw new IllegalStateException("unknown editor function");
@@ -81,9 +81,9 @@ public final class EdgePanelFactory {
                 "Komponen",
                 "Template",
                 "Kit",
-                "Asset",
-                "Recent",
-                "Favorite"
+                "Aset",
+                "Terbaru",
+                "Favorit"
         );
     }
 
@@ -91,29 +91,29 @@ public final class EdgePanelFactory {
             VisualCapabilitySet capabilities
     ) {
         List<EdgeItem> items = new ArrayList<>();
-        add(items, capabilities, VisualCapability.STYLE, "edge.style", "Style");
-        add(items, capabilities, VisualCapability.SIZE, "edge.size", "Size");
-        add(items, capabilities, VisualCapability.POSITION, "edge.position", "Position");
-        add(items, capabilities, VisualCapability.CONTENT, "edge.content", "Content");
-        add(items, capabilities, VisualCapability.COLOR, "edge.color", "Color");
-        add(items, capabilities, VisualCapability.SPACING, "edge.spacing", "Spacing");
-        add(items, capabilities, VisualCapability.SHAPE, "edge.shape", "Shape");
-        add(items, capabilities, VisualCapability.BORDER, "edge.border", "Border");
-        add(items, capabilities, VisualCapability.FONT_TEXT, "edge.font", "Font/Text");
-        add(items, capabilities, VisualCapability.OPACITY, "edge.opacity", "Opacity");
-        add(items, capabilities, VisualCapability.TRANSFORM, "edge.transform", "Rotation/Transform");
-        add(items, capabilities, VisualCapability.ALIGNMENT, "edge.alignment", "Alignment");
-        add(items, capabilities, VisualCapability.LAYER, "edge.layer", "Layer");
-        add(items, capabilities, VisualCapability.STATE, "edge.state", "State");
-        add(items, capabilities, VisualCapability.ANIMATION, "edge.animation", "Animation");
-        add(items, capabilities, VisualCapability.AUTO_CONNECT_BINDING, "edge.autoconnect", "Auto Connect Binding");
-        add(items, capabilities, VisualCapability.EVENT_ACTION, "edge.eventaction", "Event/Action");
-        add(items, capabilities, VisualCapability.ACCESSIBILITY, "edge.accessibility", "Accessibility");
-        add(items, capabilities, VisualCapability.LOCK, "edge.lock", "Lock");
-        add(items, capabilities, VisualCapability.OTHERS, "edge.others", "Others");
+        add(items, capabilities, VisualCapability.STYLE, "edge.style", "Gaya");
+        add(items, capabilities, VisualCapability.SIZE, "edge.size", "Ukuran");
+        add(items, capabilities, VisualCapability.POSITION, "edge.position", "Posisi");
+        add(items, capabilities, VisualCapability.CONTENT, "edge.content", "Konten");
+        add(items, capabilities, VisualCapability.COLOR, "edge.color", "Warna");
+        add(items, capabilities, VisualCapability.SPACING, "edge.spacing", "Spasi");
+        add(items, capabilities, VisualCapability.SHAPE, "edge.shape", "Bentuk");
+        add(items, capabilities, VisualCapability.BORDER, "edge.border", "Garis Tepi");
+        add(items, capabilities, VisualCapability.FONT_TEXT, "edge.font", "Font/Teks");
+        add(items, capabilities, VisualCapability.OPACITY, "edge.opacity", "Opasitas");
+        add(items, capabilities, VisualCapability.TRANSFORM, "edge.transform", "Rotasi/Transformasi");
+        add(items, capabilities, VisualCapability.ALIGNMENT, "edge.alignment", "Perataan");
+        add(items, capabilities, VisualCapability.LAYER, "edge.layer", "Lapisan");
+        add(items, capabilities, VisualCapability.STATE, "edge.state", "Keadaan");
+        add(items, capabilities, VisualCapability.ANIMATION, "edge.animation", "Animasi");
+        add(items, capabilities, VisualCapability.AUTO_CONNECT_BINDING, "edge.autoconnect", "Hubungkan Binding Otomatis");
+        add(items, capabilities, VisualCapability.EVENT_ACTION, "edge.eventaction", "Event/Aksi");
+        add(items, capabilities, VisualCapability.ACCESSIBILITY, "edge.accessibility", "Aksesibilitas");
+        add(items, capabilities, VisualCapability.LOCK, "edge.lock", "Kunci");
+        add(items, capabilities, VisualCapability.OTHERS, "edge.others", "Lainnya");
         return new EdgePanelModel(
-                "Edit Object",
-                "Editor / UI / Object",
+                "Edit Objek",
+                "Editor / UI / Objek",
                 items
         );
     }
@@ -148,9 +148,9 @@ public final class EdgePanelFactory {
     private static List<EdgeItem> quickAccessItems() {
         List<EdgeItem> items = new ArrayList<>();
         items.add(new EdgeItem("quick.edit", "Edit ON / OFF", true));
-        items.add(new EdgeItem("quick.tool", "Tool", true));
+        items.add(new EdgeItem("quick.tool", "Alat", true));
         items.add(new EdgeItem("quick.settings", "Pengaturan", true));
-        items.add(new EdgeItem("quick.floating", "Floating Window", true));
+        items.add(new EdgeItem("quick.floating", "Jendela Mengambang", true));
         return Collections.unmodifiableList(items);
     }
 }
