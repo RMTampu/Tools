@@ -1,12 +1,12 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "projectId": "ToolBox",
-  "stage": "Tahap 3",
-  "stageMap": "C",
+  "stage": "Tahap 4",
+  "stageMap": "D",
   "parentBaseline": {
-    "name": "Tahap 2",
-    "apkSha256": "6e7beb14946ab8e75c0c8048edee2049e776e8c2de88217058d5dda647dc5a29",
-    "publicR1R9RunId": "33835606410",
+    "name": "Tahap 3",
+    "apkSha256": "2a14dae5980e3f51f23f67602c9a2839938632a54ae4a9c69ea80e61e420f02a",
+    "publicR1R9RunId": "33838621346",
     "privateFinalRuntimePassed": true
   },
   "target": {
@@ -21,11 +21,11 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R1_LOGIC_INPUT.md",
       "methods": [
-        "stable IDs",
-        "semantic version parsing",
-        "typed component contracts",
-        "exact library lookup",
-        "fail-closed asset payload validation"
+        "stable screen/action/data/flow IDs",
+        "typed contracts",
+        "exact event-action compatibility",
+        "flow port compatibility",
+        "fail-closed reference validation"
       ],
       "proof": "unit + route gate + mutation"
     },
@@ -33,11 +33,11 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R2_CONCURRENCY_RESOURCE.md",
       "methods": [
-        "synchronized registries/stores",
-        "asset byte budgets",
-        "bounded recent list",
-        "bounded project revisions",
-        "bounded JSON depth"
+        "bounded back stack",
+        "bounded page size",
+        "bounded binding token set",
+        "flow step/time watchdog",
+        "derived renderer without clone screens"
       ],
       "proof": "unit + source contract"
     },
@@ -45,33 +45,33 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R3_LIFECYCLE_STATE_RECOVERY.md",
       "methods": [
-        "DRAFT/READY/DEPRECATED/ARCHIVED lifecycle",
-        "READY validation gate",
-        "no silent project version update",
-        "cache disposable/original persistent separation"
+        "lightweight navigation state",
+        "binding origin/version token",
+        "cycle suppression",
+        "active-flow materialization",
+        "project recovery preserved from Tahap 2"
       ],
-      "proof": "unit + mutation"
+      "proof": "unit + regression"
     },
     "R4": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R4_PERSISTENCE_STORAGE_VERSION.md",
       "methods": [
-        "atomic asset original publish",
-        "SHA-256 integrity",
-        "dependency.lock persisted with project revision",
-        "exact component/asset version pinning"
+        "shared declarative model",
+        "render tree derived/rebuildable",
+        "stable identity across navigation/data/flow",
+        "parent baseline immutable"
       ],
-      "proof": "unit + persistence tests"
+      "proof": "unit + baseline binding"
     },
     "R5": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R5_SECURITY_NETWORK_BOUNDARY.md",
       "methods": [
-        "safe source names",
-        "base64-derived canonical storage paths",
-        "child path boundary",
-        "no executable asset loading",
-        "private secret boundary"
+        "no arbitrary executable action/flow payload",
+        "permission metadata only",
+        "no secret/network authority added",
+        "broken references diagnostic instead of guessed binding"
       ],
       "proof": "source scan + negative tests"
     },
@@ -79,11 +79,11 @@
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R6_BUILD_DEPENDENCY_INSTALL.md",
       "methods": [
-        "versionCode above Tahap 2",
+        "versionCode above Tahap 3",
         "pinned JDK/Gradle/SDK",
         "API30 package metadata",
         "APK digest",
-        "emulator install/launch witness"
+        "API30 emulator launch"
       ],
       "proof": "GitHub Actions build/package/runtime"
     },
@@ -93,16 +93,16 @@
       "methods": [
         "native/JNI/plugin/reflection/dynamic-loader scope scan"
       ],
-      "proof": "no native/JNI/plugin/reflection/dynamic executable loader in Tahap 3 app source"
+      "proof": "no native/JNI/plugin/reflection/dynamic executable loader in Tahap 4 app source"
     },
     "R8": {
       "applicability": "APPLICABLE",
       "sourceMethodDoc": "APP_SAFE_R8_UI_DEVICE_POWER.md",
       "methods": [
         "Bahasa Indonesia host status",
-        "accessibility contract metadata",
+        "derived renderer startup",
         "API30 emulator launch",
-        "theme runtime inflation witness"
+        "theme runtime witness"
       ],
       "proof": "unit + API30 emulator"
     },
@@ -111,9 +111,9 @@
       "sourceMethodDoc": "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md",
       "methods": [
         "R1-R8 traceability",
-        "ASSET_SAFE chain",
         "mutation challenge",
         "source provenance",
+        "ASSET_SAFE regression",
         "unknown/skipped closure"
       ],
       "proof": "automatic final evidence"
