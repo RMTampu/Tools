@@ -328,3 +328,9 @@ Semua pola kerja lama yang memisahkan pengembangan aplikasi ke beberapa reposito
 Kerja dibuat sederhana: satu repo publik utama untuk mematangkan aplikasi, satu jalur private untuk rahasia build/signing/final test.
 
 Jika ada konflik antara dokumen lama dan instruksi ini, aturan ini menang.
+
+## Workflow Otomatis Aman
+
+- Repo publik wajib menjalankan build/test otomatis melalui trigger `push`.
+- Repo private wajib memiliki preflight otomatis melalui trigger `push`, tetapi signing dan Firebase final tetap tidak boleh otomatis tanpa izin eksplisit.
+- Jika tool agen tidak memiliki `workflow_dispatch`, agen tetap dapat bekerja dengan commit/push karena workflow otomatis akan berjalan.
