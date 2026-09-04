@@ -25,6 +25,7 @@ import com.toolbox.tools.runtime.Renderer;
 import com.toolbox.tools.runtime.RuntimeModelValidator;
 import com.toolbox.tools.repair.HealthState;
 import com.toolbox.tools.repair.RepairPlan;
+import com.toolbox.tools.product.FullProductVerifier;
 
 import java.util.Collections;
 import java.util.List;
@@ -32,24 +33,27 @@ import java.util.List;
 public final class VerificationManager {
     public VerificationResult verify(AppKernel kernel) {
         if (kernel == null) {
-            return VerificationResult.fail("kernel missing");
+            return VerificationResult.fail("kernel tidak tersedia");
         }
         if (kernel.state() != AppState.READY) {
-            return VerificationResult.fail("kernel not ready");
+            return VerificationResult.fail("kernel belum siap");
         }
         if (!kernel.toolRegistry().contains("foundation")
                 || !kernel.engineManager().contains("foundation-engine")) {
-            return VerificationResult.fail("foundation unavailable");
+            return VerificationResult.fail("fondasi tidak tersedia");
         }
         if (!"30".equals(kernel.configStore().get("targetApi", ""))
                 || !"arm64".equals(kernel.configStore().get("targetAbi", ""))) {
-            return VerificationResult.fail("android target mismatch");
+            return VerificationResult.fail("target Android tidak cocok");
         }
-        if (!"11".equals(kernel.configStore().get("tahap", ""))) {
-            return VerificationResult.fail("tahap 11 configuration missing");
+        if (!"produk-penuh-v12".equals(kernel.configStore().get("tahap", ""))) {
+            return VerificationResult.fail("konfigurasi produk penuh v12 tidak tersedia");
+        }
+        if (!"id".equals(kernel.configStore().get("bahasaDefault", ""))) {
+            return VerificationResult.fail("bahasa default bukan Bahasa Indonesia");
         }
         if (kernel.recoveryManager().isRecoveryRequired()) {
-            return VerificationResult.fail("recovery required");
+            return VerificationResult.fail("pemulihan diperlukan");
         }
 
         ProjectState project = kernel.projectManager().current();
@@ -57,7 +61,7 @@ public final class VerificationManager {
                 || project.schemaVersion() != ProjectState.CURRENT_SCHEMA_VERSION
                 || project.buildModelVersion()
                 != ProjectState.CURRENT_BUILD_MODEL_VERSION) {
-            return VerificationResult.fail("project contract mismatch");
+            return VerificationResult.fail("kontrak proyek tidak cocok");
         }
 
         if (kernel.libraryManager().resolveExact(
@@ -67,13 +71,13 @@ public final class VerificationManager {
                         VersionNumber.parse("1.0.0")
                 )
         ) == null) {
-            return VerificationResult.fail("default component unavailable");
+            return VerificationResult.fail("komponen bawaan tidak tersedia");
         }
 
         if (!new RuntimeModelValidator()
                 .validate(kernel.runtimeEnvironment())
                 .isEmpty()) {
-            return VerificationResult.fail("runtime model diagnostics present");
+            return VerificationResult.fail("model runtime mempunyai diagnostik");
         }
 
         RenderTree tree = new Renderer().materialize(
@@ -83,23 +87,23 @@ public final class VerificationManager {
         if (tree.nodes().size() != 1
                 || !tree.diagnostics().isEmpty()
                 || !tree.nodes().get(0).available()) {
-            return VerificationResult.fail("renderer materialization failed");
+            return VerificationResult.fail("materialisasi renderer gagal");
         }
 
         if (kernel.editorEnvironment() == null
                 || kernel.authoringWorkspace() == null) {
-            return VerificationResult.fail("editor/authoring workspace missing");
+            return VerificationResult.fail("workspace Editor tidak tersedia");
         }
 
         Object runtimeIdentity = kernel.authoringWorkspace().runtime();
         if (runtimeIdentity != kernel.runtimeEnvironment()) {
-            return VerificationResult.fail("authoring cloned runtime model");
+            return VerificationResult.fail("Editor tidak memakai model runtime yang sama");
         }
 
         for (AuthoringSection section : AuthoringSection.values()) {
             kernel.authoringWorkspace().activate(section);
             if (kernel.authoringWorkspace().activeSection() != section) {
-                return VerificationResult.fail("authoring section activation failed");
+                return VerificationResult.fail("aktivasi fungsi Editor gagal");
             }
         }
         kernel.authoringWorkspace().activate(AuthoringSection.UI);
@@ -108,13 +112,13 @@ public final class VerificationManager {
                 kernel.authoringWorkspace().searchAll("component.button", 20);
         if (componentSearch.isEmpty()
                 || componentSearch.get(0).kind() != AuthoringItemKind.COMPONENT) {
-            return VerificationResult.fail("unified stable-id search failed");
+            return VerificationResult.fail("pencarian Stable ID terpadu gagal");
         }
 
         List<AuthoringSearchResult> broad =
                 kernel.authoringWorkspace().searchAll("", 100);
         if (broad.size() < 6 || broad.size() > 100) {
-            return VerificationResult.fail("unified search closure failed");
+            return VerificationResult.fail("pencarian terpadu tidak lengkap");
         }
 
         com.toolbox.tools.library.TemplateDefinition defaultTemplate =
@@ -123,7 +127,7 @@ public final class VerificationManager {
                         VersionNumber.parse("1.0.0")
                 );
         if (defaultTemplate == null) {
-            return VerificationResult.fail("template authoring source missing");
+            return VerificationResult.fail("template bawaan tidak tersedia");
         }
         com.toolbox.tools.library.TemplateInstantiationPlan preview =
                 new com.toolbox.tools.library.TemplateInstantiationPlan(
@@ -132,7 +136,7 @@ public final class VerificationManager {
                 );
         if (!"preview.stage6.object.primary".equals(
                 preview.identityMap().get("object.primary"))) {
-            return VerificationResult.fail("template preview identity map failed");
+            return VerificationResult.fail("pemetaan identitas template gagal");
         }
 
         List<AuthoringSearchResult> templateSearch =
@@ -142,12 +146,12 @@ public final class VerificationManager {
                 );
         if (templateSearch.isEmpty()
                 || templateSearch.get(0).kind() != AuthoringItemKind.TEMPLATE) {
-            return VerificationResult.fail("template unified search failed");
+            return VerificationResult.fail("pencarian template terpadu gagal");
         }
 
         kernel.editorEnvironment().shell().setMode(EditorMode.PREVIEW);
         if (kernel.editorEnvironment().shell().editorOverlayVisible()) {
-            return VerificationResult.fail("preview overlay visible");
+            return VerificationResult.fail("overlay Editor masih terlihat pada Pratinjau");
         }
         kernel.editorEnvironment().shell().setMode(EditorMode.EDIT);
 
@@ -155,13 +159,13 @@ public final class VerificationManager {
                 .shell()
                 .edgePanel(VisualCapabilitySet.defaultEditable());
         if (addPanel.items().isEmpty()) {
-            return VerificationResult.fail("edge authoring panel missing");
+            return VerificationResult.fail("panel Edge Editor tidak tersedia");
         }
 
         if (kernel.externalIntegrationManager() == null
                 || !"Sumber Demo".equals(
                 kernel.externalIntegrationManager().adapter().labelIndonesia())) {
-            return VerificationResult.fail("external adapter unavailable");
+            return VerificationResult.fail("adapter eksternal tidak tersedia");
         }
 
         ExternalSnapshot external = kernel.externalIntegrationManager()
@@ -172,7 +176,7 @@ public final class VerificationManager {
                 || normalized.records().size() != 1
                 || !"adapter.demo.item.alpha".equals(
                 normalized.records().get(0).stableId())) {
-            return VerificationResult.fail("external normalization failed");
+            return VerificationResult.fail("normalisasi sumber eksternal gagal");
         }
 
         ExportPackage exported = kernel.externalIntegrationManager()
@@ -180,24 +184,24 @@ public final class VerificationManager {
         if (exported.sha256() == null
                 || !exported.sha256().matches("[0-9a-f]{64}")
                 || !exported.payload().startsWith("TBX_EXTERNAL_V1")) {
-            return VerificationResult.fail("deterministic export failed");
+            return VerificationResult.fail("ekspor deterministik gagal");
         }
 
         SyncPlan sync = kernel.externalIntegrationManager().planSync(external);
         if (sync.status() == SyncStatus.CLEAN) {
             kernel.externalIntegrationManager().applySync(sync);
         } else if (sync.status() != SyncStatus.NO_CHANGE) {
-            return VerificationResult.fail("sync verification not clean/idempotent");
+            return VerificationResult.fail("sinkronisasi eksternal tidak aman");
         }
         SyncPlan same = kernel.externalIntegrationManager().planSync(external);
         if (same.status() != SyncStatus.NO_CHANGE) {
-            return VerificationResult.fail("sync idempotency failed");
+            return VerificationResult.fail("sinkronisasi tidak idempoten");
         }
 
         if (kernel.repairSessionManager() == null
                 || kernel.recoveryPreviewService() == null
                 || kernel.healthMonitor() == null) {
-            return VerificationResult.fail("repair/recovery services unavailable");
+            return VerificationResult.fail("layanan perbaikan/pemulihan tidak tersedia");
         }
 
         RepairPlan checksumA = new RepairPlan(
@@ -222,18 +226,18 @@ public final class VerificationManager {
         );
         if (!checksumA.checksum().equals(checksumB.checksum())
                 || !checksumA.checksum().matches("[0-9a-f]{64}")) {
-            return VerificationResult.fail("repair checksum not deterministic");
+            return VerificationResult.fail("checksum perbaikan tidak deterministik");
         }
 
         HealthState health = kernel.healthMonitor().inspect(kernel).state();
         if (health == HealthState.RECOVERY_REQUIRED) {
-            return VerificationResult.fail("health requires recovery");
+            return VerificationResult.fail("kesehatan sistem meminta pemulihan");
         }
 
         if (kernel.capabilityScanner() == null
                 || kernel.selfTargetDescriptor() == null
                 || kernel.liveSessionManager() == null) {
-            return VerificationResult.fail("capability/live services unavailable");
+            return VerificationResult.fail("layanan capability/live tidak tersedia");
         }
 
         CapabilityScanResult capabilityScan =
@@ -248,7 +252,7 @@ public final class VerificationManager {
                 != CapabilityAvailability.READ_ONLY
                 || capabilityScan.status(CapabilityArea.RUNTIME)
                 != CapabilityAvailability.AVAILABLE) {
-            return VerificationResult.fail("capability scan contract mismatch");
+            return VerificationResult.fail("kontrak Capability Scan tidak cocok");
         }
 
         if (!kernel.liveSessionManager()
@@ -257,7 +261,7 @@ public final class VerificationManager {
                 || kernel.liveSessionManager()
                 .selfEditPolicy()
                 .isDeclarativeEditable("kernel.security.core")) {
-            return VerificationResult.fail("self-edit protection mismatch");
+            return VerificationResult.fail("proteksi Edit ToolBox tidak cocok");
         }
 
         if (kernel.buildValidator() == null
@@ -266,7 +270,7 @@ public final class VerificationManager {
                 || kernel.readyCoordinator() == null
                 || kernel.remotePatchVerifier() == null
                 || kernel.safePatchManager() == null) {
-            return VerificationResult.fail("Tahap 11 build/delivery services unavailable");
+            return VerificationResult.fail("layanan build/evolusi produk tidak tersedia");
         }
 
         ProjectState beforeReadyPreview =
@@ -278,7 +282,7 @@ public final class VerificationManager {
                 kernel.readyCoordinator().preview();
         if (!readyPreview.isPass()) {
             return VerificationResult.fail(
-                    "READY preview failed:" + readyPreview.message()
+                    "pratinjau READY gagal:" + readyPreview.message()
             );
         }
         if (!beforeReadyPreview.equals(
@@ -286,7 +290,7 @@ public final class VerificationManager {
                 || beforeSavedRevision
                 != kernel.projectManager().savedRevision()) {
             return VerificationResult.fail(
-                    "READY preview mutated project"
+                    "pratinjau READY mengubah proyek"
             );
         }
 
@@ -300,19 +304,19 @@ public final class VerificationManager {
                 || !firstIr.canonical().equals(secondIr.canonical())
                 || !firstIr.sha256().matches("[0-9a-f]{64}")) {
             return VerificationResult.fail(
-                    "deterministic IR contract failed"
+                    "kontrak IR deterministik gagal"
             );
         }
 
         String previewUnsigned =
                 "0000000000000000000000000000000000000000000000000000000000000000";
         String parentSigned =
-                "fbc39153bc121ed2d32bc9c24e9ff8f0e9b7730fcef01021f4adfd830fbd21ff";
+                "f9dcffed7dc5d657c6dbd1c45933db6a4f6215f5145aee1849cc50f35038b76b";
         CandidateIdentity firstCandidate =
                 kernel.candidateIdentityFactory().create(
                         "com.toolbox.tools",
-                        10,
-                        "10.0-tahap10-dev",
+                        12,
+                        "12.0-produk-penuh",
                         parentSigned,
                         firstIr.sha256(),
                         previewUnsigned
@@ -320,8 +324,8 @@ public final class VerificationManager {
         CandidateIdentity secondCandidate =
                 kernel.candidateIdentityFactory().create(
                         "com.toolbox.tools",
-                        10,
-                        "10.0-tahap10-dev",
+                        12,
+                        "12.0-produk-penuh",
                         parentSigned,
                         firstIr.sha256(),
                         previewUnsigned
@@ -331,12 +335,29 @@ public final class VerificationManager {
                 || !firstCandidate.candidateId().equals(
                 secondCandidate.candidateId())) {
             return VerificationResult.fail(
-                    "candidate identity not deterministic"
+                    "identitas kandidat tidak deterministik"
             );
         }
 
+        FullProductVerifier.Result full =
+                new FullProductVerifier().verify(kernel);
+        if (!full.isPass()) {
+            return VerificationResult.fail(
+                    "produk belum lengkap: "
+                            + full.available().size()
+                            + "/" + full.requiredCount()
+            );
+        }
+        if (kernel.engineManager().snapshot().size() < 6
+                || !kernel.productEngines().semuaSiap()
+                || kernel.libraryManager().components().allReady().size() < 18
+                || kernel.libraryManager().assets().allReady().size() < 5
+                || kernel.libraryManager().templates().allReady().size() < 4) {
+            return VerificationResult.fail("inventaris produk penuh tidak lengkap");
+        }
+
         return VerificationResult.pass(
-                "tahap 11 READY IR App.patch safe restore ready"
+                "produk penuh siap • 5 engine • Bahasa Indonesia • App.patch"
         );
     }
 }
