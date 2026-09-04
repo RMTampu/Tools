@@ -176,6 +176,14 @@ Klaim perubahan tanpa bukti path dan hasil validasi dianggap gagal.
 
 
 
+## Mode Eksekusi Senyap Sampai PASS
+
+- Jika user memberi perintah kerja langsung seperti kerjakan, lanjut, lanjutkan, perbaiki, bangun, matangkan, uji, validasi, atau sampai tuntas, agen harus masuk mode eksekusi senyap.
+- Dalam mode ini agen tidak boleh mengirim chat progres, alasan, rencana, ringkasan sementara, status belum selesai, atau kalimat bahwa pekerjaan akan dilanjutkan.
+- Satu-satunya chat yang boleh dikirim adalah laporan akhir setelah PASS lengkap, artifact siap, atau blocker nyata yang menghentikan pekerjaan.
+- Jika pekerjaan memicu GitHub Actions atau run lain, agen wajib memantau run aktif sampai selesai, membaca log bila gagal, memperbaiki penyebabnya, menjalankan ulang, dan tetap senyap sampai exit gate tercapai.
+- Blocker nyata hanya boleh dilaporkan jika tidak dapat diselesaikan dengan akses agen, misalnya secret private tidak tersedia, izin repo ditolak, layanan eksternal mati, atau keputusan keamanan wajib dari user.
+
 ## Rantai R1-R9 Wajib Saat Menyentuh Asset
 
 - Sebelum menyentuh asset, source asset, package, build artifact, registry binding, workflow build/test, atau file yang menentukan perilaku asset, agen wajib membaca dan mengikuti `R1_R9_ASSET_CHAIN.md`.
