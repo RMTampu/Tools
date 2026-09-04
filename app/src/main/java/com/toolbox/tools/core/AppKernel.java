@@ -1,5 +1,7 @@
 package com.toolbox.tools.core;
 
+import com.toolbox.tools.authoring.DefaultAuthoringFactory;
+import com.toolbox.tools.authoring.UnifiedAuthoringWorkspace;
 import com.toolbox.tools.editor.DefaultEditorFactory;
 import com.toolbox.tools.editor.EditorEnvironment;
 import com.toolbox.tools.library.AssetStore;
@@ -24,6 +26,7 @@ public final class AppKernel {
     private final AssetStore assetStore;
     private final RuntimeEnvironment runtimeEnvironment;
     private final EditorEnvironment editorEnvironment;
+    private final UnifiedAuthoringWorkspace authoringWorkspace;
     private AppState state;
 
     public AppKernel(
@@ -51,6 +54,11 @@ public final class AppKernel {
         this.editorEnvironment = Objects.requireNonNull(
                 editorEnvironment,
                 "editorEnvironment"
+        );
+        this.authoringWorkspace = DefaultAuthoringFactory.create(
+                this.runtimeEnvironment,
+                this.editorEnvironment,
+                this.libraryManager
         );
         this.state = AppState.CREATED;
     }
@@ -151,7 +159,7 @@ public final class AppKernel {
             });
             configStore.put("targetApi", "30");
             configStore.put("targetAbi", "arm64");
-            configStore.put("tahap", "5");
+            configStore.put("tahap", "6");
             projectManager.bootstrap("project.default");
             state = AppState.READY;
         } catch (IOException | RuntimeException error) {
@@ -169,5 +177,6 @@ public final class AppKernel {
     public AssetStore assetStore() { return assetStore; }
     public RuntimeEnvironment runtimeEnvironment() { return runtimeEnvironment; }
     public EditorEnvironment editorEnvironment() { return editorEnvironment; }
+    public UnifiedAuthoringWorkspace authoringWorkspace() { return authoringWorkspace; }
     public synchronized AppState state() { return state; }
 }
