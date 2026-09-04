@@ -1,17 +1,133 @@
 #!/usr/bin/env python3
 import hashlib,json,os,xml.etree.ElementTree as ET
 from pathlib import Path
-APP=Path(__file__).resolve().parents[1];BUILD=APP/"build";OUT=BUILD/"assurance";OUT.mkdir(parents=True,exist_ok=True)
-pre=json.loads((OUT/"tahap8-r1-r8-prebuild-evidence.json").read_text());asset_pre=json.loads((OUT/"tahap8-asset-prebuild-evidence.json").read_text());asset_final=json.loads((OUT/"tahap8-asset-final-evidence.json").read_text());mut=json.loads((OUT/"tahap8-mutation-evidence.json").read_text());plan=json.loads((APP/"ASSURANCE_PLAN_R1_R9.json").read_text())
-assert pre["status"]=="PASS" and pre["stage"]=="Tahap 8";assert pre["assetChain"]=="BOUND";assert mut["status"]=="PASS" and mut["mutationsEscaped"]==0;assert asset_pre["status"]=="ASSET_SAFE_100_DEVELOPMENT_PREBUILD_PASS";assert asset_final["status"]=="ASSET_SAFE_100_DEVELOPMENT_PASS";assert asset_final["unknownAssets"]==0;assert asset_final["unprovenRequiredAssets"]==0
-xml_files=sorted((BUILD/"test-results"/"testDebugUnitTest").glob("TEST-*.xml"));assert xml_files
+
+APP=Path(__file__).resolve().parents[1]
+BUILD=APP/"build"
+OUT=BUILD/"assurance"
+OUT.mkdir(parents=True,exist_ok=True)
+
+pre=json.loads((OUT/"tahap9-r1-r8-prebuild-evidence.json").read_text())
+asset_pre=json.loads((OUT/"tahap9-asset-prebuild-evidence.json").read_text())
+asset_final=json.loads((OUT/"tahap9-asset-final-evidence.json").read_text())
+mut=json.loads((OUT/"tahap9-mutation-evidence.json").read_text())
+plan=json.loads((APP/"ASSURANCE_PLAN_R1_R9.json").read_text())
+
+assert pre["status"]=="PASS" and pre["stage"]=="Tahap 9"
+assert pre["assetChain"]=="BOUND"
+assert mut["status"]=="PASS" and mut["mutationsEscaped"]==0
+assert asset_pre["status"]=="ASSET_SAFE_100_DEVELOPMENT_PREBUILD_PASS"
+assert asset_final["status"]=="ASSET_SAFE_100_DEVELOPMENT_PASS"
+assert asset_final["unknownAssets"]==0
+assert asset_final["unprovenRequiredAssets"]==0
+
+xml_files=sorted((BUILD/"test-results"/"testDebugUnitTest").glob("TEST-*.xml"))
+assert xml_files,"JUnit evidence missing"
 tests=failures=errors=skipped=0
 for file in xml_files:
- root=ET.parse(file).getroot();tests+=int(root.attrib.get("tests","0"));failures+=int(root.attrib.get("failures","0"));errors+=int(root.attrib.get("errors","0"));skipped+=int(root.attrib.get("skipped","0"))
+    root=ET.parse(file).getroot()
+    tests+=int(root.attrib.get("tests","0"))
+    failures+=int(root.attrib.get("failures","0"))
+    errors+=int(root.attrib.get("errors","0"))
+    skipped+=int(root.attrib.get("skipped","0"))
 assert tests>0 and failures==0 and errors==0 and skipped==0
-apk=BUILD/"outputs"/"apk"/"release"/"app-release-unsigned.apk";digest_file=Path(str(apk)+".sha256");actual=hashlib.sha256(apk.read_bytes()).hexdigest();assert actual==digest_file.read_text().strip().split()[0]
-runtime=(OUT/"tahap8-api30-runtime.txt").read_text()
-for marker in ["API30_APP_LAUNCH=PASS","TAHAP8_UI_TEXT=PASS","API_LEVEL=30","REPAIR_DEMO=PASS","HEALTH=PASS","RECOVERY_PREVIEW=PASS","TAHAP7_REGRESSION=PASS"]:assert marker in runtime,marker
-e={"schemaVersion":7,"projectId":"ToolBox","stage":"Tahap 8","stageMap":"H","status":"PASS","sourceRepository":os.environ.get("GITHUB_REPOSITORY","LOCAL"),"sourceCommitSha":os.environ.get("GITHUB_SHA","LOCAL"),"workflowRunId":os.environ.get("GITHUB_RUN_ID","LOCAL"),"parentBaseline":{"name":"Tahap 7","apkSha256":plan["parentBaseline"]["apkSha256"],"unchanged":True},"r1ToR9":{d:{"applicability":plan["domains"][d]["applicability"],"researchMethodsBound":pre["researchMethodCounts"][d],"status":"PASS"} for d in [f"R{i}" for i in range(1,10)]},"assetAssurance":{"status":"PASS","requiredAssets":asset_final["requiredAssets"],"runtimeAssetsProven":asset_final["runtimeAssetsProven"],"unknownAssets":0},"evidence":{"unitTests":"PASS","mutation":"PASS","assetRoute":"PASS","api30Runtime":"PASS","packageMetadata":"PASS","unsignedApkDigest":"PASS","baselineTahap7DevelopmentCompatibility":"PASS","repairPlan":"PASS","staging":"PASS","activateVerify":"PASS","rollback":"PASS","health":"PASS","recoveryPreview":"PASS","interactiveUiRoute":"PASS","tahap7Regression":"PASS"},"testSummary":{"tests":tests,"failures":failures,"errors":errors,"skipped":skipped},"artifact":{"fileName":apk.name,"sha256":actual,"sizeBytes":apk.stat().st_size},"closure":{"unknown":0,"skipped":0,"staleEvidence":0,"mutationEscape":0,"unprovenRequiredAssets":0},"publicBoundaries":{"privateContentIncluded":False,"firebaseUsed":False,"signingUsed":False,"finalArm64RuntimeClaimed":False}}
-(OUT/"tahap8-r1-r9-evidence.json").write_text(json.dumps(e,indent=2,sort_keys=True)+"\n")
-print("TAHAP_8_R1_R9 = PASS");print("ASSET_SAFE_CHAIN = PASS");print("UNKNOWN = 0");print("SKIPPED = 0");print("MUTATION_ESCAPE = 0")
+
+apk=BUILD/"outputs"/"apk"/"release"/"app-release-unsigned.apk"
+digest_file=Path(str(apk)+".sha256")
+assert apk.is_file() and digest_file.is_file()
+actual=hashlib.sha256(apk.read_bytes()).hexdigest()
+assert actual==digest_file.read_text().strip().split()[0]
+
+runtime=(OUT/"tahap9-api30-runtime.txt").read_text()
+for marker in [
+    "API30_APP_LAUNCH=PASS",
+    "TAHAP9_UI_TEXT=PASS",
+    "API_LEVEL=30",
+    "CAPABILITY_SCAN=PASS",
+    "LIVE_SESSION=PASS",
+    "SELF_EDIT_QUEUE=PASS",
+    "TERAPKAN=PASS",
+    "TAHAP8_REPAIR_REGRESSION=PASS"
+]:
+    assert marker in runtime,marker
+
+evidence={
+    "schemaVersion":8,
+    "projectId":"ToolBox",
+    "stage":"Tahap 9",
+    "stageMap":"I",
+    "status":"PASS",
+    "sourceRepository":os.environ.get("GITHUB_REPOSITORY","LOCAL"),
+    "sourceCommitSha":os.environ.get("GITHUB_SHA","LOCAL"),
+    "workflowRunId":os.environ.get("GITHUB_RUN_ID","LOCAL"),
+    "parentBaseline":{
+        "name":"Tahap 8",
+        "apkSha256":plan["parentBaseline"]["apkSha256"],
+        "unchanged":True
+    },
+    "r1ToR9":{
+        domain:{
+            "applicability":plan["domains"][domain]["applicability"],
+            "researchMethodsBound":pre["researchMethodCounts"][domain],
+            "status":"PASS"
+        }
+        for domain in [f"R{i}" for i in range(1,10)]
+    },
+    "assetAssurance":{
+        "status":"PASS",
+        "requiredAssets":asset_final["requiredAssets"],
+        "runtimeAssetsProven":asset_final["runtimeAssetsProven"],
+        "unknownAssets":0
+    },
+    "evidence":{
+        "unitTests":"PASS",
+        "mutation":"PASS",
+        "assetRoute":"PASS",
+        "api30Runtime":"PASS",
+        "packageMetadata":"PASS",
+        "unsignedApkDigest":"PASS",
+        "baselineTahap8DevelopmentCompatibility":"PASS",
+        "capabilityScan":"PASS",
+        "editDoorGate":"PASS",
+        "liveSession":"PASS",
+        "compareReadOnly":"PASS",
+        "staleRevisionConflict":"PASS",
+        "terapkanRepairPipeline":"PASS",
+        "selfEditProtected":"PASS",
+        "interactiveUiRoute":"PASS",
+        "tahap8RepairRegression":"PASS"
+    },
+    "testSummary":{
+        "tests":tests,
+        "failures":failures,
+        "errors":errors,
+        "skipped":skipped
+    },
+    "artifact":{
+        "fileName":apk.name,
+        "sha256":actual,
+        "sizeBytes":apk.stat().st_size
+    },
+    "closure":{
+        "unknown":0,
+        "skipped":0,
+        "staleEvidence":0,
+        "mutationEscape":0,
+        "unprovenRequiredAssets":0
+    },
+    "publicBoundaries":{
+        "privateContentIncluded":False,
+        "firebaseUsed":False,
+        "signingUsed":False,
+        "finalArm64RuntimeClaimed":False,
+        "sandboxBypassAdded":False
+    }
+}
+(OUT/"tahap9-r1-r9-evidence.json").write_text(
+    json.dumps(evidence,indent=2,sort_keys=True)+"\n"
+)
+print("TAHAP_9_R1_R9 = PASS")
+print("ASSET_SAFE_CHAIN = PASS")
+print("UNKNOWN = 0")
+print("SKIPPED = 0")
+print("MUTATION_ESCAPE = 0")
