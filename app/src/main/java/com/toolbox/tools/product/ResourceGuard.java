@@ -27,6 +27,10 @@ public final class ResourceGuard {
     private String activeScreenId="screen.home";
     private final Map<String,ScreenBudget> screenBudgets=new LinkedHashMap<>();
     private final Map<String,List<Long>> pssSamples=new LinkedHashMap<>();
+    private Pressure runtimePressure=Pressure.NORMAL;
+    private float previewQuality=1.0f;
+    private boolean preloadEnabled=true;
+    private int releaseGeneration;
 
     public ResourceGuard(){configureScreen("screen.home",96L*1024L*1024L,180,4);configureScreen("screen.detail",96L*1024L*1024L,180,4);}
 
@@ -53,11 +57,56 @@ public final class ResourceGuard {
         return Pressure.NORMAL;
     }
 
+    public synchronized void applyPressure(Pressure pressure) {
+        runtimePressure = Objects.requireNonNull(
+                pressure,
+                "pressure"
+        );
+        switch (pressure) {
+            case CRITICAL:
+                previewQuality = 0.5f;
+                preloadEnabled = false;
+                releaseGeneration++;
+                break;
+            case REDUCED:
+                previewQuality = 0.75f;
+                preloadEnabled = false;
+                break;
+            case NORMAL:
+            default:
+                previewQuality = 1.0f;
+                preloadEnabled = true;
+                break;
+        }
+    }
+
+    public synchronized Pressure runtimePressure() {
+        return runtimePressure;
+    }
+
+    public synchronized float previewQuality() {
+        return previewQuality;
+    }
+
+    public synchronized boolean preloadEnabled() {
+        return preloadEnabled;
+    }
+
+    public synchronized int releaseGeneration() {
+        return releaseGeneration;
+    }
+
     public synchronized boolean leakTrend(String screenId){
         List<Long> s=pssSamples.get(screenId);if(s==null||s.size()<4)return false;
         long first=s.get(0),last=s.get(s.size()-1);return last-first>8L*1024L*1024L;
     }
 
     public synchronized Map<String,ScreenBudget> budgets(){return Collections.unmodifiableMap(new LinkedHashMap<>(screenBudgets));}
-    public synchronized boolean invariantPass(){return activeScreenCount<=1&&heavyActive!=null&&!screenBudgets.isEmpty();}
+    public synchronized boolean invariantPass(){
+        return activeScreenCount<=1
+                &&heavyActive!=null
+                &&!screenBudgets.isEmpty()
+                &&previewQuality>=0.5f
+                &&previewQuality<=1.0f;
+    }
 }
