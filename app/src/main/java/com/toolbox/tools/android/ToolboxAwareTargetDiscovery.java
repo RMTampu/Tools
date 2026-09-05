@@ -41,17 +41,37 @@ public final class ToolboxAwareTargetDiscovery {
             String label = labelValue == null
                     ? packageName
                     : labelValue.toString();
-            List<String> capabilities = declaredCapabilities(
-                    info.activityInfo.metaData
-            );
+            Bundle meta = info.activityInfo.metaData;
+            List<String> capabilities = declaredCapabilities(meta);
             if (capabilities.isEmpty()) {
                 continue;
             }
+            int protocolVersion = meta == null
+                    ? -1
+                    : meta.getInt(
+                            "com.toolbox.PROTOCOL_VERSION",
+                            -1
+                    );
+            if (protocolVersion != 1) continue;
+            String projectId = meta.getString(
+                    "com.toolbox.PROJECT_ID",
+                    "project."
+                            + packageName
+                            .toLowerCase(Locale.ROOT)
+                            .replace('.', '_')
+            );
+            long revision = meta.getLong(
+                    "com.toolbox.REVISION",
+                    0
+            );
             try {
                 bridge.registerAwareTarget(
                         packageName,
                         label,
-                        capabilities
+                        capabilities,
+                        protocolVersion,
+                        projectId,
+                        revision
                 );
                 added++;
             } catch (IllegalArgumentException duplicateOrInvalid) {
