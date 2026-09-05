@@ -195,15 +195,6 @@ public final class ProductRuntimeInstrumentedTest {
                             TestDocumentsProvider.AUTHORITY,
                             TestDocumentsProvider.ROOT_ID
                     );
-                    InstrumentationRegistry.getInstrumentation()
-                            .getContext()
-                            .grantUriPermission(
-                                    activity.getPackageName(),
-                                    tree,
-                                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                                            | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                                            | Intent.FLAG_GRANT_PREFIX_URI_PERMISSION
-                            );
                     SafVisibleWorkspaceStore visible =
                             new SafVisibleWorkspaceStore(
                                     activity.getContentResolver(),
