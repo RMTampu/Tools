@@ -55,6 +55,8 @@ import java.util.List;
 import java.util.Map;
 
 public final class WorkspaceShellView extends FrameLayout {
+    private static boolean processShellCreated;
+
     private enum Screen {
         HOME,
         EDITOR_CHOOSER,
@@ -142,8 +144,20 @@ public final class WorkspaceShellView extends FrameLayout {
             return insets;
         });
 
+        boolean firstShellInProcess = !processShellCreated;
+        processShellCreated = true;
+
         edgeAnchor = restoreEdgeAnchor();
         restoreEditorContext();
+
+        // Navigasi layar adalah state sesi, bukan state durable. Pada proses
+        // baru ToolBox selalu masuk melalui Beranda; representasi/fungsi/editor
+        // context tetap dipulihkan untuk activity recreation dalam proses yang
+        // sama. Ini mencegah process-death menghidupkan kembali layar transient.
+        if (firstShellInProcess) {
+            screen = Screen.HOME;
+            panelPage = PanelPage.ROOT;
+        }
 
         workspace = new FrameLayout(context);
         workspace.setBackgroundColor(UiKit.LATAR);
