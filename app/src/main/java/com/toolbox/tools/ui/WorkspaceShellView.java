@@ -37,6 +37,7 @@ import com.toolbox.tools.product.EditorContextStore;
 import com.toolbox.tools.product.FullProductVerifier;
 import com.toolbox.tools.product.ProductAcceptanceMatrix;
 import com.toolbox.tools.product.ProductCompletionServices;
+import com.toolbox.tools.product.AppLifecycleManager;
 import com.toolbox.tools.repair.HealthReport;
 import com.toolbox.tools.protocol.ManagedAppProtocol;
 
@@ -295,6 +296,10 @@ public final class WorkspaceShellView extends FrameLayout {
         kernel.editorEnvironment().shell().setLiveCapability(true);
         activateToolSection(active);
         persistEditorContext();
+        dispatchScreenLifecycle(
+                AppLifecycleManager.Event.SCREEN_VISIBLE,
+                lifecycleScreenId()
+        );
         applyEdgeLayout(false);
         renderAll();
         post(() -> {
@@ -746,10 +751,24 @@ public final class WorkspaceShellView extends FrameLayout {
     }
 
     private void openHomeNow() {
+        String leaving = lifecycleScreenId();
+        dispatchScreenLifecycle(
+                AppLifecycleManager.Event.SCREEN_LEAVE,
+                leaving
+        );
         closeOverlay();
         screen = Screen.HOME;
         panelPage = PanelPage.ROOT;
         kernel.editorEnvironment().shell().clearSelection();
+        persistEditorContext();
+        dispatchScreenLifecycle(
+                AppLifecycleManager.Event.SCREEN_RETURN,
+                lifecycleScreenId()
+        );
+        dispatchScreenLifecycle(
+                AppLifecycleManager.Event.SCREEN_VISIBLE,
+                lifecycleScreenId()
+        );
         renderAll();
     }
 
@@ -758,10 +777,24 @@ public final class WorkspaceShellView extends FrameLayout {
     }
 
     private void openEditorChooserNow() {
+        String leaving = lifecycleScreenId();
+        dispatchScreenLifecycle(
+                AppLifecycleManager.Event.SCREEN_LEAVE,
+                leaving
+        );
         closeOverlay();
         screen = Screen.EDITOR_CHOOSER;
         panelPage = PanelPage.ROOT;
         kernel.editorEnvironment().shell().clearSelection();
+        persistEditorContext();
+        dispatchScreenLifecycle(
+                AppLifecycleManager.Event.SCREEN_ENTER,
+                lifecycleScreenId()
+        );
+        dispatchScreenLifecycle(
+                AppLifecycleManager.Event.SCREEN_VISIBLE,
+                lifecycleScreenId()
+        );
         renderAll();
     }
 
@@ -797,6 +830,11 @@ public final class WorkspaceShellView extends FrameLayout {
     }
 
     private void openEditor(String entry) {
+        String leaving = lifecycleScreenId();
+        dispatchScreenLifecycle(
+                AppLifecycleManager.Event.SCREEN_LEAVE,
+                leaving
+        );
         kernel.productServices().completion().uiStateHold.enterEdit(
                 stateHoldId()
         );
@@ -808,6 +846,15 @@ public final class WorkspaceShellView extends FrameLayout {
         activateToolSection(active);
         kernel.editorEnvironment().shell().setMode(EditorMode.EDIT);
         kernel.editorEnvironment().shell().setEditEnabled(true);
+        persistEditorContext();
+        dispatchScreenLifecycle(
+                AppLifecycleManager.Event.SCREEN_ENTER,
+                lifecycleScreenId()
+        );
+        dispatchScreenLifecycle(
+                AppLifecycleManager.Event.SCREEN_VISIBLE,
+                lifecycleScreenId()
+        );
         renderAll();
     }
 
@@ -3020,6 +3067,46 @@ public final class WorkspaceShellView extends FrameLayout {
                     return true;
             }
         });
+    }
+
+    private String lifecycleScreenId() {
+        return screen == Screen.EDITOR_WORKSPACE
+                ? "screen.editor.workspace"
+                : screen == Screen.EDITOR_CHOOSER
+                ? "screen.editor.chooser"
+                : "screen.home";
+    }
+
+    private void dispatchScreenLifecycle(
+            AppLifecycleManager.Event event,
+            String screenId
+    ) {
+        AppLifecycleManager lifecycle =
+                kernel.productServices().lifecycle();
+        long now = System.currentTimeMillis();
+        lifecycle.emit(event, screenId, now);
+
+        for (String actionId : lifecycle.eligibleActions(
+                event,
+                screenId,
+                now
+        )) {
+            if ("lifecycle.home.every".equals(actionId)) {
+                kernel.productServices()
+                        .resources()
+                        .enterScreen(screenId);
+            } else if ("lifecycle.home.first".equals(actionId)
+                    || "lifecycle.home.stale".equals(actionId)) {
+                // Derived index is rebuildable and is safe to refresh from the
+                // current Project Store without autosaving user changes.
+                kernel.productServices()
+                        .projectGraph()
+                        .rebuildFrom(
+                                kernel.projectManager().current()
+                        );
+            }
+            lifecycle.markExecuted(actionId, now);
+        }
     }
 
     private void restoreEditorContext() {
