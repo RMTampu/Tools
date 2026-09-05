@@ -6,6 +6,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
 import android.widget.ImageView;
+import android.widget.TextView;
+import android.view.View;
+import android.view.ViewGroup;
 
 import com.toolbox.tools.core.AppKernel;
 import com.toolbox.tools.core.AppState;
@@ -16,6 +19,7 @@ import com.toolbox.tools.delivery.PatchTransactionJournal;
 import com.toolbox.tools.product.FreezeEngine;
 import com.toolbox.tools.product.ResourceGuard;
 import com.toolbox.tools.ui.AndroidAssetRenderer;
+import com.toolbox.tools.ui.UiCanvasView;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -249,6 +253,122 @@ public final class ProductRuntimeInstrumentedTest {
     }
 
     @Test
+    public void advancedUiPropertiesMaterializeOnRealAndroidView() {
+        try (ActivityScenario<MainActivity> scenario =
+                     ActivityScenario.launch(MainActivity.class)) {
+            scenario.onActivity(activity -> {
+                AppKernel kernel = activity.kernelForTest();
+                Map<String, String> update =
+                        new LinkedHashMap<>();
+                update.put(
+                        "ui.object.home.primary.text",
+                        "Kirim"
+                );
+                update.put(
+                        "ui.object.home.primary.icon",
+                        "★"
+                );
+                update.put(
+                        "ui.object.home.primary.icon.placement",
+                        "start"
+                );
+                update.put(
+                        "ui.object.home.primary.color",
+                        "#123456"
+                );
+                update.put(
+                        "ui.object.home.primary.border.color",
+                        "#00f0b5"
+                );
+                update.put(
+                        "ui.object.home.primary.radius.topLeft.dp",
+                        "4"
+                );
+                update.put(
+                        "ui.object.home.primary.radius.topRight.dp",
+                        "10"
+                );
+                update.put(
+                        "ui.object.home.primary.radius.bottomRight.dp",
+                        "18"
+                );
+                update.put(
+                        "ui.object.home.primary.radius.bottomLeft.dp",
+                        "24"
+                );
+                update.put(
+                        "ui.object.home.primary.margin.left.dp",
+                        "9"
+                );
+                update.put(
+                        "ui.object.home.primary.padding.left.dp",
+                        "7"
+                );
+                update.put(
+                        "ui.object.home.primary.padding.right.dp",
+                        "11"
+                );
+                update.put(
+                        "ui.object.home.primary.text.weight",
+                        "700"
+                );
+                update.put(
+                        "ui.object.home.primary.text.italic",
+                        "true"
+                );
+                update.put(
+                        "ui.object.home.primary.text.letterSpacing",
+                        "0.08"
+                );
+                update.put(
+                        "ui.object.home.primary.text.maxLines",
+                        "2"
+                );
+                update.put(
+                        "ui.object.home.primary.rotation",
+                        "15"
+                );
+                update.put(
+                        "ui.object.home.primary.scale.x",
+                        "1.2"
+                );
+                update.put(
+                        "ui.object.home.primary.scale.y",
+                        "1.1"
+                );
+                update.put(
+                        "ui.object.home.primary.accessibility.label",
+                        "Tombol Kirim"
+                );
+                kernel.projectManager().applyResourceTransaction(
+                        update,
+                        Collections.emptySet()
+                );
+
+                UiCanvasView canvas = new UiCanvasView(
+                        activity,
+                        kernel,
+                        null
+                );
+                TextView button = findTextViewByDescription(
+                        canvas,
+                        "Tombol Kirim"
+                );
+                assertNotNull(button);
+                assertEquals("★  Kirim", button.getText().toString());
+                assertEquals(15f, button.getRotation(), 0.01f);
+                assertEquals(1.2f, button.getScaleX(), 0.01f);
+                assertEquals(1.1f, button.getScaleY(), 0.01f);
+                assertEquals(0.08f, button.getLetterSpacing(), 0.001f);
+                assertEquals(2, button.getMaxLines());
+                assertTrue(button.getPaddingLeft() > 0);
+                assertTrue(button.getPaddingRight() > 0);
+                assertNotNull(button.getBackground());
+            });
+        }
+    }
+
+    @Test
     public void memoryPressurePolicyDegradesAndRecoversOnDevice() {
         try (ActivityScenario<MainActivity> scenario =
                      ActivityScenario.launch(MainActivity.class)) {
@@ -409,6 +529,29 @@ public final class ProductRuntimeInstrumentedTest {
                 }
             });
         }
+    }
+
+    private static TextView findTextViewByDescription(
+            View view,
+            String description
+    ) {
+        if (view instanceof TextView
+                && description.contentEquals(
+                        view.getContentDescription()
+                )) {
+            return (TextView) view;
+        }
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                TextView found = findTextViewByDescription(
+                        group.getChildAt(i),
+                        description
+                );
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
 
     private static String sha256(byte[] bytes) throws Exception {
