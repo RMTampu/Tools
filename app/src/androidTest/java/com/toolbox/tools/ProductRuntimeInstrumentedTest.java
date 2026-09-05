@@ -281,19 +281,19 @@ public final class ProductRuntimeInstrumentedTest {
                         "#00f0b5"
                 );
                 update.put(
-                        "ui.object.home.primary.radius.topLeft.dp",
+                        "ui.object.home.primary.radius.topleft.dp",
                         "4"
                 );
                 update.put(
-                        "ui.object.home.primary.radius.topRight.dp",
+                        "ui.object.home.primary.radius.topright.dp",
                         "10"
                 );
                 update.put(
-                        "ui.object.home.primary.radius.bottomRight.dp",
+                        "ui.object.home.primary.radius.bottomright.dp",
                         "18"
                 );
                 update.put(
-                        "ui.object.home.primary.radius.bottomLeft.dp",
+                        "ui.object.home.primary.radius.bottomleft.dp",
                         "24"
                 );
                 update.put(
@@ -317,11 +317,11 @@ public final class ProductRuntimeInstrumentedTest {
                         "true"
                 );
                 update.put(
-                        "ui.object.home.primary.text.letterSpacing",
+                        "ui.object.home.primary.text.letterspacing",
                         "0.08"
                 );
                 update.put(
-                        "ui.object.home.primary.text.maxLines",
+                        "ui.object.home.primary.text.maxlines",
                         "2"
                 );
                 update.put(
