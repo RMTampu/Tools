@@ -431,12 +431,19 @@ public final class UiCanvasView extends FrameLayout {
     ) {
         String kind;
         String label;
+        String assetId = null;
         if (payload.startsWith("component.")) {
             kind = payload;
             label = "Komponen Baru";
         } else if (payload.startsWith("asset.")) {
-            kind = payload;
-            label = "Aset Baru";
+            kind = "asset";
+            assetId = payload;
+            label = resource(
+                    payload + ".name",
+                    payload.startsWith("asset.external.")
+                            ? "Aset Eksternal"
+                            : "Aset Baru"
+            );
         } else {
             Toast.makeText(
                     getContext(),
@@ -451,6 +458,9 @@ public final class UiCanvasView extends FrameLayout {
         LinkedHashMap<String, String> updates = new LinkedHashMap<>();
         updates.put(objectId + ".kind", kind);
         updates.put(objectId + ".text", label);
+        if (assetId != null) {
+            updates.put(objectId + ".asset.id", assetId);
+        }
         updates.put(
                 objectId + ".position.x.dp",
                 String.valueOf(Math.max(
@@ -469,8 +479,14 @@ public final class UiCanvasView extends FrameLayout {
                         )
                 ))
         );
-        updates.put(objectId + ".width.dp", "112");
-        updates.put(objectId + ".height.dp", "40");
+        updates.put(
+                objectId + ".width.dp",
+                assetId == null ? "112" : "160"
+        );
+        updates.put(
+                objectId + ".height.dp",
+                assetId == null ? "40" : "110"
+        );
         try {
             kernel.projectManager().applyResourceTransaction(
                     updates,
@@ -571,23 +587,68 @@ public final class UiCanvasView extends FrameLayout {
                 // Sudah terdaftar.
             }
         }
-        TextView object = UiKit.judul(
-                getContext(),
-                resource(objectId + ".text", "Objek"),
-                11f
+        View object;
+        String assetId = resource(
+                objectId + ".asset.id",
+                ""
         );
+        if (assetId.startsWith("asset.external.")) {
+            try {
+                object = AndroidAssetRenderer.render(
+                        getContext(),
+                        kernel,
+                        assetId,
+                        UiKit.dp(
+                                getContext(),
+                                intResource(
+                                        objectId + ".width.dp",
+                                        160
+                                )
+                        ),
+                        UiKit.dp(
+                                getContext(),
+                                intResource(
+                                        objectId + ".height.dp",
+                                        110
+                                )
+                        )
+                );
+            } catch (Exception error) {
+                TextView failed = UiKit.teks(
+                        getContext(),
+                        "Aset tidak dapat dimuat\nIntegrity/format gagal",
+                        10f,
+                        UiKit.BAHAYA
+                );
+                failed.setGravity(Gravity.CENTER);
+                object = failed;
+            }
+        } else {
+            TextView text = UiKit.judul(
+                    getContext(),
+                    resource(objectId + ".text", "Objek"),
+                    11f
+            );
+            text.setGravity(Gravity.CENTER);
+            text.setTextColor(UiKit.TEKS);
+            text.setBackground(UiKit.kartuPx(
+                    getContext(),
+                    UiKit.PERMUKAAN_2,
+                    UiKit.NEON_BIRU,
+                    12,
+                    1
+            ));
+            object = text;
+        }
         object.setTag(objectId);
-        object.setGravity(Gravity.CENTER);
-        object.setTextColor(UiKit.TEKS);
-        object.setBackground(UiKit.kartuPx(
-                getContext(),
-                UiKit.PERMUKAAN_2,
-                UiKit.NEON_BIRU,
-                12,
-                1
-        ));
-        int width = intResource(objectId + ".width.dp", 112);
-        int height = intResource(objectId + ".height.dp", 40);
+        int width = intResource(
+                objectId + ".width.dp",
+                assetId.startsWith("asset.") ? 160 : 112
+        );
+        int height = intResource(
+                objectId + ".height.dp",
+                assetId.startsWith("asset.") ? 110 : 40
+        );
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
                 UiKit.dp(getContext(), width),
                 UiKit.dp(getContext(), height)
