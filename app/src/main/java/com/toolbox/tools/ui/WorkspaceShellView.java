@@ -2,6 +2,7 @@ package com.toolbox.tools.ui;
 
 import android.content.ClipData;
 import android.content.Context;
+import android.content.ClipboardManager;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.graphics.Color;
@@ -1586,72 +1587,198 @@ public final class WorkspaceShellView extends FrameLayout {
     }
 
     private void showBindingEditorAction(String label) {
+        com.toolbox.tools.product.BindingAutoConnectService service =
+                kernel.productServices().bindingAutoConnect();
+        final String targetInstance = "instance.home.primary";
+        final String targetProperty = "property.text";
+
         if ("Hubungkan Otomatis".equals(label)) {
-            String current = kernel.projectManager().current().resources().getOrDefault(
-                    "binding.ui.home.primary.mode",
-                    "auto"
-            );
+            com.toolbox.tools.product.BindingAutoConnectService.Result current =
+                    service.inspect(
+                            targetInstance,
+                            targetProperty
+                    );
             showActionOverlay(
                     "Hubungkan Otomatis",
                     Arrays.asList(
-                            mark("Hubungkan", "auto".equals(current)),
-                            mark("Lepaskan", "none".equals(current))
+                            mark(
+                                    "Jalankan Auto Connect",
+                                    current.connected()
+                            ),
+                            "Lepaskan",
+                            "Salin Laporan"
                     ),
-                    value -> applyResource(
-                            "binding.ui.home.primary.mode",
-                            "Hubungkan".equals(stripMark(value)) ? "auto" : "none",
-                            "Status pengikatan diperbarui."
-                    )
+                    value -> {
+                        String clean = stripMark(value);
+                        if ("Jalankan Auto Connect".equals(clean)) {
+                            com.toolbox.tools.product
+                                    .BindingAutoConnectService.Result result =
+                                    service.connect(
+                                            targetInstance,
+                                            targetProperty
+                                    );
+                            closeOverlay();
+                            if (result.connected()) {
+                                toast(
+                                        "Auto Connect deterministik: TERHUBUNG"
+                                );
+                            } else if (result.status()
+                                    == com.toolbox.tools.product
+                                        .BindingAutoConnectService.Status
+                                        .AMBIGUOUS) {
+                                showInfoOverlay(
+                                        "Auto Connect Diblokir",
+                                        Arrays.asList(
+                                                "Status: AMBIGU",
+                                                "Kandidat: "
+                                                    + result.candidates().size(),
+                                                "Tidak ada target yang ditebak.",
+                                                "Detail sudah masuk Diagnostics.",
+                                                result.report()
+                                        )
+                                );
+                            } else {
+                                showInfoOverlay(
+                                        "Auto Connect",
+                                        Arrays.asList(
+                                                "Status: "
+                                                    + result.status().name(),
+                                                result.report()
+                                        )
+                                );
+                            }
+                            renderWorkspace();
+                            return;
+                        }
+                        if ("Lepaskan".equals(clean)) {
+                            service.disconnect(
+                                    targetInstance,
+                                    targetProperty
+                            );
+                            closeOverlay();
+                            renderWorkspace();
+                            toast("Pengikatan dilepaskan.");
+                            return;
+                        }
+                        copyTextToClipboard(
+                                "Laporan Pengikatan",
+                                service.inspect(
+                                        targetInstance,
+                                        targetProperty
+                                ).report()
+                        );
+                        closeOverlay();
+                        toast("Laporan pengikatan disalin.");
+                    }
             );
             return;
         }
 
-        String mode = kernel.projectManager().current().resources().getOrDefault(
-                "binding.ui.home.primary.mode",
-                "auto"
-        );
+        com.toolbox.tools.product.BindingAutoConnectService.Result result =
+                service.inspect(
+                        targetInstance,
+                        targetProperty
+                );
+        String mode = result.connected()
+                ? "OTOMATIS"
+                : "TIDAK TERHUBUNG";
+
         if ("Status".equals(label)) {
-            showInfoOverlay("Status Pengikatan", Arrays.asList(
-                    "Mode: " + ("auto".equals(mode) ? "OTOMATIS" : "TIDAK TERHUBUNG"),
-                    "Target: object.home.primary",
-                    "Sumber: data.items.field.title"
-            ));
+            List<String> rows = new ArrayList<>();
+            rows.add("Mode: " + mode);
+            rows.add("Target: " + targetInstance + "." + targetProperty);
+            if (!result.candidates().isEmpty()) {
+                rows.add(
+                        "Sumber: "
+                                + result.candidates().get(0).sourceId()
+                                + "."
+                                + result.candidates().get(0).sourceFieldId()
+                );
+            }
+            rows.add("Kebijakan: deterministic / no-guess");
+            showInfoOverlay("Status Pengikatan", rows);
             return;
         }
         if ("Masalah".equals(label)) {
-            showInfoOverlay("Masalah Pengikatan", Arrays.asList(
-                    "Target ambigu: 0",
-                    "Siklus: 0",
-                    "Referensi hilang: 0"
-            ));
+            int ambiguous = 0;
+            int blocking = 0;
+            for (com.toolbox.tools.product.DiagnosticCenter.Item item
+                    : kernel.productServices().diagnostics().all()) {
+                if ("BINDING_AMBIGUOUS".equals(item.code())) {
+                    ambiguous++;
+                }
+                if ("BLOCKING".equals(item.severity())
+                        || "MEMBLOKIR".equals(item.severity())) {
+                    blocking++;
+                }
+            }
+            showInfoOverlay(
+                    "Masalah Pengikatan",
+                    Arrays.asList(
+                            "Target ambigu: " + ambiguous,
+                            "Blocking diagnostics: " + blocking,
+                            "Status aktif: " + result.status().name(),
+                            "Tidak ada ambiguity yang ditebak otomatis."
+                    )
+            );
             return;
         }
         if ("Peta".equals(label)) {
-            showInfoOverlay("Peta Pengikatan", Arrays.asList(
-                    "data.items.field.title → object.home.primary.property.text",
-                    "Mode: " + mode
-            ));
+            List<String> rows = new ArrayList<>();
+            if (result.candidates().isEmpty()) {
+                rows.add("Belum ada pengikatan tersimpan.");
+            } else {
+                for (com.toolbox.tools.product
+                        .BindingAutoConnectService.Candidate item
+                        : result.candidates()) {
+                    rows.add(item.canonical());
+                }
+            }
+            rows.add("Mode: " + mode);
+            showInfoOverlay("Peta Pengikatan", rows);
             return;
         }
         if ("Penggunaan".equals(label)) {
-            showInfoOverlay("Penggunaan Pengikatan", Arrays.asList(
-                    "Screen: screen.home",
-                    "Objek: object.home.primary",
-                    "Properti: property.text"
-            ));
+            showInfoOverlay(
+                    "Penggunaan Pengikatan",
+                    Arrays.asList(
+                            "Screen runtime: screen.home",
+                            "Instance runtime: " + targetInstance,
+                            "Properti: " + targetProperty,
+                            "Working state: "
+                                    + (kernel.projectManager()
+                                            .hasUnsavedChanges()
+                                            ? "BELUM DISIMPAN"
+                                            : "TERSIMPAN")
+                    )
+            );
             return;
         }
         if ("Riwayat".equals(label)) {
-            showInfoOverlay("Riwayat Pengikatan", Arrays.asList(
-                    kernel.projectManager().hasUnsavedChanges()
-                            ? "Ada perubahan pengikatan belum disimpan"
-                            : "Tidak ada perubahan tertunda",
-                    "Undo tersedia: " + (kernel.projectManager().canUndo() ? "YA" : "TIDAK"),
-                    "Redo tersedia: " + (kernel.projectManager().canRedo() ? "YA" : "TIDAK")
-            ));
+            showInfoOverlay(
+                    "Riwayat Pengikatan",
+                    Arrays.asList(
+                            kernel.projectManager().hasUnsavedChanges()
+                                    ? "Ada perubahan pengikatan belum disimpan"
+                                    : "Tidak ada perubahan tertunda",
+                            "Undo tersedia: "
+                                    + (kernel.projectManager().canUndo()
+                                            ? "YA"
+                                            : "TIDAK"),
+                            "Redo tersedia: "
+                                    + (kernel.projectManager().canRedo()
+                                            ? "YA"
+                                            : "TIDAK"),
+                            "Laporan saat ini:",
+                            result.report()
+                    )
+            );
             return;
         }
-        showInfoOverlay("Pengikatan", Arrays.asList("Tidak ada aksi untuk konteks ini."));
+        showInfoOverlay(
+                "Pengikatan",
+                Arrays.asList("Tidak ada aksi untuk konteks ini.")
+        );
     }
 
     private void showAssetEditorAction(String label) {
@@ -3996,6 +4123,24 @@ public final class WorkspaceShellView extends FrameLayout {
         d.setShape(GradientDrawable.OVAL);
         d.setColor(color);
         return d;
+    }
+
+    private void copyTextToClipboard(
+            String label,
+            String value
+    ) {
+        ClipboardManager clipboard =
+                (ClipboardManager) getContext().getSystemService(
+                        Context.CLIPBOARD_SERVICE
+                );
+        if (clipboard == null) {
+            throw new IllegalStateException(
+                    "clipboard Android tidak tersedia"
+            );
+        }
+        clipboard.setPrimaryClip(
+                ClipData.newPlainText(label, value)
+        );
     }
 
     private void toast(String message) {
