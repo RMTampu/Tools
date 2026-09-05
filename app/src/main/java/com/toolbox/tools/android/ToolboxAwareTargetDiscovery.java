@@ -4,12 +4,16 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.os.Bundle;
 
 import com.toolbox.tools.product.ProductCompletionServices;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 public final class ToolboxAwareTargetDiscovery {
     public static final String ACTION_TOOLBOX_AWARE = "com.toolbox.AWARE";
@@ -25,6 +29,7 @@ public final class ToolboxAwareTargetDiscovery {
         List<ResolveInfo> results = pm.queryIntentActivities(
                 intent,
                 PackageManager.MATCH_DEFAULT_ONLY
+                        | PackageManager.GET_META_DATA
         );
         int added = 0;
         for (ResolveInfo info : results) {
@@ -36,13 +41,12 @@ public final class ToolboxAwareTargetDiscovery {
             String label = labelValue == null
                     ? packageName
                     : labelValue.toString();
-            List<String> capabilities = new ArrayList<>(Arrays.asList(
-                    "ui",
-                    "logic",
-                    "data",
-                    "binding",
-                    "asset"
-            ));
+            List<String> capabilities = declaredCapabilities(
+                    info.activityInfo.metaData
+            );
+            if (capabilities.isEmpty()) {
+                continue;
+            }
             try {
                 bridge.registerAwareTarget(
                         packageName,
@@ -55,5 +59,22 @@ public final class ToolboxAwareTargetDiscovery {
             }
         }
         return added;
+    }
+
+    private static List<String> declaredCapabilities(Bundle metaData) {
+        if (metaData == null) return java.util.Collections.emptyList();
+        String raw = metaData.getString("com.toolbox.CAPABILITIES", "");
+        if (raw == null || raw.trim().isEmpty()) {
+            return java.util.Collections.emptyList();
+        }
+        Set<String> allowed = new LinkedHashSet<>(Arrays.asList(
+                "ui", "logic", "data", "binding", "asset"
+        ));
+        LinkedHashSet<String> out = new LinkedHashSet<>();
+        for (String token : raw.split(",")) {
+            String value = token.trim().toLowerCase(Locale.ROOT);
+            if (allowed.contains(value)) out.add(value);
+        }
+        return new ArrayList<>(out);
     }
 }
