@@ -700,6 +700,198 @@ public final class MaximalProductionClosureTest {
     }
 
     @Test
+    public void importSecurityRejectsTraversalBombExecutableAndUntrustedPackage() {
+        ImportSecurityValidator validator =
+                new ImportSecurityValidator();
+        String hash = sha('a');
+
+        ImportSecurityValidator.Entry valid =
+                new ImportSecurityValidator.Entry(
+                        "project/project.tbx",
+                        1024,
+                        4096,
+                        1,
+                        "application/vnd.toolbox.project+json",
+                        hash,
+                        hash,
+                        "project.import"
+                );
+        assertEquals(
+                "PASS",
+                validator.validate(
+                        new ImportSecurityValidator.Request(
+                                Collections.singletonList(valid),
+                                ProjectState.CURRENT_SCHEMA_VERSION,
+                                ProjectState.CURRENT_BUILD_MODEL_VERSION,
+                                true,
+                                true,
+                                hash,
+                                hash
+                        )
+                )
+        );
+
+        ImportSecurityValidator.Entry traversal =
+                new ImportSecurityValidator.Entry(
+                        "../escape.tbx",
+                        1,
+                        1,
+                        1,
+                        "application/octet-stream",
+                        null,
+                        null,
+                        null
+                );
+        assertEquals(
+                "IMPORT_PATH_TRAVERSAL",
+                validator.validate(
+                        Collections.singletonList(traversal)
+                )
+        );
+
+        ImportSecurityValidator.Entry bomb =
+                new ImportSecurityValidator.Entry(
+                        "assets/bomb.bin",
+                        1,
+                        1000,
+                        1,
+                        "application/octet-stream",
+                        null,
+                        null,
+                        null
+                );
+        assertEquals(
+                "IMPORT_DECOMPRESSION_RATIO",
+                validator.validate(
+                        Collections.singletonList(bomb)
+                )
+        );
+
+        ImportSecurityValidator.Entry executable =
+                new ImportSecurityValidator.Entry(
+                        "payload/classes.dex",
+                        1024,
+                        1024,
+                        1,
+                        "application/octet-stream",
+                        null,
+                        null,
+                        null
+                );
+        assertEquals(
+                "IMPORT_EXECUTABLE_BLOCKED",
+                validator.validate(
+                        Collections.singletonList(executable)
+                )
+        );
+
+        assertEquals(
+                "IMPORT_SIGNATURE_REQUIRED",
+                validator.validate(
+                        new ImportSecurityValidator.Request(
+                                Collections.singletonList(valid),
+                                ProjectState.CURRENT_SCHEMA_VERSION,
+                                ProjectState.CURRENT_BUILD_MODEL_VERSION,
+                                true,
+                                false,
+                                hash,
+                                hash
+                        )
+                )
+        );
+    }
+
+    @Test
+    public void importAndMergePreserveNewProjectAndRemapConflictingReferences() {
+        ImportMergeManager manager = new ImportMergeManager();
+
+        ProjectState incoming = ProjectState.create(
+                "project.incoming"
+        ).withResource(
+                "ui.object.shared",
+                "incoming"
+        ).withResource(
+                "logic.flow.source",
+                "flow"
+        ).withReference(
+                "logic.flow.source",
+                "ui.object.shared"
+        );
+
+        ImportMergeManager.Result imported =
+                manager.importAsNew(incoming);
+        assertEquals(
+                ImportMergeManager.Mode.IMPORT_NEW,
+                imported.mode()
+        );
+        assertEquals(
+                "project.incoming",
+                imported.projectState().projectId()
+        );
+        assertEquals(
+                "ui.object.shared",
+                imported.idMap().get("ui.object.shared")
+        );
+        assertEquals(
+                0,
+                imported.projectState().revision()
+        );
+        assertTrue(
+                imported.projectState()
+                        .references()
+                        .get("logic.flow.source")
+                        .contains("ui.object.shared")
+        );
+
+        ProjectState target = ProjectState.create(
+                "project.target"
+        ).withResource(
+                "ui.object.shared",
+                "existing"
+        ).withResource(
+                "ui.object.target",
+                "target"
+        ).withReference(
+                "ui.object.target",
+                "ui.object.shared"
+        );
+
+        ImportMergeManager.Result merged =
+                manager.mergeInto(target, incoming);
+        String remapped = merged.idMap().get(
+                "ui.object.shared"
+        );
+        assertNotEquals("ui.object.shared", remapped);
+        assertTrue(remapped.startsWith(
+                "ui.object.shared.import."
+        ));
+        assertEquals(
+                "existing",
+                merged.projectState()
+                        .resources()
+                        .get("ui.object.shared")
+        );
+        assertEquals(
+                "incoming",
+                merged.projectState()
+                        .resources()
+                        .get(remapped)
+        );
+        assertTrue(
+                merged.projectState()
+                        .references()
+                        .get("logic.flow.source")
+                        .contains(remapped)
+        );
+        assertTrue(
+                merged.projectState()
+                        .references()
+                        .get("ui.object.target")
+                        .contains("ui.object.shared")
+        );
+    }
+
+    @Test
     public void memoryPressureActuallyReducesWorkingSetPolicy() {
         ResourceGuard guard = new ResourceGuard();
         guard.applyPressure(ResourceGuard.Pressure.NORMAL);
