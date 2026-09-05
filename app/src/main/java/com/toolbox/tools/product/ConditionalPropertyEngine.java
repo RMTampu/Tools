@@ -54,7 +54,7 @@ public final class ConditionalPropertyEngine {
 
     private static String strip(String value) {
         String v = value.trim();
-        if (v.length() >= 2 && ((v.startsWith(""") && v.endsWith("""))
+        if (v.length() >= 2 && ((v.startsWith("\"") && v.endsWith("\""))
                 || (v.startsWith("'") && v.endsWith("'")))) {
             return v.substring(1, v.length() - 1);
         }
