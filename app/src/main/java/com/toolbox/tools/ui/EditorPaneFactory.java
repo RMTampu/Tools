@@ -728,37 +728,37 @@ public final class EditorPaneFactory {
         );
         addEditableProperty(
                 root, c, fields,
-                prefix + ".radius.topLeft.dp",
+                prefix + ".radius.topleft.dp",
                 "Radius kiri atas (dp)",
                 resources.getOrDefault(
-                        prefix + ".radius.topLeft.dp",
+                        prefix + ".radius.topleft.dp",
                         "14"
                 )
         );
         addEditableProperty(
                 root, c, fields,
-                prefix + ".radius.topRight.dp",
+                prefix + ".radius.topright.dp",
                 "Radius kanan atas (dp)",
                 resources.getOrDefault(
-                        prefix + ".radius.topRight.dp",
+                        prefix + ".radius.topright.dp",
                         "14"
                 )
         );
         addEditableProperty(
                 root, c, fields,
-                prefix + ".radius.bottomRight.dp",
+                prefix + ".radius.bottomright.dp",
                 "Radius kanan bawah (dp)",
                 resources.getOrDefault(
-                        prefix + ".radius.bottomRight.dp",
+                        prefix + ".radius.bottomright.dp",
                         "14"
                 )
         );
         addEditableProperty(
                 root, c, fields,
-                prefix + ".radius.bottomLeft.dp",
+                prefix + ".radius.bottomleft.dp",
                 "Radius kiri bawah (dp)",
                 resources.getOrDefault(
-                        prefix + ".radius.bottomLeft.dp",
+                        prefix + ".radius.bottomleft.dp",
                         "14"
                 )
         );
@@ -821,19 +821,19 @@ public final class EditorPaneFactory {
         );
         addEditableProperty(
                 root, c, fields,
-                prefix + ".text.letterSpacing",
+                prefix + ".text.letterspacing",
                 "Letter spacing -0.05..0.5",
                 resources.getOrDefault(
-                        prefix + ".text.letterSpacing",
+                        prefix + ".text.letterspacing",
                         "0"
                 )
         );
         addEditableProperty(
                 root, c, fields,
-                prefix + ".text.maxLines",
+                prefix + ".text.maxlines",
                 "Maksimum baris 1..8",
                 resources.getOrDefault(
-                        prefix + ".text.maxLines",
+                        prefix + ".text.maxlines",
                         "1"
                 )
         );
@@ -1026,19 +1026,19 @@ public final class EditorPaneFactory {
                 );
             }
         }
-        if (key.endsWith(".text.maxLines")) {
-            int maxLines = Integer.parseInt(value);
-            if (maxLines < 1 || maxLines > 8) {
+        if (key.endsWith(".text.maxlines")) {
+            int maxlines = Integer.parseInt(value);
+            if (maxlines < 1 || maxlines > 8) {
                 throw new IllegalArgumentException(
-                        "maxLines harus 1..8"
+                        "maxlines harus 1..8"
                 );
             }
         }
-        if (key.endsWith(".text.letterSpacing")) {
+        if (key.endsWith(".text.letterspacing")) {
             float spacing = Float.parseFloat(value);
             if (spacing < -0.05f || spacing > 0.5f) {
                 throw new IllegalArgumentException(
-                        "letterSpacing harus -0.05..0.5"
+                        "letterspacing harus -0.05..0.5"
                 );
             }
         }
