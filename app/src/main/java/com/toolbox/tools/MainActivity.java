@@ -14,6 +14,7 @@ import com.toolbox.tools.android.SafProjectStore;
 import com.toolbox.tools.android.SafVisibleWorkspaceStore;
 import com.toolbox.tools.android.ToolboxAwareTargetDiscovery;
 import com.toolbox.tools.android.ManagedAppIntentContract;
+import com.toolbox.tools.android.RuntimeResourceController;
 import com.toolbox.tools.core.AppKernel;
 import com.toolbox.tools.core.ProjectAccessStatus;
 import com.toolbox.tools.core.ProjectLoadResult;
@@ -38,6 +39,7 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
 
     private AppKernel kernel;
     private WorkspaceShellView shell;
+    private RuntimeResourceController resourceController;
     private final SafProjectAccessGateway safGateway = new SafProjectAccessGateway();
     private final ExternalAssetGateway externalAssets = new ExternalAssetGateway();
     private final EvolutionPackageGateway evolutionPackages = new EvolutionPackageGateway();
@@ -52,6 +54,7 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
         window.setNavigationBarColor(UiKit.LATAR);
 
         kernel = createKernelFromRememberedStorage();
+        resourceController = new RuntimeResourceController(this, kernel);
         discoverAwareTargets();
         renderEntry();
     }
@@ -123,6 +126,7 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
                     .apply();
 
             kernel = selectedKernel;
+            resourceController = new RuntimeResourceController(this, kernel);
             kernel.productServices().completion().storage.relink(
                     treeUri.toString(),
                     true,
@@ -463,6 +467,47 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
                 getFilesDir(),
                 "library/assets"
         );
+    }
+
+    @Override
+    public void onTrimMemory(int level) {
+        super.onTrimMemory(level);
+        if (resourceController != null) {
+            resourceController.onTrimMemory(
+                    level,
+                    getWindow() == null
+                            ? null
+                            : getWindow().getDecorView()
+            );
+        }
+    }
+
+    @Override
+    public void onLowMemory() {
+        super.onLowMemory();
+        if (resourceController != null) {
+            resourceController.onLowMemory();
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        if (resourceController != null) {
+            resourceController.onUiHidden();
+        }
+        super.onStop();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (resourceController != null) {
+            resourceController.sample(
+                    getWindow() == null
+                            ? null
+                            : getWindow().getDecorView()
+            );
+        }
     }
 
     @Override
