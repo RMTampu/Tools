@@ -326,10 +326,10 @@ jobs:
           assert_text 'Pusat Aset & Library'
           tap_text 'Konteks • Aset'
           tap_right_text 'Impor'
-          assert_text 'Preset Animasi'
-          tap_text 'Preset Animasi'
+          assert_text 'Token Bawaan'
+          tap_text 'Token Bawaan'
           tap_right_text 'Impor'
-          assert_text '✓ Preset Animasi'
+          assert_text '✓ Token Bawaan'
           tap_text 'Tutup'
           tap_text '‹ Kembali'
 
