@@ -303,6 +303,47 @@ jobs:
             sleep 1
           }
 
+          # Destructive process-death matrix: kill proses di marker transaksi nyata,
+          # restart host, lalu buktikan journal bersih dan current revision tidak mixed.
+          for PHASE in PREPARED SNAPSHOT_READY MUTATING VERIFYING HEALTH_CHECK COMMITTING; do
+            adb shell am force-stop com.toolbox.tools
+            adb shell am start -n com.toolbox.tools/.debug.CrashHarnessActivity \
+              --es mode patch --es phase "$PHASE" >/dev/null 2>&1 || true
+            sleep 1
+            RESTART_PATCH="$(adb shell am start -W -n com.toolbox.tools/.MainActivity)"
+            grep -F 'Status: ok' <<< "$RESTART_PATCH"
+            sleep 1
+
+            STATE="$(adb shell run-as com.toolbox.tools cat files/projects/project.default/secure-runtime.properties 2>/dev/null || true)"
+            ! grep -F 'patch.journal.' <<< "$STATE"
+
+            CURRENT="$(adb shell run-as com.toolbox.tools cat files/projects/project.default/current.ref | tr -d '\r\n')"
+            [[ "$CURRENT" =~ ^[0-9]+$ ]]
+            CURRENT_DUMP="$(adb shell run-as com.toolbox.tools sh -c "grep -R 'interrupted\\.' files/projects/project.default/revisions/$CURRENT 2>/dev/null || true")"
+            test -z "$CURRENT_DUMP"
+          done
+          PATCH_DESTRUCTIVE_MATRIX_PASS=1
+
+          for FREEZE_PHASE in COMMITTING RECOVERY_RUNNING; do
+            adb shell am force-stop com.toolbox.tools
+            adb shell am start -n com.toolbox.tools/.debug.CrashHarnessActivity \
+              --es mode freeze --es phase "$FREEZE_PHASE" >/dev/null 2>&1 || true
+            sleep 1
+            RESTART_FREEZE="$(adb shell am start -W -n com.toolbox.tools/.MainActivity)"
+            grep -F 'Status: ok' <<< "$RESTART_FREEZE"
+            sleep 1
+            FREEZE_STATE="$(adb shell run-as com.toolbox.tools cat files/projects/project.default/secure-runtime.properties 2>/dev/null || true)"
+            grep -F 'freeze.state=FROZEN' <<< "$FREEZE_STATE"
+            ! grep -F 'freeze.journal.operation' <<< "$FREEZE_STATE"
+
+            # Kembalikan ke NORMAL melalui UI agar case berikutnya independen.
+            tap_text 'TB'
+            tap_desc 'Pintasan Tool'
+            tap_text 'Freeze / Mode Simpan'
+            tap_text 'Thaw / Kembali Normal'
+          done
+          FREEZE_DESTRUCTIVE_MATRIX_PASS=1
+
           assert_text 'ToolBox'
           assert_text 'Beranda ToolBox • ruang kerja aplikasi'
           assert_text 'PROYEK AKTIF'
@@ -586,6 +627,8 @@ jobs:
             echo "ASSET_RUNTIME_RENDERER=PASS"
             echo "MEMORY_PRESSURE_POLICY=PASS"
             echo "PATCH_JOURNAL_RUNTIME=PASS"
+            echo "PATCH_DESTRUCTIVE_MATRIX=PASS"
+            echo "FREEZE_DESTRUCTIVE_MATRIX=PASS"
             echo "SAFE_RECOVERY_RUNTIME=PASS"
             echo "EDGE_ALL_MODES=PASS"
             echo "EDITOR_COMMANDS_PANEL_ONLY=PASS"
