@@ -16,6 +16,8 @@ import com.toolbox.tools.authoring.AuthoringSection;
 import com.toolbox.tools.core.AppKernel;
 import com.toolbox.tools.library.ComponentDefinition;
 import com.toolbox.tools.library.LibrarySearchResult;
+import com.toolbox.tools.library.PropertyContract;
+import com.toolbox.tools.library.PropertyType;
 import com.toolbox.tools.product.ScreenManager;
 import com.toolbox.tools.runtime.BindingDefinition;
 import com.toolbox.tools.runtime.DataFieldDefinition;
@@ -627,6 +629,8 @@ public final class EditorPaneFactory {
         root.addView(selected);
 
         LinkedHashMap<String, EditText> fields = new LinkedHashMap<>();
+        LinkedHashMap<String, PropertyContract> contractByKey =
+                new LinkedHashMap<>();
         addEditableProperty(
                 root, c, fields,
                 prefix + ".text",
@@ -901,6 +905,16 @@ public final class EditorPaneFactory {
                 resources.getOrDefault(prefix + ".enabled", "true")
         );
 
+        addRegistryContractFields(
+                root,
+                c,
+                kernel,
+                prefix,
+                resources,
+                fields,
+                contractByKey
+        );
+
         TextView status = UiKit.teks(
                 c,
                 "Status: sinkron dengan Visual dan Kode",
@@ -925,6 +939,20 @@ public final class EditorPaneFactory {
                             .toString()
                             .trim();
                     validateUiProperty(entry.getKey(), value);
+                    PropertyContract contract =
+                            contractByKey.get(entry.getKey());
+                    if (contract != null
+                            && !"PASS".equals(
+                                contract.validationMessage(value)
+                            )) {
+                        throw new IllegalArgumentException(
+                                contract.propertyId()
+                                        + " • "
+                                        + contract.validationMessage(
+                                            value
+                                        )
+                        );
+                    }
                     updates.put(entry.getKey(), value);
                 }
                 kernel.projectManager().applyResourceTransaction(
@@ -941,6 +969,157 @@ public final class EditorPaneFactory {
             }
         });
         root.addView(apply);
+    }
+
+    private static void addRegistryContractFields(
+            LinearLayout root,
+            Context context,
+            AppKernel kernel,
+            String prefix,
+            Map<String, String> resources,
+            Map<String, EditText> fields,
+            Map<String, PropertyContract> contractByKey
+    ) {
+        ComponentDefinition component =
+                selectedComponentDefinition(
+                        kernel,
+                        prefix,
+                        resources
+                );
+        if (component == null) return;
+
+        TextView heading = UiKit.labelBagian(
+                context,
+                "KONTRAK KOMPONEN • "
+                        + component.labelIndonesia()
+        );
+        heading.setPadding(
+                0,
+                UiKit.dp(context, 12),
+                0,
+                UiKit.dp(context, 6)
+        );
+        root.addView(heading);
+
+        for (PropertyContract contract
+                : component.properties().values()) {
+            String key = contractResourceKey(
+                    prefix,
+                    contract
+            );
+            if (key == null) continue;
+            contractByKey.put(key, contract);
+
+            if (!contract.editable()) {
+                propertyRow(
+                        root,
+                        context,
+                        contract.propertyId() + " • read-only",
+                        resources.getOrDefault(
+                                key,
+                                contract.defaultValue() == null
+                                        ? ""
+                                        : contract.defaultValue()
+                        )
+                );
+                continue;
+            }
+            if (fields.containsKey(key)) {
+                continue;
+            }
+
+            StringBuilder label = new StringBuilder();
+            label.append(contract.propertyId())
+                    .append(" • ")
+                    .append(contract.type().name());
+            if (contract.minValue() != null
+                    || contract.maxValue() != null) {
+                label.append(" • ")
+                        .append(contract.minValue() == null
+                                ? "-∞"
+                                : contract.minValue())
+                        .append("..")
+                        .append(contract.maxValue() == null
+                                ? "∞"
+                                : contract.maxValue());
+            }
+            if (contract.unit() != null) {
+                label.append(" ").append(contract.unit());
+            }
+            if (!contract.enumValues().isEmpty()) {
+                label.append(" • ")
+                        .append(contract.enumValues());
+            }
+            if (contract.converterId() != null) {
+                label.append(" • converter=")
+                        .append(contract.converterId());
+            }
+
+            addEditableProperty(
+                    root,
+                    context,
+                    fields,
+                    key,
+                    label.toString(),
+                    resources.getOrDefault(
+                            key,
+                            contract.defaultValue() == null
+                                    ? ""
+                                    : contract.defaultValue()
+                    )
+            );
+        }
+    }
+
+    private static ComponentDefinition selectedComponentDefinition(
+            AppKernel kernel,
+            String prefix,
+            Map<String, String> resources
+    ) {
+        String componentId = resources.get(
+                prefix + ".kind"
+        );
+        if (componentId == null
+                || !componentId.startsWith("component.")) {
+            componentId = "component.button";
+        }
+        try {
+            return kernel.libraryManager()
+                    .components()
+                    .latestReady(componentId);
+        } catch (RuntimeException error) {
+            return null;
+        }
+    }
+
+    private static String contractResourceKey(
+            String prefix,
+            PropertyContract contract
+    ) {
+        String id = contract.propertyId();
+        if (!id.startsWith("property.")) return null;
+        String suffix = id.substring("property.".length());
+
+        if ("radius".equals(suffix)
+                || "padding".equals(suffix)
+                || "spacing".equals(suffix)
+                || "elevation".equals(suffix)
+                || "thickness".equals(suffix)
+                || "size".equals(suffix)
+                || "width".equals(suffix)
+                || "height".equals(suffix)) {
+            return prefix + "." + suffix + ".dp";
+        }
+        if ("text.size".equals(suffix)) {
+            return prefix + ".text.size.sp";
+        }
+        if ("asset".equals(suffix)) {
+            return prefix + ".asset.id";
+        }
+        if ("source".equals(suffix)) {
+            return prefix + ".source";
+        }
+        return prefix + "." + suffix;
     }
 
     private static void addEditableProperty(
