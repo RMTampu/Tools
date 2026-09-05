@@ -176,11 +176,22 @@ workflow=(REPO/".github/workflows/product-full-branch-ci.yml").read_text()
 assert "secrets." not in workflow
 assert "firebase test" not in workflow.lower()
 
-android_test_manifest=(
-    APP/"src/androidTest/AndroidManifest.xml"
+debug_manifest=(
+    APP/"src/debug/AndroidManifest.xml"
 ).read_text()
-assert 'android.permission.MANAGE_DOCUMENTS' in android_test_manifest
-assert 'android:grantUriPermissions="true"' in android_test_manifest
+assert '.debug.DebugDocumentsProvider' in debug_manifest
+assert 'com.toolbox.tools.debug.documents' in debug_manifest
+assert 'android:exported="false"' in debug_manifest
+assert 'android:grantUriPermissions="true"' in debug_manifest
+assert 'android.permission.MANAGE_DOCUMENTS' not in debug_manifest
+
+android_test_source=(
+    APP/"src/androidTest/java/com/toolbox/tools/"
+        "ProductRuntimeInstrumentedTest.java"
+).read_text()
+assert 'DebugDocumentsProvider.AUTHORITY' in android_test_source
+assert 'activity.getContentResolver()' in android_test_source
+assert 'TestDocumentsProvider' not in android_test_source
 
 runtime_state=(
     APP/"src/main/java/com/toolbox/tools/core/FileRuntimeStateStore.java"
