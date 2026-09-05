@@ -187,6 +187,23 @@ public final class ProductProductionContractsTest {
         assertFalse(monitor.allWithinBudget());
     }
 
+    @Test public void toolLifecycleRunsReleaseHooksOnSwitch() {
+        ToolLifecycleManager lifecycle =
+                new ToolLifecycleManager();
+        lifecycle.register("tool.a");
+        lifecycle.register("tool.b");
+        final int[] released = new int[] {0};
+        lifecycle.registerReleaseHook(
+                "tool.a",
+                () -> released[0]++
+        );
+        lifecycle.activate("tool.a");
+        lifecycle.activate("tool.b");
+        assertEquals(1, released[0]);
+        assertEquals(1, lifecycle.releaseCount("tool.a"));
+        assertEquals(1, lifecycle.activeCount());
+    }
+
     @Test public void freezeMaintainsFrozenBaseAndRecoverySlots() throws Exception {
         AppKernel kernel = AppKernel.createDefault();
         FreezeEngine freeze = kernel.productServices().freeze();
