@@ -329,8 +329,8 @@ jobs:
           assert_text 'Floating Window'
           dump_ui
           ! grep -F 'text="Akses Cepat"' "$RUNNER_TEMP/window.xml"
-          tap_text 'Floating Window'
-          assert_text 'Jendela Mengambang'
+          tap_desc 'Pintasan Floating Window'
+          assert_text 'Floating Window • ToolBox'
           assert_text 'Tutup'
           tap_text 'Tutup'
 
@@ -378,9 +378,10 @@ jobs:
           tap_text 'Mode Kerja • Edit'
           tap_text 'Pratinjau'
           assert_text 'Mode Kerja • Pratinjau'
-          tap_text '‹'
-          assert_text '›'
-          tap_text '›'
+          assert_desc 'Handle panel kanan • terbuka'
+          tap_desc 'Handle panel kanan • terbuka'
+          assert_desc 'Handle panel kanan • tertutup'
+          tap_desc 'Handle panel kanan • tertutup'
           assert_text 'Mode Kerja • Pratinjau'
 
           tap_text 'Mode Kerja • Pratinjau'
@@ -451,7 +452,7 @@ jobs:
 
           # Tool dari pintasan Bubble tetap membuka jalur alat yang berbeda dari Floating Window.
           tap_text 'TB'
-          tap_text 'Tool'
+          tap_desc 'Pintasan Tool'
           assert_text 'Alat ToolBox'
           tap_text 'Bangun & SIAP'
           assert_text 'Kelengkapan Produk: LULUS'
