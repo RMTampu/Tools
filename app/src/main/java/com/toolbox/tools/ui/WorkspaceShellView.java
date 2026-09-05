@@ -92,6 +92,14 @@ public final class WorkspaceShellView extends FrameLayout {
     private String activeTargetPackage;
     private String activeTargetSession;
     private long lastSoakPssDriftBytes;
+    private long lastSoakStartPssBytes;
+    private long lastSoakEndPssBytes;
+    private long lastSoakPeakPssBytes;
+    private int lastSoakStartThreads;
+    private int lastSoakEndThreads;
+    private int lastSoakPeakThreads;
+    private long lastSoakDurationMs;
+    private long lastSoakMaxCycleMs;
 
     private boolean bubbleDragging;
     private boolean bubbleQuickWasVisibleOnDown;
@@ -2799,27 +2807,99 @@ public final class WorkspaceShellView extends FrameLayout {
         if (cycles < 1 || cycles > 200) {
             throw new IllegalArgumentException("cycles out of range");
         }
-        long before = Debug.getPss() * 1024L;
+
+        long startNs = System.nanoTime();
+        lastSoakStartPssBytes = Debug.getPss() * 1024L;
+        lastSoakPeakPssBytes = lastSoakStartPssBytes;
+        lastSoakStartThreads = Thread.activeCount();
+        lastSoakPeakThreads = lastSoakStartThreads;
+        lastSoakMaxCycleMs = 0;
+
         Screen previousScreen = screen;
         AuthoringSection previous = active;
         screen = Screen.EDITOR_WORKSPACE;
         AuthoringSection[] sections = AuthoringSection.values();
+
         for (int i = 0; i < cycles; i++) {
+            long cycleStart = System.nanoTime();
             active = sections[i % sections.length];
             activateToolSection(active);
             renderWorkspace();
+
+            long pss = Debug.getPss() * 1024L;
+            int threads = Thread.activeCount();
+            lastSoakPeakPssBytes = Math.max(
+                    lastSoakPeakPssBytes,
+                    pss
+            );
+            lastSoakPeakThreads = Math.max(
+                    lastSoakPeakThreads,
+                    threads
+            );
+            lastSoakMaxCycleMs = Math.max(
+                    lastSoakMaxCycleMs,
+                    (System.nanoTime() - cycleStart) / 1_000_000L
+            );
         }
+
         active = previous;
         screen = previousScreen;
         activateToolSection(active);
         renderAll();
         System.gc();
-        long after = Debug.getPss() * 1024L;
-        lastSoakPssDriftBytes = Math.max(0, after - before);
+
+        lastSoakEndPssBytes = Debug.getPss() * 1024L;
+        lastSoakEndThreads = Thread.activeCount();
+        lastSoakPeakPssBytes = Math.max(
+                lastSoakPeakPssBytes,
+                lastSoakEndPssBytes
+        );
+        lastSoakPeakThreads = Math.max(
+                lastSoakPeakThreads,
+                lastSoakEndThreads
+        );
+        lastSoakPssDriftBytes = Math.max(
+                0,
+                lastSoakEndPssBytes - lastSoakStartPssBytes
+        );
+        lastSoakDurationMs =
+                (System.nanoTime() - startNs) / 1_000_000L;
     }
 
     public long lastSoakPssDriftBytesForTest() {
         return lastSoakPssDriftBytes;
+    }
+
+    public long lastSoakStartPssBytesForTest() {
+        return lastSoakStartPssBytes;
+    }
+
+    public long lastSoakEndPssBytesForTest() {
+        return lastSoakEndPssBytes;
+    }
+
+    public long lastSoakPeakPssBytesForTest() {
+        return lastSoakPeakPssBytes;
+    }
+
+    public int lastSoakStartThreadsForTest() {
+        return lastSoakStartThreads;
+    }
+
+    public int lastSoakEndThreadsForTest() {
+        return lastSoakEndThreads;
+    }
+
+    public int lastSoakPeakThreadsForTest() {
+        return lastSoakPeakThreads;
+    }
+
+    public long lastSoakDurationMsForTest() {
+        return lastSoakDurationMs;
+    }
+
+    public long lastSoakMaxCycleMsForTest() {
+        return lastSoakMaxCycleMs;
     }
 
     private void addInfo(LinearLayout parent, String title, String detail) {
