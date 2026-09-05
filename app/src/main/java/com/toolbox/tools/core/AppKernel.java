@@ -43,6 +43,8 @@ public final class AppKernel {
     private final EngineManager engineManager;
     private final ConfigStore configStore;
     private final RecoveryManager recoveryManager;
+    private final RuntimeStateStore runtimeStateStore;
+    private final VisibleWorkspaceStore visibleWorkspaceStore;
     private final ProjectManager projectManager;
     private final LibraryManager libraryManager;
     private final AssetStore assetStore;
@@ -80,10 +82,46 @@ public final class AppKernel {
             RuntimeEnvironment runtimeEnvironment,
             EditorEnvironment editorEnvironment
     ) {
+        this(
+                toolRegistry,
+                engineManager,
+                configStore,
+                recoveryManager,
+                recoveryManager.stateStore(),
+                new MemoryVisibleWorkspaceStore(),
+                projectManager,
+                libraryManager,
+                assetStore,
+                runtimeEnvironment,
+                editorEnvironment
+        );
+    }
+
+    public AppKernel(
+            ToolRegistry toolRegistry,
+            EngineManager engineManager,
+            ConfigStore configStore,
+            RecoveryManager recoveryManager,
+            RuntimeStateStore runtimeStateStore,
+            VisibleWorkspaceStore visibleWorkspaceStore,
+            ProjectManager projectManager,
+            LibraryManager libraryManager,
+            AssetStore assetStore,
+            RuntimeEnvironment runtimeEnvironment,
+            EditorEnvironment editorEnvironment
+    ) {
         this.toolRegistry = Objects.requireNonNull(toolRegistry, "toolRegistry");
         this.engineManager = Objects.requireNonNull(engineManager, "engineManager");
         this.configStore = Objects.requireNonNull(configStore, "configStore");
         this.recoveryManager = Objects.requireNonNull(recoveryManager, "recoveryManager");
+        this.runtimeStateStore = Objects.requireNonNull(
+                runtimeStateStore,
+                "runtimeStateStore"
+        );
+        this.visibleWorkspaceStore = Objects.requireNonNull(
+                visibleWorkspaceStore,
+                "visibleWorkspaceStore"
+        );
         this.projectManager = Objects.requireNonNull(projectManager, "projectManager");
         this.libraryManager = Objects.requireNonNull(libraryManager, "libraryManager");
         this.assetStore = Objects.requireNonNull(assetStore, "assetStore");
@@ -135,14 +173,20 @@ public final class AppKernel {
                 this.remotePatchVerifier,
                 this.declarativeRuntime::reload
         );
-        this.productServices = new ProductServices(this.projectManager);
+        this.productServices = new ProductServices(
+                this.projectManager,
+                this.runtimeStateStore,
+                this.recoveryManager,
+                this.visibleWorkspaceStore
+        );
         this.evolutionManager = new EvolutionManager(
                 this.safePatchManager,
                 this.remotePatchVerifier
         );
         this.safeModeController = new SafeModeController(
                 this.projectManager,
-                this.recoveryManager
+                this.recoveryManager,
+                this.runtimeStateStore
         );
         this.state = AppState.CREATED;
     }
@@ -159,6 +203,8 @@ public final class AppKernel {
         LibraryManager library = DefaultLibraryFactory.create();
         return create(
                 recovery,
+                recovery.stateStore(),
+                new MemoryVisibleWorkspaceStore(),
                 projectManager,
                 library,
                 new InMemoryAssetStore(),
@@ -184,7 +230,10 @@ public final class AppKernel {
     ) {
         Objects.requireNonNull(projectRoot, "projectRoot");
         Objects.requireNonNull(assetLibraryRoot, "assetLibraryRoot");
-        RecoveryManager recovery = new RecoveryManager();
+        RuntimeStateStore runtimeState = new FileRuntimeStateStore(
+                new File(projectRoot, "secure-runtime.properties")
+        );
+        RecoveryManager recovery = new RecoveryManager(runtimeState);
         ProjectManager projectManager = new ProjectManager(
                 new FileProjectStore(projectRoot),
                 new DraftRecoveryStore(projectRoot),
@@ -193,8 +242,13 @@ public final class AppKernel {
                 new ProjectMigrationRegistry()
         );
         LibraryManager library = DefaultLibraryFactory.create();
+        VisibleWorkspaceStore visible = new FileVisibleWorkspaceStore(
+                new File(projectRoot, "visible-fallback")
+        );
         return create(
                 recovery,
+                runtimeState,
+                visible,
                 projectManager,
                 library,
                 new FileAssetStore(assetLibraryRoot),
@@ -212,7 +266,31 @@ public final class AppKernel {
         Objects.requireNonNull(privateProjectRoot, "privateProjectRoot");
         Objects.requireNonNull(assetLibraryRoot, "assetLibraryRoot");
 
-        RecoveryManager recovery = new RecoveryManager();
+        return createPersistent(
+                projectStore,
+                privateProjectRoot,
+                assetLibraryRoot,
+                new FileVisibleWorkspaceStore(
+                        new File(privateProjectRoot, "visible-fallback")
+                )
+        );
+    }
+
+    public static AppKernel createPersistent(
+            ProjectStore projectStore,
+            File privateProjectRoot,
+            File assetLibraryRoot,
+            VisibleWorkspaceStore visibleWorkspace
+    ) {
+        Objects.requireNonNull(projectStore, "projectStore");
+        Objects.requireNonNull(privateProjectRoot, "privateProjectRoot");
+        Objects.requireNonNull(assetLibraryRoot, "assetLibraryRoot");
+        Objects.requireNonNull(visibleWorkspace, "visibleWorkspace");
+
+        RuntimeStateStore runtimeState = new FileRuntimeStateStore(
+                new File(privateProjectRoot, "secure-runtime.properties")
+        );
+        RecoveryManager recovery = new RecoveryManager(runtimeState);
         ProjectManager projectManager = new ProjectManager(
                 projectStore,
                 new DraftRecoveryStore(privateProjectRoot),
@@ -223,6 +301,8 @@ public final class AppKernel {
         LibraryManager library = DefaultLibraryFactory.create();
         return create(
                 recovery,
+                runtimeState,
+                visibleWorkspace,
                 projectManager,
                 library,
                 new FileAssetStore(assetLibraryRoot),
@@ -233,6 +313,8 @@ public final class AppKernel {
 
     private static AppKernel create(
             RecoveryManager recovery,
+            RuntimeStateStore runtimeStateStore,
+            VisibleWorkspaceStore visibleWorkspaceStore,
             ProjectManager projectManager,
             LibraryManager libraryManager,
             AssetStore assetStore,
@@ -244,6 +326,8 @@ public final class AppKernel {
                 new EngineManager(),
                 new ConfigStore(),
                 recovery,
+                runtimeStateStore,
+                visibleWorkspaceStore,
                 projectManager,
                 libraryManager,
                 assetStore,
@@ -283,13 +367,18 @@ public final class AppKernel {
             );
             configStore.put("targetApi", "30");
             configStore.put("targetAbi", "arm64");
-            configStore.put("tahap", "produk-penuh-v12");
+            configStore.put("tahap", "produk-penuh-v13-maksimal");
             configStore.put("bahasaDefault", "id");
+            visibleWorkspaceStore.ensureLayout();
             projectManager.bootstrap("project.default");
+            productServices.freeze().bootstrap();
             declarativeRuntime.reload(projectManager.current());
             state = AppState.READY;
         } catch (IOException | RuntimeException error) {
-            recoveryManager.markRecoveryRequired();
+            recoveryManager.markRecoveryRequired(
+                    "KERNEL_INITIALIZATION_FAILED",
+                    "BOOTSTRAP"
+            );
             state = AppState.ERROR;
         }
     }
@@ -298,6 +387,10 @@ public final class AppKernel {
     public EngineManager engineManager() { return engineManager; }
     public ConfigStore configStore() { return configStore; }
     public RecoveryManager recoveryManager() { return recoveryManager; }
+    public RuntimeStateStore runtimeStateStore() { return runtimeStateStore; }
+    public VisibleWorkspaceStore visibleWorkspaceStore() {
+        return visibleWorkspaceStore;
+    }
     public ProjectManager projectManager() { return projectManager; }
     public LibraryManager libraryManager() { return libraryManager; }
     public AssetStore assetStore() { return assetStore; }
