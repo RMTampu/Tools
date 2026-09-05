@@ -144,12 +144,14 @@ jobs:
           test -d app/build/outputs/androidTest-results/connected
           grep -R 'launcherTbResourceIsBoundAndDecodable' app/build/outputs/androidTest-results/connected
           grep -R 'externalAssetRendererUsesRealAndroidImageConsumer' app/build/outputs/androidTest-results/connected
+          grep -R 'advancedUiPropertiesMaterializeOnRealAndroidView' app/build/outputs/androidTest-results/connected
           grep -R 'memoryPressurePolicyDegradesAndRecoversOnDevice' app/build/outputs/androidTest-results/connected
           grep -R 'safeRecoveryUiPersistsAcrossActivityRecreation' app/build/outputs/androidTest-results/connected
           grep -R 'patchJournalInterruptedStateRollsBackOnDevice' app/build/outputs/androidTest-results/connected
           ANDROID_INSTRUMENTATION_PASS=1
           LAUNCHER_TB_RUNTIME_PASS=1
           ASSET_RUNTIME_RENDERER_PASS=1
+          ADVANCED_UI_PROPERTIES_PASS=1
           MEMORY_PRESSURE_POLICY_PASS=1
           SAFE_RECOVERY_RUNTIME_PASS=1
           PATCH_JOURNAL_RUNTIME_PASS=1
@@ -627,6 +629,7 @@ jobs:
             echo "FREEZE_SAVE_MODE_INDICATOR=PASS"
             echo "LAUNCHER_TB_PACKAGE=PASS"
             echo "ASSET_RUNTIME_RENDERER=PASS"
+            echo "ADVANCED_UI_PROPERTIES=PASS"
             echo "MEMORY_PRESSURE_POLICY=PASS"
             echo "PATCH_JOURNAL_RUNTIME=PASS"
             echo "PATCH_DESTRUCTIVE_MATRIX=PASS"
