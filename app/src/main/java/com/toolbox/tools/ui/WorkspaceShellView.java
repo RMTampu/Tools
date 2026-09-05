@@ -312,7 +312,7 @@ public final class WorkspaceShellView extends FrameLayout {
 
         LinearLayout card = card();
         addInfo(card, "Proyek Tersimpan", "Project Store • revisi " + kernel.projectManager().savedRevision());
-        addInfo(card, "Aplikasi Terinstal", "Capability Scan • tanpa bypass sandbox/signature.");
+        addInfo(card, "Aplikasi Terinstal", "Pemindaian kapabilitas • tanpa bypass sandbox/signature.");
         addInfo(card, "Edit ToolBox", "Permukaan deklaratif dapat diedit; kernel/recovery/safety core terlindungi.");
         addInfo(card, "Buat / Edit Komponen", "Component Registry • varian • composite • template.");
         root.addView(card);
