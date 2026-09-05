@@ -880,6 +880,9 @@ public final class WorkspaceShellView extends FrameLayout {
         item.setGravity(Gravity.CENTER);
         item.setTextSize(10.5f);
         item.setElevation(UiKit.dp(getContext(), 18));
+        item.setClickable(true);
+        item.setFocusable(true);
+        item.setContentDescription("Pintasan " + label);
         item.setOnClickListener(v -> action.run());
 
         int width = UiKit.dp(getContext(), 104);
@@ -905,7 +908,7 @@ public final class WorkspaceShellView extends FrameLayout {
 
     private void showFloatingContextWindow() {
         showInfoOverlay(
-                "Jendela Mengambang",
+                "Floating Window • ToolBox",
                 Arrays.asList(
                         "Layar: " + labelScreen(),
                         "Editor: " + editorEntry,
@@ -1829,6 +1832,8 @@ public final class WorkspaceShellView extends FrameLayout {
     ) {
         overlayLayer.removeAllViews();
         overlayLayer.setVisibility(VISIBLE);
+        overlayLayer.bringToFront();
+        bubble.bringToFront();
         overlayLayer.setBackgroundColor(Color.argb(150, 0, 0, 0));
         overlayLayer.setOnClickListener(v -> closeOverlay());
 
@@ -1892,6 +1897,8 @@ public final class WorkspaceShellView extends FrameLayout {
     private void showInfoOverlay(String title, List<String> rows) {
         overlayLayer.removeAllViews();
         overlayLayer.setVisibility(VISIBLE);
+        overlayLayer.bringToFront();
+        bubble.bringToFront();
         overlayLayer.setBackgroundColor(Color.argb(150, 0, 0, 0));
         overlayLayer.setOnClickListener(v -> closeOverlay());
 
