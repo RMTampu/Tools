@@ -109,9 +109,15 @@ public final class ProductAcceptanceMatrix {
         pass(34, deep.contains("composite_executor"), "COMPOSITE_ACTION", failures);
         pass(35, runtimeReady, "NAVIGATION_CONTRACT", failures);
         pass(36, runtimeReady, "BACK_STACK", failures);
-        pass(37, runtimeReady && deep.contains("data_provider_ecosystem"), "DATA_SOURCE_CONTRACT", failures);
+        pass(37, runtimeReady
+                && s.dataProviders().complete()
+                && deep.contains("data_provider_ecosystem"),
+                "DATA_SOURCE_CONTRACT", failures);
         pass(38, runtimeReady, "DATA_BINDING", failures);
-        pass(39, runtimeReady && deep.contains("virtualized_paging"), "LAZY_PAGED_DATA", failures);
+        pass(39, runtimeReady
+                && dataWindowPass(s)
+                && deep.contains("virtualized_paging"),
+                "LAZY_PAGED_DATA", failures);
         pass(40, runtimeReady, "DYNAMIC_LIST_IDENTITY", failures);
         pass(41, runtimeReady && s.diagnostics() != null, "BROKEN_REFERENCE", failures);
         pass(42, completion.contains("flow_execution")
@@ -183,8 +189,11 @@ public final class ProductAcceptanceMatrix {
         // 63-80: assets, cache, recovery, storage, import/export, permissions.
         pass(63, libraryReady, "ASSET_IDENTITY", failures);
         pass(64, completion.contains("asset_loading"), "ORIGINAL_PREVIEW", failures);
-        pass(65, completion.contains("asset_loading"), "ASSET_LOADING", failures);
-        pass(66, completion.contains("asset_audit"), "ASSET_AUDIT", failures);
+        pass(65, completion.contains("asset_loading")
+                && assetLoadPass(s), "ASSET_LOADING", failures);
+        pass(66, completion.contains("asset_audit")
+                && s.assetLoads().audit().isPass(),
+                "ASSET_AUDIT", failures);
         pass(67, s.cache() != null && deep.contains("cache_category_budget"), "CACHE_MANAGER", failures);
         pass(68, s.cache() != null, "CACHE_CLEANUP", failures);
         pass(69, projectReady, "RECOVERY", failures);
@@ -210,7 +219,9 @@ public final class ProductAcceptanceMatrix {
         pass(87, s.clipboard() != null && deep.contains("clipboard_dependency_remap"), "CLIPBOARD", failures);
         pass(88, s.diagnostics() != null && deep.contains("diagnostic_rich_record"), "DIAGNOSTICS", failures);
         pass(89, s.autoRepair() != null && deep.contains("repair_detect_suggest_fix"), "DETECT_SUGGEST_FIX", failures);
-        pass(90, completion.contains("incremental_validation"), "INCREMENTAL_VALIDATION", failures);
+        pass(90, completion.contains("incremental_validation")
+                && incrementalValidationPass(kernel),
+                "INCREMENTAL_VALIDATION", failures);
         pass(91, buildReady && completionReady, "BUILD_VALIDATOR", failures);
         pass(92, buildReady, "CANONICAL_IR", failures);
         pass(93, completion.contains("immutable_build_package"), "BUILD_PACKAGE", failures);
@@ -237,8 +248,10 @@ public final class ProductAcceptanceMatrix {
         pass(110, !s.resources().budgets().isEmpty()
                 && completion.contains("screen_memory_budget"),
                 "PER_SCREEN_MEMORY", failures);
-        pass(111, completion.contains("render_cost"), "OVERDRAW_RENDERING", failures);
-        pass(112, completion.contains("leak_discipline"), "LEAK_DISCIPLINE", failures);
+        pass(111, completion.contains("render_cost")
+                && renderBudgetPass(), "OVERDRAW_RENDERING", failures);
+        pass(112, completion.contains("leak_discipline")
+                && leakDisciplinePass(), "LEAK_DISCIPLINE", failures);
         pass(113, completion.contains("soak_test") && completion.contains("crash_matrix"), "TEST_BENCHMARK", failures);
         pass(114, completion.contains("soak_test"), "SOAK_TEST", failures);
         pass(115, completion.contains("crash_matrix"), "CRASH_TRANSACTION", failures);
@@ -315,6 +328,133 @@ public final class ProductAcceptanceMatrix {
                 "user.role == guest",
                 context
         );
+    }
+
+    private static boolean dataWindowPass(
+            ProductServices services
+    ) {
+        try {
+            DataProviderRegistry.Window window =
+                    services.dataProviders().window(
+                            1000,
+                            120,
+                            20,
+                            10
+                    );
+            return window.first() == 110
+                    && window.last() == 149
+                    && window.materializedCount() == 40;
+        } catch (RuntimeException error) {
+            return false;
+        }
+    }
+
+    private static boolean assetLoadPass(
+            ProductServices services
+    ) {
+        try {
+            AssetLoadManager proof = new AssetLoadManager();
+            proof.register(
+                    "asset.image.proof",
+                    AssetLoadManager.Kind.IMAGE,
+                    4096,
+                    "1111111111111111111111111111111111111111111111111111111111111111"
+            );
+            proof.register(
+                    "asset.video.proof",
+                    AssetLoadManager.Kind.VIDEO,
+                    1024 * 1024,
+                    "2222222222222222222222222222222222222222222222222222222222222222"
+            );
+            AssetLoadManager.LoadPlan image = proof.plan(
+                    "asset.image.proof",
+                    1080,
+                    1920,
+                    true
+            );
+            AssetLoadManager.LoadPlan video = proof.plan(
+                    "asset.video.proof",
+                    1080,
+                    1920,
+                    true
+            );
+            return image.thumbnailFirst()
+                    && !image.streaming()
+                    && video.streaming()
+                    && video.chunkBytes() == 512 * 1024
+                    && !services.assetLoads().all().isEmpty();
+        } catch (RuntimeException error) {
+            return false;
+        }
+    }
+
+    private static boolean incrementalValidationPass(
+            AppKernel kernel
+    ) {
+        com.toolbox.tools.core.IncrementalResourceValidator validator =
+                new com.toolbox.tools.core.IncrementalResourceValidator();
+        LinkedHashMap<String, String> good =
+                new LinkedHashMap<>();
+        good.put("ui.object.home.primary.opacity", "0.5");
+        LinkedHashMap<String, String> bad =
+                new LinkedHashMap<>();
+        bad.put("ui.object.home.primary.opacity", "4");
+        return validator.validate(
+                kernel.projectManager().current(),
+                good,
+                Collections.emptySet()
+        ).isPass() && !validator.validate(
+                kernel.projectManager().current(),
+                bad,
+                Collections.emptySet()
+        ).isPass();
+    }
+
+    private static boolean renderBudgetPass() {
+        RenderDiagnostics diagnostics =
+                new RenderDiagnostics();
+        diagnostics.record(
+                "screen.home",
+                80,
+                2,
+                2,
+                16
+        );
+        return diagnostics.allWithinBudget()
+                && diagnostics.sample(
+                        "screen.home"
+                ).complexityScore() > 0;
+    }
+
+    private static boolean leakDisciplinePass() {
+        ResourceGuard guard = new ResourceGuard();
+        guard.enterScreen("screen.home");
+        guard.sample(
+                "screen.home",
+                20L * 1024L * 1024L,
+                40,
+                1
+        );
+        guard.sample(
+                "screen.home",
+                21L * 1024L * 1024L,
+                40,
+                1
+        );
+        guard.sample(
+                "screen.home",
+                22L * 1024L * 1024L,
+                40,
+                1
+        );
+        guard.sample(
+                "screen.home",
+                23L * 1024L * 1024L,
+                40,
+                1
+        );
+        return !guard.leakTrend("screen.home")
+                && guard.invariantPass();
     }
 
     private static void pass(int id, boolean condition, String code, Map<Integer,String> failures) {
