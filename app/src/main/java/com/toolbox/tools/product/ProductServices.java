@@ -150,7 +150,7 @@ public final class ProductServices {
                 PreviewSandbox.SideEffect.NETWORK,
                 "Respons simulasi"
         );
-        editorContext = new EditorContextStore();
+        editorContext = new EditorContextStore(runtimeState);
         lifecycle = new AppLifecycleManager();
         lifecycle.registerAction(
                 "lifecycle.home.every",
