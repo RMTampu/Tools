@@ -81,6 +81,11 @@ for marker in [
     "HEALTH_SAFE_MODE_UI=PASS",
     "EVOLUTION_UI=PASS",
     "FREEZE_SAVE_MODE_INDICATOR=PASS",
+    "LAUNCHER_TB_PACKAGE=PASS",
+    "ASSET_RUNTIME_RENDERER=PASS",
+    "MEMORY_PRESSURE_POLICY=PASS",
+    "PATCH_JOURNAL_RUNTIME=PASS",
+    "SAFE_RECOVERY_RUNTIME=PASS",
     "RANCANGAN_BEHAVIOR_135=PASS",
 ]:
     assert marker in runtime,marker
@@ -112,7 +117,7 @@ for file in android_xml:
 assert tests>=3 and failures==0 and errors==0 and skipped==0
 
 evidence={
-    "schemaVersion":1,
+    "schemaVersion":2,
     "gate":"TOOLBOX_ZERO_GAP",
     "status":"PASS",
     "design":{
@@ -146,6 +151,11 @@ evidence={
         "processDeathRestart":"PASS",
         "gfxInfo":"PASS",
         "pssBudget":"PASS",
+        "launcherTb":"PASS",
+        "assetRuntimeRenderer":"PASS",
+        "memoryPressurePolicy":"PASS",
+        "patchJournalRuntime":"PASS",
+        "safeRecoveryRuntime":"PASS",
     },
     "boundary":{
         "unconditionalAcceptancePass":0,
