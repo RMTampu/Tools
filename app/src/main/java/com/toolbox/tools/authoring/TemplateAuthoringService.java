@@ -20,6 +20,7 @@ public final class TemplateAuthoringService {
     private final ComponentRegistry components;
     private final AssetRegistry assets;
     private final DependencyResolver resolver;
+    private final TemplateArchiveStore archive;
 
     public TemplateAuthoringService(
             AuthoringDraftStore drafts,
@@ -28,11 +29,30 @@ public final class TemplateAuthoringService {
             AssetRegistry assets,
             DependencyResolver resolver
     ) {
+        this(
+                drafts,
+                templates,
+                components,
+                assets,
+                resolver,
+                null
+        );
+    }
+
+    public TemplateAuthoringService(
+            AuthoringDraftStore drafts,
+            TemplateRegistry templates,
+            ComponentRegistry components,
+            AssetRegistry assets,
+            DependencyResolver resolver,
+            TemplateArchiveStore archive
+    ) {
         this.drafts = Objects.requireNonNull(drafts, "drafts");
         this.templates = Objects.requireNonNull(templates, "templates");
         this.components = Objects.requireNonNull(components, "components");
         this.assets = Objects.requireNonNull(assets, "assets");
         this.resolver = Objects.requireNonNull(resolver, "resolver");
+        this.archive = archive;
     }
 
     public TemplateAuthoringDraft create(TemplateAuthoringDraft draft) {
@@ -105,22 +125,61 @@ public final class TemplateAuthoringService {
             throw new IllegalStateException("template draft not validated");
         }
         TemplateDefinition definition = toDefinition(draft);
-        templates.publishReady(
-                definition,
-                resolver,
-                components,
-                assets
+        TemplateDefinition readyDefinition = definition.withLifecycle(
+                CatalogLifecycle.READY
         );
-        drafts.markPublished(draft.draftId());
-        TemplateDefinition published = templates.resolveExact(
-                draft.templateId(),
-                draft.version()
-        );
-        if (published == null
-                || published.lifecycle() != CatalogLifecycle.READY) {
-            throw new IllegalStateException("template publish not observable");
+        boolean archived = false;
+        try {
+            if (archive != null) {
+                archive.publish(readyDefinition);
+                archived = true;
+            }
+            templates.publishReady(
+                    definition,
+                    resolver,
+                    components,
+                    assets
+            );
+            drafts.markPublished(draft.draftId());
+            TemplateDefinition published = templates.resolveExact(
+                    draft.templateId(),
+                    draft.version()
+            );
+            if (published == null
+                    || published.lifecycle() != CatalogLifecycle.READY) {
+                throw new IllegalStateException(
+                        "template publish not observable"
+                );
+            }
+            if (archive != null && !archive.exists(published)) {
+                throw new IllegalStateException(
+                        "template visible archive missing"
+                );
+            }
+            return published;
+        } catch (java.io.IOException error) {
+            if (archived) {
+                try {
+                    archive.delete(readyDefinition);
+                } catch (java.io.IOException ignored) {
+                    // Orphan archive remains visible and detectable;
+                    // registry state is never silently fabricated.
+                }
+            }
+            throw new IllegalStateException(
+                    "template visible archive gagal",
+                    error
+            );
+        } catch (RuntimeException error) {
+            if (archived) {
+                try {
+                    archive.delete(readyDefinition);
+                } catch (java.io.IOException ignored) {
+                    // Fail closed; visible orphan is user-inspectable.
+                }
+            }
+            throw error;
         }
-        return published;
     }
 
     private static TemplateDefinition toDefinition(
