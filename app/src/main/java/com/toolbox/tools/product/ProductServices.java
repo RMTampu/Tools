@@ -33,6 +33,7 @@ public final class ProductServices {
     private final InputRouter inputRouter;
     private final ConditionalPropertyEngine conditionalProperties;
     private final DataProviderRegistry dataProviders;
+    private final AssetLoadManager assetLoads;
 
     public ProductServices(ProjectManager projects) {
         Objects.requireNonNull(projects, "projects");
@@ -65,6 +66,17 @@ public final class ProductServices {
         inputRouter = new InputRouter();
         conditionalProperties = new ConditionalPropertyEngine();
         dataProviders = new DataProviderRegistry();
+        assetLoads = new AssetLoadManager();
+        for (com.toolbox.tools.library.BuiltinAssetCatalog.BuiltinAsset item
+                : com.toolbox.tools.library.BuiltinAssetCatalog.all()) {
+            assetLoads.register(
+                    item.descriptor().assetId(),
+                    AssetLoadManager.Kind.JSON,
+                    item.payload().length,
+                    item.descriptor().sha256()
+            );
+            assetLoads.reference(item.descriptor().assetId());
+        }
 
         projectGraph.registerEntity("screen.home");
         projectGraph.registerEntity("screen.detail");
@@ -195,6 +207,7 @@ public final class ProductServices {
     public InputRouter inputRouter() { return inputRouter; }
     public ConditionalPropertyEngine conditionalProperties() { return conditionalProperties; }
     public DataProviderRegistry dataProviders() { return dataProviders; }
+    public AssetLoadManager assetLoads() { return assetLoads; }
 
     public boolean isReady() {
         return screens.startScreenId() != null
@@ -211,6 +224,7 @@ public final class ProductServices {
                 && deep.isReady()
                 && inventory.complete()
                 && inputRouter.complete()
-                && dataProviders.complete();
+                && dataProviders.complete()
+                && assetLoads.audit().isPass();
     }
 }
