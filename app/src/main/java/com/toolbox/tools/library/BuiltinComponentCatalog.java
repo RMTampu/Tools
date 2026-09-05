@@ -25,10 +25,10 @@ public final class BuiltinComponentCatalog {
                         bool("property.enabled",true), enumProp("property.input.type","input.text","input.text","input.number","input.password")),
                 events("event.change","event.focus")));
         out.add(component("image","Gambar","category.media","image",
-                props(text("property.asset",""), enumProp("property.fit","fit.cover","fit.cover","fit.contain","fit.center"),
+                props(asset("property.asset",""), enumProp("property.fit","fit.cover","fit.cover","fit.contain","fit.center"),
                         dim("property.radius","12")), events("event.tap")));
         out.add(component("icon","Ikon","category.media","icon",
-                props(text("property.asset",""), color("property.color","#E8FFF8"),
+                props(asset("property.asset",""), color("property.color","#E8FFF8"),
                         dim("property.size","24")), events("event.tap")));
         out.add(component("container","Kontainer","category.layout","container",
                 props(enumProp("property.layout","layout.column","layout.row","layout.column","layout.stack","layout.grid","layout.free"),
@@ -41,7 +41,7 @@ public final class BuiltinComponentCatalog {
         out.add(component("grid","Kisi","category.layout","grid",
                 props(number("property.columns","2"), dim("property.spacing","8")), events()));
         out.add(component("list","Daftar","category.data","list",
-                props(text("property.source","data.items"), number("property.page.size","20"),
+                props(reference("property.source","data.items"), number("property.page.size","20"),
                         bool("property.divider",true)), events("event.item.click")));
         out.add(component("card","Kartu","category.layout","card",
                 props(color("property.background","#112832"), dim("property.radius","18"),
@@ -167,24 +167,134 @@ public final class BuiltinComponentCatalog {
     }
 
     private static PropertyContract text(String id,String value){
-        return new PropertyContract(id,PropertyType.TEXT,true,true,value,Collections.emptySet());
-    }
-    private static PropertyContract bool(String id,boolean value){
-        return new PropertyContract(id,PropertyType.BOOLEAN,false,true,String.valueOf(value),Collections.emptySet());
-    }
-    private static PropertyContract number(String id,String value){
-        return new PropertyContract(id,PropertyType.NUMBER,false,true,value,Collections.emptySet());
-    }
-    private static PropertyContract dim(String id,String value){
-        return new PropertyContract(id,PropertyType.DIMENSION,false,true,value,Collections.emptySet());
-    }
-    private static PropertyContract color(String id,String value){
-        return new PropertyContract(id,PropertyType.COLOR,false,true,value,Collections.emptySet());
-    }
-    private static PropertyContract enumProp(String id,String value,String... choices){
         return new PropertyContract(
-                id,PropertyType.ENUM,false,true,value,
-                new LinkedHashSet<>(Arrays.asList(choices))
+                id,
+                PropertyType.TEXT,
+                true,
+                true,
+                value,
+                Collections.emptySet(),
+                null,
+                null,
+                null,
+                Collections.emptySet(),
+                null
+        );
+    }
+
+    private static PropertyContract bool(String id,boolean value){
+        return new PropertyContract(
+                id,
+                PropertyType.BOOLEAN,
+                false,
+                true,
+                String.valueOf(value),
+                Collections.emptySet(),
+                null,
+                null,
+                null,
+                Collections.emptySet(),
+                null
+        );
+    }
+
+    private static PropertyContract number(String id,String value){
+        return new PropertyContract(
+                id,
+                PropertyType.NUMBER,
+                false,
+                true,
+                value,
+                Collections.emptySet(),
+                -1_000_000d,
+                1_000_000d,
+                null,
+                Collections.emptySet(),
+                "converter.number.safe"
+        );
+    }
+
+    private static PropertyContract dim(String id,String value){
+        return new PropertyContract(
+                id,
+                PropertyType.DIMENSION,
+                false,
+                true,
+                value,
+                Collections.emptySet(),
+                0d,
+                4096d,
+                "dp",
+                Collections.emptySet(),
+                "converter.dimension.dp"
+        );
+    }
+
+    private static PropertyContract color(String id,String value){
+        return new PropertyContract(
+                id,
+                PropertyType.COLOR,
+                false,
+                true,
+                value,
+                Collections.emptySet(),
+                null,
+                null,
+                null,
+                Collections.emptySet(),
+                "converter.color.hex"
+        );
+    }
+
+    private static PropertyContract asset(String id,String value){
+        return new PropertyContract(
+                id,
+                PropertyType.ASSET,
+                true,
+                true,
+                value,
+                Collections.emptySet(),
+                null,
+                null,
+                null,
+                Collections.emptySet(),
+                null
+        );
+    }
+
+    private static PropertyContract reference(String id,String value){
+        return new PropertyContract(
+                id,
+                PropertyType.REFERENCE,
+                false,
+                true,
+                value,
+                Collections.emptySet(),
+                null,
+                null,
+                null,
+                Collections.emptySet(),
+                null
+        );
+    }
+
+    private static PropertyContract enumProp(
+            String id,
+            String value,
+            String... choices
+    ){
+        return new PropertyContract(
+                id,
+                PropertyType.ENUM,
+                false,
+                true,
+                value,
+                new LinkedHashSet<>(Arrays.asList(choices)),
+                null,
+                null,
+                null,
+                Collections.emptySet(),
+                null
         );
     }
 }
