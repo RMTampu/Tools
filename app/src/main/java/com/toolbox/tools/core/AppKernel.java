@@ -495,9 +495,7 @@ public final class AppKernel {
                 || libraryManager.assets().allReady().isEmpty()
                 || libraryManager.templates().allReady().isEmpty()
                 || !productServices.inventory().complete()
-                || !productServices.resources().invariantPass()
-                || safeModeController.isSafeMode()
-                || recoveryManager.isRecoveryRequired()) {
+                || !productServices.resources().invariantPass()) {
             return false;
         }
 
