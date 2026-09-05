@@ -29,6 +29,8 @@ for marker in [
  "color/tb_neon",
  "string/app_name",
  "string/bahasa_default",
+ "mipmap/ic_launcher",
+ "mipmap/ic_launcher_round",
 ]:
     assert marker in resources,marker
 
@@ -46,12 +48,15 @@ for marker in [
  "REPRESENTASI_PROPERTI=PASS",
  "REPRESENTASI_KODE=PASS",
  "MODE_PRATINJAU=PASS",
+ "LAUNCHER_TB_PACKAGE=PASS",
+ "ASSET_RUNTIME_RENDERER=PASS",
+ "MEMORY_PRESSURE_POLICY=PASS",
  "PRODUCT_COMPLETENESS_RUNTIME=PASS",
 ]:
     assert marker in runtime,marker
 
 evidence={
- "schemaVersion":12,
+ "schemaVersion":13,
  "status":"ASSET_SAFE_100_DEVELOPMENT_PASS",
  "physicalAssets":pre["physicalExpected"],
  "managedBuiltinAssets":pre["managedBuiltinExpected"],
@@ -62,6 +67,8 @@ evidence={
  "languageRuntime":"PASS",
  "darkNeonRuntime":"PASS",
  "registryInventoryPackaged":"PASS",
+ "launcherTbPackaged":"PASS",
+ "assetRuntimeRenderer":"PASS",
  "externalUserAssetRoute":pre["externalUserAssetRoute"],
  "externalUserAssetKinds":pre["externalUserAssetKinds"],
  "runtimeWitnessAbi":"x86_64",
