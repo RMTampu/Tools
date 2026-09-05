@@ -428,6 +428,34 @@ public final class ProjectManager {
         return candidate;
     }
 
+    public synchronized ProjectState restoreExternalState(
+            ProjectState candidate
+    ) throws IOException {
+        requireStarted();
+        if (candidate == null) throw new NullPointerException("candidate");
+        if (!current.projectId().equals(candidate.projectId())) {
+            throw new IOException("external restore project identity mismatch");
+        }
+        ProjectValidationResult validation = validator.validate(candidate);
+        if (!validation.isPass()) {
+            throw new IOException(
+                    "EXTERNAL_RESTORE_VALIDATION_FAILED:"
+                            + validation.message()
+            );
+        }
+        try {
+            ProjectState recovered = store.recoverState(candidate);
+            adoptRecovered(recovered);
+            return recovered;
+        } catch (IOException error) {
+            recoveryManager.markRecoveryRequired(
+                    "EXTERNAL_RESTORE_FAILED",
+                    "RESTORE_EXTERNAL"
+            );
+            throw error;
+        }
+    }
+
     public synchronized ProjectState restoreRevision(long revision)
             throws IOException {
         requireStarted();
