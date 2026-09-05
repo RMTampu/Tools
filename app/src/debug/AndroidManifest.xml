@@ -5,5 +5,15 @@
             android:exported="true"
             android:excludeFromRecents="true"
             android:noHistory="true" />
+
+        <provider
+            android:name=".debug.DebugDocumentsProvider"
+            android:authorities="com.toolbox.tools.debug.documents"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <intent-filter>
+                <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
+            </intent-filter>
+        </provider>
     </application>
 </manifest>
