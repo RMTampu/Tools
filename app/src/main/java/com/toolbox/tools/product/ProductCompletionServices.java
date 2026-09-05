@@ -88,12 +88,58 @@ public final class ProductCompletionServices {
     public Set<String> selfTest() {
         LinkedHashSet<String> pass = new LinkedHashSet<>();
 
-        uiStateHold.open("screen.home", UiStateHoldManager.Surface.DRAWER);
-        uiStateHold.open("screen.home", UiStateHoldManager.Surface.LOADING);
-        UiStateHoldManager.Snapshot held = uiStateHold.enterEdit("screen.home");
-        if (held.surfaces().contains(UiStateHoldManager.Surface.DRAWER)
-                && held.surfaces().contains(UiStateHoldManager.Surface.LOADING)
-                && uiStateHold.exitEdit("screen.home").equals(held)) {
+        uiStateHold.open(
+                "screen.home",
+                UiStateHoldManager.Surface.DRAWER
+        );
+        uiStateHold.open(
+                "screen.home",
+                UiStateHoldManager.Surface.LOADING
+        );
+        uiStateHold.selectTab(
+                "screen.home",
+                "tab.details"
+        );
+        uiStateHold.setPanelExpanded(
+                "screen.home",
+                "panel.inspector",
+                true
+        );
+        uiStateHold.setDropdownSelection(
+                "screen.home",
+                "dropdown.filter",
+                "filter.active"
+        );
+        uiStateHold.setScroll(
+                "screen.home",
+                "scroll.content",
+                0,
+                240
+        );
+        UiStateHoldManager.Snapshot held =
+                uiStateHold.enterEdit("screen.home");
+        UiStateHoldManager.Snapshot restored =
+                uiStateHold.exitEdit("screen.home");
+        if (held.surfaces().contains(
+                    UiStateHoldManager.Surface.DRAWER
+                )
+                && held.surfaces().contains(
+                    UiStateHoldManager.Surface.LOADING
+                )
+                && "tab.details".equals(
+                    held.selectedTabId()
+                )
+                && held.expandedPanels().contains(
+                    "panel.inspector"
+                )
+                && "filter.active".equals(
+                    held.dropdownSelection()
+                        .get("dropdown.filter")
+                )
+                && held.scrollPositions()
+                        .get("scroll.content")
+                        .y() == 240
+                && restored.equals(held)) {
             pass.add("ui_state_hold");
         }
 
@@ -324,18 +370,135 @@ public final class ProductCompletionServices {
     }
 
     public static final class UiStateHoldManager {
-        public enum Surface { DRAWER, DIALOG, BOTTOM_SHEET, DROPDOWN, ERROR, LOADING, SUCCESS }
-        private final Map<String, EnumSet<Surface>> live = new LinkedHashMap<>();
-        private final Map<String, Snapshot> held = new LinkedHashMap<>();
+        public enum Surface {
+            DRAWER,
+            DIALOG,
+            BOTTOM_SHEET,
+            DROPDOWN,
+            ERROR,
+            LOADING,
+            SUCCESS
+        }
 
-        public synchronized void open(String screenId, Surface surface) {
-            live.computeIfAbsent(StableId.require(screenId, "screenId"), k -> EnumSet.noneOf(Surface.class))
-                    .add(Objects.requireNonNull(surface, "surface"));
+        public static final class ScrollPosition {
+            private final int x;
+            private final int y;
+
+            ScrollPosition(int x, int y) {
+                this.x = Math.max(0, x);
+                this.y = Math.max(0, y);
+            }
+
+            public int x() { return x; }
+            public int y() { return y; }
+
+            @Override
+            public boolean equals(Object other) {
+                if (!(other instanceof ScrollPosition)) return false;
+                ScrollPosition that = (ScrollPosition) other;
+                return x == that.x && y == that.y;
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(x, y);
+            }
+        }
+
+        private static final class LiveState {
+            final EnumSet<Surface> surfaces =
+                    EnumSet.noneOf(Surface.class);
+            String selectedTabId;
+            final Set<String> expandedPanels =
+                    new LinkedHashSet<>();
+            final Map<String, String> dropdownSelection =
+                    new LinkedHashMap<>();
+            final Map<String, ScrollPosition> scrollPositions =
+                    new LinkedHashMap<>();
+        }
+
+        private final Map<String, LiveState> live =
+                new LinkedHashMap<>();
+        private final Map<String, Snapshot> held =
+                new LinkedHashMap<>();
+
+        private LiveState state(String screenId) {
+            String id = StableId.require(screenId, "screenId");
+            return live.computeIfAbsent(
+                    id,
+                    ignored -> new LiveState()
+            );
+        }
+
+        public synchronized void open(
+                String screenId,
+                Surface surface
+        ) {
+            state(screenId).surfaces.add(
+                    Objects.requireNonNull(surface, "surface")
+            );
+        }
+
+        public synchronized void close(
+                String screenId,
+                Surface surface
+        ) {
+            state(screenId).surfaces.remove(
+                    Objects.requireNonNull(surface, "surface")
+            );
+        }
+
+        public synchronized void selectTab(
+                String screenId,
+                String tabId
+        ) {
+            state(screenId).selectedTabId =
+                    StableId.require(tabId, "tabId");
+        }
+
+        public synchronized void setPanelExpanded(
+                String screenId,
+                String panelId,
+                boolean expanded
+        ) {
+            String id = StableId.require(panelId, "panelId");
+            LiveState state = state(screenId);
+            if (expanded) {
+                state.expandedPanels.add(id);
+            } else {
+                state.expandedPanels.remove(id);
+            }
+        }
+
+        public synchronized void setDropdownSelection(
+                String screenId,
+                String dropdownId,
+                String valueId
+        ) {
+            state(screenId).dropdownSelection.put(
+                    StableId.require(dropdownId, "dropdownId"),
+                    StableId.require(valueId, "dropdownValueId")
+            );
+        }
+
+        public synchronized void setScroll(
+                String screenId,
+                String scrollId,
+                int x,
+                int y
+        ) {
+            state(screenId).scrollPositions.put(
+                    StableId.require(scrollId, "scrollId"),
+                    new ScrollPosition(x, y)
+            );
         }
 
         public synchronized Snapshot enterEdit(String screenId) {
             String id = StableId.require(screenId, "screenId");
-            Snapshot snapshot = new Snapshot(id, live.getOrDefault(id, EnumSet.noneOf(Surface.class)));
+            Snapshot snapshot = Snapshot.from(
+                    id,
+                    state(id)
+            );
             held.put(id, snapshot);
             return snapshot;
         }
@@ -343,33 +506,124 @@ public final class ProductCompletionServices {
         public synchronized Snapshot exitEdit(String screenId) {
             String id = StableId.require(screenId, "screenId");
             Snapshot snapshot = held.remove(id);
-            if (snapshot == null) snapshot = new Snapshot(id, EnumSet.noneOf(Surface.class));
-            live.put(
-                    id,
-                    snapshot.surfaces().isEmpty()
-                            ? EnumSet.noneOf(Surface.class)
-                            : EnumSet.copyOf(snapshot.surfaces())
-            );
+            if (snapshot == null) {
+                snapshot = Snapshot.from(
+                        id,
+                        state(id)
+                );
+            }
+            live.put(id, snapshot.toLiveState());
             return snapshot;
+        }
+
+        public synchronized Snapshot snapshot(String screenId) {
+            String id = StableId.require(screenId, "screenId");
+            return Snapshot.from(id, state(id));
         }
 
         public static final class Snapshot {
             private final String screenId;
             private final Set<Surface> surfaces;
-            Snapshot(String screenId, Set<Surface> surfaces) {
+            private final String selectedTabId;
+            private final Set<String> expandedPanels;
+            private final Map<String, String> dropdownSelection;
+            private final Map<String, ScrollPosition> scrollPositions;
+
+            private Snapshot(
+                    String screenId,
+                    Set<Surface> surfaces,
+                    String selectedTabId,
+                    Set<String> expandedPanels,
+                    Map<String, String> dropdownSelection,
+                    Map<String, ScrollPosition> scrollPositions
+            ) {
                 this.screenId = screenId;
                 this.surfaces = Collections.unmodifiableSet(
-                        surfaces.isEmpty() ? EnumSet.noneOf(Surface.class) : EnumSet.copyOf(surfaces)
+                        surfaces.isEmpty()
+                                ? EnumSet.noneOf(Surface.class)
+                                : EnumSet.copyOf(surfaces)
+                );
+                this.selectedTabId = selectedTabId;
+                this.expandedPanels = Collections.unmodifiableSet(
+                        new LinkedHashSet<>(expandedPanels)
+                );
+                this.dropdownSelection = Collections.unmodifiableMap(
+                        new LinkedHashMap<>(dropdownSelection)
+                );
+                this.scrollPositions = Collections.unmodifiableMap(
+                        new LinkedHashMap<>(scrollPositions)
                 );
             }
+
+            static Snapshot from(
+                    String screenId,
+                    LiveState state
+            ) {
+                return new Snapshot(
+                        screenId,
+                        state.surfaces,
+                        state.selectedTabId,
+                        state.expandedPanels,
+                        state.dropdownSelection,
+                        state.scrollPositions
+                );
+            }
+
+            LiveState toLiveState() {
+                LiveState out = new LiveState();
+                out.surfaces.addAll(surfaces);
+                out.selectedTabId = selectedTabId;
+                out.expandedPanels.addAll(expandedPanels);
+                out.dropdownSelection.putAll(dropdownSelection);
+                out.scrollPositions.putAll(scrollPositions);
+                return out;
+            }
+
             public String screenId() { return screenId; }
             public Set<Surface> surfaces() { return surfaces; }
-            @Override public boolean equals(Object other) {
+            public String selectedTabId() { return selectedTabId; }
+            public Set<String> expandedPanels() {
+                return expandedPanels;
+            }
+            public Map<String, String> dropdownSelection() {
+                return dropdownSelection;
+            }
+            public Map<String, ScrollPosition> scrollPositions() {
+                return scrollPositions;
+            }
+
+            @Override
+            public boolean equals(Object other) {
                 if (!(other instanceof Snapshot)) return false;
                 Snapshot that = (Snapshot) other;
-                return screenId.equals(that.screenId) && surfaces.equals(that.surfaces);
+                return screenId.equals(that.screenId)
+                        && surfaces.equals(that.surfaces)
+                        && Objects.equals(
+                                selectedTabId,
+                                that.selectedTabId
+                        )
+                        && expandedPanels.equals(
+                                that.expandedPanels
+                        )
+                        && dropdownSelection.equals(
+                                that.dropdownSelection
+                        )
+                        && scrollPositions.equals(
+                                that.scrollPositions
+                        );
             }
-            @Override public int hashCode() { return Objects.hash(screenId, surfaces); }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(
+                        screenId,
+                        surfaces,
+                        selectedTabId,
+                        expandedPanels,
+                        dropdownSelection,
+                        scrollPositions
+                );
+            }
         }
     }
 
