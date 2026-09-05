@@ -2,7 +2,11 @@ package com.toolbox.tools.product;
 
 import com.toolbox.tools.protocol.ManagedAppProtocol;
 
+import com.toolbox.tools.core.MemoryVisibleWorkspaceStore;
 import com.toolbox.tools.core.ProjectManager;
+import com.toolbox.tools.core.RecoveryManager;
+import com.toolbox.tools.core.RuntimeStateStore;
+import com.toolbox.tools.core.VisibleWorkspaceStore;
 import java.util.Objects;
 
 public final class ProductServices {
@@ -40,15 +44,32 @@ public final class ProductServices {
     private final ManagedAppProtocol managedAppProtocol;
 
     public ProductServices(ProjectManager projects) {
+        this(
+                projects,
+                projects.recoveryManager().stateStore(),
+                projects.recoveryManager(),
+                new MemoryVisibleWorkspaceStore()
+        );
+    }
+
+    public ProductServices(
+            ProjectManager projects,
+            RuntimeStateStore runtimeState,
+            RecoveryManager recovery,
+            VisibleWorkspaceStore visibleWorkspace
+    ) {
         Objects.requireNonNull(projects, "projects");
+        Objects.requireNonNull(runtimeState, "runtimeState");
+        Objects.requireNonNull(recovery, "recovery");
+        Objects.requireNonNull(visibleWorkspace, "visibleWorkspace");
         screens = new ScreenManager();
         localization = new LocalizationManager();
         themes = new ThemeTokenManager();
         permissions = new PermissionManager();
         resources = new ResourceGuard();
         cache = new CacheManager();
-        backups = new BackupManager(projects);
-        freeze = new FreezeEngine(projects);
+        backups = new BackupManager(projects, visibleWorkspace);
+        freeze = new FreezeEngine(projects, runtimeState, recovery);
         backgroundTasks = new BackgroundTaskManager();
         importSecurity = new ImportSecurityValidator();
         diagnostics = new DiagnosticCenter();
