@@ -337,7 +337,9 @@ jobs:
           dump_ui
           ! grep -F 'text="Akses Cepat"' "$RUNNER_TEMP/window.xml"
           tap_desc 'Pintasan Floating Window'
-          assert_text 'Floating Window • ToolBox'
+          assert_text 'Floating Editor • UI'
+          assert_text 'Pin'
+          assert_text 'Ubah Ukuran'
           assert_text 'Tutup'
           tap_text 'Tutup'
 
@@ -462,6 +464,7 @@ jobs:
           assert_text 'Pusat Aset & Library'
           tap_text 'Konteks • Aset'
           tap_clickable_text 'Impor Aset'
+          assert_text 'Pilih File dari Perangkat'
           assert_text 'Token Bawaan'
           tap_text 'Token Bawaan'
           tap_clickable_text 'Impor Aset'
@@ -478,6 +481,45 @@ jobs:
           assert_text 'Rancangan Behavior: 135/135'
           assert_text 'Signing: hanya jalur Private'
           assert_text 'Firebase: hanya setelah izin pengguna'
+          tap_text 'Tutup'
+
+          # Health/Safe Mode UI benar-benar tersedia.
+          tap_text 'TB'
+          tap_desc 'Pintasan Tool'
+          tap_text 'Perbaikan & Kesehatan'
+          assert_text 'Kesehatan & Perbaikan'
+          assert_text 'Jalankan Health Check'
+          assert_text 'Masuk Mode Aman'
+          tap_text 'Jalankan Health Check'
+          assert_text 'Hasil Health Check'
+          assert_text 'Kernel: READY'
+          tap_text 'Tutup'
+
+          # Evolution UI membuka pipeline app.patch tanpa rebuild.
+          tap_text 'TB'
+          tap_desc 'Pintasan Tool'
+          tap_text 'Paket Evolusi Tanpa Rebuild'
+          assert_text 'Evolusi Tanpa Rebuild'
+          assert_text 'Pilih Paket app.patch'
+          assert_text 'Terapkan Paket Terverifikasi'
+          assert_text 'Rollback ke Revisi Dasar'
+          tap_text 'Tutup'
+
+          # Save Mode memiliki state aktif yang terlihat dan kembali ke NORMAL.
+          tap_text 'TB'
+          tap_desc 'Pintasan Tool'
+          tap_text 'Freeze / Mode Simpan'
+          assert_desc 'Pilihan aktif • Mode Normal'
+          tap_text 'Mode Simpan • Titik Pemeriksaan'
+          tap_text 'TB'
+          tap_desc 'Pintasan Tool'
+          tap_text 'Freeze / Mode Simpan'
+          assert_desc 'Pilihan aktif • Mode Simpan • Titik Pemeriksaan'
+          tap_text 'Thaw / Kembali Normal'
+          tap_text 'TB'
+          tap_desc 'Pintasan Tool'
+          tap_text 'Freeze / Mode Simpan'
+          assert_desc 'Pilihan aktif • Mode Normal'
           tap_text 'Tutup'
 
           adb exec-out screencap -p > app/build/assurance/product-full-api30.png
@@ -520,6 +562,11 @@ jobs:
             echo "EDGE_LANDSCAPE_TOP_BOTTOM=PASS"
             echo "BUBBLE_DIRECT_SHORTCUTS=PASS"
             echo "FLOATING_WINDOW_DISTINCT=PASS"
+            echo "FLOATING_EDITOR_MOVE_PIN_RESIZE=PASS"
+            echo "EXTERNAL_ASSET_PICKER_ROUTE=PASS"
+            echo "HEALTH_SAFE_MODE_UI=PASS"
+            echo "EVOLUTION_UI=PASS"
+            echo "FREEZE_SAVE_MODE_INDICATOR=PASS"
             echo "EDGE_ALL_MODES=PASS"
             echo "EDITOR_COMMANDS_PANEL_ONLY=PASS"
             echo "FOUR_EDITOR_CHOICES=PASS"
