@@ -1,6 +1,7 @@
 package com.toolbox.tools.product;
 
 import com.toolbox.tools.core.AppKernel;
+import com.toolbox.tools.core.IncrementalResourceValidator;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -92,6 +93,98 @@ public final class ProductProductionContractsTest {
         assertNotNull(l.formatDate(0,"id-ID"));
         assertTrue(l.isRtl("ar"));
         assertFalse(l.isRtl("id"));
+    }
+
+    @Test public void dataProviderEcosystemAndViewportAreProductionReady() {
+        DataProviderRegistry providers = new DataProviderRegistry();
+        assertTrue(providers.complete());
+        DataProviderRegistry.Window window = providers.window(
+                1000,
+                120,
+                20,
+                10
+        );
+        assertEquals(110, window.first());
+        assertEquals(149, window.last());
+        assertEquals(40, window.materializedCount());
+        assertTrue(
+                providers.require("provider.database")
+                        .capabilities()
+                        .contains(
+                                DataProviderRegistry.Capability.TRANSACTION
+                        )
+        );
+    }
+
+    @Test public void assetLoadPlanningCoversPreviewAndStreaming() {
+        AssetLoadManager assets = new AssetLoadManager();
+        String imageSha =
+                "1111111111111111111111111111111111111111111111111111111111111111";
+        String videoSha =
+                "2222222222222222222222222222222222222222222222222222222222222222";
+        assets.register(
+                "asset.image.test",
+                AssetLoadManager.Kind.IMAGE,
+                4096,
+                imageSha
+        );
+        assets.register(
+                "asset.video.test",
+                AssetLoadManager.Kind.VIDEO,
+                1024 * 1024,
+                videoSha
+        );
+        assets.reference("asset.image.test");
+        assets.reference("asset.video.test");
+        AssetLoadManager.LoadPlan image = assets.plan(
+                "asset.image.test",
+                1080,
+                1920,
+                true
+        );
+        AssetLoadManager.LoadPlan video = assets.plan(
+                "asset.video.test",
+                1080,
+                1920,
+                true
+        );
+        assertTrue(image.thumbnailFirst());
+        assertFalse(image.streaming());
+        assertTrue(video.streaming());
+        assertEquals(512 * 1024, video.chunkBytes());
+        assertTrue(assets.audit().isPass());
+    }
+
+    @Test public void incrementalValidatorRejectsInvalidDeltaBeforeMutation() {
+        IncrementalResourceValidator validator =
+                new IncrementalResourceValidator();
+        AppKernel kernel = AppKernel.createDefault();
+        Map<String,String> good = new LinkedHashMap<>();
+        good.put("ui.object.home.primary.opacity", "0.5");
+        assertTrue(
+                validator.validate(
+                        kernel.projectManager().current(),
+                        good,
+                        Collections.emptySet()
+                ).isPass()
+        );
+        Map<String,String> bad = new LinkedHashMap<>();
+        bad.put("ui.object.home.primary.opacity", "3.0");
+        assertFalse(
+                validator.validate(
+                        kernel.projectManager().current(),
+                        bad,
+                        Collections.emptySet()
+                ).isPass()
+        );
+    }
+
+    @Test public void renderDiagnosticsFailClosedOnBudget() {
+        RenderDiagnostics monitor = new RenderDiagnostics();
+        monitor.record("screen.home", 80, 2, 2, 16);
+        assertTrue(monitor.allWithinBudget());
+        monitor.record("screen.detail", 300, 1, 0, 16);
+        assertFalse(monitor.allWithinBudget());
     }
 
     @Test public void freezeMaintainsFrozenBaseAndRecoverySlots() throws Exception {
