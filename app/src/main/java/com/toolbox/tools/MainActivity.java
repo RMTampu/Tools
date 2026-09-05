@@ -14,6 +14,7 @@ import com.toolbox.tools.android.SafProjectStore;
 import com.toolbox.tools.android.SafVisibleWorkspaceStore;
 import com.toolbox.tools.android.ToolboxAwareTargetDiscovery;
 import com.toolbox.tools.android.ManagedAppIntentContract;
+import com.toolbox.tools.android.ManagedAppProjectStore;
 import com.toolbox.tools.android.RuntimeResourceController;
 import com.toolbox.tools.core.AppKernel;
 import com.toolbox.tools.core.ProjectAccessStatus;
@@ -39,6 +40,8 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
     private static final String KEY_TREE_URI = "project.tree.uri";
 
     private AppKernel kernel;
+    private AppKernel localKernel;
+    private String externalTargetPackage;
     private WorkspaceShellView shell;
     private RuntimeResourceController resourceController;
     private final SafProjectAccessGateway safGateway = new SafProjectAccessGateway();
@@ -55,6 +58,7 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
         window.setNavigationBarColor(UiKit.LATAR);
 
         kernel = createKernelFromRememberedStorage();
+        localKernel = kernel;
         resourceController = new RuntimeResourceController(this, kernel);
         kernel.productServices().lifecycle().emit(
                 AppLifecycleManager.Event.APP_START,
@@ -66,6 +70,14 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
 
     @Override
     public void requestToolBoxStorageTree() {
+        if (externalTargetPackage != null) {
+            Toast.makeText(
+                    this,
+                    "Kembali ke project ToolBox sebelum mengganti storage.",
+                    Toast.LENGTH_LONG
+            ).show();
+            return;
+        }
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
         intent.addFlags(
                 Intent.FLAG_GRANT_READ_URI_PERMISSION
@@ -131,6 +143,8 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
                     .apply();
 
             kernel = selectedKernel;
+            localKernel = selectedKernel;
+            externalTargetPackage = null;
             resourceController = new RuntimeResourceController(this, kernel);
             kernel.productServices().completion().storage.relink(
                     treeUri.toString(),
@@ -372,6 +386,102 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
     }
 
     @Override
+    public boolean openManagedTargetEditor(
+            String packageName,
+            String providerAuthority,
+            String projectId
+    ) {
+        if (packageName == null
+                || providerAuthority == null
+                || projectId == null) {
+            return false;
+        }
+        try {
+            AppKernel source = localKernel == null
+                    ? kernel
+                    : localKernel;
+            ManagedAppProjectStore store =
+                    new ManagedAppProjectStore(
+                            getContentResolver(),
+                            getPackageManager(),
+                            packageName,
+                            providerAuthority,
+                            projectId
+                    );
+            File privateRoot = new File(
+                    getFilesDir(),
+                    "managed-targets/"
+                            + packageName.replaceAll(
+                                    "[^A-Za-z0-9._-]",
+                                    "_"
+                            )
+            );
+            AppKernel external = AppKernel.createPersistent(
+                    store,
+                    projectId,
+                    privateRoot,
+                    assetLibraryRoot(),
+                    source.visibleWorkspaceStore()
+            );
+            if (external.state()
+                    != com.toolbox.tools.core.AppState.READY) {
+                return false;
+            }
+
+            kernel = external;
+            externalTargetPackage = packageName;
+            resourceController =
+                    new RuntimeResourceController(this, kernel);
+            kernel.productServices()
+                    .lifecycle()
+                    .emit(
+                            AppLifecycleManager.Event.APP_START,
+                            null
+                    );
+            discoverAwareTargets();
+            renderEntry();
+            return true;
+        } catch (Exception error) {
+            Toast.makeText(
+                    this,
+                    "Target menolak editor internal: "
+                            + (error.getMessage() == null
+                                    ? "bridge tidak tersedia"
+                                    : error.getMessage()),
+                    Toast.LENGTH_LONG
+            ).show();
+            return false;
+        }
+    }
+
+    @Override
+    public boolean returnToToolBoxProject() {
+        if (externalTargetPackage == null || localKernel == null) {
+            return false;
+        }
+        if (kernel != null) {
+            kernel.productServices()
+                    .lifecycle()
+                    .emit(
+                            AppLifecycleManager.Event.BACKGROUND,
+                            null
+                    );
+        }
+        kernel = localKernel;
+        externalTargetPackage = null;
+        resourceController =
+                new RuntimeResourceController(this, kernel);
+        discoverAwareTargets();
+        renderEntry();
+        return true;
+    }
+
+    @Override
+    public boolean externalTargetActive() {
+        return externalTargetPackage != null;
+    }
+
+    @Override
     public boolean launchInstalledTarget(
             String packageName,
             String editDoor,
@@ -532,6 +642,10 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
         if (shell != null && shell.handleBack()) {
             return;
         }
+        if (externalTargetPackage != null
+                && returnToToolBoxProject()) {
+            return;
+        }
         super.onBackPressed();
     }
 
@@ -541,5 +655,9 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
 
     public WorkspaceShellView shellForTest() {
         return shell;
+    }
+
+    public boolean externalTargetActiveForTest() {
+        return externalTargetPackage != null;
     }
 }
