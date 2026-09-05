@@ -194,9 +194,13 @@ public final class ProductAcceptanceMatrix {
         pass(64, completion.contains("asset_loading"), "ORIGINAL_PREVIEW", failures);
         pass(65, completion.contains("asset_loading")
                 && assetLoadPass(s), "ASSET_LOADING", failures);
-        pass(66, completion.contains("asset_audit")
-                && s.assetLoads().audit().isPass(),
-                "ASSET_AUDIT", failures);
+        pass(
+                66,
+                completion.contains("asset_audit")
+                        && assetAuditContractPass(kernel, s),
+                "ASSET_AUDIT",
+                failures
+        );
         pass(67, cacheManagerContractPass(s)
                 && deep.contains("cache_category_budget"),
                 "CACHE_MANAGER", failures);
@@ -632,6 +636,27 @@ public final class ProductAcceptanceMatrix {
             return window.first() == 110
                     && window.last() == 149
                     && window.materializedCount() == 40;
+        } catch (RuntimeException error) {
+            return false;
+        }
+    }
+
+    private static boolean assetAuditContractPass(
+            AppKernel kernel,
+            ProductServices services
+    ) {
+        try {
+            ProjectAssetAudit.Report report =
+                    services.projectAssetAudit().scan(
+                            kernel.projectManager().current()
+                    );
+            return report != null
+                    && report.issues() != null
+                    && report.referencedAssetIds() != null
+                    && report.definedExternalAssetIds() != null
+                    && services.assetLoads()
+                            .audit()
+                            .isPass();
         } catch (RuntimeException error) {
             return false;
         }
