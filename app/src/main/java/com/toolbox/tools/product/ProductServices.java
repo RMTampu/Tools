@@ -69,8 +69,17 @@ public final class ProductServices {
         permissions = new PermissionManager();
         resources = new ResourceGuard();
         cache = new CacheManager();
+        visibleArtifacts = new VisibleArtifactManager(
+                projects,
+                visibleWorkspace
+        );
         backups = new BackupManager(projects, visibleWorkspace);
-        freeze = new FreezeEngine(projects, runtimeState, recovery);
+        freeze = new FreezeEngine(
+                projects,
+                runtimeState,
+                recovery,
+                visibleArtifacts
+        );
         backgroundTasks = new BackgroundTaskManager();
         importSecurity = new ImportSecurityValidator();
         diagnostics = new DiagnosticCenter();
@@ -95,10 +104,6 @@ public final class ProductServices {
         assetLoads = new AssetLoadManager();
         renderDiagnostics = new RenderDiagnostics();
         managedAppProtocol = new ManagedAppProtocol();
-        visibleArtifacts = new VisibleArtifactManager(
-                projects,
-                visibleWorkspace
-        );
         for (com.toolbox.tools.library.BuiltinAssetCatalog.BuiltinAsset item
                 : com.toolbox.tools.library.BuiltinAssetCatalog.all()) {
             assetLoads.register(
