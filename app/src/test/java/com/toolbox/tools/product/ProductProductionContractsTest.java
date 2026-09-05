@@ -223,6 +223,17 @@ public final class ProductProductionContractsTest {
         }
     }
 
+    @Test public void conditionalPropertySupportsBooleanLiterals() {
+        ConditionalPropertyEngine engine =
+                new ConditionalPropertyEngine();
+        Map<String,String> context = new LinkedHashMap<>();
+        context.put("data.valid", "true");
+        assertTrue(engine.evaluate("true", context));
+        assertFalse(engine.evaluate("false", context));
+        assertTrue(engine.evaluate("data.valid && true", context));
+        assertFalse(engine.evaluate("data.valid && false", context));
+    }
+
     @Test public void visualStateHoldSupportsEmptyAndNonEmptySurfaceSets() {
         ProductCompletionServices.UiStateHoldManager hold =
                 new ProductCompletionServices.UiStateHoldManager();
