@@ -323,6 +323,43 @@ public final class MaximalProductionClosureTest {
         assertTrue(guard.invariantPass());
     }
 
+    @Test
+    public void scaleClassesMaterializeRealProjectGraphs() {
+        ScaleBenchmarkHarness harness =
+                new ScaleBenchmarkHarness();
+        int previousResources = 0;
+        int previousReferences = 0;
+        for (ScaleBenchmarkHarness.ScaleClass scale
+                : ScaleBenchmarkHarness.ScaleClass.values()) {
+            ScaleBenchmarkHarness.Result result =
+                    harness.runActual(
+                            scale,
+                            96L * 1024L * 1024L
+                    );
+            assertTrue(result.withinBudget());
+            assertTrue(result.roundTripEqual());
+            assertTrue(result.encodedProjectBytes() > 0);
+            assertTrue(
+                    result.resourceCount()
+                            > previousResources
+            );
+            assertTrue(
+                    result.referenceCount()
+                            >= previousReferences
+            );
+            assertTrue(
+                    result.resourceCount()
+                            <= ProjectState.MAX_RESOURCES
+            );
+            assertTrue(
+                    result.referenceCount()
+                            <= ProjectState.MAX_REFERENCES
+            );
+            previousResources = result.resourceCount();
+            previousReferences = result.referenceCount();
+        }
+    }
+
     private static PatchManifest legacyManifest(
             PatchPayload payload,
             long base
