@@ -1,6 +1,7 @@
 package com.toolbox.tools.product;
 
 import com.toolbox.tools.core.StableId;
+import com.toolbox.tools.core.ProjectState;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -29,6 +30,45 @@ public final class ProjectGraphManager {
             throw new IllegalArgumentException("referensi hanya boleh ke Stable ID terdaftar");
         }
         outgoing.computeIfAbsent(from, ignored -> new LinkedHashSet<>()).add(to);
+    }
+
+    public synchronized void rebuildFrom(ProjectState project) {
+        if (project == null) throw new NullPointerException("project");
+        entities.clear();
+        outgoing.clear();
+
+        for (String id : project.resources().keySet()) {
+            entities.add(StableId.require(id, "resourceId"));
+        }
+        for (Map.Entry<String, Set<String>> entry
+                : project.references().entrySet()) {
+            String source = StableId.require(
+                    entry.getKey(),
+                    "referenceSource"
+            );
+            entities.add(source);
+            for (String target : entry.getValue()) {
+                entities.add(
+                        StableId.require(
+                                target,
+                                "referenceTarget"
+                        )
+                );
+            }
+        }
+        for (Map.Entry<String, Set<String>> entry
+                : project.references().entrySet()) {
+            LinkedHashSet<String> targets = new LinkedHashSet<>();
+            for (String target : entry.getValue()) {
+                targets.add(target);
+            }
+            if (!targets.isEmpty()) {
+                outgoing.put(
+                        entry.getKey(),
+                        targets
+                );
+            }
+        }
     }
 
     public synchronized Set<String> impactOf(String id) {
