@@ -15,6 +15,7 @@ import com.toolbox.tools.android.SafVisibleWorkspaceStore;
 import com.toolbox.tools.android.ToolboxAwareTargetDiscovery;
 import com.toolbox.tools.android.ManagedAppIntentContract;
 import com.toolbox.tools.android.ManagedAppProjectStore;
+import com.toolbox.tools.android.InstalledApkIdentity;
 import com.toolbox.tools.android.RuntimeResourceController;
 import com.toolbox.tools.core.AppKernel;
 import com.toolbox.tools.core.ProjectAccessStatus;
@@ -58,6 +59,7 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
         window.setNavigationBarColor(UiKit.LATAR);
 
         kernel = createKernelFromRememberedStorage();
+        bindRuntimeApkIdentity(kernel);
         localKernel = kernel;
         resourceController = new RuntimeResourceController(this, kernel);
         kernel.productServices().lifecycle().emit(
@@ -143,6 +145,7 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
                     .apply();
 
             kernel = selectedKernel;
+            bindRuntimeApkIdentity(kernel);
             localKernel = selectedKernel;
             externalTargetPackage = null;
             resourceController = new RuntimeResourceController(this, kernel);
@@ -429,6 +432,7 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
             }
 
             kernel = external;
+            bindRuntimeApkIdentity(kernel);
             externalTargetPackage = packageName;
             resourceController =
                     new RuntimeResourceController(this, kernel);
@@ -530,6 +534,31 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
             return true;
         } catch (RuntimeException error) {
             return false;
+        }
+    }
+
+    private void bindRuntimeApkIdentity(AppKernel targetKernel) {
+        try {
+            InstalledApkIdentity identity =
+                    InstalledApkIdentity.read(this);
+            if (!getPackageName().equals(identity.packageName())
+                    || identity.versionCode() != BuildConfig.VERSION_CODE) {
+                throw new IllegalStateException(
+                        "installed APK identity mismatch"
+                );
+            }
+            targetKernel.safePatchManager().bindRuntimeApkIdentity(
+                    identity.apkSha256(),
+                    BuildConfig.BASELINE_APK_SHA256
+            );
+        } catch (IOException | RuntimeException error) {
+            // V2 patch validation fails closed when identity is unbound.
+            Toast.makeText(
+                    this,
+                    "Identitas APK runtime tidak dapat diverifikasi; "
+                            + "paket evolusi V2 diblokir.",
+                    Toast.LENGTH_LONG
+            ).show();
         }
     }
 
