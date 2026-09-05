@@ -5,6 +5,7 @@ import android.graphics.Color;
 import android.view.DragEvent;
 import android.view.Gravity;
 import android.view.MotionEvent;
+import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -39,6 +40,14 @@ public final class UiCanvasView extends FrameLayout {
     private float startX;
     private float startY;
     private boolean dragging;
+    private FrameLayout viewportContent;
+    private ScaleGestureDetector scaleDetector;
+    private float viewportScale = 1f;
+    private float viewportPanX;
+    private float viewportPanY;
+    private float lastMultiFocusX;
+    private float lastMultiFocusY;
+    private boolean viewportGesture;
 
     public UiCanvasView(
             Context context,
@@ -57,6 +66,199 @@ public final class UiCanvasView extends FrameLayout {
                 1
         ));
         build();
+        installViewportGestures();
+    }
+
+    private void installViewportGestures() {
+        if (getChildCount() == 0) return;
+
+        viewportContent = new FrameLayout(getContext());
+        viewportContent.setClipChildren(false);
+        viewportContent.setClipToPadding(false);
+
+        java.util.List<View> original = new java.util.ArrayList<>();
+        java.util.List<LayoutParams> params = new java.util.ArrayList<>();
+        while (getChildCount() > 0) {
+            View child = getChildAt(0);
+            LayoutParams layoutParams =
+                    (LayoutParams) child.getLayoutParams();
+            removeViewAt(0);
+            original.add(child);
+            params.add(layoutParams);
+        }
+        for (int i = 0; i < original.size(); i++) {
+            viewportContent.addView(original.get(i), params.get(i));
+        }
+        addView(
+                viewportContent,
+                new LayoutParams(
+                        LayoutParams.MATCH_PARENT,
+                        LayoutParams.MATCH_PARENT
+                )
+        );
+
+        VisualLayoutEngine layout =
+                kernel.productServices().visualLayout();
+        viewportScale = clamp(
+                layout.zoom(),
+                0.5f,
+                3.0f
+        );
+        viewportPanX = layout.panX();
+        viewportPanY = layout.panY();
+        applyViewportTransform();
+
+        scaleDetector = new ScaleGestureDetector(
+                getContext(),
+                new ScaleGestureDetector.SimpleOnScaleGestureListener() {
+                    @Override
+                    public boolean onScale(
+                            ScaleGestureDetector detector
+                    ) {
+                        float before = viewportScale;
+                        float after = clamp(
+                                before * detector.getScaleFactor(),
+                                0.5f,
+                                3.0f
+                        );
+                        if (Math.abs(after - before) < 0.001f) {
+                            return true;
+                        }
+
+                        float focusX = detector.getFocusX();
+                        float focusY = detector.getFocusY();
+                        float designX =
+                                (focusX - viewportPanX) / before;
+                        float designY =
+                                (focusY - viewportPanY) / before;
+
+                        viewportScale = after;
+                        viewportPanX =
+                                focusX - designX * viewportScale;
+                        viewportPanY =
+                                focusY - designY * viewportScale;
+                        clampViewportPan();
+                        applyViewportTransform();
+                        return true;
+                    }
+                }
+        );
+        setContentDescription(
+                "Canvas UI • pinch untuk zoom • dua jari untuk pan"
+        );
+    }
+
+    @Override
+    public boolean onInterceptTouchEvent(MotionEvent event) {
+        if (event.getPointerCount() >= 2
+                || viewportGesture) {
+            viewportGesture = true;
+            return true;
+        }
+        return super.onInterceptTouchEvent(event);
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        if (scaleDetector != null) {
+            scaleDetector.onTouchEvent(event);
+        }
+        int action = event.getActionMasked();
+        if (event.getPointerCount() >= 2) {
+            float focusX = averageX(event);
+            float focusY = averageY(event);
+            if (action == MotionEvent.ACTION_POINTER_DOWN
+                    || action == MotionEvent.ACTION_DOWN
+                    || lastMultiFocusX == 0f && lastMultiFocusY == 0f) {
+                lastMultiFocusX = focusX;
+                lastMultiFocusY = focusY;
+            } else if (action == MotionEvent.ACTION_MOVE
+                    && (scaleDetector == null
+                        || !scaleDetector.isInProgress())) {
+                viewportPanX += focusX - lastMultiFocusX;
+                viewportPanY += focusY - lastMultiFocusY;
+                lastMultiFocusX = focusX;
+                lastMultiFocusY = focusY;
+                clampViewportPan();
+                applyViewportTransform();
+            }
+            viewportGesture = true;
+            return true;
+        }
+
+        if (action == MotionEvent.ACTION_UP
+                || action == MotionEvent.ACTION_CANCEL
+                || action == MotionEvent.ACTION_POINTER_UP) {
+            lastMultiFocusX = 0f;
+            lastMultiFocusY = 0f;
+            viewportGesture = false;
+        }
+        return viewportGesture || super.onTouchEvent(event);
+    }
+
+    private void applyViewportTransform() {
+        if (viewportContent == null) return;
+        viewportContent.setPivotX(0f);
+        viewportContent.setPivotY(0f);
+        viewportContent.setScaleX(viewportScale);
+        viewportContent.setScaleY(viewportScale);
+        viewportContent.setTranslationX(viewportPanX);
+        viewportContent.setTranslationY(viewportPanY);
+        kernel.productServices().visualLayout().setViewport(
+                viewportScale,
+                viewportPanX,
+                viewportPanY
+        );
+    }
+
+    private void clampViewportPan() {
+        float width = Math.max(1f, getWidth());
+        float height = Math.max(1f, getHeight());
+        float scaledWidth = width * viewportScale;
+        float scaledHeight = height * viewportScale;
+
+        float minX = Math.min(
+                0f,
+                width - scaledWidth
+        );
+        float minY = Math.min(
+                0f,
+                height - scaledHeight
+        );
+        viewportPanX = clamp(
+                viewportPanX,
+                minX - width * 0.25f,
+                width * 0.25f
+        );
+        viewportPanY = clamp(
+                viewportPanY,
+                minY - height * 0.25f,
+                height * 0.25f
+        );
+    }
+
+    private static float averageX(MotionEvent event) {
+        float total = 0f;
+        for (int i = 0; i < event.getPointerCount(); i++) {
+            total += event.getX(i);
+        }
+        return total / Math.max(1, event.getPointerCount());
+    }
+
+    private static float averageY(MotionEvent event) {
+        float total = 0f;
+        for (int i = 0; i < event.getPointerCount(); i++) {
+            total += event.getY(i);
+        }
+        return total / Math.max(1, event.getPointerCount());
+    }
+
+    private static float clamp(
+            float value,
+            float min,
+            float max
+    ) {
+        return Math.max(min, Math.min(max, value));
     }
 
     private void build() {
