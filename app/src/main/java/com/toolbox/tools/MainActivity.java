@@ -512,6 +512,20 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
     }
 
     @Override
+    public boolean launchInstalledApplication(String packageName) {
+        if (packageName == null || packageName.trim().isEmpty()) return false;
+        try {
+            Intent launch = getPackageManager().getLaunchIntentForPackage(packageName);
+            if (launch == null) return false;
+            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(launch);
+            return true;
+        } catch (RuntimeException error) {
+            return false;
+        }
+    }
+
+    @Override
     public boolean returnToToolBoxProject() {
         if (externalTargetPackage == null || localKernel == null) {
             return false;

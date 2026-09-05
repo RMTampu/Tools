@@ -36,6 +36,8 @@ public final class UiCanvasView extends FrameLayout {
 
     private final AppKernel kernel;
     private final SelectionListener listener;
+    private final boolean blankMode;
+    private final String objectNamespace;
     private TextView primaryButton;
     private float downX;
     private float downY;
@@ -56,9 +58,24 @@ public final class UiCanvasView extends FrameLayout {
             AppKernel kernel,
             SelectionListener listener
     ) {
+        this(context, kernel, listener, false, "ui.object.drop.");
+    }
+
+    public UiCanvasView(
+            Context context,
+            AppKernel kernel,
+            SelectionListener listener,
+            boolean blankMode,
+            String objectNamespace
+    ) {
         super(context);
         this.kernel = kernel;
         this.listener = listener;
+        this.blankMode = blankMode;
+        this.objectNamespace = objectNamespace == null
+                || !objectNamespace.startsWith("ui.object.")
+                ? "ui.object.drop."
+                : objectNamespace;
         setClipChildren(false);
         setBackground(UiKit.kartuPx(
                 context,
@@ -270,6 +287,14 @@ public final class UiCanvasView extends FrameLayout {
     }
 
     private void build() {
+        if (blankMode) {
+            buildBlankCanvas();
+            return;
+        }
+        if ("custom".equals(resource("ui.screen.home.mode", "default"))) {
+            buildCustomScreen();
+            return;
+        }
         if ("screen.detail".equals(
                 kernel.runtimeEnvironment().navigation().current().screenId()
         )) {
@@ -701,6 +726,51 @@ public final class UiCanvasView extends FrameLayout {
         screen.addView(mode);
     }
 
+    private void buildBlankCanvas() {
+        Context c = getContext();
+        LinearLayout palette = UiKit.baris(c);
+        palette.setGravity(Gravity.CENTER);
+        palette.setPadding(UiKit.dp(c,8),UiKit.dp(c,8),UiKit.dp(c,8),UiKit.dp(c,8));
+        addPaletteItem(palette,UiKit.ICON_COMPONENT,"Tombol","component.button",32,86);
+        addPaletteItem(palette,UiKit.ICON_LAYOUT,"Teks","component.text",160,86);
+        addPaletteItem(palette,UiKit.ICON_EDITOR,"Input","component.input",32,150);
+        addPaletteItem(palette,UiKit.ICON_COMPONENT,"Kartu","component.card",160,150);
+        addView(palette,new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT,UiKit.dp(c,82),Gravity.TOP));
+
+        FrameLayout canvas = new FrameLayout(c);
+        canvas.setContentDescription("Kanvas UI kosong • pilih komponen visual di atas");
+        canvas.setBackground(UiKit.kartuPx(c,Color.rgb(6,18,24),UiKit.GARIS,22,1));
+        FrameLayout.LayoutParams cp=new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT,LayoutParams.MATCH_PARENT);
+        cp.topMargin=UiKit.dp(c,86);cp.leftMargin=UiKit.dp(c,10);cp.rightMargin=UiKit.dp(c,10);cp.bottomMargin=UiKit.dp(c,10);
+        addView(canvas,cp);
+        configureDropTarget(canvas);
+        renderObjectsByPrefix(canvas,objectNamespace);
+    }
+
+    private void buildCustomScreen() {
+        Context c=getContext();
+        FrameLayout canvas=new FrameLayout(c);
+        canvas.setContentDescription("UI kustom dari kanvas visual");
+        canvas.setBackgroundColor(UiKit.LATAR);
+        addView(canvas,new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT,LayoutParams.MATCH_PARENT));
+        renderObjectsByPrefix(canvas,"ui.object.custom.");
+    }
+
+    private void addPaletteItem(
+            LinearLayout palette,int icon,String label,String payload,int xDp,int yDp
+    ) {
+        LinearLayout tile=UiKit.visualTile(getContext(),icon,label,false);
+        tile.setContentDescription("Tambah "+label+" ke kanvas");
+        tile.setOnClickListener(v->{
+            View canvas=getChildCount()>1?getChildAt(1):null;
+            if(canvas instanceof FrameLayout){
+                createDroppedObject((FrameLayout)canvas,payload,UiKit.dp(getContext(),xDp),UiKit.dp(getContext(),yDp));
+            }
+        });
+        LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,UiKit.dp(getContext(),66),1);
+        p.leftMargin=UiKit.dp(getContext(),3);p.rightMargin=UiKit.dp(getContext(),3);palette.addView(tile,p);
+    }
+
     private void configureDropTarget(FrameLayout freeArea) {
         freeArea.setOnDragListener((view, event) -> {
             if (!kernel.editorEnvironment().shell().selectionAvailable()) {
@@ -752,7 +822,11 @@ public final class UiCanvasView extends FrameLayout {
         String assetId = null;
         if (payload.startsWith("component.")) {
             kind = payload;
-            label = "Komponen Baru";
+            label = payload.endsWith(".text") ? "Teks"
+                    : payload.endsWith(".input") ? "Input"
+                    : payload.endsWith(".card") ? "Kartu"
+                    : payload.endsWith(".image") ? "Gambar"
+                    : "Tombol";
         } else if (payload.startsWith("asset.")) {
             kind = "asset";
             assetId = payload;
@@ -771,7 +845,7 @@ public final class UiCanvasView extends FrameLayout {
             return;
         }
 
-        String objectId = "ui.object.drop."
+        String objectId = objectNamespace
                 + Long.toHexString(System.nanoTime());
         LinkedHashMap<String, String> updates = new LinkedHashMap<>();
         updates.put(objectId + ".kind", kind);
@@ -833,6 +907,9 @@ public final class UiCanvasView extends FrameLayout {
                 );
             }
             renderDroppedObject(freeArea, objectId);
+            kernel.editorEnvironment().shell().selectObject(objectId);
+            kernel.productServices().editorContext().select(objectId);
+            if (listener != null) listener.onSelected(objectId);
             Toast.makeText(
                     getContext(),
                     "Objek ditambahkan • " + objectId,
@@ -848,10 +925,17 @@ public final class UiCanvasView extends FrameLayout {
     }
 
     private void renderDroppedObjects(FrameLayout freeArea) {
+        renderObjectsByPrefix(freeArea, objectNamespace);
+    }
+
+    private void renderObjectsByPrefix(
+            FrameLayout freeArea,
+            String prefix
+    ) {
         for (Map.Entry<String, String> entry
                 : kernel.projectManager().current().resources().entrySet()) {
             String key = entry.getKey();
-            if (!key.startsWith("ui.object.drop.")
+            if (!key.startsWith(prefix)
                     || !key.endsWith(".text")) {
                 continue;
             }

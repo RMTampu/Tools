@@ -20,6 +20,8 @@ public interface WorkspaceHostActions {
             String projectId
     );
 
+    boolean launchInstalledApplication(String packageName);
+
     boolean returnToToolBoxProject();
 
     boolean externalTargetActive();

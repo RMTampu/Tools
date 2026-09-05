@@ -1,5 +1,8 @@
 package com.toolbox.tools.product;
 
+import android.content.Context;
+
+import com.toolbox.tools.android.AndroidBackgroundTaskScheduler;
 import com.toolbox.tools.core.StableId;
 
 import java.util.ArrayList;
@@ -471,6 +474,30 @@ public final class BackgroundTaskManager {
     public synchronized List<TaskSpec> specs() {
         return Collections.unmodifiableList(
                 new ArrayList<>(specs.values())
+        );
+    }
+
+    public synchronized int scheduleAndroid(
+            Context context,
+            String id,
+            long minLatencyMs
+    ) {
+        String stable = StableId.require(id, "taskId");
+        Task task = tasks.get(stable);
+        if (task == null) {
+            queue(stable, null);
+            task = requireTask(stable);
+        }
+        if (task.state() != State.QUEUED
+                && task.state() != State.PAUSED) {
+            throw new IllegalStateException(
+                    "task tidak siap dijadwalkan: " + task.state()
+            );
+        }
+        return AndroidBackgroundTaskScheduler.schedule(
+                context,
+                task,
+                minLatencyMs
         );
     }
 
