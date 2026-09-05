@@ -64,6 +64,18 @@ public final class AndroidAssetRenderer {
         }
         VisibleWorkspaceStore visible = kernel.visibleWorkspaceStore();
 
+        float quality = kernel.productServices()
+                .resources()
+                .previewQuality();
+        int adjustedWidth = Math.max(
+                32,
+                Math.round(targetWidthPx * quality)
+        );
+        int adjustedHeight = Math.max(
+                32,
+                Math.round(targetHeightPx * quality)
+        );
+
         switch (kind) {
             case "IMAGE":
             case "ICON":
@@ -72,8 +84,8 @@ public final class AndroidAssetRenderer {
                         visible,
                         storageName,
                         sha256,
-                        targetWidthPx,
-                        targetHeightPx
+                        adjustedWidth,
+                        adjustedHeight
                 );
             case "FONT":
                 return font(
