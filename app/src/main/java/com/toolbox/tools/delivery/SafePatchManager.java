@@ -21,6 +21,8 @@ public final class SafePatchManager {
     private final String hostPackageName;
     private final int hostVersionCode;
     private final java.util.Set<String> hostCapabilities;
+    private String runtimeParentApkSha256;
+    private String runtimeRollbackBaselineApkSha256;
     private PatchHealthGate healthGate = PatchHealthGate.PROJECT_ONLY;
 
     public SafePatchManager(
@@ -148,6 +150,37 @@ public final class SafePatchManager {
                         )
                 )
         );
+    }
+
+    public synchronized void bindRuntimeApkIdentity(
+            String currentSignedApkSha256,
+            String rollbackBaselineApkSha256
+    ) {
+        requireSha256(
+                currentSignedApkSha256,
+                "currentSignedApkSha256"
+        );
+        requireSha256(
+                rollbackBaselineApkSha256,
+                "rollbackBaselineApkSha256"
+        );
+        this.runtimeParentApkSha256 =
+                currentSignedApkSha256;
+        this.runtimeRollbackBaselineApkSha256 =
+                rollbackBaselineApkSha256;
+    }
+
+    public synchronized boolean runtimeApkIdentityBound() {
+        return runtimeParentApkSha256 != null
+                && runtimeRollbackBaselineApkSha256 != null;
+    }
+
+    public synchronized String runtimeParentApkSha256() {
+        return runtimeParentApkSha256;
+    }
+
+    public synchronized String runtimeRollbackBaselineApkSha256() {
+        return runtimeRollbackBaselineApkSha256;
     }
 
     public synchronized void setHealthGate(PatchHealthGate healthGate) {
@@ -452,6 +485,22 @@ public final class SafePatchManager {
         if (!manifest.payloadSha256().equals(payload.sha256())) {
             return "patch payload digest mismatch";
         }
+        if (manifest.schemaVersion() >= 2
+                && !runtimeApkIdentityBound()) {
+            return "patch runtime apk identity unbound";
+        }
+        if (runtimeApkIdentityBound()) {
+            if (!runtimeParentApkSha256.equals(
+                    manifest.parentSignedApkSha256()
+            )) {
+                return "patch parent signed APK mismatch";
+            }
+            if (!runtimeRollbackBaselineApkSha256.equals(
+                    manifest.rollbackBaselineApkSha256()
+            )) {
+                return "patch rollback baseline APK mismatch";
+            }
+        }
         if (!manifest.supportsHost(
                 hostPackageName,
                 hostVersionCode,
@@ -468,6 +517,18 @@ public final class SafePatchManager {
             return "remote verification failed";
         }
         return null;
+    }
+
+    private static void requireSha256(
+            String value,
+            String label
+    ) {
+        if (value == null
+                || !value.matches("[0-9a-f]{64}")) {
+            throw new IllegalArgumentException(
+                    label + " invalid"
+            );
+        }
     }
 
     private PatchApplyResult rejected(String message){
