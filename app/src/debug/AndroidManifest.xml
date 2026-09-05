@@ -9,8 +9,9 @@
         <provider
             android:name=".debug.DebugDocumentsProvider"
             android:authorities="com.toolbox.tools.debug.documents"
-            android:exported="false"
-            android:grantUriPermissions="true">
+            android:exported="true"
+            android:grantUriPermissions="true"
+            android:permission="android.permission.MANAGE_DOCUMENTS">
             <intent-filter>
                 <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
             </intent-filter>
