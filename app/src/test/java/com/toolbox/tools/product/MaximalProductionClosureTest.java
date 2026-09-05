@@ -146,7 +146,17 @@ public final class MaximalProductionClosureTest {
                 projectRoot,
                 assets
         );
-        assertEquals(base, recovered.projectManager().savedRevision());
+        // Recovery dipublikasikan sebagai revision valid baru agar history
+        // tetap append-only; semantic state harus identik dengan baseline.
+        assertTrue(
+                recovered.projectManager().savedRevision() > base
+        );
+        ProjectState restoredBase =
+                recovered.projectManager().previewRecovery(base);
+        assertEquals(
+                restoredBase.resources(),
+                recovered.projectManager().current().resources()
+        );
         assertFalse(
                 recovered.projectManager().current().resources()
                         .containsKey("ui.test.patch.interrupted")
