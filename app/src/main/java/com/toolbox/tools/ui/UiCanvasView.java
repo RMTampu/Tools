@@ -97,15 +97,15 @@ public final class UiCanvasView extends FrameLayout {
                 )
         );
 
-        VisualLayoutEngine layout =
-                kernel.productServices().visualLayout();
+        com.toolbox.tools.product.EditorContextStore context =
+                kernel.productServices().editorContext();
         viewportScale = clamp(
-                layout.zoom(),
+                context.zoom(),
                 0.5f,
                 3.0f
         );
-        viewportPanX = layout.panX();
-        viewportPanY = layout.panY();
+        viewportPanX = context.panX();
+        viewportPanY = context.panY();
         applyViewportTransform();
 
         scaleDetector = new ScaleGestureDetector(
@@ -208,6 +208,12 @@ public final class UiCanvasView extends FrameLayout {
                 viewportScale,
                 viewportPanX,
                 viewportPanY
+        );
+        kernel.productServices().editorContext().setViewport(
+                viewportScale,
+                viewportPanX,
+                viewportPanY,
+                kernel.productServices().editorContext().scrollY()
         );
     }
 
