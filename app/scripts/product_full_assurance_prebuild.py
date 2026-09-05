@@ -181,9 +181,9 @@ debug_manifest=(
 ).read_text()
 assert '.debug.DebugDocumentsProvider' in debug_manifest
 assert 'com.toolbox.tools.debug.documents' in debug_manifest
-assert 'android:exported="false"' in debug_manifest
+assert 'android:exported="true"' in debug_manifest
 assert 'android:grantUriPermissions="true"' in debug_manifest
-assert 'android.permission.MANAGE_DOCUMENTS' not in debug_manifest
+assert 'android.permission.MANAGE_DOCUMENTS' in debug_manifest
 
 android_test_source=(
     APP/"src/androidTest/java/com/toolbox/tools/"
