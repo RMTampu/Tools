@@ -25,6 +25,7 @@ import com.toolbox.tools.editor.VisualCapability;
 import com.toolbox.tools.editor.VisualCapabilitySet;
 import com.toolbox.tools.product.FreezeEngine;
 import com.toolbox.tools.product.FullProductVerifier;
+import com.toolbox.tools.product.ProductAcceptanceMatrix;
 import com.toolbox.tools.repair.HealthReport;
 
 import java.io.IOException;
@@ -392,7 +393,13 @@ public final class WorkspaceShellView extends FrameLayout {
 
         LinearLayout card = card();
         addInfo(card, "Pilihan 1 • Proyek Tersimpan", "Project Store • revisi " + kernel.projectManager().savedRevision());
-        addInfo(card, "Pilihan 2 • Aplikasi Terinstal", "Pemindaian kapabilitas • tanpa bypass sandbox/signature.");
+        addInfo(
+                card,
+                "Pilihan 2 • Aplikasi Terinstal",
+                "ToolBox-aware ditemukan: "
+                        + kernel.productServices().completion().installedTargets.all().size()
+                        + " • tanpa bypass sandbox/signature."
+        );
         addInfo(card, "Pilihan 3 • Edit ToolBox", "Permukaan deklaratif dapat diedit; kernel/recovery/safety core terlindungi.");
         addInfo(card, "Pilihan 4 • Buat / Edit Komponen", "Component Registry • varian • composite • template.");
         root.addView(card);
@@ -1689,17 +1696,33 @@ public final class WorkspaceShellView extends FrameLayout {
     }
 
     private void showSettings() {
-        showInfoOverlay(
+        String storageStatus = getContext() instanceof StoragePickerHost
+                ? ((StoragePickerHost) getContext()).storageTreeStatus()
+                : (kernel.productServices().completion().storage.hasPersistentReadWriteGrant()
+                        ? "Terhubung"
+                        : "Belum dipilih");
+        showActionOverlay(
                 "Pengaturan",
                 Arrays.asList(
-                        "Bahasa: Bahasa Indonesia",
-                        "Tema: Gelap Neon",
-                        "Representasi default: Visual",
-                        "Autosave: NONAKTIF",
-                        "Simpan: Manual Transaksional",
-                        "Satu fungsi berat aktif",
-                        "Target Host: Android 11 / API 30 / arm64-v8a"
-                )
+                        "Bahasa • Bahasa Indonesia",
+                        "Tema • Gelap Neon",
+                        "Representasi Default • Visual",
+                        "Penyimpanan Pengguna • " + storageStatus,
+                        "Pilih / Relink Folder ToolBox",
+                        "Autosave • NONAKTIF",
+                        "Simpan • Manual Transaksional",
+                        "Target • Android 11 / API 30 / arm64-v8a"
+                ),
+                value -> {
+                    if ("Pilih / Relink Folder ToolBox".equals(value)) {
+                        closeOverlay();
+                        if (getContext() instanceof StoragePickerHost) {
+                            ((StoragePickerHost) getContext()).requestToolBoxStorageTree();
+                        } else {
+                            toast("Pemilih folder tidak tersedia pada host ini.");
+                        }
+                    }
+                }
         );
     }
 
@@ -1755,11 +1778,15 @@ public final class WorkspaceShellView extends FrameLayout {
 
     private void showBuild() {
         FullProductVerifier.Result product = new FullProductVerifier().verify(kernel);
+        ProductAcceptanceMatrix.Result acceptance =
+                new ProductAcceptanceMatrix().evaluate(kernel);
         boolean buildReady = kernel.readyCoordinator().preview().isPass();
         showInfoOverlay(
                 "Bangun & SIAP",
                 Arrays.asList(
                         "Kelengkapan Produk: " + (product.isPass() ? "LULUS" : "BELUM LULUS"),
+                        "Rancangan Behavior: " + acceptance.passedCount()
+                                + "/" + acceptance.requiredCount(),
                         "Komponen Wajib: " + product.available().size() + "/" + product.requiredCount(),
                         "Validator Build: " + (buildReady ? "LULUS" : "BLOKIR"),
                         "IR Kanonik: tersedia",
@@ -1771,10 +1798,15 @@ public final class WorkspaceShellView extends FrameLayout {
 
     private void showDiagnostics() {
         FullProductVerifier.Result result = new FullProductVerifier().verify(kernel);
+        ProductAcceptanceMatrix.Result acceptance =
+                new ProductAcceptanceMatrix().evaluate(kernel);
         showInfoOverlay(
                 "Diagnostik",
                 Arrays.asList(
                         "Kelengkapan: " + (result.isPass() ? "LULUS" : "GAGAL"),
+                        "Rancangan Behavior: " + acceptance.passedCount()
+                                + "/" + acceptance.requiredCount(),
+                        "Bagian gagal: " + acceptance.failedSections(),
                         "Masalah wajib: " + result.errors().size(),
                         "Engine aktif: " + kernel.engineManager().snapshot().size(),
                         "Komponen siap: " + kernel.libraryManager().components().allReady().size(),
