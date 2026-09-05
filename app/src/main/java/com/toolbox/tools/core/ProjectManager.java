@@ -106,6 +106,10 @@ public final class ProjectManager {
         return current;
     }
 
+    public RecoveryManager recoveryManager() {
+        return recoveryManager;
+    }
+
     public synchronized ProjectAccessStatus accessStatus() {
         return accessStatus;
     }
