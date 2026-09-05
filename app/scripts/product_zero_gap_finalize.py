@@ -83,6 +83,7 @@ for marker in [
     "FREEZE_SAVE_MODE_INDICATOR=PASS",
     "LAUNCHER_TB_PACKAGE=PASS",
     "ASSET_RUNTIME_RENDERER=PASS",
+    "ADVANCED_UI_PROPERTIES=PASS",
     "MEMORY_PRESSURE_POLICY=PASS",
     "PATCH_JOURNAL_RUNTIME=PASS",
     "SAFE_RECOVERY_RUNTIME=PASS",
@@ -115,6 +116,31 @@ for file in android_xml:
     errors+=int(root.attrib.get("errors","0"))
     skipped+=int(root.attrib.get("skipped","0"))
 assert tests>=3 and failures==0 and errors==0 and skipped==0
+
+android_case_names=set()
+for file in android_xml:
+    root=ET.parse(file).getroot()
+    if root.tag!="testsuite":
+        continue
+    for case in root.findall("testcase"):
+        android_case_names.add(case.attrib.get("name",""))
+assert "advancedUiPropertiesMaterializeOnRealAndroidView" in android_case_names
+assert "externalAssetRendererUsesRealAndroidImageConsumer" in android_case_names
+assert "safeRecoveryUiPersistsAcrossActivityRecreation" in android_case_names
+
+maximal_xml=(
+    APP/"build/test-results/testDebugUnitTest"
+    /"TEST-com.toolbox.tools.product.MaximalProductionClosureTest.xml"
+)
+assert maximal_xml.is_file(),"maximal closure evidence missing"
+maximal_root=ET.parse(maximal_xml).getroot()
+maximal_cases={
+    case.attrib.get("name","")
+    for case in maximal_root.findall("testcase")
+}
+assert "scaleClassesMaterializeRealProjectGraphs" in maximal_cases
+assert "interruptedPatchJournalRollsBackOnBootstrap" in maximal_cases
+assert "safeModeAndFreezeSurviveKernelRecreation" in maximal_cases
 
 evidence={
     "schemaVersion":2,
@@ -153,6 +179,8 @@ evidence={
         "pssBudget":"PASS",
         "launcherTb":"PASS",
         "assetRuntimeRenderer":"PASS",
+        "advancedUiProperties":"PASS",
+        "scaleClassesActual":"PASS",
         "memoryPressurePolicy":"PASS",
         "patchJournalRuntime":"PASS",
         "safeRecoveryRuntime":"PASS",
