@@ -92,7 +92,11 @@ public final class ProductServices {
         editorContext = new EditorContextStore();
         lifecycle = new AppLifecycleManager();
         importMerge = new ImportMergeManager();
-        autoRepair = new AutoRepairEngine();
+        autoRepair = new AutoRepairEngine(
+                projects,
+                projectGraph,
+                cache
+        );
         benchmark = new ScaleBenchmarkHarness();
         toolLifecycle = new ToolLifecycleManager();
         completion = new ProductCompletionServices();
