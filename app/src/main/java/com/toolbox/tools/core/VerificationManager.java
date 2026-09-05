@@ -46,8 +46,12 @@ public final class VerificationManager {
                 || !"arm64".equals(kernel.configStore().get("targetAbi", ""))) {
             return VerificationResult.fail("target Android tidak cocok");
         }
-        if (!"produk-penuh-v12".equals(kernel.configStore().get("tahap", ""))) {
-            return VerificationResult.fail("konfigurasi produk penuh v12 tidak tersedia");
+        if (!"produk-penuh-v13-maksimal".equals(
+                kernel.configStore().get("tahap", "")
+        )) {
+            return VerificationResult.fail(
+                    "konfigurasi produk penuh v13 maksimal tidak tersedia"
+            );
         }
         if (!"id".equals(kernel.configStore().get("bahasaDefault", ""))) {
             return VerificationResult.fail("bahasa default bukan Bahasa Indonesia");
@@ -315,8 +319,8 @@ public final class VerificationManager {
         CandidateIdentity firstCandidate =
                 kernel.candidateIdentityFactory().create(
                         "com.toolbox.tools",
-                        12,
-                        "12.0-produk-penuh",
+                        13,
+                        "13.0-produk-penuh-maksimal",
                         parentSigned,
                         firstIr.sha256(),
                         previewUnsigned
