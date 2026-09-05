@@ -5,6 +5,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
+import android.provider.DocumentsContract;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.view.View;
@@ -12,9 +14,14 @@ import android.view.ViewGroup;
 
 import com.toolbox.tools.core.AppKernel;
 import com.toolbox.tools.core.AppState;
+import com.toolbox.tools.core.ProjectAccessStatus;
+import com.toolbox.tools.core.ProjectLoadResult;
+import com.toolbox.tools.core.ProjectState;
 import com.toolbox.tools.core.VisibleWorkspaceStore;
 import com.toolbox.tools.android.ManagedAppProjectStore;
 import com.toolbox.tools.android.InstalledApkIdentity;
+import com.toolbox.tools.android.SafProjectStore;
+import com.toolbox.tools.android.SafVisibleWorkspaceStore;
 import com.toolbox.tools.android.ToolboxAwareTargetDiscovery;
 import com.toolbox.tools.product.ProductCompletionServices;
 import com.toolbox.tools.delivery.PatchManifest;
@@ -24,6 +31,7 @@ import com.toolbox.tools.product.FreezeEngine;
 import com.toolbox.tools.product.ResourceGuard;
 import com.toolbox.tools.ui.AndroidAssetRenderer;
 import com.toolbox.tools.ui.UiCanvasView;
+import com.toolbox.tools.testprovider.TestDocumentsProvider;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -171,6 +179,89 @@ public final class ProductRuntimeInstrumentedTest {
                                 .resources()
                                 .invariantPass()
                 );
+            });
+        }
+    }
+
+    @Test
+    public void realSafDocumentsProviderBacksAllVisibleAreasAndProjectStore() {
+        try (ActivityScenario<MainActivity> scenario =
+                     ActivityScenario.launch(MainActivity.class)) {
+            scenario.onActivity(activity -> {
+                try {
+                    Uri tree = DocumentsContract.buildTreeDocumentUri(
+                            TestDocumentsProvider.AUTHORITY,
+                            TestDocumentsProvider.ROOT_ID
+                    );
+                    SafVisibleWorkspaceStore visible =
+                            new SafVisibleWorkspaceStore(
+                                    activity.getContentResolver(),
+                                    tree
+                            );
+                    visible.ensureLayout();
+
+                    for (VisibleWorkspaceStore.Area area
+                            : VisibleWorkspaceStore.Area.values()) {
+                        byte[] value = (
+                                "instrumented-" + area.name()
+                        ).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                        visible.write(
+                                area,
+                                "proof-" + area.name().toLowerCase(Locale.ROOT)
+                                        + ".bin",
+                                value
+                        );
+                        assertTrue(
+                                visible.exists(
+                                        area,
+                                        "proof-" + area.name()
+                                                .toLowerCase(Locale.ROOT)
+                                                + ".bin"
+                                )
+                        );
+                        assertArrayEquals(
+                                value,
+                                visible.read(
+                                        area,
+                                        "proof-" + area.name()
+                                                .toLowerCase(Locale.ROOT)
+                                                + ".bin"
+                                )
+                        );
+                    }
+
+                    Uri projectsDirectory = visible.directoryUri(
+                            VisibleWorkspaceStore.Area.PROJECTS
+                    );
+                    SafProjectStore projectStore =
+                            new SafProjectStore(
+                                    activity.getContentResolver(),
+                                    tree,
+                                    projectsDirectory
+                            );
+                    ProjectState committed = projectStore.commit(
+                            ProjectState.create(
+                                    "project.saf.instrumented"
+                            ),
+                            0
+                    );
+                    assertEquals(1L, committed.revision());
+
+                    ProjectLoadResult loaded = projectStore.load(
+                            "project.saf.instrumented"
+                    );
+                    assertEquals(
+                            ProjectAccessStatus.PROJECT_OK,
+                            loaded.status()
+                    );
+                    assertNotNull(loaded.state());
+                    assertEquals(
+                            committed,
+                            loaded.state()
+                    );
+                } catch (Exception error) {
+                    throw new AssertionError(error);
+                }
             });
         }
     }
