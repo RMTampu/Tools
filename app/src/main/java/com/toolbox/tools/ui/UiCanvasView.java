@@ -10,6 +10,7 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.toolbox.tools.core.AppKernel;
 import com.toolbox.tools.editor.VisualCapability;
@@ -18,6 +19,8 @@ import com.toolbox.tools.editor.VisualEditOperation;
 import com.toolbox.tools.editor.VisualEditTransaction;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 
 public final class UiCanvasView extends FrameLayout {
     public interface SelectionListener {
@@ -80,12 +83,12 @@ public final class UiCanvasView extends FrameLayout {
                 UiKit.dp(c, 18),
                 UiKit.dp(c, 18)
         );
-        FrameLayout.LayoutParams sp = new FrameLayout.LayoutParams(
+        FrameLayout.LayoutParams screenParams = new FrameLayout.LayoutParams(
                 LayoutParams.MATCH_PARENT,
                 LayoutParams.MATCH_PARENT
         );
-        sp.topMargin = UiKit.dp(c, 42);
-        addView(screen, sp);
+        screenParams.topMargin = UiKit.dp(c, 42);
+        addView(screen, screenParams);
 
         TextView eyebrow = UiKit.teks(
                 c,
@@ -97,10 +100,7 @@ public final class UiCanvasView extends FrameLayout {
 
         TextView title = UiKit.judul(
                 c,
-                resource(
-                        "ui.screen.home.title",
-                        "Bangun aplikasi secara visual"
-                ),
+                resource("ui.screen.home.title", "Bangun aplikasi secara visual"),
                 22f
         );
         title.setPadding(0, UiKit.dp(c, 8), 0, UiKit.dp(c, 4));
@@ -139,7 +139,7 @@ public final class UiCanvasView extends FrameLayout {
 
         TextView cardSub = UiKit.teks(
                 c,
-                "Pilih objek lalu ubah properti dari panel kontekstual.",
+                "Pilih objek saat Edit aktif. Saat Edit nonaktif, objek menjalankan aksi aplikasi.",
                 11.5f,
                 UiKit.TEKS_REDUP
         );
@@ -182,77 +182,108 @@ public final class UiCanvasView extends FrameLayout {
         ));
         card.addView(freeArea, new LinearLayout.LayoutParams(
                 LayoutParams.MATCH_PARENT,
-                UiKit.dp(c, 112)
+                UiKit.dp(c, 122)
         ));
 
         TextView guide = UiKit.teks(
                 c,
-                "Area tata letak responsif • seret tombol saat Edit aktif",
+                "Area tata letak responsif • seret objek saat Edit aktif",
                 10f,
                 UiKit.TEKS_REDUP
         );
-        FrameLayout.LayoutParams gp = new FrameLayout.LayoutParams(
+        FrameLayout.LayoutParams guideParams = new FrameLayout.LayoutParams(
                 LayoutParams.WRAP_CONTENT,
                 UiKit.dp(c, 28),
                 Gravity.TOP | Gravity.CENTER_HORIZONTAL
         );
-        gp.topMargin = UiKit.dp(c, 8);
-        freeArea.addView(guide, gp);
+        guideParams.topMargin = UiKit.dp(c, 8);
+        freeArea.addView(guide, guideParams);
 
         primaryButton = UiKit.judul(
                 c,
                 resource("ui.object.home.primary.text", "Buka Detail"),
-                13f
+                floatResource("ui.object.home.primary.text.size.sp", 13f)
         );
         primaryButton.setGravity(Gravity.CENTER);
-        primaryButton.setTextColor(UiKit.LATAR);
+        primaryButton.setTextColor(buttonTextColor());
+        int radius = intResource("ui.object.home.primary.radius.dp", 14);
+        int border = intResource("ui.object.home.primary.border.dp", 1);
+        int fill = buttonColor();
         primaryButton.setBackground(UiKit.kartuPx(
                 c,
-                UiKit.NEON,
-                UiKit.NEON,
-                14,
-                1
+                fill,
+                fill == UiKit.NEON ? UiKit.NEON_BIRU : UiKit.NEON,
+                radius,
+                border
         ));
-        int buttonWidth = integerResource(
+
+        int padding = intResource("ui.object.home.primary.padding.dp", 12);
+        primaryButton.setPadding(
+                UiKit.dp(c, padding),
+                UiKit.dp(c, 6),
+                UiKit.dp(c, padding),
+                UiKit.dp(c, 6)
+        );
+        primaryButton.setAlpha(clamp(floatResource(
+                "ui.object.home.primary.opacity",
+                1f
+        ), 0f, 1f));
+        primaryButton.setRotation(floatResource(
+                "ui.object.home.primary.rotation",
+                0f
+        ));
+        float scale = clamp(floatResource(
+                "ui.object.home.primary.scale",
+                1f
+        ), 0.2f, 3f);
+        primaryButton.setScaleX(scale);
+        primaryButton.setScaleY(scale);
+        primaryButton.setElevation(UiKit.dp(
+                c,
+                intResource("ui.object.home.primary.elevation.dp", 4)
+        ));
+        primaryButton.setEnabled(boolResource(
+                "ui.object.home.primary.enabled",
+                true
+        ));
+        primaryButton.setContentDescription(resource(
+                "ui.object.home.primary.accessibility.label",
+                resource("ui.object.home.primary.text", "Buka Detail")
+        ));
+
+        int buttonWidth = intResource(
                 "ui.object.home.primary.width.dp",
                 148
         );
-        int buttonHeight = integerResource(
+        int buttonHeight = intResource(
                 "ui.object.home.primary.height.dp",
                 46
         );
-        FrameLayout.LayoutParams bp = new FrameLayout.LayoutParams(
+        FrameLayout.LayoutParams buttonParams = new FrameLayout.LayoutParams(
                 UiKit.dp(c, buttonWidth),
                 UiKit.dp(c, buttonHeight)
         );
-        bp.leftMargin = UiKit.dp(
+        buttonParams.leftMargin = UiKit.dp(
                 c,
-                integerResource(
-                        "ui.object.home.primary.position.x.dp",
-                        18
-                )
+                intResource("ui.object.home.primary.position.x.dp", 18)
         );
-        bp.topMargin = UiKit.dp(
+        buttonParams.topMargin = UiKit.dp(
                 c,
-                integerResource(
-                        "ui.object.home.primary.position.y.dp",
-                        50
-                )
+                intResource("ui.object.home.primary.position.y.dp", 50)
         );
-        freeArea.addView(primaryButton, bp);
+        freeArea.addView(primaryButton, buttonParams);
+
         primaryButton.setOnTouchListener(this::handlePrimaryTouch);
         primaryButton.setOnClickListener(v -> {
             if (dragging) return;
             if (kernel.editorEnvironment().shell().selectionAvailable()) {
                 selectPrimary();
             } else {
-                android.widget.Toast.makeText(
-                        getContext(),
-                        "Aksi aplikasi dijalankan: membuka layar Detail.",
-                        android.widget.Toast.LENGTH_SHORT
-                ).show();
+                runPrimaryAction();
             }
         });
+
+        playConfiguredAnimation();
 
         UiKit.ruang(card, c, 12);
 
@@ -296,15 +327,16 @@ public final class UiCanvasView extends FrameLayout {
                 LayoutParams.WRAP_CONTENT
         ));
 
-        UiKit.ruang(screen, c, 16);
-
-        TextView hint = UiKit.teks(
+        UiKit.ruang(screen, c, 14);
+        TextView mode = UiKit.teks(
                 c,
-                "Edit OFF: objek menjalankan aksi • Edit ON: objek dipilih dan diedit.",
+                kernel.editorEnvironment().shell().selectionAvailable()
+                        ? "Edit aktif • sentuh atau seret objek untuk mengubah."
+                        : "Interaksi aplikasi aktif • tombol menjalankan aksi.",
                 11f,
                 UiKit.TEKS_REDUP
         );
-        screen.addView(hint);
+        screen.addView(mode);
     }
 
     private boolean handlePrimaryTouch(View view, MotionEvent event) {
@@ -351,29 +383,18 @@ public final class UiCanvasView extends FrameLayout {
             );
             primaryButton.setBackground(UiKit.kartuPx(
                     getContext(),
-                    UiKit.NEON,
+                    buttonColor(),
                     UiKit.NEON_BIRU,
-                    14,
-                    2
+                    intResource("ui.object.home.primary.radius.dp", 14),
+                    Math.max(2, intResource("ui.object.home.primary.border.dp", 1))
             ));
             if (listener != null) listener.onSelected("object.home.primary");
-        } catch (RuntimeException ignored) {
-        }
-    }
-
-    private String resource(String id, String fallback) {
-        String value = kernel.projectManager()
-                .current()
-                .resources()
-                .get(id);
-        return value == null ? fallback : value;
-    }
-
-    private int integerResource(String id, int fallback) {
-        try {
-            return Integer.parseInt(resource(id, String.valueOf(fallback)));
-        } catch (NumberFormatException error) {
-            return fallback;
+        } catch (RuntimeException error) {
+            Toast.makeText(
+                    getContext(),
+                    "Objek tidak tersedia untuk diedit.",
+                    Toast.LENGTH_SHORT
+            ).show();
         }
     }
 
@@ -400,24 +421,132 @@ public final class UiCanvasView extends FrameLayout {
                     tx,
                     VisualCapabilitySet.defaultEditable()
             );
-            java.util.LinkedHashMap<String, String> updates =
-                    new java.util.LinkedHashMap<>();
+
+            LinkedHashMap<String, String> updates = new LinkedHashMap<>();
             updates.put(
                     "ui.object.home.primary.position.x.dp",
-                    String.valueOf(Math.round(view.getX()
-                            / getResources().getDisplayMetrics().density))
+                    String.valueOf(Math.round(
+                            view.getX() / getResources().getDisplayMetrics().density
+                    ))
             );
             updates.put(
                     "ui.object.home.primary.position.y.dp",
-                    String.valueOf(Math.round(view.getY()
-                            / getResources().getDisplayMetrics().density))
+                    String.valueOf(Math.round(
+                            view.getY() / getResources().getDisplayMetrics().density
+                    ))
             );
             kernel.projectManager().applyResourceTransaction(
                     updates,
-                    java.util.Collections.emptySet()
+                    Collections.emptySet()
             );
             selectPrimary();
-        } catch (RuntimeException ignored) {
+        } catch (RuntimeException error) {
+            Toast.makeText(
+                    getContext(),
+                    "Posisi tidak dapat diubah karena objek terkunci.",
+                    Toast.LENGTH_SHORT
+            ).show();
         }
+    }
+
+    private void runPrimaryAction() {
+        String action = resource(
+                "logic.ui.home.primary.action",
+                "open.detail"
+        );
+        if ("none".equals(action)) {
+            Toast.makeText(
+                    getContext(),
+                    "Tidak ada aksi yang terhubung.",
+                    Toast.LENGTH_SHORT
+            ).show();
+        } else if ("show.message".equals(action)) {
+            Toast.makeText(
+                    getContext(),
+                    "Aksi aplikasi dijalankan.",
+                    Toast.LENGTH_SHORT
+            ).show();
+        } else {
+            Toast.makeText(
+                    getContext(),
+                    "Aksi aplikasi dijalankan: membuka layar Detail.",
+                    Toast.LENGTH_SHORT
+            ).show();
+        }
+    }
+
+    private void playConfiguredAnimation() {
+        String animation = resource(
+                "ui.object.home.primary.animation",
+                "none"
+        );
+        float targetAlpha = primaryButton.getAlpha();
+        float targetScaleX = primaryButton.getScaleX();
+        float targetScaleY = primaryButton.getScaleY();
+
+        if ("fade".equals(animation)) {
+            primaryButton.setAlpha(0.2f);
+            primaryButton.animate()
+                    .alpha(targetAlpha)
+                    .setDuration(260)
+                    .start();
+        } else if ("scale".equals(animation)) {
+            primaryButton.setScaleX(targetScaleX * 0.82f);
+            primaryButton.setScaleY(targetScaleY * 0.82f);
+            primaryButton.animate()
+                    .scaleX(targetScaleX)
+                    .scaleY(targetScaleY)
+                    .setDuration(260)
+                    .start();
+        }
+    }
+
+    private int buttonColor() {
+        String value = resource(
+                "ui.object.home.primary.color",
+                "neon"
+        );
+        if ("blue".equals(value)) return UiKit.NEON_BIRU;
+        if ("surface".equals(value)) return UiKit.PERMUKAAN_2;
+        return UiKit.NEON;
+    }
+
+    private int buttonTextColor() {
+        return "surface".equals(resource(
+                "ui.object.home.primary.color",
+                "neon"
+        )) ? UiKit.TEKS : UiKit.LATAR;
+    }
+
+    private String resource(String id, String fallback) {
+        String value = kernel.projectManager().current().resources().get(id);
+        return value == null ? fallback : value;
+    }
+
+    private int intResource(String id, int fallback) {
+        try {
+            return Integer.parseInt(resource(id, String.valueOf(fallback)));
+        } catch (NumberFormatException error) {
+            return fallback;
+        }
+    }
+
+    private float floatResource(String id, float fallback) {
+        try {
+            return Float.parseFloat(resource(id, String.valueOf(fallback)));
+        } catch (NumberFormatException error) {
+            return fallback;
+        }
+    }
+
+    private boolean boolResource(String id, boolean fallback) {
+        String value = resource(id, String.valueOf(fallback));
+        if ("true".equalsIgnoreCase(value)) return true;
+        if ("false".equalsIgnoreCase(value)) return false;
+        return fallback;
+    }
+
+    private static float clamp(float value, float min, float max) {
+        return Math.max(min, Math.min(max, value));
     }
 }
