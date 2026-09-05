@@ -161,18 +161,25 @@ public final class CacheManager {
                     "cache contract incomplete"
             );
         }
-        Entry replaced = entries.put(
-                id,
-                new Entry(
-                        bytes,
-                        priority,
-                        category,
-                        tier,
-                        disposer
-                )
+        Entry replacement = new Entry(
+                bytes,
+                priority,
+                category,
+                tier,
+                disposer
         );
-        if (replaced != null && replaced.disposer != null) {
-            safeDispose(replaced.disposer);
+        Entry replaced = entries.get(id);
+        if (replaced != null
+                && replaced.bytes == bytes
+                && replaced.category == category
+                && replaced.tier == tier) {
+            entries.put(id, replacement);
+        } else {
+            entries.put(id, replacement);
+            if (replaced != null
+                    && replaced.disposer != null) {
+                safeDispose(replaced.disposer);
+            }
         }
         trimToBudgets();
     }
