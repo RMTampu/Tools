@@ -390,6 +390,16 @@ jobs:
           assert_text 'Mode Kerja • Pratinjau'
 
           tap_text 'Mode Kerja • Pratinjau'
+          tap_text 'Uji'
+          assert_text 'Mode Kerja • Uji'
+          assert_desc 'Handle panel kanan • terbuka'
+
+          tap_text 'Mode Kerja • Uji'
+          tap_text 'Langsung'
+          assert_text 'Mode Kerja • Langsung'
+          assert_desc 'Handle panel kanan • terbuka'
+
+          tap_text 'Mode Kerja • Langsung'
           tap_text 'Edit'
           assert_text 'Mode Kerja • Edit'
 
@@ -503,6 +513,8 @@ jobs:
             echo "RANCANGAN_BEHAVIOR_135=PASS"
             echo "MODE_EDIT=PASS"
             echo "MODE_PRATINJAU=PASS"
+            echo "MODE_UJI=PASS"
+            echo "MODE_LANGSUNG=PASS"
             echo "BUBBLE=PASS"
             echo "EDGE_PANEL=PASS"
             echo "FLOATING_EDITOR=PASS"

@@ -978,7 +978,7 @@ public final class WorkspaceShellView extends FrameLayout {
                         "Pemulihan & Backup",
                         "Freeze / Mode Simpan",
                         "Perbaikan & Kesehatan",
-                        "Paket Evolusi",
+                        "Paket Evolusi Tanpa Rebuild",
                         "Bangun & SIAP",
                         "Diagnostik"
                 ),

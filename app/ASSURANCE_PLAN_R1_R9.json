@@ -4,12 +4,16 @@
   "stage": "Produk Penuh v12",
   "stageMap": "FULL_PRODUCT",
   "parentBaseline": {
-    "name": "Tahap 11",
-    "apkSha256": "f9dcffed7dc5d657c6dbd1c45933db6a4f6215f5145aee1849cc50f35038b76b",
-    "appPatchSha256": "c235da4f9078ee79f9ecbf796232896e806c09501dc0b7e5814970db042adf98",
-    "publicR1R9RunId": "33882297972",
+    "name": "ToolBox Produk Penuh v12",
+    "versionCode": 12,
+    "versionName": "12.0-produk-penuh",
+    "apkSha256": "4f4579d87d867524e1b308de1a9a39ac2be0a18894d9317eea60a67dc4d91c05",
+    "certificateSha256": "290fb37d527935766e327781833493400dd647cfc8bdbe433254a2df52e4b8e4",
+    "publicR1R9RunId": "33892292329",
+    "privateFinalRuntimeRunId": "33932725592",
     "privateFinalRuntimePassed": true,
-    "firebaseFinalRunId": "33884201621",
+    "firebaseFinalRunId": "33933089444",
+    "firebaseMatrixId": "4946808111994836277",
     "permanent": true,
     "rollbackAnchor": true
   },
@@ -64,7 +68,7 @@
         "revision/undo/redo",
         "backup/recovery",
         "asset original/cache separation",
-        "baseline Tahap11 immutable"
+        "baseline ToolBox Produk Penuh v12 immutable"
       ],
       "proof": "unit + package provenance"
     },

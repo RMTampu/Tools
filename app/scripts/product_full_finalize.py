@@ -29,8 +29,15 @@ assert mutation["status"]=="PASS"
 assert mutation["mutationsEscaped"]==0
 
 assert candidate["status"]=="PUBLIC_FULL_PRODUCT_READY_PRIVATE_SIGNING"
-assert candidate["baselineStage"]==11
-assert candidate["baselineSignedApkSha256"]=="f9dcffed7dc5d657c6dbd1c45933db6a4f6215f5145aee1849cc50f35038b76b"
+assert candidate["baselineStage"]==12
+assert candidate["baselineName"]=="ToolBox Produk Penuh v12"
+assert candidate["baselineVersionCode"]==12
+assert candidate["baselineSignedApkSha256"]=="4f4579d87d867524e1b308de1a9a39ac2be0a18894d9317eea60a67dc4d91c05"
+assert candidate["baselineCertificateSha256"]=="290fb37d527935766e327781833493400dd647cfc8bdbe433254a2df52e4b8e4"
+assert candidate["baselinePublicR1R9RunId"]=="33892292329"
+assert candidate["baselinePrivateRuntimeRunId"]=="33932725592"
+assert candidate["baselineFirebaseRunId"]=="33933089444"
+assert candidate["baselineFirebaseMatrixId"]=="4946808111994836277"
 assert candidate["designSections"]==135
 assert candidate["defaultLanguage"]=="id"
 assert candidate["toolEnginesReady"]==5
@@ -83,6 +90,8 @@ required_runtime=[
  "REPRESENTASI_KODE=PASS",
  "MODE_EDIT=PASS",
  "MODE_PRATINJAU=PASS",
+ "MODE_UJI=PASS",
+ "MODE_LANGSUNG=PASS",
  "BUBBLE=PASS",
  "EDGE_PANEL=PASS",
  "PRODUCT_COMPLETENESS_RUNTIME=PASS",
@@ -103,8 +112,11 @@ evidence={
  "sourceCommitSha":os.environ.get("GITHUB_SHA","LOCAL"),
  "workflowRunId":os.environ.get("GITHUB_RUN_ID","LOCAL"),
  "baseline":{
-  "stage":11,
+  "stage":12,
+  "name":candidate["baselineName"],
+  "versionCode":candidate["baselineVersionCode"],
   "apkSha256":candidate["baselineSignedApkSha256"],
+  "certificateSha256":candidate["baselineCertificateSha256"],
   "rollbackAnchor":True,
  },
  "design":{

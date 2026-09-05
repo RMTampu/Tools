@@ -36,10 +36,20 @@ for req in reqs:
 
 assert plan["stage"]=="Produk Penuh v12"
 assert plan["stageMap"]=="FULL_PRODUCT"
-assert plan["parentBaseline"]["name"]=="Tahap 11"
-assert plan["parentBaseline"]["apkSha256"]=="f9dcffed7dc5d657c6dbd1c45933db6a4f6215f5145aee1849cc50f35038b76b"
+assert plan["parentBaseline"]["name"]=="ToolBox Produk Penuh v12"
+assert plan["parentBaseline"]["versionCode"]==12
+assert plan["parentBaseline"]["apkSha256"]=="4f4579d87d867524e1b308de1a9a39ac2be0a18894d9317eea60a67dc4d91c05"
+assert plan["parentBaseline"]["certificateSha256"]=="290fb37d527935766e327781833493400dd647cfc8bdbe433254a2df52e4b8e4"
+assert plan["parentBaseline"]["publicR1R9RunId"]=="33892292329"
+assert plan["parentBaseline"]["privateFinalRuntimeRunId"]=="33932725592"
+assert plan["parentBaseline"]["firebaseFinalRunId"]=="33933089444"
+assert plan["parentBaseline"]["firebaseMatrixId"]=="4946808111994836277"
 assert plan["parentBaseline"]["permanent"] is True
 assert plan["parentBaseline"]["rollbackAnchor"] is True
+assert requirements["baseline"]["stage"]==12
+assert requirements["baseline"]["name"]=="ToolBox Produk Penuh v12"
+assert requirements["baseline"]["apkSha256"]=="4f4579d87d867524e1b308de1a9a39ac2be0a18894d9317eea60a67dc4d91c05"
+assert requirements["baseline"]["certificateSha256"]=="290fb37d527935766e327781833493400dd647cfc8bdbe433254a2df52e4b8e4"
 assert plan["productContract"]["requiredDesignSections"]==135
 assert plan["productContract"]["defaultLanguage"]=="id"
 assert plan["productContract"]["requiredToolEngines"]==[
@@ -178,7 +188,7 @@ evidence={
  "product":"ToolBox Produk Penuh",
  "versionCode":12,
  "versionName":"12.0-produk-penuh",
- "baselineTahap11":"PASS",
+ "baselineV12":"PASS",
  "design":{"required":135,"implementedEvidence":135,"missing":0},
  "toolEngines":{"required":5,"sourceBound":5},
  "language":{"default":"id","ui":"Bahasa Indonesia"},

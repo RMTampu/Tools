@@ -329,9 +329,16 @@ public final class SafProjectStore implements ProjectStore {
     }
 
     private Uri createChild(String name) throws IOException {
+        String rootDocumentId =
+                DocumentsContract.getTreeDocumentId(treeUri);
+        Uri rootDocument =
+                DocumentsContract.buildDocumentUriUsingTree(
+                        treeUri,
+                        rootDocumentId
+                );
         Uri uri = DocumentsContract.createDocument(
                 resolver,
-                treeUri,
+                rootDocument,
                 MIME,
                 name
         );

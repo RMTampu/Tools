@@ -6,8 +6,11 @@
   "requiredSectionCount": 135,
   "language": "id",
   "baseline": {
-    "stage": 11,
-    "apkSha256": "f9dcffed7dc5d657c6dbd1c45933db6a4f6215f5145aee1849cc50f35038b76b"
+    "stage": 12,
+    "name": "ToolBox Produk Penuh v12",
+    "versionName": "12.0-produk-penuh",
+    "apkSha256": "4f4579d87d867524e1b308de1a9a39ac2be0a18894d9317eea60a67dc4d91c05",
+    "certificateSha256": "290fb37d527935766e327781833493400dd647cfc8bdbe433254a2df52e4b8e4"
   },
   "candidate": {
     "versionCode": 12,
