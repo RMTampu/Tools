@@ -21,6 +21,9 @@ public final class FreezeEngine {
     private final ProjectManager projects;
     private State state = State.NORMAL;
     private long frozenRevision;
+    private long recoveryARevision;
+    private long recoveryBRevision;
+    private long lastWorkingRevision;
 
     public FreezeEngine(ProjectManager projects) {
         this.projects = Objects.requireNonNull(projects, "projects");
@@ -28,6 +31,12 @@ public final class FreezeEngine {
 
     public synchronized State state() { return state; }
     public synchronized long frozenRevision() { return frozenRevision; }
+    public synchronized long recoveryARevision() { return recoveryARevision; }
+    public synchronized long recoveryBRevision() { return recoveryBRevision; }
+    public synchronized long lastWorkingRevision() { return lastWorkingRevision; }
+    public synchronized boolean hasFrozenBase() {
+        return state == State.FROZEN && frozenRevision > 0;
+    }
 
     public synchronized void freeze() throws IOException {
         ensureState(State.NORMAL);
@@ -37,7 +46,10 @@ public final class FreezeEngine {
                 projects.save();
             }
             projects.captureFinalRecoverySnapshot();
+            recoveryBRevision = recoveryARevision;
+            recoveryARevision = projects.savedRevision();
             frozenRevision = projects.savedRevision();
+            lastWorkingRevision = frozenRevision;
             state = State.FROZEN;
         } catch (IOException | RuntimeException error) {
             state = State.FAILED_SAFE;
@@ -49,7 +61,9 @@ public final class FreezeEngine {
         ensureState(State.FROZEN);
         state = State.RESTORING;
         try {
+            lastWorkingRevision = projects.savedRevision();
             ProjectState restored = projects.restoreRevision(frozenRevision);
+            projects.captureFinalRecoverySnapshot();
             state = State.FROZEN;
             return restored;
         } catch (IOException | RuntimeException error) {
@@ -66,6 +80,9 @@ public final class FreezeEngine {
                     ? projects.save()
                     : projects.current();
             projects.captureFinalRecoverySnapshot();
+            recoveryBRevision = recoveryARevision;
+            recoveryARevision = frozenRevision;
+            lastWorkingRevision = committed.revision();
             frozenRevision = committed.revision();
             state = State.FROZEN;
             return committed;
@@ -79,6 +96,7 @@ public final class FreezeEngine {
         ensureState(State.FROZEN);
         state = State.THAWING;
         frozenRevision = 0;
+        lastWorkingRevision = projects.savedRevision();
         state = State.NORMAL;
     }
 
