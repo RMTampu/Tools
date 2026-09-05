@@ -6,6 +6,19 @@ Baseline APK SHA-256: `4f4579d87d867524e1b308de1a9a39ac2be0a18894d9317eea60a67dc
 
 Audit ini sengaja **fail-closed**. Bagian hanya diberi `PROVEN_CORE` bila ada implementasi + test langsung yang cukup. Keberadaan class/file tidak dianggap bukti kelengkapan.
 
+## Cakupan Dokumen yang Diaudit
+
+Audit ini tidak hanya membaca daftar requirement lama.
+
+- `RANCANGAN_PRODUK_PENUH.md`: **135/135 bagian** diperiksa satu per satu.
+- `Rancangan-UI-Shell.md`: **33/33 bagian override UI aktif** diperiksa satu per satu.
+- `Rancangan-Editor-Terpadu.md`: diverifikasi sebagai **Dokumen Legacy**, sehingga tidak dihitung sebagai requirement aktif terpisah.
+- `REPOSITORY_INTEGRATION_POLICY.md`: aturan aktif terbaru adalah pematangan di Public; Private hanya secret/signing/final/Firebase/release sensitif.
+- `MASTER-RANCANGAN.md`: hanya memuat aturan Backup Final; backup v12 saat ini sudah dibuat di repo Backup.
+- Exact source yang diaudit adalah commit baseline yang benar-benar menghasilkan kandidat v12: `d81ee4e9c44b25a0a8797a91eaf12c6c7c20cbfa`, bukan source yang diasumsikan dari nama baseline.
+
+Tidak ada bagian aktif dari dua dokumen rancangan utama yang dibiarkan tanpa baris status.
+
 ## Ringkasan
 
 - Rancangan utama diaudit: **135/135 bagian tercantum**, tidak ada nomor yang dilewati.
