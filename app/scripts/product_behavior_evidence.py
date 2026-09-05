@@ -63,6 +63,25 @@ critical_classes = [
     "com.toolbox.tools.runtime.NavigationActionTest",
 ]
 critical_evidence = {}
+maximal_required_cases = {
+    "productionRequiresUserOwnedSafBeforeEditing",
+    "runtimeStateSurvivesFreshStoreInstance",
+    "corruptRuntimeStateFailsClosedIntoSafeRecovery",
+    "interruptedRuntimeSwapRecoversVerifiedBackup",
+    "unsupportedImageFormatsAreRejectedBeforeAssetRegistration",
+    "invalidFreezeMetadataEntersFailedSafe",
+    "safeModeAndFreezeSurviveKernelRecreation",
+    "interruptedFreezeJournalRecoversFrozenBase",
+    "interruptedPatchJournalRollsBackOnBootstrap",
+    "visibleWorkspaceStreamsAndPersistsEveryRequiredArea",
+    "backupIsPhysicalAndCanBeDiscoveredAfterManagerRecreation",
+    "realRecoverySnapshotsLiveInVisibleSnapshotsArea",
+    "patchManifestV2ClosesCompatibilityCapabilitiesAndFiles",
+    "permissionContractDerivesPhaseAndFailurePathFromCapability",
+    "projectExportCarriesRequiredAssetsAndExcludesTransientState",
+    "memoryPressureActuallyReducesWorkingSetPolicy",
+    "scaleClassesMaterializeRealProjectGraphs",
+}
 for class_name in critical_classes:
     file = root / f"TEST-{class_name}.xml"
     if not file.is_file():
@@ -78,6 +97,18 @@ for class_name in critical_classes:
         summary[key] for key in ["failures", "errors", "skipped"]
     ):
         raise SystemExit(f"CRITICAL_TEST_FAILED:{class_name}")
+    case_names_for_class = {
+        case.attrib.get("name", "")
+        for case in item.findall("testcase")
+    }
+    if class_name == "com.toolbox.tools.product.MaximalProductionClosureTest":
+        missing_cases = maximal_required_cases - case_names_for_class
+        if missing_cases:
+            raise SystemExit(
+                "MAXIMAL_PRODUCTION_CASES_MISSING:"
+                + ",".join(sorted(missing_cases))
+            )
+        summary["requiredCases"] = sorted(maximal_required_cases)
     critical_evidence[class_name] = summary
 
 evidence = {
