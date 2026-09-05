@@ -88,6 +88,18 @@ public final class FullProductArchitectureTest {
         AppKernel kernel = AppKernel.createDefault();
         ProductServices services = kernel.productServices();
 
+        kernel.projectManager().putResource(
+                "screen.detail",
+                "type=screen"
+        );
+        kernel.projectManager().putResource(
+                "object.home.primary",
+                "type=button"
+        );
+        kernel.projectManager().addReference(
+                "object.home.primary",
+                "screen.detail"
+        );
         assertTrue(
                 services.projectGraph()
                         .impactOf("screen.detail")
