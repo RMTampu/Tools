@@ -103,6 +103,53 @@ public final class ProductServices {
         stateVariants = new StateVariantEngine();
         animations = new AnimationEngine();
         previewSandbox = new PreviewSandbox();
+        previewSandbox.putScenario(
+                "preview.sample",
+                PreviewSandbox.DataState.SAMPLE,
+                java.util.Collections.singletonMap(
+                        "title",
+                        "Contoh"
+                ),
+                java.util.Collections.emptyList(),
+                ""
+        );
+        previewSandbox.putScenario(
+                "preview.loading",
+                PreviewSandbox.DataState.LOADING,
+                java.util.Collections.emptyMap(),
+                java.util.Collections.emptyList(),
+                "Memuat"
+        );
+        previewSandbox.putScenario(
+                "preview.error",
+                PreviewSandbox.DataState.ERROR,
+                java.util.Collections.emptyMap(),
+                java.util.Collections.emptyList(),
+                "Contoh kegagalan"
+        );
+        previewSandbox.putScenario(
+                "preview.empty",
+                PreviewSandbox.DataState.EMPTY,
+                java.util.Collections.emptyMap(),
+                java.util.Collections.emptyList(),
+                "Tidak ada data"
+        );
+        java.util.Map<String,String> previewRow =
+                new java.util.LinkedHashMap<>();
+        previewRow.put("id", "row.1");
+        previewRow.put("label", "Baris Contoh");
+        previewSandbox.putScenario(
+                "preview.list",
+                PreviewSandbox.DataState.LIST,
+                java.util.Collections.emptyMap(),
+                java.util.Collections.singletonList(previewRow),
+                ""
+        );
+        previewSandbox.simulateAction(
+                "preview.action.result",
+                PreviewSandbox.SideEffect.NETWORK,
+                "Respons simulasi"
+        );
         editorContext = new EditorContextStore();
         lifecycle = new AppLifecycleManager();
         lifecycle.registerAction(
