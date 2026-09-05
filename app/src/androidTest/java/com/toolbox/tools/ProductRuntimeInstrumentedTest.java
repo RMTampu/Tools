@@ -121,8 +121,19 @@ public final class ProductRuntimeInstrumentedTest {
     public void editorSoakOneHundredCyclesStaysBounded() {
         try (ActivityScenario<MainActivity> scenario =
                      ActivityScenario.launch(MainActivity.class)) {
+            final MainActivity[] activityRef =
+                    new MainActivity[1];
             scenario.onActivity(activity -> {
-                activity.shellForTest().runSoakForTest(100);
+                assertNotNull(activity.shellForTest());
+                activityRef[0] = activity;
+            });
+
+            // Run from the instrumentation thread. WorkspaceShellView yields
+            // each UI cycle back to the main looper, so this is a real
+            // 100-cycle soak without triggering Android's input watchdog.
+            activityRef[0].shellForTest().runSoakForTest(100);
+
+            scenario.onActivity(activity -> {
                 long drift =
                         activity.shellForTest()
                                 .lastSoakPssDriftBytesForTest();
