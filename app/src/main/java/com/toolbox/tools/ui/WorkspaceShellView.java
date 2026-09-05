@@ -492,8 +492,9 @@ public final class WorkspaceShellView extends FrameLayout {
         );
         edgeHeader(translate(model.titleIndonesia()), translate(model.breadcrumb()));
         for (EdgeItem item : model.items()) {
-            String label = translate(item.labelIndonesia());
-            addEdgeCommand(label, () -> showEditorAction(label));
+            String actionLabel = translate(item.labelIndonesia());
+            String displayLabel = contextDisplayLabel(active, actionLabel);
+            addEdgeCommand(displayLabel, () -> showEditorAction(actionLabel));
         }
         addEdgeCommand("‹ Kembali", this::edgeRoot);
     }
@@ -1772,6 +1773,19 @@ public final class WorkspaceShellView extends FrameLayout {
             case EDITOR_WORKSPACE:
             default: return "Editor";
         }
+    }
+
+    private static String contextDisplayLabel(
+            AuthoringSection section,
+            String actionLabel
+    ) {
+        if (section == AuthoringSection.ASSET && "Impor".equals(actionLabel)) {
+            return "Impor Aset";
+        }
+        if (section == AuthoringSection.DATA && "Data Contoh".equals(actionLabel)) {
+            return "Kelola Data Contoh";
+        }
+        return actionLabel;
     }
 
     private String labelSection(AuthoringSection section) {
