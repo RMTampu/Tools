@@ -2104,6 +2104,7 @@ public final class WorkspaceShellView extends FrameLayout {
                         "Pilih / Relink Folder ToolBox",
                         "Autosave • NONAKTIF",
                         "Simpan • Manual Transaksional",
+                        "Cache & Penyimpanan Sementara",
                         "Target • Android 11 / API 30 / arm64-v8a"
                 ),
                 value -> {
@@ -2114,8 +2115,109 @@ public final class WorkspaceShellView extends FrameLayout {
                         } else {
                             toast("Pemilih folder tidak tersedia pada host ini.");
                         }
+                    } else if ("Cache & Penyimpanan Sementara".equals(value)) {
+                        closeOverlay();
+                        showCacheManager();
                     }
                 }
+        );
+    }
+
+    private void showCacheManager() {
+        com.toolbox.tools.product.CacheManager cache =
+                kernel.productServices().cache();
+        java.util.Map<com.toolbox.tools.product.CacheManager.Category, Long>
+                sizes = cache.categorySizes();
+
+        String thumbnail = formatBytes(
+                sizes.get(com.toolbox.tools.product.CacheManager.Category.THUMBNAIL)
+        );
+        String preview = formatBytes(
+                sizes.get(com.toolbox.tools.product.CacheManager.Category.PREVIEW)
+        );
+        String render = formatBytes(
+                sizes.get(com.toolbox.tools.product.CacheManager.Category.RENDER_TEMP)
+        );
+        String parser = formatBytes(
+                sizes.get(com.toolbox.tools.product.CacheManager.Category.PARSER_INDEX)
+        );
+        String other = formatBytes(
+                sizes.get(com.toolbox.tools.product.CacheManager.Category.OTHER)
+        );
+
+        showActionOverlay(
+                "Cache Manager",
+                Arrays.asList(
+                        "Thumbnail • " + thumbnail,
+                        "Preview • " + preview,
+                        "Render Temporary • " + render,
+                        "Parser / Index • " + parser,
+                        "Lainnya • " + other,
+                        "Memory Budget • "
+                                + formatBytes(
+                                        cache.tierBudgetBytes(
+                                                com.toolbox.tools.product.CacheManager.Tier.MEMORY
+                                        )
+                                ),
+                        "Disk Budget • "
+                                + formatBytes(
+                                        cache.tierBudgetBytes(
+                                                com.toolbox.tools.product.CacheManager.Tier.DISK
+                                        )
+                                ),
+                        "Hapus Thumbnail",
+                        "Hapus Preview",
+                        "Hapus Render Temporary",
+                        "Hapus Parser / Index",
+                        "Hapus Semua Disposable"
+                ),
+                value -> {
+                    int removed = 0;
+                    if ("Hapus Thumbnail".equals(value)) {
+                        removed = cache.clearCategory(
+                                com.toolbox.tools.product.CacheManager.Category.THUMBNAIL
+                        );
+                    } else if ("Hapus Preview".equals(value)) {
+                        removed = cache.clearCategory(
+                                com.toolbox.tools.product.CacheManager.Category.PREVIEW
+                        );
+                    } else if ("Hapus Render Temporary".equals(value)) {
+                        removed = cache.clearCategory(
+                                com.toolbox.tools.product.CacheManager.Category.RENDER_TEMP
+                        );
+                    } else if ("Hapus Parser / Index".equals(value)) {
+                        removed = cache.clearCategory(
+                                com.toolbox.tools.product.CacheManager.Category.PARSER_INDEX
+                        );
+                    } else if ("Hapus Semua Disposable".equals(value)) {
+                        removed = cache.clearDisposable();
+                    } else {
+                        return;
+                    }
+                    closeOverlay();
+                    toast(
+                            "Cache disposable dibersihkan • "
+                                    + removed
+                                    + " item. Source project/aset/recovery tidak disentuh."
+                    );
+                }
+        );
+    }
+
+    private static String formatBytes(Long value) {
+        long bytes = value == null ? 0L : Math.max(0L, value);
+        if (bytes < 1024L) return bytes + " B";
+        if (bytes < 1024L * 1024L) {
+            return String.format(
+                    java.util.Locale.ROOT,
+                    "%.1f KB",
+                    bytes / 1024f
+            );
+        }
+        return String.format(
+                java.util.Locale.ROOT,
+                "%.1f MB",
+                bytes / (1024f * 1024f)
         );
     }
 
