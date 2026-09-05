@@ -837,6 +837,11 @@ public final class ProductRuntimeInstrumentedTest {
                             "project.fixture",
                             target.projectId()
                     );
+                    assertEquals(
+                            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                                    + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                            target.baselineApkSha256()
+                    );
 
                     boolean opened = activity.openManagedTargetEditor(
                             target.packageName(),
@@ -846,6 +851,25 @@ public final class ProductRuntimeInstrumentedTest {
                     assertTrue(opened);
                     assertTrue(activity.externalTargetActiveForTest());
                     AppKernel external = activity.kernelForTest();
+                    assertEquals(
+                            "com.toolbox.fixture",
+                            external.safePatchManager()
+                                    .hostPackageName()
+                    );
+                    assertEquals(
+                            1,
+                            external.safePatchManager()
+                                    .hostVersionCode()
+                    );
+                    assertTrue(
+                            external.safePatchManager()
+                                    .runtimeApkIdentityBound()
+                    );
+                    assertEquals(
+                            target.baselineApkSha256(),
+                            external.safePatchManager()
+                                    .runtimeRollbackBaselineApkSha256()
+                    );
                     assertEquals(
                             "project.fixture",
                             external.projectManager()

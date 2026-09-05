@@ -30,6 +30,9 @@
             <meta-data
                 android:name="com.toolbox.PROVIDER_AUTHORITY"
                 android:value="com.toolbox.fixture.toolbox" />
+            <meta-data
+                android:name="com.toolbox.BASELINE_APK_SHA256"
+                android:value="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" />
         </activity>
     </application>
 </manifest>
