@@ -15,4 +15,9 @@ public interface ProjectStore {
     ProjectState loadRevision(long revision) throws IOException;
 
     List<RecoveryCandidate> recoveryCandidates() throws IOException;
+
+    default boolean deleteRecoveryRevision(long revision)
+            throws IOException {
+        return false;
+    }
 }
