@@ -117,6 +117,23 @@ public final class BackupManager {
         return projects.restoreExternalState(candidate);
     }
 
+    public synchronized boolean delete(BackupRecord record)
+            throws IOException {
+        if (record == null) throw new NullPointerException("record");
+        return visible.delete(
+                VisibleWorkspaceStore.Area.BACKUPS,
+                record.fileName()
+        );
+    }
+
+    public synchronized int deleteAll() throws IOException {
+        int deleted = 0;
+        for (BackupRecord record : records()) {
+            if (delete(record)) deleted++;
+        }
+        return deleted;
+    }
+
     public synchronized List<BackupRecord> records() {
         try {
             List<BackupRecord> out = new ArrayList<>();
