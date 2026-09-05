@@ -1,13 +1,13 @@
+plugins {
+    id 'com.android.application'
+}
+
 def gitEnv = { String key, String fallback ->
     def value = System.getenv(key)
     return (value == null || value.trim().isEmpty()) ? fallback : value.trim()
 }
 def buildString = { String value ->
     return '"' + value.replace('\\', '\\\\').replace('"', '\\"') + '"'
-}
-
-plugins {
-    id 'com.android.application'
 }
 
 android {
