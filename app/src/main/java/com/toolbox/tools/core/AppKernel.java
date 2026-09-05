@@ -47,6 +47,7 @@ public final class AppKernel {
     private final RecoveryManager recoveryManager;
     private final RuntimeStateStore runtimeStateStore;
     private final VisibleWorkspaceStore visibleWorkspaceStore;
+    private final String bootstrapProjectId;
     private final ProjectManager projectManager;
     private final LibraryManager libraryManager;
     private final AssetStore assetStore;
@@ -113,6 +114,36 @@ public final class AppKernel {
             RuntimeEnvironment runtimeEnvironment,
             EditorEnvironment editorEnvironment
     ) {
+        this(
+                toolRegistry,
+                engineManager,
+                configStore,
+                recoveryManager,
+                runtimeStateStore,
+                visibleWorkspaceStore,
+                projectManager,
+                libraryManager,
+                assetStore,
+                runtimeEnvironment,
+                editorEnvironment,
+                "project.default"
+        );
+    }
+
+    public AppKernel(
+            ToolRegistry toolRegistry,
+            EngineManager engineManager,
+            ConfigStore configStore,
+            RecoveryManager recoveryManager,
+            RuntimeStateStore runtimeStateStore,
+            VisibleWorkspaceStore visibleWorkspaceStore,
+            ProjectManager projectManager,
+            LibraryManager libraryManager,
+            AssetStore assetStore,
+            RuntimeEnvironment runtimeEnvironment,
+            EditorEnvironment editorEnvironment,
+            String bootstrapProjectId
+    ) {
         this.toolRegistry = Objects.requireNonNull(toolRegistry, "toolRegistry");
         this.engineManager = Objects.requireNonNull(engineManager, "engineManager");
         this.configStore = Objects.requireNonNull(configStore, "configStore");
@@ -124,6 +155,10 @@ public final class AppKernel {
         this.visibleWorkspaceStore = Objects.requireNonNull(
                 visibleWorkspaceStore,
                 "visibleWorkspaceStore"
+        );
+        this.bootstrapProjectId = StableId.require(
+                bootstrapProjectId,
+                "bootstrapProjectId"
         );
         this.projectManager = Objects.requireNonNull(projectManager, "projectManager");
         this.libraryManager = Objects.requireNonNull(libraryManager, "libraryManager");
@@ -175,7 +210,7 @@ public final class AppKernel {
         );
         this.remotePatchVerifier = RemoteTrustAnchor.createVerifier();
         this.declarativeRuntime = new DeclarativeProjectRuntime(
-                ProjectState.create("project.default")
+                ProjectState.create(this.bootstrapProjectId)
         );
         this.safePatchManager = new SafePatchManager(
                 this.projectManager,
@@ -300,7 +335,24 @@ public final class AppKernel {
             File assetLibraryRoot,
             VisibleWorkspaceStore visibleWorkspace
     ) {
+        return createPersistent(
+                projectStore,
+                "project.default",
+                privateProjectRoot,
+                assetLibraryRoot,
+                visibleWorkspace
+        );
+    }
+
+    public static AppKernel createPersistent(
+            ProjectStore projectStore,
+            String bootstrapProjectId,
+            File privateProjectRoot,
+            File assetLibraryRoot,
+            VisibleWorkspaceStore visibleWorkspace
+    ) {
         Objects.requireNonNull(projectStore, "projectStore");
+        StableId.require(bootstrapProjectId, "bootstrapProjectId");
         Objects.requireNonNull(privateProjectRoot, "privateProjectRoot");
         Objects.requireNonNull(assetLibraryRoot, "assetLibraryRoot");
         Objects.requireNonNull(visibleWorkspace, "visibleWorkspace");
@@ -325,7 +377,8 @@ public final class AppKernel {
                 library,
                 new FileAssetStore(assetLibraryRoot),
                 DefaultRuntimeFactory.create(library.components()),
-                DefaultEditorFactory.create()
+                DefaultEditorFactory.create(),
+                bootstrapProjectId
         );
     }
 
@@ -339,6 +392,30 @@ public final class AppKernel {
             RuntimeEnvironment runtimeEnvironment,
             EditorEnvironment editorEnvironment
     ) {
+        return create(
+                recovery,
+                runtimeStateStore,
+                visibleWorkspaceStore,
+                projectManager,
+                libraryManager,
+                assetStore,
+                runtimeEnvironment,
+                editorEnvironment,
+                "project.default"
+        );
+    }
+
+    private static AppKernel create(
+            RecoveryManager recovery,
+            RuntimeStateStore runtimeStateStore,
+            VisibleWorkspaceStore visibleWorkspaceStore,
+            ProjectManager projectManager,
+            LibraryManager libraryManager,
+            AssetStore assetStore,
+            RuntimeEnvironment runtimeEnvironment,
+            EditorEnvironment editorEnvironment,
+            String bootstrapProjectId
+    ) {
         AppKernel kernel = new AppKernel(
                 new ToolRegistry(),
                 new EngineManager(),
@@ -350,7 +427,8 @@ public final class AppKernel {
                 libraryManager,
                 assetStore,
                 runtimeEnvironment,
-                editorEnvironment
+                editorEnvironment,
+                bootstrapProjectId
         );
         kernel.initialize();
         return kernel;
@@ -388,7 +466,7 @@ public final class AppKernel {
             configStore.put("tahap", "produk-penuh-v13-maksimal");
             configStore.put("bahasaDefault", "id");
             visibleWorkspaceStore.ensureLayout();
-            projectManager.bootstrap("project.default");
+            projectManager.bootstrap(bootstrapProjectId);
             safePatchManager.bootstrap();
             productServices.freeze().bootstrap();
             declarativeRuntime.reload(projectManager.current());
@@ -410,6 +488,7 @@ public final class AppKernel {
     public VisibleWorkspaceStore visibleWorkspaceStore() {
         return visibleWorkspaceStore;
     }
+    public String bootstrapProjectId() { return bootstrapProjectId; }
     public ProjectManager projectManager() { return projectManager; }
     public LibraryManager libraryManager() { return libraryManager; }
     public AssetStore assetStore() { return assetStore; }
