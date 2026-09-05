@@ -169,7 +169,7 @@ public final class VisibleArtifactManager {
         List<String> componentLines = new ArrayList<>();
         for (DependencyRef dependency : template.componentDependencies()) {
             componentLines.add(
-                    dependency.componentId()
+                    dependency.dependencyId()
                             + "@"
                             + dependency.versionRange()
             );
