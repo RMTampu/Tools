@@ -328,8 +328,17 @@ public final class VerificationManager {
         CandidateIdentity secondCandidate =
                 kernel.candidateIdentityFactory().create(
                         "com.toolbox.tools",
-                        12,
-                        "12.0-produk-penuh",
+                        13,
+                        "13.0-produk-penuh-maksimal",
+                        parentSigned,
+                        firstIr.sha256(),
+                        previewUnsigned
+                );
+        CandidateIdentity changedVersion =
+                kernel.candidateIdentityFactory().create(
+                        "com.toolbox.tools",
+                        14,
+                        "14.0-produk-penuh-maksimal",
                         parentSigned,
                         firstIr.sha256(),
                         previewUnsigned
@@ -337,9 +346,11 @@ public final class VerificationManager {
         if (!firstCandidate.sha256().equals(
                 secondCandidate.sha256())
                 || !firstCandidate.candidateId().equals(
-                secondCandidate.candidateId())) {
+                secondCandidate.candidateId())
+                || firstCandidate.sha256().equals(
+                changedVersion.sha256())) {
             return VerificationResult.fail(
-                    "identitas kandidat tidak deterministik"
+                    "identitas kandidat deterministik/version-bound gagal"
             );
         }
 
