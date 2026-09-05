@@ -92,9 +92,9 @@ public final class ProductAcceptanceMatrix {
         pass(22, projectReady, "REVISION_SINGLE_WRITER", failures);
         pass(23, completion.contains("version_matrix"), "SCHEMA_VERSIONING", failures);
         pass(24, projectReady && completion.contains("authoritative_inventory"), "STABLE_IDENTITY", failures);
-        pass(25, projectReady && completion.contains("recovery_catalog"), "TOMBSTONE_UNDO", failures);
-        pass(26, s.projectGraph().generatedIndex().size() >= 1, "GENERATED_INDEX", failures);
-        pass(27, completion.contains("incremental_validation"), "IMPACT_TRACKING", failures);
+        pass(25, projectReady && tombstoneUndoContractPass(), "TOMBSTONE_UNDO", failures);
+        pass(26, projectGraphContractPass(), "GENERATED_INDEX", failures);
+        pass(27, completion.contains("incremental_validation") && projectGraphContractPass(), "IMPACT_TRACKING", failures);
 
         // 28-45: registries, contracts, data, binding, logic.
         pass(28, libraryReady, "COMPONENT_REGISTRY", failures);
@@ -134,7 +134,7 @@ public final class ProductAcceptanceMatrix {
                 && !s.animations().all().isEmpty()
                 && !s.animations().groups().isEmpty()
                 && deep.contains("animation_timeline"), "ANIMATION_MODEL", failures);
-        pass(48, s.themes() != null, "DESIGN_TOKEN_THEME", failures);
+        pass(48, themeTokenContractPass(), "DESIGN_TOKEN_THEME", failures);
         pass(49, s.visualLayout().snapshot().size() >= 2
                 && !s.visualLayout().responsiveOverride(
                         "screen.home",
@@ -637,6 +637,133 @@ public final class ProductAcceptanceMatrix {
                 "false",
                 context
         );
+    }
+
+    private static boolean tombstoneUndoContractPass() {
+        try {
+            com.toolbox.tools.core.ProjectManager manager =
+                    new com.toolbox.tools.core.ProjectManager(
+                            new com.toolbox.tools.core.InMemoryProjectStore(),
+                            new com.toolbox.tools.core.DraftRecoveryStore(),
+                            new com.toolbox.tools.core.RecoveryManager(),
+                            new com.toolbox.tools.core.ProjectMigrationRegistry()
+                    );
+            manager.bootstrap("project.acceptance");
+            LinkedHashMap<String, String> initial =
+                    new LinkedHashMap<>();
+            initial.put("object.source", "source");
+            initial.put("object.target", "target");
+            manager.applyResourceTransaction(
+                    initial,
+                    Collections.emptySet()
+            );
+            manager.save();
+            manager.restoreExternalState(
+                    manager.current().withReference(
+                            "object.source",
+                            "object.target"
+                    )
+            );
+            manager.removeResource("object.target");
+            if (!manager.tombstones().contains("object.target")) {
+                return false;
+            }
+            if (!manager.undo()) return false;
+            Set<String> restored =
+                    manager.current().references().get("object.source");
+            return restored != null
+                    && restored.contains("object.target")
+                    && !manager.tombstones().contains("object.target");
+        } catch (Exception error) {
+            return false;
+        }
+    }
+
+    private static boolean projectGraphContractPass() {
+        try {
+            ProjectGraphManager graph = new ProjectGraphManager();
+            com.toolbox.tools.core.ProjectState state =
+                    com.toolbox.tools.core.ProjectState.create(
+                            "project.graph.acceptance"
+                    )
+                    .withResource("object.data", "data")
+                    .withResource("object.binding", "binding")
+                    .withResource("object.ui", "ui")
+                    .withReference(
+                            "object.binding",
+                            "object.data"
+                    )
+                    .withReference(
+                            "object.ui",
+                            "object.binding"
+                    );
+            graph.rebuildFrom(state);
+            Set<String> impacted = graph.impactOf("object.data");
+            return graph.generatedIndex().size() == 2
+                    && impacted.contains("object.binding")
+                    && impacted.contains("object.ui");
+        } catch (RuntimeException error) {
+            return false;
+        }
+    }
+
+    private static boolean themeTokenContractPass() {
+        try {
+            ThemeTokenManager theme = new ThemeTokenManager();
+            LinkedHashMap<String, String> themeOverride =
+                    new LinkedHashMap<>();
+            themeOverride.put(
+                    "token.color.neon",
+                    "#111111"
+            );
+            LinkedHashMap<String, String> objectOverride =
+                    new LinkedHashMap<>();
+            objectOverride.put(
+                    "token.color.neon",
+                    "#222222"
+            );
+            LinkedHashMap<String, String> stateOverride =
+                    new LinkedHashMap<>();
+            stateOverride.put(
+                    "token.color.neon",
+                    "#333333"
+            );
+            ThemeTokenManager.Resolution resolved =
+                    theme.resolve(
+                            "token.color.neon",
+                            themeOverride,
+                            Collections.emptyMap(),
+                            objectOverride,
+                            stateOverride
+                    );
+            if (resolved == null
+                    || resolved.source()
+                        != ThemeTokenManager.Source.STATE
+                    || !"#333333".equals(resolved.value())) {
+                return false;
+            }
+            Set<String> missing = theme.brokenReferences(
+                    Collections.singleton(
+                            "token.color.legacy"
+                    )
+            );
+            if (!missing.contains("token.color.legacy")) {
+                return false;
+            }
+            theme.relink(
+                    "token.color.legacy",
+                    "token.color.neon"
+            );
+            return "#00F0B5".equals(
+                    theme.get("token.color.legacy")
+            ) && theme.brokenReferences(
+                    Collections.singleton(
+                            "token.color.legacy"
+                    )
+            ).isEmpty();
+        } catch (RuntimeException error) {
+            return false;
+        }
     }
 
     private static boolean dataWindowPass(

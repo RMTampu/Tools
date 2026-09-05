@@ -99,6 +99,99 @@ public final class ProjectManagerTest {
     }
 
     @Test
+    public void undoDeleteRestoresStableIdAndValidReferences()
+            throws Exception {
+        ProjectManager manager = manager(
+                new InMemoryProjectStore(),
+                new DraftRecoveryStore()
+        );
+        manager.bootstrap("project.alpha");
+
+        Map<String, String> initial = new LinkedHashMap<>();
+        initial.put("object.source", "source");
+        initial.put("object.target", "target");
+        manager.applyResourceTransaction(
+                initial,
+                java.util.Collections.emptySet()
+        );
+        manager.save();
+
+        ProjectState withReference =
+                manager.current().withReference(
+                        "object.source",
+                        "object.target"
+                );
+        manager.restoreExternalState(withReference);
+        assertTrue(
+                manager.current().references()
+                        .get("object.source")
+                        .contains("object.target")
+        );
+
+        manager.removeResource("object.target");
+        assertFalse(
+                manager.current().resources()
+                        .containsKey("object.target")
+        );
+        assertTrue(manager.tombstones().contains("object.target"));
+        assertFalse(
+                manager.current().references()
+                        .containsKey("object.source")
+        );
+
+        assertTrue(manager.undo());
+        assertEquals(
+                "target",
+                manager.current().resources()
+                        .get("object.target")
+        );
+        assertTrue(
+                manager.current().references()
+                        .get("object.source")
+                        .contains("object.target")
+        );
+        assertFalse(manager.tombstones().contains("object.target"));
+
+        assertTrue(manager.redo());
+        assertFalse(
+                manager.current().resources()
+                        .containsKey("object.target")
+        );
+        assertTrue(manager.tombstones().contains("object.target"));
+    }
+
+    @Test
+    public void tombstonedStableIdCannotBeReusedWhileHistoryNeedsIt()
+            throws Exception {
+        ProjectManager manager = manager(
+                new InMemoryProjectStore(),
+                new DraftRecoveryStore()
+        );
+        manager.bootstrap("project.alpha");
+        manager.putResource("object.identity", "original");
+        manager.removeResource("object.identity");
+
+        IllegalArgumentException rejected = assertThrows(
+                IllegalArgumentException.class,
+                () -> manager.putResource(
+                        "object.identity",
+                        "recycled"
+                )
+        );
+        assertTrue(
+                rejected.getMessage()
+                        .contains("STABLE_ID_TOMBSTONED")
+        );
+
+        assertTrue(manager.undo());
+        assertEquals(
+                "original",
+                manager.current().resources()
+                        .get("object.identity")
+        );
+    }
+
+    @Test
     public void undoHistoryIsBounded() throws Exception {
         ProjectManager manager = manager(
                 new InMemoryProjectStore(),

@@ -24,6 +24,7 @@ public final class ProjectManager {
     private IncrementalResourceValidator.Result lastIncrementalValidation;
     private final Deque<ProjectChangeSet> undo = new ArrayDeque<>();
     private final Deque<ProjectChangeSet> redo = new ArrayDeque<>();
+    private final Set<String> tombstones = new LinkedHashSet<>();
 
     private ProjectState current;
     private long savedRevision;
@@ -76,6 +77,7 @@ public final class ProjectManager {
         accessStatus = load.status();
         undo.clear();
         redo.clear();
+        tombstones.clear();
         dirty = false;
 
         if (load.status() == ProjectAccessStatus.FOLDER_MISSING) {
@@ -183,6 +185,19 @@ public final class ProjectManager {
         touched.addAll(upserts.keySet());
         touched.addAll(deletes);
 
+        for (String id : upserts.keySet()) {
+            String stable = StableId.require(id, "resourceId");
+            if (!current.resources().containsKey(stable)
+                    && tombstones.contains(stable)) {
+                throw new IllegalArgumentException(
+                        "STABLE_ID_TOMBSTONED:" + stable
+                );
+            }
+        }
+
+        Map<String, Set<String>> beforeReferences =
+                captureAffectedReferences(current, touched);
+
         Map<String, String> beforeValues = new LinkedHashMap<>();
         Set<String> beforeMissing = new LinkedHashSet<>();
         for (String id : touched) {
@@ -212,18 +227,24 @@ public final class ProjectManager {
             }
         }
 
+        Map<String, Set<String>> afterReferences =
+                captureAffectedReferences(next, touched);
+
         pushBounded(
                 undo,
                 new ProjectChangeSet(
                         beforeValues,
                         beforeMissing,
                         afterValues,
-                        afterMissing
+                        afterMissing,
+                        beforeReferences,
+                        afterReferences
                 )
         );
         redo.clear();
         current = next;
         dirty = true;
+        recomputeTombstones();
     }
 
     public synchronized boolean undo() {
@@ -235,6 +256,7 @@ public final class ProjectManager {
         current = change.applyReverse(current);
         pushBounded(redo, change);
         dirty = true;
+        recomputeTombstones();
         return true;
     }
 
@@ -247,6 +269,7 @@ public final class ProjectManager {
         current = change.applyForward(current);
         pushBounded(undo, change);
         dirty = true;
+        recomputeTombstones();
         return true;
     }
 
@@ -306,6 +329,7 @@ public final class ProjectManager {
         }
         undo.clear();
         redo.clear();
+        tombstones.clear();
         dirty = false;
         draftRecoveryStore.discard();
     }
@@ -518,12 +542,62 @@ public final class ProjectManager {
         return !redo.isEmpty();
     }
 
+    public synchronized Set<String> tombstones() {
+        return Collections.unmodifiableSet(
+                new LinkedHashSet<>(tombstones)
+        );
+    }
+
+    private static Map<String, Set<String>> captureAffectedReferences(
+            ProjectState state,
+            Set<String> touched
+    ) {
+        LinkedHashMap<String, Set<String>> out =
+                new LinkedHashMap<>();
+        for (Map.Entry<String, Set<String>> entry
+                : state.references().entrySet()) {
+            boolean affected = touched.contains(entry.getKey());
+            if (!affected) {
+                for (String target : entry.getValue()) {
+                    if (touched.contains(target)) {
+                        affected = true;
+                        break;
+                    }
+                }
+            }
+            if (affected) {
+                out.put(
+                        entry.getKey(),
+                        new LinkedHashSet<>(entry.getValue())
+                );
+            }
+        }
+        return out;
+    }
+
+    private void recomputeTombstones() {
+        tombstones.clear();
+        LinkedHashSet<String> historyIds = new LinkedHashSet<>();
+        for (ProjectChangeSet change : undo) {
+            historyIds.addAll(change.referencedResourceIds());
+        }
+        for (ProjectChangeSet change : redo) {
+            historyIds.addAll(change.referencedResourceIds());
+        }
+        for (String id : historyIds) {
+            if (!current.resources().containsKey(id)) {
+                tombstones.add(id);
+            }
+        }
+    }
+
     private void adoptRecovered(ProjectState recovered) throws IOException {
         current = recovered;
         savedRevision = recovered.revision();
         dirty = false;
         undo.clear();
         redo.clear();
+        tombstones.clear();
         accessStatus = ProjectAccessStatus.PROJECT_OK;
         recoveryManager.clearRecoveryRequired();
         draftRecoveryStore.discard();

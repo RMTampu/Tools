@@ -44,9 +44,9 @@ public final class ProductCompletionServices {
 
     public ProductCompletionServices() {
         versions.register("schema", 3, 3, 3);
-        versions.register("build", 12, 12, 12);
+        versions.register("build", 13, 12, 13);
         versions.register("contract", 2, 2, 3);
-        versions.register("tool", 12, 12, 13);
+        versions.register("tool", 13, 12, 13);
         versions.register("capability", 2, 2, 3);
         versions.register("component", 1, 1, 2);
 
@@ -75,11 +75,11 @@ public final class ProductCompletionServices {
         permissions.declareCapability("capability.file.import", "android.permission.READ_EXTERNAL_STORAGE", true);
         permissions.declareCapability("capability.overlay", "android.permission.SYSTEM_ALERT_WINDOW", false);
 
-        extensions.register("engine.ui", "12.0", "ui", true);
-        extensions.register("engine.logic", "12.0", "logic", true);
-        extensions.register("engine.data", "12.0", "data", true);
-        extensions.register("engine.binding", "12.0", "binding", true);
-        extensions.register("engine.asset", "12.0", "asset", true);
+        extensions.register("engine.ui", "13.0", "ui", true);
+        extensions.register("engine.logic", "13.0", "logic", true);
+        extensions.register("engine.data", "13.0", "data", true);
+        extensions.register("engine.binding", "13.0", "binding", true);
+        extensions.register("engine.asset", "13.0", "asset", true);
 
         recovery.add(11, "checkpoint", 2048, "VALID");
         recovery.add(10, "previous", 1980, "VALID");
@@ -206,7 +206,7 @@ public final class ProductCompletionServices {
 
         BuildPackageModel.PackageIdentity identity = buildPackage.create(
                 "project.default",
-                12,
+                13,
                 3,
                 "toolchain:android30-jdk17-gradle8.2.1",
                 Arrays.asList("junit:4.13.2"),
