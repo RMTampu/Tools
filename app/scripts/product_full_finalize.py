@@ -69,6 +69,7 @@ required_runtime=[
  "EMULATOR_ABI=x86_64",
  "API30_APP_LAUNCH=PASS",
  "ANDROID_INSTRUMENTATION=PASS",
+ "SAF_DOCUMENTS_PROVIDER_RUNTIME=PASS",
  "SOAK_100_RUNTIME=PASS",
  "PROCESS_DEATH_RESTART=PASS",
  "GFXINFO_RUNTIME=PASS",
@@ -142,10 +143,36 @@ for file in android_xml:
     android_failures+=int(root.attrib.get("failures","0"))
     android_errors+=int(root.attrib.get("errors","0"))
     android_skipped+=int(root.attrib.get("skipped","0"))
-assert android_tests>=3
+assert android_tests>=13
 assert android_failures==0
 assert android_errors==0
 assert android_skipped==0
+
+android_case_names=set()
+for file in android_xml:
+    root=ET.parse(file).getroot()
+    if root.tag!="testsuite":
+        continue
+    for case in root.findall("testcase"):
+        android_case_names.add(case.attrib.get("name",""))
+required_android_cases={
+    "activityLaunchesRealKernelAndShell",
+    "freezeRecoveryRunsOnDevice",
+    "editorSoakOneHundredCyclesStaysBounded",
+    "realSafDocumentsProviderBacksAllVisibleAreasAndProjectStore",
+    "launcherTbResourceIsBoundAndDecodable",
+    "externalAssetRendererUsesRealAndroidImageConsumer",
+    "externalAssetTamperIsRejectedAtUse",
+    "advancedUiPropertiesMaterializeOnRealAndroidView",
+    "memoryPressurePolicyDegradesAndRecoversOnDevice",
+    "safeRecoveryUiPersistsAcrossActivityRecreation",
+    "patchJournalInterruptedStateRollsBackOnDevice",
+    "runtimePatchIdentityMatchesInstalledApk",
+    "managedExternalEditingDoorUsesRealProviderBackedEditor",
+}
+assert required_android_cases.issubset(android_case_names),(
+    required_android_cases-android_case_names
+)
 
 evidence={
  "schemaVersion":13,
@@ -188,6 +215,7 @@ evidence={
   "patchWithoutRebuild":"PASS",
   "freezeRecoverySafeMode":"PASS",
   "androidInstrumentation":"PASS",
+  "safDocumentsProviderRuntime":"PASS",
   "soak100":"PASS",
   "processDeathRestart":"PASS",
   "gfxInfo":"PASS",
