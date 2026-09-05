@@ -279,7 +279,8 @@ public final class FileProjectStore implements ProjectStore {
                             ? RecoveryCandidate.Kind.LAST_VALID_REVISION
                             : RecoveryCandidate.Kind.OLDER_REVISION,
                     id,
-                    directorySize(revisionDir)
+                    directorySize(revisionDir),
+                    Files.getLastModifiedTime(revisionDir).toMillis()
             ));
         }
         return out;
