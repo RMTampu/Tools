@@ -1,0 +1,1219 @@
+{
+  "schemaVersion": 1,
+  "auditType": "FULL_GAP_AUDIT",
+  "product": "ToolBox Produk Penuh v12 baseline",
+  "baselineApkSha256": "4f4579d87d867524e1b308de1a9a39ac2be0a18894d9317eea60a67dc4d91c05",
+  "exactBaselineSourceCommit": "d81ee4e9c44b25a0a8797a91eaf12c6c7c20cbfa",
+  "auditBranchHead": "ff1cb73969f936b1ef119a778dd8c2514cf67230",
+  "conclusion": "NOT_100_PERCENT_COMPLETE",
+  "previous135of135Claim": "INVALID_AS_COMPLETENESS_PROOF",
+  "counts": {
+    "PARTIAL": 101,
+    "MISSING": 12,
+    "PROVEN_CORE": 21,
+    "OVERRIDDEN": 1
+  },
+  "shellCounts": {
+    "PARTIAL": 18,
+    "FAIL": 2,
+    "MISSING": 13
+  },
+  "repositoryFacts": {
+    "physicalResFiles": 3,
+    "physicalResBytes": 2422,
+    "appSrcMainAssetsFiles": 0,
+    "appSrcMainAssetsBytes": 0,
+    "sourceMainBytes": 652937,
+    "sourceMainFileCount": 271,
+    "androidTestFiles": 0,
+    "unitTestFiles": 37
+  },
+  "criticalFindings": [
+    "135/135 gate lama hanya memastikan setiap requirement mempunyai evidenceFiles dan file tersebut ada; tidak membuktikan behavior per requirement.",
+    "FullProductVerifier banyak memberi PASS hanya karena object/service non-null atau count minimum, bukan test behavior.",
+    "Shell final meminta satu entry Editor 5-in-1, tetapi WorkspaceShellView memakai 5 menu bawah permanen UI/Logika/Data/Pengikatan/Aset.",
+    "Physical Android res pada exact baseline hanya 3 XML total 2422 byte dan app/src/main/assets kosong; asset final besar yang dibayangkan rancangan belum ada di APK.",
+    "Tidak ada androidTest, soak test, leak test, overdraw/GPU test, atau process-kill transaction matrix.",
+    "Properties/Code/Floating/Edge banyak yang berupa display/menu/status, bukan editor fungsional penuh."
+  ],
+  "sections": [
+    {
+      "section": 1,
+      "title": "Identitas Produk",
+      "status": "PARTIAL",
+      "gap": "Dua keluarga kemampuan ada sebagai kerangka, tetapi Visual Declarative App Factory dan Repair/Evolution belum lengkap pada level UI/runtime end-to-end.",
+      "evidence": "AppKernel, WorkspaceShellView, SafePatchManager"
+    },
+    {
+      "section": 2,
+      "title": "Prinsip Besar",
+      "status": "PARTIAL",
+      "gap": "Prinsip besar belum semuanya terpenuhi: user-owned storage, per-screen working sector, release resource nyata, dan visual-first penuh masih belum komplet.",
+      "evidence": "ProjectManager, ToolLifecycleManager, WorkspaceShellView"
+    },
+    {
+      "section": 3,
+      "title": "Arsitektur Rumah ToolBox — Fondasi dan Override Terkini",
+      "status": "PARTIAL",
+      "gap": "Host/registry/services/engine ada, tetapi UX masih memecah 5 fungsi menjadi menu bawah permanen, bukan satu entry Editor 5-in-1.",
+      "evidence": "WorkspaceShellView.addTool()"
+    },
+    {
+      "section": 4,
+      "title": "Halaman sebagai Wujud Tool/Engine",
+      "status": "PARTIAL",
+      "gap": "Halaman aktif belum benar-benar menjadi wujud tunggal tool; chrome atas/bawah/editor selalu hadir dan banyak halaman masih berupa panel status.",
+      "evidence": "WorkspaceShellView"
+    },
+    {
+      "section": 5,
+      "title": "Lifecycle Tool",
+      "status": "PARTIAL",
+      "gap": "State lifecycle COLD/LOADED/ACTIVE/FAILED ada, tetapi RELEASE tidak membuktikan pelepasan View/listener/thread/bitmap/job/file-handle secara nyata.",
+      "evidence": "ToolLifecycleManager; tidak ada androidTest/leak test"
+    },
+    {
+      "section": 6,
+      "title": "Shell UI ToolBox — Override Terkini",
+      "status": "PARTIAL",
+      "gap": "Shell Bubble/Edge/Floating ada, tetapi perilaku final Rancangan-UI-Shell belum dipenuhi.",
+      "evidence": "WorkspaceShellView, editor controllers"
+    },
+    {
+      "section": 7,
+      "title": "Bubble — Draggable Priority Overlay + Floating Window Trigger",
+      "status": "PARTIAL",
+      "gap": "Bubble dapat drag, tetapi UI shell tidak memakai persistence per-orientation dari BubblePositionStore; floating window aktual masih overlay command, bukan floating window draggable penuh.",
+      "evidence": "WorkspaceShellView vs BubbleController/BubblePositionStore"
+    },
+    {
+      "section": 8,
+      "title": "Multi-Function Edge Panel",
+      "status": "PARTIAL",
+      "gap": "Edge hanya tap open/close. Progressive drag, long-press reposition, anchor snap, orientation persistence, IME clamp belum terhubung ke UI shell.",
+      "evidence": "WorkspaceShellView.toggleEdge()"
+    },
+    {
+      "section": 9,
+      "title": "Live Interactive UI Workspace",
+      "status": "PARTIAL",
+      "gap": "Workspace live hanya demo satu surface; aksi tombol normal masih Toast, bukan navigation/event runtime penuh.",
+      "evidence": "UiCanvasView"
+    },
+    {
+      "section": 10,
+      "title": "Edit OFF dan Edit ON",
+      "status": "PARTIAL",
+      "gap": "Edit ON memilih/drag satu object; Edit OFF belum menjalankan seluruh action/navigation/dialog/input/state seperti aplikasi nyata.",
+      "evidence": "UiCanvasView primaryButton"
+    },
+    {
+      "section": 11,
+      "title": "No-Cloning Editing",
+      "status": "PARTIAL",
+      "gap": "Tidak ada clone paralel, tetapi mode switch membuat ulang UiCanvasView dan visual state live tidak dipertahankan lengkap.",
+      "evidence": "WorkspaceShellView.renderWorkspace()"
+    },
+    {
+      "section": 12,
+      "title": "Visual State Hold Saat Masuk Edit",
+      "status": "MISSING",
+      "gap": "Tidak ada implementasi state hold untuk drawer/dialog/bottom-sheet/dropdown/error/loading/success saat masuk Edit.",
+      "evidence": "Tidak ditemukan state-hold UI runtime"
+    },
+    {
+      "section": 13,
+      "title": "Manual Save Murni",
+      "status": "PARTIAL",
+      "gap": "Core manual save/dirty/Save-Discard-Cancel teruji, tetapi UX leave-context prompt belum terhubung lengkap ke Activity/screen navigation.",
+      "evidence": "ProjectManagerTest; MainActivity"
+    },
+    {
+      "section": 14,
+      "title": "Undo / Redo",
+      "status": "PROVEN_CORE",
+      "gap": "Grouped undo/redo dan bounded history memiliki test nyata.",
+      "evidence": "ProjectManagerTest, VisualEditorSessionTest"
+    },
+    {
+      "section": 15,
+      "title": "Per-Screen Working Sector",
+      "status": "PARTIAL",
+      "gap": "ResourceGuard membatasi fungsi heavy aktif, tetapi tidak ada lifecycle screen renderer/off-screen release yang membuktikan satu working sector screen.",
+      "evidence": "ResourceGuard; tidak ada screen-sector manager"
+    },
+    {
+      "section": 16,
+      "title": "Non-Linear Round-Trip Editing",
+      "status": "PARTIAL",
+      "gap": "UI/Logic/Data/Binding/Asset memakai kernel bersama, tetapi round-trip context/persistence antar editor belum diuji end-to-end.",
+      "evidence": "UnifiedAuthoringWorkspace, WorkspaceShellView"
+    },
+    {
+      "section": 17,
+      "title": "Mode Visual / Properties / Code",
+      "status": "PARTIAL",
+      "gap": "Visual/Properties/Code ada, namun Properties sebagian besar static rows dan Code read-only text; two-way sync editable belum nyata.",
+      "evidence": "EditorPaneFactory"
+    },
+    {
+      "section": 18,
+      "title": "Project Store",
+      "status": "PARTIAL",
+      "gap": "ProjectStore kuat, tetapi aplikasi baseline membuka project di getFilesDir, bukan Documents/ToolBox user-visible sebagai default.",
+      "evidence": "MainActivity, FileProjectStore"
+    },
+    {
+      "section": 19,
+      "title": "Hybrid Per-Screen Store",
+      "status": "PARTIAL",
+      "gap": "Hybrid store ada pada file store, tetapi struktur per-screen/logic/data/bindings/assets lengkap dan lazy per-screen belum terbukti.",
+      "evidence": "FileProjectStoreTest"
+    },
+    {
+      "section": 20,
+      "title": "project.json dan project.manifest",
+      "status": "PROVEN_CORE",
+      "gap": "project definition + manifest + index dibuat dan diverifikasi oleh test store.",
+      "evidence": "FileProjectStoreTest, ProjectManifest"
+    },
+    {
+      "section": 21,
+      "title": "Transactional Save",
+      "status": "PROVEN_CORE",
+      "gap": "Transactional commit/journal/recovery diuji termasuk interrupted unpublished revision.",
+      "evidence": "FileProjectStore, FileProjectStoreTest"
+    },
+    {
+      "section": 22,
+      "title": "Revision & Single Writer per Resource",
+      "status": "PROVEN_CORE",
+      "gap": "Revision dan stale writer rejection diuji.",
+      "evidence": "ProjectManagerTest.staleWriterIsRejected"
+    },
+    {
+      "section": 23,
+      "title": "Schema & Versioning",
+      "status": "PARTIAL",
+      "gap": "Schema migration ada, tetapi buildModelVersion/contractVersion/toolVersion/capabilityVersion/componentVersion belum menjadi sistem versioning kompatibilitas terpadu.",
+      "evidence": "ProjectMigrationRegistry; library VersionRange hanya sebagian"
+    },
+    {
+      "section": 24,
+      "title": "Stable Identity",
+      "status": "PARTIAL",
+      "gap": "StableId dipakai luas, tetapi lifecycle identity seluruh entity, copy/import/undo/persistence belum diuji sebagai satu invariant lintas subsistem.",
+      "evidence": "StableId, ProjectGraphManager"
+    },
+    {
+      "section": 25,
+      "title": "Tombstone & Undo Restore",
+      "status": "PARTIAL",
+      "gap": "Tombstone/undoDelete ada in-memory, belum terintegrasi ke ProjectStore, binding restore, persistence, dan UI delete.",
+      "evidence": "ProjectGraphManager"
+    },
+    {
+      "section": 26,
+      "title": "Generated Index & Dependency Graph",
+      "status": "PARTIAL",
+      "gap": "Generated index dan graph ada, tetapi dependency delta overlay + persistent graph update saat Save belum lengkap.",
+      "evidence": "FileProjectStore index; ProjectGraphManager"
+    },
+    {
+      "section": 27,
+      "title": "Impact Tracking",
+      "status": "PARTIAL",
+      "gap": "impactOf tersedia, namun belum menggerakkan incremental validation/delete impact preview/audit UI secara nyata.",
+      "evidence": "ProjectGraphManager"
+    },
+    {
+      "section": 28,
+      "title": "Component Registry",
+      "status": "PARTIAL",
+      "gap": "Registry metadata ada dan dites, tetapi unavailable component preservation/runtime fallback belum lengkap end-to-end.",
+      "evidence": "ComponentRegistry, ComponentRegistryTest"
+    },
+    {
+      "section": 29,
+      "title": "Repository Component Registry Inventory",
+      "status": "MISSING",
+      "gap": "Tidak ada satu inventory machine-readable authoritative yang mencakup component+capability+action+asset+permission+implementation dengan exact mappings. FULL_PRODUCT_REQUIREMENTS bukan inventory implementasi.",
+      "evidence": "Repo tree"
+    },
+    {
+      "section": 30,
+      "title": "Property Contract",
+      "status": "PARTIAL",
+      "gap": "PropertyContract hanya type/nullability/editable/default/enum; range, unit, read-only policy, state applicability, converter belum lengkap.",
+      "evidence": "PropertyContract.java"
+    },
+    {
+      "section": 31,
+      "title": "Event Contract",
+      "status": "PARTIAL",
+      "gap": "EventContract hanya eventId + compatibleActionTypes; typed payload/output/propagation policy belum lengkap.",
+      "evidence": "EventContract.java"
+    },
+    {
+      "section": 32,
+      "title": "Action Registry",
+      "status": "PARTIAL",
+      "gap": "ActionContract punya input/output/permission/mode/timeout/cancel/idempotent, tetapi execution ID/retry/failure semantics dan UI registry usage belum komplet.",
+      "evidence": "ActionContract, ActionRegistry"
+    },
+    {
+      "section": 33,
+      "title": "Compatibility Matching",
+      "status": "PARTIAL",
+      "gap": "Exact type compatibility ada, tetapi explicit safe-converter registry dan no-silent-conversion audit belum lengkap.",
+      "evidence": "DataBindingTest; tidak ada converter registry penuh"
+    },
+    {
+      "section": 34,
+      "title": "Composite Action",
+      "status": "PARTIAL",
+      "gap": "CompositeAction menyimpan metadata ordered/failure/fallback/compensation, tetapi executor, retry/idempotency/rollback behavior belum diimplementasikan penuh.",
+      "evidence": "CompositeAction.java"
+    },
+    {
+      "section": 35,
+      "title": "Navigation Contract",
+      "status": "PROVEN_CORE",
+      "gap": "Stable screen ID, typed parameters, broken-navigation diagnostic, lightweight navigation diuji.",
+      "evidence": "NavigationActionTest"
+    },
+    {
+      "section": 36,
+      "title": "Back Stack",
+      "status": "PROVEN_CORE",
+      "gap": "Back stack menyimpan lightweight entries dan diuji.",
+      "evidence": "NavigationManager, NavigationActionTest"
+    },
+    {
+      "section": 37,
+      "title": "Data Source Contract",
+      "status": "PARTIAL",
+      "gap": "Typed DataSource ada, tetapi adapter abstraksi database/API/file/form/runtime/action belum terimplementasi sebagai provider ecosystem.",
+      "evidence": "DataSourceDefinition, InMemoryDataSource"
+    },
+    {
+      "section": 38,
+      "title": "Data Binding",
+      "status": "PROVEN_CORE",
+      "gap": "One-way/two-way mode dan cycle suppression memiliki test.",
+      "evidence": "DataBindingTest"
+    },
+    {
+      "section": 39,
+      "title": "Lazy/Paged Data Access",
+      "status": "PARTIAL",
+      "gap": "PagedQuery ada, tetapi UI list/grid virtualization/recyclable binding/viewport lifecycle tidak ada.",
+      "evidence": "PagedQuery, InMemoryDataSource; tidak ada RecyclerView/runtime virtualization"
+    },
+    {
+      "section": 40,
+      "title": "Dynamic List Item Identity",
+      "status": "PROVEN_CORE",
+      "gap": "Stable data-item key dan paging diuji.",
+      "evidence": "DataBindingTest"
+    },
+    {
+      "section": 41,
+      "title": "Broken Reference Model",
+      "status": "PARTIAL",
+      "gap": "Beberapa broken diagnostics ada, tetapi daftar model tidak lengkap dan enforcement ke READY belum mencakup semua family.",
+      "evidence": "DiagnosticCode, BuildValidator"
+    },
+    {
+      "section": 42,
+      "title": "Logic / Flow Editor",
+      "status": "PARTIAL",
+      "gap": "Flow graph model ada; LogicGraphView hanyalah demo 4 node drag, belum editor declarative lengkap yang tersimpan ke project.",
+      "evidence": "FlowGraph, LogicGraphView"
+    },
+    {
+      "section": 43,
+      "title": "Branch, Loop, Async",
+      "status": "PARTIAL",
+      "gap": "Branch/async/loop contracts dan watchdog diuji, tetapi execution runtime flow nyata belum lengkap.",
+      "evidence": "FlowGraphTest, FlowWatchdog"
+    },
+    {
+      "section": 44,
+      "title": "List-First → Auto Diagram Materialization",
+      "status": "PARTIAL",
+      "gap": "ActiveFlowMaterializer ada, tetapi UX list-first action selection → local graph materialization belum nyata.",
+      "evidence": "ActiveFlowMaterializer; Editor UI"
+    },
+    {
+      "section": 45,
+      "title": "Component Definition, Instance, Template",
+      "status": "PROVEN_CORE",
+      "gap": "Definition/instance/template model dan registry/test tersedia.",
+      "evidence": "library classes/tests"
+    },
+    {
+      "section": 46,
+      "title": "UI State & State Variant",
+      "status": "PARTIAL",
+      "gap": "StateVariantEngine hanya normal + state delta map; layer Orientation/Theme/Data State belum dipisah.",
+      "evidence": "StateVariantEngine"
+    },
+    {
+      "section": 47,
+      "title": "Animation Model",
+      "status": "PARTIAL",
+      "gap": "Animation hanya kind/trigger/duration/delay/easing; timeline property changes, sequence/parallel belum ada.",
+      "evidence": "AnimationEngine"
+    },
+    {
+      "section": 48,
+      "title": "Design Token & Theme",
+      "status": "PARTIAL",
+      "gap": "Theme/token manager ada, tetapi explicit style resolution precedence dan broken-token relink belum lengkap.",
+      "evidence": "ThemeTokenManager"
+    },
+    {
+      "section": 49,
+      "title": "Responsive Layout",
+      "status": "PARTIAL",
+      "gap": "Layout node/ROW/COLUMN/STACK/GRID/FREE ada, tetapi constraint solver dan drag→relation translation belum ada.",
+      "evidence": "VisualLayoutEngine"
+    },
+    {
+      "section": 50,
+      "title": "Adaptive Size & Orientation",
+      "status": "PARTIAL",
+      "gap": "AdaptiveClass ada, tetapi Base Layout + portrait/landscape/adaptive override per Screen ID belum ada.",
+      "evidence": "VisualLayoutEngine.adaptiveClass"
+    },
+    {
+      "section": 51,
+      "title": "Grid, Guide, Snapping",
+      "status": "PARTIAL",
+      "gap": "Snap math ada, tetapi grid/guide/spacing-hint visual editor belum diimplementasikan.",
+      "evidence": "VisualLayoutEngine.snap; Workspace UI"
+    },
+    {
+      "section": 52,
+      "title": "Multi-Select & Group Editing",
+      "status": "PARTIAL",
+      "gap": "groupMove ada, tetapi multi-select UX, align/distribute/equal-size/equal-spacing dan constraint validation belum ada.",
+      "evidence": "VisualLayoutEngine.groupMove"
+    },
+    {
+      "section": 53,
+      "title": "Parent/Child & Reparenting",
+      "status": "PARTIAL",
+      "gap": "Reparent backend ada, tetapi UI reparent, coordinate/constraint/z-order recalculation dan dependency invalidation belum lengkap.",
+      "evidence": "VisualLayoutEngine.reparent"
+    },
+    {
+      "section": 54,
+      "title": "Object Lock",
+      "status": "PARTIAL",
+      "gap": "Lock boolean/capability ada, tetapi granular Position/Size/Transform/Style/Content/Binding/Event lock belum lengkap.",
+      "evidence": "VisualLayoutEngine.Node.locked, VisualLockSet"
+    },
+    {
+      "section": 55,
+      "title": "Layer, Z-Order, Hit Test",
+      "status": "PARTIAL",
+      "gap": "z-order/hitTest ada, tetapi Background/Content/Overlay/Modal layer model + system/safety priority belum lengkap.",
+      "evidence": "VisualLayoutEngine"
+    },
+    {
+      "section": 56,
+      "title": "Pointer Behavior & Event Propagation",
+      "status": "MISSING",
+      "gap": "Pointer hanya AUTO/NONE; capture/target/parent propagation dan TARGET_ONLY/CONTINUE/CONSUME/STOP tidak diimplementasikan.",
+      "evidence": "VisualLayoutEngine.PointerBehavior"
+    },
+    {
+      "section": 57,
+      "title": "Input, Gesture, Focus",
+      "status": "MISSING",
+      "gap": "Tidak ada typed Input Contract/Gesture Resolver/focus routing untuk tap,long-press,double-tap,swipe,scroll,text,keyboard,multi-touch.",
+      "evidence": "UI touch handlers ad hoc"
+    },
+    {
+      "section": 58,
+      "title": "Safe Area & Insets",
+      "status": "PARTIAL",
+      "gap": "Bounds clamp ada, tetapi Android WindowInsets/status/nav/cutout/IME/gesture-exclusion integration tidak ada.",
+      "evidence": "EditorRect/FloatingPlacementEngine; no WindowInsets handling"
+    },
+    {
+      "section": 59,
+      "title": "Zoom / Pan & Coordinate Space",
+      "status": "PARTIAL",
+      "gap": "Coordinate transform backend ada, tetapi user zoom/pan editor gestures dan shell-independent viewport tidak terhubung.",
+      "evidence": "VisualLayoutEngine.setViewport/designX/designY"
+    },
+    {
+      "section": 60,
+      "title": "Accessibility & Semantic Contract",
+      "status": "PARTIAL",
+      "gap": "AccessibilityContract hanya role/labelRequired/focusable; semantic states, focus order, validator diagnostics belum lengkap.",
+      "evidence": "AccessibilityContract"
+    },
+    {
+      "section": 61,
+      "title": "Text & Localization",
+      "status": "PARTIAL",
+      "gap": "LocalizationManager mendukung locale map/fallback sederhana; plural/format number/date/time/currency/RTL-aware layout belum ada.",
+      "evidence": "LocalizationManager"
+    },
+    {
+      "section": 62,
+      "title": "Conditional Properties",
+      "status": "MISSING",
+      "gap": "Tidak ada pure declarative expression engine untuk visible/enabled/selected/opacity/style variant.",
+      "evidence": "Tidak ditemukan expression evaluator"
+    },
+    {
+      "section": 63,
+      "title": "Asset Identity",
+      "status": "PROVEN_CORE",
+      "gap": "Stable Asset ID digunakan registry/store.",
+      "evidence": "AssetDescriptor/AssetRegistry"
+    },
+    {
+      "section": 64,
+      "title": "Original vs Preview",
+      "status": "PROVEN_CORE",
+      "gap": "Original dan preview/cache dipisah; clearCache tidak menghapus original dan diuji.",
+      "evidence": "FileAssetStore, AssetLibraryTest"
+    },
+    {
+      "section": 65,
+      "title": "Asset Loading",
+      "status": "MISSING",
+      "gap": "Thumbnail-first decode, preview-sized image decode, viewport-first loading, audio/video streaming/chunking belum ada.",
+      "evidence": "FileAssetStore hanya byte storage/cache"
+    },
+    {
+      "section": 66,
+      "title": "Unused/Missing/Duplicate Asset",
+      "status": "PARTIAL",
+      "gap": "Duplicate digest dan missing/relink ada, tetapi UNUSED_ASSET/reference-count audit belum lengkap.",
+      "evidence": "AssetRegistry, AssetLibraryTest"
+    },
+    {
+      "section": 67,
+      "title": "Cache Manager",
+      "status": "PARTIAL",
+      "gap": "Cache punya global budget + priority, tetapi per-category/disk/memory budgets dan resource ownership lebih rinci belum ada.",
+      "evidence": "CacheManager"
+    },
+    {
+      "section": 68,
+      "title": "Manual Cache Cleanup",
+      "status": "PARTIAL",
+      "gap": "clearDisposable ada, tetapi UI per-kategori size/cleanup dan rebuild status belum ada.",
+      "evidence": "CacheManager, Workspace tools"
+    },
+    {
+      "section": 69,
+      "title": "Recovery",
+      "status": "PROVEN_CORE",
+      "gap": "Committed revision recovery dan interrupted transaction fallback tersedia dan diuji.",
+      "evidence": "FileProjectStoreTest, RecoverySnapshotStoreTest"
+    },
+    {
+      "section": 70,
+      "title": "Incremental Snapshot & Previous Valid",
+      "status": "PARTIAL",
+      "gap": "Current/previous revisions ada, tetapi explicit optional checkpoint policy + storage bounds belum sepenuhnya sesuai rancangan.",
+      "evidence": "FileProjectStore revision retention"
+    },
+    {
+      "section": 71,
+      "title": "Recovery Storage List",
+      "status": "PARTIAL",
+      "gap": "recoveryCandidates ada, tetapi UI nama/tanggal/ukuran/type/status, multi-select/sort/delete-safe belum ada.",
+      "evidence": "ProjectManager.recoveryCandidates; Workspace shows count only"
+    },
+    {
+      "section": 72,
+      "title": "Backup",
+      "status": "PARTIAL",
+      "gap": "Backup create/restore backend ada, UI hanya create sederhana; browse/restore/delete policy belum matang.",
+      "evidence": "BackupManager, WorkspaceShellView"
+    },
+    {
+      "section": 73,
+      "title": "SAF & User-Owned Storage",
+      "status": "PARTIAL",
+      "gap": "SAF permission gateway ada, tetapi MainActivity tidak menjalankan ACTION_OPEN_DOCUMENT_TREE dan project default tetap app-private.",
+      "evidence": "SafProjectAccessGateway, MainActivity"
+    },
+    {
+      "section": 74,
+      "title": "Access-Loss & Re-linking",
+      "status": "PARTIAL",
+      "gap": "Relink verifier/access states ada, tetapi full relink UX + persisted URI update end-to-end belum ada.",
+      "evidence": "ProjectRelinkVerifier"
+    },
+    {
+      "section": 75,
+      "title": "Security Boundary Project Store",
+      "status": "PARTIAL",
+      "gap": "Path/schema/hash/security validators ada, tetapi semua resource type/capability/MIME/budget enforcement belum terpadu di ProjectStore.",
+      "evidence": "ProjectValidator, ImportSecurityValidator"
+    },
+    {
+      "section": 76,
+      "title": "Secret Separation",
+      "status": "PROVEN_CORE",
+      "gap": "Secret tidak berada di visible project; source scan/workflow memisahkan signing/private secret.",
+      "evidence": "assurance source scan + private signing"
+    },
+    {
+      "section": 77,
+      "title": "Import Security",
+      "status": "PARTIAL",
+      "gap": "Import validator memeriksa traversal/count/size, tetapi nesting/decompression ratio/content type/signature/staging atomic integration belum lengkap.",
+      "evidence": "ImportSecurityValidator"
+    },
+    {
+      "section": 78,
+      "title": "Import vs Merge",
+      "status": "PROVEN_CORE",
+      "gap": "Import baru vs merge dengan remap konflik ID diimplementasikan dan diuji arsitektural.",
+      "evidence": "ImportMergeManager, FullProductArchitectureTest"
+    },
+    {
+      "section": 79,
+      "title": "Export Contract",
+      "status": "PARTIAL",
+      "gap": "DeterministicExporter mengekspor normalized records, bukan full project package screens/logic/data/bindings/styles/localization/assets/dependency metadata.",
+      "evidence": "DeterministicExporter"
+    },
+    {
+      "section": 80,
+      "title": "Permission Contract",
+      "status": "PARTIAL",
+      "gap": "PermissionManager hanya require/granted/missing; derivation dari capability, special access, optional permission, failure path belum lengkap.",
+      "evidence": "PermissionManager"
+    },
+    {
+      "section": 81,
+      "title": "App & Screen Lifecycle",
+      "status": "PARTIAL",
+      "gap": "Lifecycle event history ada, tetapi EVERY_ENTER/FIRST_ENTER/WHEN_DATA_STALE execution policy belum ada.",
+      "evidence": "AppLifecycleManager"
+    },
+    {
+      "section": 82,
+      "title": "Background Task Contract",
+      "status": "PARTIAL",
+      "gap": "Task state/progress ada, tetapi typed input/result/retry/timeout/cancellation/constraints/execution class belum lengkap.",
+      "evidence": "BackgroundTaskManager"
+    },
+    {
+      "section": 83,
+      "title": "Safety Boundary Live Preview",
+      "status": "PROVEN_CORE",
+      "gap": "PreviewSandbox memblok side effect berisiko dan mensimulasikan; test arsitektur ada.",
+      "evidence": "PreviewSandbox, FullProductArchitectureTest"
+    },
+    {
+      "section": 84,
+      "title": "Preview Data Sandbox",
+      "status": "PARTIAL",
+      "gap": "Mock data map ada, tetapi sample/loading/error/empty/list/simulated result schemas belum lengkap.",
+      "evidence": "PreviewSandbox"
+    },
+    {
+      "section": 85,
+      "title": "Editor Context State",
+      "status": "PARTIAL",
+      "gap": "screen/selection/function/zoom/pan/scroll/bubble/edge disimpan ringan, tetapi floating/panel/mode + safe clamp persistence belum lengkap.",
+      "evidence": "EditorContextStore"
+    },
+    {
+      "section": 86,
+      "title": "Editor Metadata vs Runtime Data",
+      "status": "PARTIAL",
+      "gap": "Editor metadata secara konsep terpisah, tetapi tidak ada packaging test yang membuktikan seluruh grid/guide/selection/shell metadata tidak masuk runtime output.",
+      "evidence": "Build/IR tests tidak cover seluruh editor metadata"
+    },
+    {
+      "section": 87,
+      "title": "Copy/Paste Clipboard",
+      "status": "PARTIAL",
+      "gap": "Clipboard hanya copy properties + generate ID; dependency remap/reference preservation/conflict/broken diagnostic belum ada.",
+      "evidence": "ClipboardService"
+    },
+    {
+      "section": 88,
+      "title": "Diagnostics",
+      "status": "PARTIAL",
+      "gap": "DiagnosticCenter punya id/severity/code/subject/message, tetapi source/location/suggestedFix/relatedDiagnostics belum lengkap.",
+      "evidence": "DiagnosticCenter"
+    },
+    {
+      "section": 89,
+      "title": "Detect → Suggest → Fix",
+      "status": "PARTIAL",
+      "gap": "AutoRepairEngine membatasi repair deterministik, tetapi Detect→Suggest→Fix reversible validation workflow belum terintegrasi.",
+      "evidence": "AutoRepairEngine"
+    },
+    {
+      "section": 90,
+      "title": "Incremental Validation",
+      "status": "MISSING",
+      "gap": "Dependency graph belum dipakai oleh validator untuk incremental validation nyata; validasi masih global/berbasis objek langsung.",
+      "evidence": "ProjectGraphManager tidak terhubung ke validator pipeline"
+    },
+    {
+      "section": 91,
+      "title": "Build Contract Validator",
+      "status": "PARTIAL",
+      "gap": "BuildValidator memeriksa kernel/project/runtime/health/library/target/bahasa, tetapi permission, used/missing asset, semua broken ref, implementation availability, dependency viability belum lengkap.",
+      "evidence": "BuildValidator"
+    },
+    {
+      "section": 92,
+      "title": "Canonical Build Model / IR",
+      "status": "PROVEN_CORE",
+      "gap": "Canonical IR deterministic/versioned/hash tersedia dan diuji.",
+      "evidence": "ApplicationIr, ApplicationIrTest"
+    },
+    {
+      "section": 93,
+      "title": "Build Package",
+      "status": "PARTIAL",
+      "gap": "Candidate identity ada, tetapi immutable BuildPackage model lengkap dengan buildId/revision/schema/toolchain/dependency provenance belum menjadi objek produk.",
+      "evidence": "CandidateIdentity; workflow artifact"
+    },
+    {
+      "section": 94,
+      "title": "Build Handoff — Repository Terkini",
+      "status": "OVERRIDDEN",
+      "gap": "Rancangan lama menyebut product input private → public CI. Instruksi terbaru menetapkan pematangan source di Public dan signing/final di Private. Dokumen rancangan perlu diselaraskan agar tidak konflik.",
+      "evidence": "AGENTS.md terbaru menang"
+    },
+    {
+      "section": 95,
+      "title": "Signing",
+      "status": "PROVEN_CORE",
+      "gap": "Signing private v3, cert fingerprint, API30 install/runtime PASS.",
+      "evidence": "Private run 33932725592"
+    },
+    {
+      "section": 96,
+      "title": "Build Artifact Traceability",
+      "status": "PROVEN_CORE",
+      "gap": "APK SHA/cert/source/run/provenance ditulis dan diverifikasi sampai Firebase.",
+      "evidence": "provenance.json, private/Firebase workflows"
+    },
+    {
+      "section": 97,
+      "title": "Tool / Engine Extension Contract",
+      "status": "PARTIAL",
+      "gap": "Product engines didaftarkan hardcoded; EngineContract utama hanya id/isReady. Contract extension lengkap dan discovery host belum matang.",
+      "evidence": "EngineManager, ProductEngineSuite"
+    },
+    {
+      "section": 98,
+      "title": "No Direct Inter-Tool Dependency",
+      "status": "PARTIAL",
+      "gap": "Tidak terlihat direct engine→engine call utama, tetapi belum ada static dependency gate yang membuktikan invariant untuk semua engine.",
+      "evidence": "Source structure; no dependency-lint"
+    },
+    {
+      "section": 99,
+      "title": "Mandatory Lifecycle Compliance",
+      "status": "PARTIAL",
+      "gap": "Lifecycle manager ada, tetapi compliance release listener/thread/context/bitmap/job/budget tidak diukur atau diuji.",
+      "evidence": "ToolLifecycleManager; no leak/soak test"
+    },
+    {
+      "section": 100,
+      "title": "Failure Isolation",
+      "status": "PARTIAL",
+      "gap": "FAILED/UNAVAILABLE state ada, tetapi fault injection per-engine dan host survival/dependent marking belum diuji end-to-end.",
+      "evidence": "ToolLifecycleManager"
+    },
+    {
+      "section": 101,
+      "title": "Executable Runtime Boundary",
+      "status": "PROVEN_CORE",
+      "gap": "Declarative runtime menolak native/new executable capability; source scan melarang DexClassLoader/System.load.",
+      "evidence": "DeclarativeProjectRuntime, mutation/architecture tests"
+    },
+    {
+      "section": 102,
+      "title": "Installed Target / Edit Bridge — Override Terkini",
+      "status": "PARTIAL",
+      "gap": "CapabilityScanner/EditDoor model ada, tetapi bridge ke aplikasi terinstal nyata selain self target belum ada.",
+      "evidence": "CapabilityScanner, DefaultLiveFactory"
+    },
+    {
+      "section": 103,
+      "title": "Declarative Update Package",
+      "status": "PARTIAL",
+      "gap": "Patch manifest/payload/signature ada, tetapi package type/dependencies/capabilities/migration-repair intent lengkap belum ada.",
+      "evidence": "PatchManifest/Payload"
+    },
+    {
+      "section": 104,
+      "title": "Update Apply Pipeline",
+      "status": "PARTIAL",
+      "gap": "Staging/validate/preview/apply/restore ada, tetapi dry-run/self-test/explicit user pipeline dan commit/rollback policy belum sepenuhnya modeled.",
+      "evidence": "EvolutionManager, SafePatchManager"
+    },
+    {
+      "section": 105,
+      "title": "Freeze Engine",
+      "status": "PARTIAL",
+      "gap": "Freeze backend snapshot/recover/commit/thaw ada, tetapi LIVE/BASELINE/FROZEN_BASE/WORKING/RECOVERY A/B overlay architecture belum lengkap.",
+      "evidence": "FreezeEngine"
+    },
+    {
+      "section": 106,
+      "title": "Freeze State Machine",
+      "status": "PARTIAL",
+      "gap": "State enum ada, tetapi startup bootstrap journal dan RECOVERY_RUNNING/incomplete-temp replay belum lengkap.",
+      "evidence": "FreezeEngine; no startup bootstrap"
+    },
+    {
+      "section": 107,
+      "title": "Safe Mode / Safe UI",
+      "status": "PARTIAL",
+      "gap": "SafeModeController ada, tetapi safe UI independen dengan quarantine/export/read-only inspection belum ada.",
+      "evidence": "SafeModeController, Workspace status only"
+    },
+    {
+      "section": 108,
+      "title": "Health Check",
+      "status": "PARTIAL",
+      "gap": "HealthMonitor memeriksa kondisi kernel dasar, belum schema/files/capability/navigation/database/startup comprehensive health suite.",
+      "evidence": "HealthMonitor"
+    },
+    {
+      "section": 109,
+      "title": "Memory Architecture",
+      "status": "PARTIAL",
+      "gap": "One-heavy-function dan memory budget variable ada, tetapi PSS/memory-class/pressure/leak trend monitoring tidak ada.",
+      "evidence": "ResourceGuard"
+    },
+    {
+      "section": 110,
+      "title": "Per-Screen Memory Budget",
+      "status": "MISSING",
+      "gap": "Tidak ada per-screen viewport-first resource budget, sampled decode, bounded preload, adaptive quality atau pressure response.",
+      "evidence": "Tidak ditemukan screen memory manager"
+    },
+    {
+      "section": 111,
+      "title": "Overdraw & Rendering Cost",
+      "status": "MISSING",
+      "gap": "Tidak ada overdraw/GPU/render-complexity measurement atau diagnostic.",
+      "evidence": "Tidak ada perf/overdraw implementation/test"
+    },
+    {
+      "section": 112,
+      "title": "Memory Leak Discipline",
+      "status": "MISSING",
+      "gap": "Tidak ada leak detector atau lifecycle instrumentation untuk listener/context/view/bitmap/thread staircase.",
+      "evidence": "Tidak ada androidTest/soak/leak test"
+    },
+    {
+      "section": 113,
+      "title": "Test & Benchmark Contract",
+      "status": "PARTIAL",
+      "gap": "Unit + emulator smoke + security gates ada, tetapi lifecycle/memory/performance/process-death/render benchmark measurable suite belum lengkap.",
+      "evidence": "37 unit test files; no androidTest"
+    },
+    {
+      "section": 114,
+      "title": "Soak Test",
+      "status": "MISSING",
+      "gap": "Tidak ada soak UI→Logic→Data→UI ×50/×100 dengan PSS/thread/latency trend.",
+      "evidence": "Repo tree: no soak test"
+    },
+    {
+      "section": 115,
+      "title": "Crash/Transaction Test",
+      "status": "PARTIAL",
+      "gap": "Ada interrupted transaction test, tetapi tidak ada process-kill injection pada seluruh staging/write/validation/pre/post-commit/migration/recovery phases.",
+      "evidence": "FileProjectStoreTest"
+    },
+    {
+      "section": 116,
+      "title": "Scale Classes",
+      "status": "PARTIAL",
+      "gap": "ScaleBenchmarkHarness hanya estimasi formula; tidak menjalankan dataset SMALL/MEDIUM/LARGE/STRESS nyata di renderer/editor.",
+      "evidence": "ScaleBenchmarkHarness"
+    },
+    {
+      "section": 117,
+      "title": "External File Integrity",
+      "status": "PARTIAL",
+      "gap": "Manifest/hash integrity ada, tetapi external authenticity/trust-root coverage tidak konsisten untuk semua external file path.",
+      "evidence": "ProjectManifest, remote patch signature"
+    },
+    {
+      "section": 118,
+      "title": "Build-Time Dependency Determinism",
+      "status": "PARTIAL",
+      "gap": "Workflow/action versions dipin dan dependency lock ada, tetapi immutable toolchain/dependency provenance per Build ID belum lengkap di model build package.",
+      "evidence": "workflows, LibraryDependencyLock"
+    },
+    {
+      "section": 119,
+      "title": "Audit Agent Integration",
+      "status": "PARTIAL",
+      "gap": "Assurance/audit scripts ada, tetapi 135/135 gate lama hanya mengecek file evidence ada; audit agent belum membuktikan behavior per requirement.",
+      "evidence": "product_full_assurance_prebuild.py"
+    },
+    {
+      "section": 120,
+      "title": "Automatic Repair Policy",
+      "status": "PROVEN_CORE",
+      "gap": "Repair whitelist deterministik dan larangan guess business logic/delete user data ada dan diuji.",
+      "evidence": "AutoRepairEngine, FullProductArchitectureTest"
+    },
+    {
+      "section": 121,
+      "title": "Diagnostic Codes Bersama",
+      "status": "PARTIAL",
+      "gap": "DiagnosticCode hanya 9 code; banyak code rancangan belum ada seperti MISSING_ASSET, PERMISSION_CONTRACT_MISSING, LAYOUT_CONSTRAINT_CONFLICT, STALE_WRITE, CAPABILITY_INCOMPATIBLE, SIGNING_IDENTITY_MISMATCH.",
+      "evidence": "DiagnosticCode.java"
+    },
+    {
+      "section": 122,
+      "title": "Prioritas Source of Truth",
+      "status": "PARTIAL",
+      "gap": "Project Store dan cache separation ada, tetapi actual default storage masih app-private dan beberapa generated demo model dibuat saat bootstrap.",
+      "evidence": "MainActivity/AppKernel"
+    },
+    {
+      "section": 123,
+      "title": "Invariant Utama",
+      "status": "PARTIAL",
+      "gap": "Sebagian invariant core lulus, tetapi invariant screen working set, user storage, engine isolation/release, complete broken refs, memory budget, capability permissions belum terbukti.",
+      "evidence": "Cross-cutting audit"
+    },
+    {
+      "section": 124,
+      "title": "Alur Kerja Project dari Awal sampai APK",
+      "status": "PARTIAL",
+      "gap": "Flow sampai signed APK/Firebase berjalan, tetapi editor/project authoring tahap awal belum lengkap sehingga alur produk belum end-to-end dari project nyata.",
+      "evidence": "CI PASS tidak menggantikan authoring gaps"
+    },
+    {
+      "section": 125,
+      "title": "Alur UI Editor — Terkini",
+      "status": "PARTIAL",
+      "gap": "Alur UI editor belum lengkap: 5 fungsi masih menu bawah, Edit OFF action semu, Edge/Floating/property editing tidak penuh.",
+      "evidence": "WorkspaceShellView/UiCanvasView"
+    },
+    {
+      "section": 126,
+      "title": "Alur Asset ke Object",
+      "status": "MISSING",
+      "gap": "Edge registry item belum dapat drag/drop component/asset ke screen dan create Stable Instance ID secara nyata.",
+      "evidence": "WorkspaceShellView Edge items hanya onClick"
+    },
+    {
+      "section": 127,
+      "title": "Alur Binding",
+      "status": "PARTIAL",
+      "gap": "Binding backend/validator ada, tetapi Auto Connect deterministic scope + popup Copy report + global binding registry UX belum ada.",
+      "evidence": "BindingValidator, EditorPaneFactory display"
+    },
+    {
+      "section": 128,
+      "title": "Alur Logic",
+      "status": "PARTIAL",
+      "gap": "Flow contracts ada, tetapi Logic editor/runtime chain event→branch→async→navigation/data belum menjadi authoring+execution end-to-end.",
+      "evidence": "FlowGraph/LogicGraphView"
+    },
+    {
+      "section": 129,
+      "title": "Alur Repair / Evolution",
+      "status": "PARTIAL",
+      "gap": "Repair/update backend ada, tetapi full Select→Authorization→Staging→DryRun→Preview→ExplicitApply→Health→Commit/Rollback UX belum komplet.",
+      "evidence": "RepairSessionManager, EvolutionManager"
+    },
+    {
+      "section": 130,
+      "title": "Alur Freeze",
+      "status": "PARTIAL",
+      "gap": "Freeze flow backend ada, tetapi Working Overlay dan A/B recovery model belum lengkap.",
+      "evidence": "FreezeEngine"
+    },
+    {
+      "section": 131,
+      "title": "Arsitektur RAM Ringkas",
+      "status": "PARTIAL",
+      "gap": "One-heavy-function prinsip ada, tetapi 1-screen working set + viewport asset release + RAM measurements belum nyata.",
+      "evidence": "ResourceGuard; no memory instrumentation"
+    },
+    {
+      "section": 132,
+      "title": "Arsitektur Penyimpanan Ringkas",
+      "status": "PARTIAL",
+      "gap": "Private staging/journal ada, tetapi visible user storage Projects/Assets/Templates/Exports/Snapshots/Backups belum menjadi default runtime path.",
+      "evidence": "MainActivity uses getFilesDir"
+    },
+    {
+      "section": 133,
+      "title": "Batas Antara Rancangan dan Implementasi",
+      "status": "PROVEN_CORE",
+      "gap": "Bagian ini adalah batas spesifikasi; implementasi boleh berbeda nama selama invariant dijaga. Tidak memerlukan feature terpisah.",
+      "evidence": "Specification-only"
+    },
+    {
+      "section": 134,
+      "title": "Bentuk Teknis ToolBox Saat Matang",
+      "status": "PARTIAL",
+      "gap": "Bentuk matang belum tercapai karena shell, editor, storage, memory, asset loading, diagnostics, update/freeze masih parsial.",
+      "evidence": "Aggregate audit"
+    },
+    {
+      "section": 135,
+      "title": "Kesimpulan Arsitektur",
+      "status": "PARTIAL",
+      "gap": "Kesimpulan arsitektur belum tercapai penuh; juga mengandung model repo private→public yang telah dioverride aturan pengguna terbaru.",
+      "evidence": "Aggregate audit + latest AGENTS"
+    }
+  ],
+  "shellSections": [
+    {
+      "section": 1,
+      "title": "Shell Utama",
+      "status": "PARTIAL",
+      "gap": "Shell masih mempunyai top actions, representation bar, runtime mode bar, status line dan 5 bottom tools permanen; bukan shell minimal Bubble+Edge contextual.",
+      "evidence": "WorkspaceShellView"
+    },
+    {
+      "section": 2,
+      "title": "Bubble",
+      "status": "PARTIAL",
+      "gap": "Bubble drag ada, tetapi position persistence per-orientation controller tidak dipakai oleh view utama; floating window yang dipanggil bukan draggable framework penuh.",
+      "evidence": "WorkspaceShellView vs BubblePositionStore"
+    },
+    {
+      "section": 3,
+      "title": "Multi-Function Edge Panel",
+      "status": "PARTIAL",
+      "gap": "Tap open/close ada; drag progresif, long-press reposition, anchor snap, IME/rotation clamp, header Back/close kontekstual belum lengkap.",
+      "evidence": "WorkspaceShellView.toggleEdge"
+    },
+    {
+      "section": 4,
+      "title": "Entry Editor",
+      "status": "FAIL",
+      "gap": "Desain meminta satu entry Editor berisi Proyek/Aplikasi/Edit ToolBox/Buat Komponen lalu fungsi UI/Logic/Data/Binding/Asset di dalamnya. Baseline justru menaruh 5 fungsi sebagai 5 menu bawah permanen.",
+      "evidence": "WorkspaceShellView.addTool"
+    },
+    {
+      "section": 5,
+      "title": "UI Editor — Tambah ke Layar",
+      "status": "MISSING",
+      "gap": "Komponen/Template/Kit/Aset/Recent/Favorite hanya item menu; tidak ada drag/drop ke layar.",
+      "evidence": "EdgePanelFactory + WorkspaceShellView onClick only"
+    },
+    {
+      "section": 6,
+      "title": "Tap Object → Menu Edit",
+      "status": "PARTIAL",
+      "gap": "Tap object dapat membuka Edit Objek, tetapi hanya demo object tertentu dan menu tidak mengedit seluruh property nyata.",
+      "evidence": "UiCanvasView + showFloatingEditor"
+    },
+    {
+      "section": 7,
+      "title": "Floating Editor Framework",
+      "status": "PARTIAL",
+      "gap": "Backend FloatingEditorController punya drag/placement, tetapi UI `showFloatingEditor` tidak memakai controller, tidak draggable, tidak Pin, tidak object-aware auto placement.",
+      "evidence": "WorkspaceShellView.showFloatingEditor"
+    },
+    {
+      "section": 8,
+      "title": "Style",
+      "status": "MISSING",
+      "gap": "Style hanya label/menu; tidak ada visual style gallery + preview apply.",
+      "evidence": "WorkspaceShellView editorOptions"
+    },
+    {
+      "section": 9,
+      "title": "Size",
+      "status": "PARTIAL",
+      "gap": "Resize backend/gesture ada terbatas; tidak ada slider+numeric, handles, Fixed/Content/Fill, ratio lock UI.",
+      "evidence": "UiCanvasView/VisualLayoutEngine"
+    },
+    {
+      "section": 10,
+      "title": "Position",
+      "status": "PARTIAL",
+      "gap": "Free drag satu button ada; bound-layout relation/anchor mode dan diagnostics out-of-bounds belum ada.",
+      "evidence": "UiCanvasView"
+    },
+    {
+      "section": 11,
+      "title": "Content",
+      "status": "MISSING",
+      "gap": "Tidak ada contextual content editor lengkap untuk button/input/image.",
+      "evidence": "No functional content editor"
+    },
+    {
+      "section": 12,
+      "title": "Color",
+      "status": "MISSING",
+      "gap": "Tidak ada token/palette/custom/gradient/HEX/RGB color editor.",
+      "evidence": "No functional color editor"
+    },
+    {
+      "section": 13,
+      "title": "Spacing",
+      "status": "MISSING",
+      "gap": "Tidak ada padding/margin/spacing editor linked/unlinked per-side.",
+      "evidence": "No functional spacing editor"
+    },
+    {
+      "section": 14,
+      "title": "Shape dan Border",
+      "status": "MISSING",
+      "gap": "Tidak ada shape/radius per-corner/border style/sides editor.",
+      "evidence": "No functional shape-border editor"
+    },
+    {
+      "section": 15,
+      "title": "Font & Text",
+      "status": "MISSING",
+      "gap": "Tidak ada font preview/size/weight/italic/line-height/letter-spacing/case/overflow/max-lines editor.",
+      "evidence": "No functional font-text editor"
+    },
+    {
+      "section": 16,
+      "title": "Opacity",
+      "status": "MISSING",
+      "gap": "Tidak ada opacity editor.",
+      "evidence": "No functional opacity editor"
+    },
+    {
+      "section": 17,
+      "title": "Rotation & Transform",
+      "status": "MISSING",
+      "gap": "Tidak ada rotation/flip/scale transform editor.",
+      "evidence": "No functional transform editor"
+    },
+    {
+      "section": 18,
+      "title": "Alignment",
+      "status": "MISSING",
+      "gap": "Tidak ada align/distribute/equal spacing/equal size multi-select editor.",
+      "evidence": "No functional alignment editor"
+    },
+    {
+      "section": 19,
+      "title": "Layer",
+      "status": "PARTIAL",
+      "gap": "Backend z-order ada, tetapi mini hierarchy/layer groups/context validation UI belum ada.",
+      "evidence": "VisualLayoutEngine"
+    },
+    {
+      "section": 20,
+      "title": "State",
+      "status": "PARTIAL",
+      "gap": "State delta backend ada, tetapi state editor Normal/Pressed/... Ikuti Normal/Reset State belum ada.",
+      "evidence": "StateVariantEngine"
+    },
+    {
+      "section": 21,
+      "title": "Animation",
+      "status": "PARTIAL",
+      "gap": "Animation metadata backend ada, tetapi editor trigger/duration/delay/easing/Preview Sekali belum fungsional.",
+      "evidence": "AnimationEngine"
+    },
+    {
+      "section": 22,
+      "title": "Auto Connect Binding",
+      "status": "MISSING",
+      "gap": "AUTO CONNECT BINDING button/report/Copy Stable Error Code dan project scope belum bekerja nyata.",
+      "evidence": "EditorPaneFactory displays status only"
+    },
+    {
+      "section": 23,
+      "title": "Event / Action",
+      "status": "MISSING",
+      "gap": "Event/Action selection dari compatible registry belum menjadi editor UI fungsional.",
+      "evidence": "Registry backend only"
+    },
+    {
+      "section": 24,
+      "title": "Accessibility",
+      "status": "PARTIAL",
+      "gap": "Accessibility metadata minimal ada, tetapi editable focus order/status/diagnostics/build severity belum lengkap.",
+      "evidence": "AccessibilityContract"
+    },
+    {
+      "section": 25,
+      "title": "Lock",
+      "status": "PARTIAL",
+      "gap": "Lock backend basic, tetapi granular Lock All/Position/Size/Style/Content/Binding/Event dan unlock flow belum ada.",
+      "evidence": "VisualLockSet/VisualLayoutEngine"
+    },
+    {
+      "section": 26,
+      "title": "Others",
+      "status": "MISSING",
+      "gap": "Copy/Duplicate/Replace/Reset/Save as Component/Template/Delete flow belum tersedia sebagai operasi editor lengkap.",
+      "evidence": "No functional menu handlers"
+    },
+    {
+      "section": 27,
+      "title": "Logic / Data / Binding / Asset Edge Context",
+      "status": "PARTIAL",
+      "gap": "Edge context label untuk Logic/Data/Binding/Asset ada, tetapi mayoritas menu membuka status/static data, bukan full operations.",
+      "evidence": "EdgePanelFactory/EditorPaneFactory"
+    },
+    {
+      "section": 28,
+      "title": "Edit Mode Principle",
+      "status": "PARTIAL",
+      "gap": "Edit ON/OFF routing ada terbatas; drag Edge add resource dan full project interactions belum ada.",
+      "evidence": "EditorShellController/UiCanvasView"
+    },
+    {
+      "section": 29,
+      "title": "Modes",
+      "status": "PARTIAL",
+      "gap": "Mode enum ada. Preview hanya render canvas; Test tidak punya test semantics terpisah; Live tidak terhubung target installed nyata/compare/history UI penuh.",
+      "evidence": "WorkspaceShellView.setRuntimeMode"
+    },
+    {
+      "section": 30,
+      "title": "Visual / Properties / Code",
+      "status": "PARTIAL",
+      "gap": "Visual/Properties/Code tampil, tetapi Properties static/read-only dan Code tidak editable two-way.",
+      "evidence": "EditorPaneFactory"
+    },
+    {
+      "section": 31,
+      "title": "Capability Principle",
+      "status": "PARTIAL",
+      "gap": "Capability model ada, tetapi bridge/adapter aplikasi terinstal nyata belum ada.",
+      "evidence": "CapabilityScanner"
+    },
+    {
+      "section": 32,
+      "title": "Self Edit",
+      "status": "PARTIAL",
+      "gap": "Self-edit policy/protected surface ada, tetapi end-to-end staging/activate/verify/rollback self-edit UI belum ada.",
+      "evidence": "LiveSessionManager/SelfEditPolicy"
+    },
+    {
+      "section": 33,
+      "title": "Invariant UX",
+      "status": "FAIL",
+      "gap": "Invariant konteks UX dilanggar oleh 5 menu bawah permanen dan beberapa overlay/status yang tidak merepresentasikan satu contextual panel saja.",
+      "evidence": "WorkspaceShellView"
+    }
+  ]
+}
