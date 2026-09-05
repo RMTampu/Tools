@@ -136,6 +136,19 @@ assert "managedExternalEditingDoorUsesRealProviderBackedEditor" in android_case_
 assert "runtimePatchIdentityMatchesInstalledApk" in android_case_names
 assert "externalAssetTamperIsRejectedAtUse" in android_case_names
 
+safe_patch_xml=(
+    APP/"build/test-results/testDebugUnitTest"
+    /"TEST-com.toolbox.tools.delivery.SafePatchManagerTest.xml"
+)
+assert safe_patch_xml.is_file(),"SafePatchManager evidence missing"
+safe_patch_root=ET.parse(safe_patch_xml).getroot()
+safe_patch_cases={
+    case.attrib.get("name","")
+    for case in safe_patch_root.findall("testcase")
+}
+assert "v2PatchRejectsRuntimeApkLineageMismatch" in safe_patch_cases
+assert "postActivationHealthFailureRollsBackAutomatically" in safe_patch_cases
+
 maximal_xml=(
     APP/"build/test-results/testDebugUnitTest"
     /"TEST-com.toolbox.tools.product.MaximalProductionClosureTest.xml"
