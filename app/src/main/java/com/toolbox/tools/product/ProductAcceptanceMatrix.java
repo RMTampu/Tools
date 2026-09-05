@@ -173,7 +173,10 @@ public final class ProductAcceptanceMatrix {
                 && s.visualLayout().zoom() <= 4f
                 && !Float.isNaN(s.visualLayout().designX(20f)),
                 "ZOOM_PAN", failures);
-        pass(60, libraryReady && deep.contains("accessibility_semantic"), "ACCESSIBILITY_SEMANTIC", failures);
+        pass(60, libraryReady
+                && accessibilityContractPass(kernel)
+                && deep.contains("accessibility_semantic"),
+                "ACCESSIBILITY_SEMANTIC", failures);
         pass(61, "id".equals(LocalizationManager.BAHASA_DEFAULT)
                 && s.localization().formatCurrency(
                         12500,
@@ -194,8 +197,11 @@ public final class ProductAcceptanceMatrix {
         pass(66, completion.contains("asset_audit")
                 && s.assetLoads().audit().isPass(),
                 "ASSET_AUDIT", failures);
-        pass(67, s.cache() != null && deep.contains("cache_category_budget"), "CACHE_MANAGER", failures);
-        pass(68, s.cache() != null, "CACHE_CLEANUP", failures);
+        pass(67, cacheManagerContractPass(s)
+                && deep.contains("cache_category_budget"),
+                "CACHE_MANAGER", failures);
+        pass(68, cacheCleanupPass(s),
+                "CACHE_CLEANUP", failures);
         pass(69, projectReady, "RECOVERY", failures);
         pass(70, projectReady && completion.contains("recovery_catalog"), "INCREMENTAL_SNAPSHOT", failures);
         pass(71, completion.contains("recovery_catalog"), "RECOVERY_LIST", failures);
@@ -210,13 +216,22 @@ public final class ProductAcceptanceMatrix {
         pass(80, completion.contains("permission_derivation"), "PERMISSION_CONTRACT", failures);
 
         // 81-101: lifecycle, background work, diagnostics, build and engine contract.
-        pass(81, completion.contains("lifecycle_policy"), "APP_SCREEN_LIFECYCLE", failures);
-        pass(82, s.backgroundTasks() != null && deep.contains("background_task_contract"), "BACKGROUND_TASK", failures);
+        pass(81, completion.contains("lifecycle_policy")
+                && s.lifecycle().completeContract(),
+                "APP_SCREEN_LIFECYCLE", failures);
+        pass(82, s.backgroundTasks().completeContract()
+                && deep.contains("background_task_contract"),
+                "BACKGROUND_TASK", failures);
         pass(83, s.previewSandbox() != null, "PREVIEW_SAFETY", failures);
-        pass(84, s.previewSandbox() != null, "PREVIEW_DATA", failures);
-        pass(85, s.editorContext() != null && deep.contains("editor_context_complete"), "EDITOR_CONTEXT", failures);
+        pass(84, s.previewSandbox().completeContract(),
+                "PREVIEW_DATA", failures);
+        pass(85, s.editorContext().completeContract()
+                && deep.contains("editor_context_complete"),
+                "EDITOR_CONTEXT", failures);
         pass(86, buildReady, "EDITOR_METADATA_RUNTIME", failures);
-        pass(87, s.clipboard() != null && deep.contains("clipboard_dependency_remap"), "CLIPBOARD", failures);
+        pass(87, clipboardContractPass(s)
+                && deep.contains("clipboard_dependency_remap"),
+                "CLIPBOARD", failures);
         pass(88, s.diagnostics() != null && deep.contains("diagnostic_rich_record"), "DIAGNOSTICS", failures);
         pass(89, s.autoRepair() != null && deep.contains("repair_detect_suggest_fix"), "DETECT_SUGGEST_FIX", failures);
         pass(90, completion.contains("incremental_validation")
@@ -324,6 +339,149 @@ public final class ProductAcceptanceMatrix {
         pass(135, completionReady && failures.isEmpty(), "ARCHITECTURE_CONCLUSION", failures);
 
         return new Result(failures);
+    }
+
+    private static boolean accessibilityContractPass(
+            AppKernel kernel
+    ) {
+        try {
+            java.util.List<com.toolbox.tools.library.ComponentDefinition>
+                    components =
+                    kernel.libraryManager()
+                            .components()
+                            .allReady();
+            if (components.isEmpty()) return false;
+            for (com.toolbox.tools.library.ComponentDefinition component
+                    : components) {
+                com.toolbox.tools.library.AccessibilityContract contract =
+                        component.accessibilityContract();
+                if (!contract.completeContract()) {
+                    return false;
+                }
+                if (!contract.validate(
+                        true,
+                        false,
+                        component.labelIndonesia(),
+                        null,
+                        java.util.EnumSet.of(
+                                com.toolbox.tools.library.AccessibilityContract.Semantic.ENABLED
+                        )
+                )) {
+                    return false;
+                }
+            }
+            return true;
+        } catch (RuntimeException error) {
+            return false;
+        }
+    }
+
+    private static boolean cacheManagerContractPass(
+            ProductServices services
+    ) {
+        try {
+            CacheManager cache = services.cache();
+            if (cache.tierBudgetBytes(
+                    CacheManager.Tier.MEMORY
+            ) < 8L * 1024L * 1024L) {
+                return false;
+            }
+            if (cache.tierBudgetBytes(
+                    CacheManager.Tier.DISK
+            ) < 8L * 1024L * 1024L) {
+                return false;
+            }
+            for (CacheManager.Category category
+                    : CacheManager.Category.values()) {
+                if (cache.categoryBudgetBytes(category)
+                        < 1024L * 1024L) {
+                    return false;
+                }
+            }
+            return cache.categorySizes().size()
+                    == CacheManager.Category.values().length;
+        } catch (RuntimeException error) {
+            return false;
+        }
+    }
+
+    private static boolean cacheCleanupPass(
+            ProductServices services
+    ) {
+        try {
+            CacheManager cache = services.cache();
+            final int[] disposed = new int[] {0};
+            cache.put(
+                    "cache.acceptance.temp",
+                    64,
+                    CacheManager.Priority.TEMP,
+                    CacheManager.Category.RENDER_TEMP,
+                    CacheManager.Tier.MEMORY,
+                    () -> disposed[0]++
+            );
+            int removed = cache.clearCategory(
+                    CacheManager.Category.RENDER_TEMP
+            );
+            return removed >= 1
+                    && disposed[0] == 1
+                    && cache.bytesByCategory(
+                            CacheManager.Category.RENDER_TEMP
+                    ) == 0;
+        } catch (RuntimeException error) {
+            return false;
+        }
+    }
+
+    private static boolean clipboardContractPass(
+            ProductServices services
+    ) {
+        try {
+            ClipboardService clipboard = new ClipboardService();
+            java.util.Map<String,String> properties =
+                    new java.util.LinkedHashMap<>();
+            properties.put(
+                    "binding.target",
+                    "data.profile.name"
+            );
+            java.util.Set<String> dependencies =
+                    new java.util.LinkedHashSet<>();
+            dependencies.add("data.profile.name");
+            clipboard.copy(
+                    "object.source",
+                    properties,
+                    dependencies
+            );
+            java.util.Set<String> existing =
+                    new java.util.LinkedHashSet<>();
+            existing.add("data.profile.name");
+            ClipboardService.PasteResult pasted =
+                    clipboard.paste(
+                            "object.target",
+                            existing,
+                            java.util.Collections.emptyMap()
+                    );
+            ClipboardService brokenClipboard =
+                    new ClipboardService();
+            brokenClipboard.copy(
+                    "object.source",
+                    properties,
+                    dependencies
+            );
+            ClipboardService.PasteResult broken =
+                    brokenClipboard.paste(
+                            "object.target",
+                            java.util.Collections.emptySet(),
+                            java.util.Collections.emptyMap()
+                    );
+            return services.clipboard() != null
+                    && !pasted.hasBrokenReferences()
+                    && pasted.dependencies().contains(
+                            "data.profile.name"
+                    )
+                    && broken.hasBrokenReferences();
+        } catch (RuntimeException error) {
+            return false;
+        }
     }
 
     private static boolean inputDispatchPass(
