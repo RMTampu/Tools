@@ -78,6 +78,16 @@ public final class InMemoryProjectStore implements ProjectStore {
         return recoveryCandidatesUnchecked();
     }
 
+    @Override
+    public synchronized boolean deleteRecoveryRevision(long revision) {
+        if (revision <= 0
+                || revision == currentRevision
+                || revision == currentRevision - 1) {
+            return false;
+        }
+        return revisions.remove(revision) != null;
+    }
+
     private List<RecoveryCandidate> recoveryCandidatesUnchecked() {
         List<RecoveryCandidate> out = new ArrayList<>();
         for (Long revision : revisions.keySet()) {
