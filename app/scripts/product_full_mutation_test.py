@@ -79,6 +79,20 @@ mutations=[
   "test":"com.toolbox.tools.delivery.SafePatchManagerTest.postActivationHealthFailureRollsBackAutomatically"
  },
  {
+  "name":"import_decompression_ratio_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/product/ImportSecurityValidator.java",
+  "old":"if (!Double.isFinite(ratio)\n                        || ratio > MAX_DECOMPRESSION_RATIO) {",
+  "new":"if (false) {",
+  "test":"com.toolbox.tools.product.MaximalProductionClosureTest.importSecurityRejectsTraversalBombExecutableAndUntrustedPackage"
+ },
+ {
+  "name":"import_merge_reference_remap_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/product/ImportMergeManager.java",
+  "old":"mappedTargets.add(mapId(idMap, targetId));",
+  "new":"mappedTargets.add(targetId);",
+  "test":"com.toolbox.tools.product.MaximalProductionClosureTest.importAndMergePreserveNewProjectAndRemapConflictingReferences"
+ },
+ {
   "name":"full_product_verifier_bypass",
   "path":APP/"src/main/java/com/toolbox/tools/product/FullProductVerifier.java",
   "old":"&& available.size() == ProductCapability.values().length;",
