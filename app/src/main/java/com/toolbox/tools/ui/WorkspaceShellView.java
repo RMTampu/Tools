@@ -81,6 +81,7 @@ public final class WorkspaceShellView extends FrameLayout {
     private EdgeAnchor edgeAnchor;
 
     private boolean bubbleDragging;
+    private boolean bubbleQuickWasVisibleOnDown;
     private float bubbleDownX;
     private float bubbleDownY;
     private float bubbleStartX;
@@ -202,7 +203,7 @@ public final class WorkspaceShellView extends FrameLayout {
         bubbleQuickLayer = new FrameLayout(context);
         bubbleQuickLayer.setVisibility(GONE);
         bubbleQuickLayer.setBackgroundColor(Color.TRANSPARENT);
-        bubbleQuickLayer.setOnClickListener(v -> hideBubbleShortcuts());
+        bubbleQuickLayer.setClickable(false);
         addView(bubbleQuickLayer, new FrameLayout.LayoutParams(
                 LayoutParams.MATCH_PARENT,
                 LayoutParams.MATCH_PARENT
@@ -805,6 +806,7 @@ public final class WorkspaceShellView extends FrameLayout {
     private boolean handleBubbleTouch(View view, MotionEvent event) {
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
+                bubbleQuickWasVisibleOnDown = bubbleQuickLayer.getVisibility() == VISIBLE;
                 hideBubbleShortcuts();
                 bubbleDownX = event.getRawX();
                 bubbleDownY = event.getRawY();
@@ -827,7 +829,7 @@ public final class WorkspaceShellView extends FrameLayout {
             case MotionEvent.ACTION_UP:
                 if (bubbleDragging) {
                     persistBubblePosition(view);
-                } else {
+                } else if (!bubbleQuickWasVisibleOnDown) {
                     showBubbleShortcuts();
                 }
                 return true;
@@ -847,7 +849,6 @@ public final class WorkspaceShellView extends FrameLayout {
                         ? "Edit AKTIF"
                         : "Edit NONAKTIF",
                 0,
-                -86,
                 () -> {
                     kernel.editorEnvironment().shell().setEditEnabled(
                             !kernel.editorEnvironment().shell().editEnabled()
@@ -856,15 +857,15 @@ public final class WorkspaceShellView extends FrameLayout {
                     renderAll();
                 }
         );
-        addBubbleShortcut("Tool", 86, 0, () -> {
+        addBubbleShortcut("Tool", 1, () -> {
             hideBubbleShortcuts();
             showTools();
         });
-        addBubbleShortcut("Pengaturan", 0, 86, () -> {
+        addBubbleShortcut("Pengaturan", 2, () -> {
             hideBubbleShortcuts();
             showSettings();
         });
-        addBubbleShortcut("Floating Window", -86, 0, () -> {
+        addBubbleShortcut("Floating Window", 3, () -> {
             hideBubbleShortcuts();
             showFloatingContextWindow();
         });
@@ -872,8 +873,7 @@ public final class WorkspaceShellView extends FrameLayout {
 
     private void addBubbleShortcut(
             String label,
-            int offsetXDp,
-            int offsetYDp,
+            int index,
             Runnable action
     ) {
         TextView item = UiKit.chip(getContext(), label, false);
@@ -885,19 +885,31 @@ public final class WorkspaceShellView extends FrameLayout {
         item.setContentDescription("Pintasan " + label);
         item.setOnClickListener(v -> action.run());
 
-        int width = UiKit.dp(getContext(), 104);
+        int width = UiKit.dp(getContext(), 112);
         int height = UiKit.dp(getContext(), 42);
-        FrameLayout.LayoutParams p = new FrameLayout.LayoutParams(width, height);
+        int gap = UiKit.dp(getContext(), 8);
+        int sideGap = UiKit.dp(getContext(), 14);
+        int margin = UiKit.dp(getContext(), 8);
+        int totalHeight = height * 4 + gap * 3;
 
         float centerX = bubble.getX() + bubble.getWidth() / 2f;
         float centerY = bubble.getY() + bubble.getHeight() / 2f;
-        float x = centerX + UiKit.dp(getContext(), offsetXDp) - width / 2f;
-        float y = centerY + UiKit.dp(getContext(), offsetYDp) - height / 2f;
+        boolean placeRight = centerX <= getWidth() / 2f;
 
-        float maxX = Math.max(0, getWidth() - width);
-        float maxY = Math.max(0, getHeight() - height);
-        p.leftMargin = Math.round(Math.max(0, Math.min(maxX, x)));
-        p.topMargin = Math.round(Math.max(0, Math.min(maxY, y)));
+        float x = placeRight
+                ? bubble.getX() + bubble.getWidth() + sideGap
+                : bubble.getX() - width - sideGap;
+        float maxX = Math.max(margin, getWidth() - width - margin);
+        x = Math.max(margin, Math.min(maxX, x));
+
+        float groupTop = centerY - totalHeight / 2f;
+        float maxTop = Math.max(margin, getHeight() - totalHeight - margin);
+        groupTop = Math.max(margin, Math.min(maxTop, groupTop));
+        float y = groupTop + index * (height + gap);
+
+        FrameLayout.LayoutParams p = new FrameLayout.LayoutParams(width, height);
+        p.leftMargin = Math.round(x);
+        p.topMargin = Math.round(y);
         bubbleQuickLayer.addView(item, p);
     }
 
