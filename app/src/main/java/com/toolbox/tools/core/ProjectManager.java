@@ -294,6 +294,114 @@ public final class ProjectManager {
         notifyListeners(false, touched);
     }
 
+    public synchronized void addReference(
+            String sourceId,
+            String targetId
+    ) {
+        applyReferenceTransaction(
+                sourceId,
+                targetId,
+                true
+        );
+    }
+
+    public synchronized void removeReference(
+            String sourceId,
+            String targetId
+    ) {
+        applyReferenceTransaction(
+                sourceId,
+                targetId,
+                false
+        );
+    }
+
+    private void applyReferenceTransaction(
+            String sourceId,
+            String targetId,
+            boolean add
+    ) {
+        requireStarted();
+        String source = StableId.require(
+                sourceId,
+                "referenceSource"
+        );
+        String target = StableId.require(
+                targetId,
+                "referenceTarget"
+        );
+        if (!current.resources().containsKey(source)
+                || !current.resources().containsKey(target)) {
+            throw new IllegalArgumentException(
+                    "REFERENCE_ENDPOINT_MISSING"
+            );
+        }
+
+        Set<String> existing = current.references().get(source);
+        boolean present = existing != null
+                && existing.contains(target);
+        if (add == present) {
+            return;
+        }
+
+        LinkedHashMap<String, Set<String>> beforeReferences =
+                new LinkedHashMap<>();
+        if (existing != null) {
+            beforeReferences.put(
+                    source,
+                    new LinkedHashSet<>(existing)
+            );
+        } else {
+            beforeReferences.put(
+                    source,
+                    Collections.emptySet()
+            );
+        }
+
+        ProjectState next = add
+                ? current.withReference(source, target)
+                : current.withoutReference(source, target);
+
+        LinkedHashMap<String, Set<String>> afterReferences =
+                new LinkedHashMap<>();
+        Set<String> after = next.references().get(source);
+        if (after != null) {
+            afterReferences.put(
+                    source,
+                    new LinkedHashSet<>(after)
+            );
+        } else {
+            afterReferences.put(
+                    source,
+                    Collections.emptySet()
+            );
+        }
+
+        pushBounded(
+                undo,
+                new ProjectChangeSet(
+                        Collections.emptyMap(),
+                        Collections.emptySet(),
+                        Collections.emptyMap(),
+                        Collections.emptySet(),
+                        beforeReferences,
+                        afterReferences
+                )
+        );
+        redo.clear();
+        current = next;
+        dirty = true;
+        notifyListeners(
+                false,
+                new LinkedHashSet<>(
+                        java.util.Arrays.asList(
+                                source,
+                                target
+                        )
+                )
+        );
+    }
+
     public synchronized boolean undo() {
         requireStarted();
         if (undo.isEmpty()) {
