@@ -64,6 +64,17 @@ android {
     lint {
         disable 'ExpiredTargetSdkVersion'
     }
+
+    testOptions {
+        unitTests.all {
+            testLogging {
+                exceptionFormat = 'full'
+                showExceptions = true
+                showCauses = true
+                showStackTraces = true
+            }
+        }
+    }
 }
 
 dependencies {
