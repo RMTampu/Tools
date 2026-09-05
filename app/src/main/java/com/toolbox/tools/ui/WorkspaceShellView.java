@@ -330,7 +330,7 @@ public final class WorkspaceShellView extends FrameLayout {
 
         LinearLayout activity = card();
         activity.addView(UiKit.labelBagian(getContext(), "AKTIVITAS TOOLBOX"));
-        addInfo(activity, "Editor", "Masuk melalui menu Editor di Edge Panel.");
+        addInfo(activity, "Ruang kerja visual", "Masuk ke Editor melalui Edge Panel.");
         addInfo(activity, "Pemulihan", "Backup, recovery, dan Safe Mode tersedia dari panel.");
         addInfo(activity, "Evolusi", "Paket perubahan dikelola melalui jalur staging dan verifikasi.");
         root.addView(activity);
