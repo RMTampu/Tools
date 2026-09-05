@@ -648,7 +648,13 @@ public final class WorkspaceShellView extends FrameLayout {
                 command.setOnLongClickListener(v -> {
                     String payload = "Komponen".equals(actionLabel)
                             ? "component.button"
-                            : "asset.theme.dark.neon";
+                            : kernel.projectManager()
+                                    .current()
+                                    .resources()
+                                    .getOrDefault(
+                                            "asset.editor.active",
+                                            "asset.theme.dark.neon"
+                                    );
                     ClipData data = ClipData.newPlainText(
                             "toolbox-drop",
                             payload
@@ -1579,11 +1585,26 @@ public final class WorkspaceShellView extends FrameLayout {
             return;
         }
         if ("Pratinjau".equals(label)) {
-            showActionOverlay(
-                    "Pratinjau Aset",
-                    Arrays.asList("Gelap Neon", "Biru Neon", "Permukaan Tenang"),
-                    this::applyStylePreset
-            );
+            String activeAsset = kernel.projectManager()
+                    .current()
+                    .resources()
+                    .getOrDefault(
+                            "asset.editor.active",
+                            "asset.theme.dark.neon"
+                    );
+            if (activeAsset.startsWith("asset.external.")) {
+                showExternalAssetPreview(activeAsset);
+            } else {
+                showActionOverlay(
+                        "Pratinjau Aset",
+                        Arrays.asList(
+                                "Gelap Neon",
+                                "Biru Neon",
+                                "Permukaan Tenang"
+                        ),
+                        this::applyStylePreset
+                );
+            }
             return;
         }
         if ("Penggunaan".equals(label)) {
@@ -1591,11 +1612,35 @@ public final class WorkspaceShellView extends FrameLayout {
                     "asset.editor.active",
                     "asset.theme.dark.neon"
             );
-            showInfoOverlay("Penggunaan Aset", Arrays.asList(
-                    "Aset aktif: " + activeAsset,
-                    "Konsumen: tool.ui / tool.asset",
-                    "Project: " + kernel.projectManager().current().projectId()
-            ));
+            List<String> usageRows = new ArrayList<>();
+            usageRows.add("Aset aktif: " + activeAsset);
+            usageRows.add("Konsumen: tool.ui / tool.asset");
+            usageRows.add(
+                    "Project: "
+                            + kernel.projectManager().current().projectId()
+            );
+            if (activeAsset.startsWith("asset.external.")) {
+                usageRows.add(
+                        "Storage: "
+                                + kernel.projectManager().current()
+                                    .resources()
+                                    .getOrDefault(
+                                            activeAsset + ".storage.area",
+                                            "?"
+                                    )
+                                + "/"
+                                + kernel.projectManager().current()
+                                    .resources()
+                                    .getOrDefault(
+                                            activeAsset + ".storage.name",
+                                            "?"
+                                    )
+                );
+                usageRows.add(
+                        "Hash diverifikasi ulang setiap pratinjau/render."
+                );
+            }
+            showInfoOverlay("Penggunaan Aset", usageRows);
             return;
         }
         if ("Kompatibilitas".equals(label)) {
@@ -2284,6 +2329,109 @@ public final class WorkspaceShellView extends FrameLayout {
                 Gravity.CENTER
         );
         overlayLayer.addView(scroll, params);
+    }
+
+    private void showExternalAssetPreview(String assetId) {
+        overlayLayer.removeAllViews();
+        overlayLayer.setVisibility(VISIBLE);
+        overlayLayer.bringToFront();
+        bubble.bringToFront();
+        overlayLayer.setBackgroundColor(Color.argb(150, 0, 0, 0));
+        overlayLayer.setOnClickListener(v -> closeOverlay());
+
+        LinearLayout card = UiKit.kolom(getContext());
+        card.setPadding(
+                UiKit.dp(getContext(), 14),
+                UiKit.dp(getContext(), 14),
+                UiKit.dp(getContext(), 14),
+                UiKit.dp(getContext(), 14)
+        );
+        card.setBackground(UiKit.kartuPx(
+                getContext(),
+                Color.rgb(9, 26, 34),
+                UiKit.NEON_BIRU,
+                22,
+                1
+        ));
+        card.setOnClickListener(v -> {});
+
+        LinearLayout header = UiKit.baris(getContext());
+        TextView titleView = UiKit.judul(
+                getContext(),
+                "Pratinjau Aset Nyata",
+                17f
+        );
+        titleView.setTextColor(UiKit.NEON_BIRU);
+        header.addView(titleView, new LinearLayout.LayoutParams(
+                0,
+                UiKit.dp(getContext(), 42),
+                1
+        ));
+        TextView close = UiKit.chip(getContext(), "Tutup", false);
+        close.setOnClickListener(v -> closeOverlay());
+        header.addView(close);
+        card.addView(header);
+        makeHeaderDraggable(titleView, card);
+
+        try {
+            View preview = AndroidAssetRenderer.render(
+                    getContext(),
+                    kernel,
+                    assetId,
+                    UiKit.dp(getContext(), 280),
+                    UiKit.dp(getContext(), 220)
+            );
+            LinearLayout.LayoutParams previewParams =
+                    new LinearLayout.LayoutParams(
+                            LayoutParams.MATCH_PARENT,
+                            UiKit.dp(getContext(), 220)
+                    );
+            previewParams.topMargin = UiKit.dp(getContext(), 8);
+            card.addView(preview, previewParams);
+
+            String name = kernel.projectManager()
+                    .current()
+                    .resources()
+                    .getOrDefault(assetId + ".name", assetId);
+            String kind = kernel.projectManager()
+                    .current()
+                    .resources()
+                    .getOrDefault(assetId + ".kind", "RAW");
+            String sha = kernel.projectManager()
+                    .current()
+                    .resources()
+                    .getOrDefault(assetId + ".sha256", "");
+            card.addView(UiKit.teks(
+                    getContext(),
+                    name
+                            + "\nJenis: " + kind
+                            + "\nIntegrity: PASS • "
+                            + (sha.length() >= 16
+                                    ? sha.substring(0, 16)
+                                    : sha),
+                    10.5f,
+                    UiKit.TEKS_REDUP
+            ));
+        } catch (Exception error) {
+            card.addView(UiKit.teks(
+                    getContext(),
+                    "Aset ditolak saat digunakan.\n"
+                            + "Integrity/format tidak lolos verifikasi.",
+                    11.5f,
+                    UiKit.BAHAYA
+            ));
+        }
+
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                Math.min(
+                        UiKit.dp(getContext(), 360),
+                        getResources().getDisplayMetrics().widthPixels
+                                - UiKit.dp(getContext(), 24)
+                ),
+                LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER
+        );
+        overlayLayer.addView(card, params);
     }
 
     private void showInfoOverlay(String title, List<String> rows) {
