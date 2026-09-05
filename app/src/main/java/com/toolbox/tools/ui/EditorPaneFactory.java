@@ -627,6 +627,23 @@ public final class EditorPaneFactory {
         root.addView(selected);
 
         LinkedHashMap<String, EditText> fields = new LinkedHashMap<>();
+
+        TextView status = UiKit.teks(
+                c,
+                "Status: sinkron dengan Visual dan Kode",
+                11f,
+                UiKit.TEKS_REDUP
+        );
+        root.addView(status);
+
+        TextView apply = UiKit.tombol(
+                c,
+                "Terapkan Properti",
+                true
+        );
+        root.addView(apply);
+        UiKit.ruang(root, c, 10);
+
         addEditableProperty(
                 root, c, fields,
                 prefix + ".text",
@@ -901,19 +918,6 @@ public final class EditorPaneFactory {
                 resources.getOrDefault(prefix + ".enabled", "true")
         );
 
-        TextView status = UiKit.teks(
-                c,
-                "Status: sinkron dengan Visual dan Kode",
-                11f,
-                UiKit.TEKS_REDUP
-        );
-        root.addView(status);
-
-        TextView apply = UiKit.tombol(
-                c,
-                "Terapkan Properti Objek",
-                true
-        );
         apply.setOnClickListener(v -> {
             try {
                 LinkedHashMap<String, String> updates =
@@ -940,7 +944,6 @@ public final class EditorPaneFactory {
                 );
             }
         });
-        root.addView(apply);
     }
 
     private static void addEditableProperty(
