@@ -1993,16 +1993,59 @@ public final class WorkspaceShellView extends FrameLayout {
 
     private void showHealth() {
         HealthReport report = kernel.healthMonitor().inspect(kernel);
-        showInfoOverlay(
+        showActionOverlay(
                 "Kesehatan & Perbaikan",
                 Arrays.asList(
-                        "Status: " + (report.isHealthy() ? "SEHAT" : "PERLU PERHATIAN"),
-                        "Alasan: " + report.reasons().size(),
-                        "Area Uji Perbaikan: tersedia",
-                        "Aktivasi + Verifikasi: tersedia",
-                        "Rollback Otomatis: tersedia",
-                        "Mode Aman: " + kernel.safeModeController().statusIndonesia()
-                )
+                        "Status • " + (report.isHealthy() ? "SEHAT" : "PERLU PERHATIAN"),
+                        "Jalankan Health Check",
+                        kernel.safeModeController().isSafeMode()
+                                ? "Keluar Mode Aman"
+                                : "Masuk Mode Aman",
+                        "Buang Perubahan Kerja",
+                        "Diagnostik Lengkap"
+                ),
+                value -> {
+                    if ("Jalankan Health Check".equals(value)) {
+                        HealthReport fresh = kernel.healthMonitor().inspect(kernel);
+                        closeOverlay();
+                        showInfoOverlay(
+                                "Hasil Health Check",
+                                Arrays.asList(
+                                        "Status: " + fresh.state().name(),
+                                        "Alasan: " + fresh.reasons(),
+                                        "Kernel: " + kernel.state().name(),
+                                        "Project: " + kernel.projectManager().accessStatus().name(),
+                                        "Runtime model: "
+                                                + (kernel.runtimeEnvironment() != null ? "SIAP" : "GAGAL"),
+                                        "Safe Mode: " + kernel.safeModeController().statusIndonesia()
+                                )
+                        );
+                    } else if ("Masuk Mode Aman".equals(value)) {
+                        kernel.safeModeController().enter();
+                        closeOverlay();
+                        toast("Mode aman aktif • inspeksi read-only disarankan.");
+                    } else if ("Keluar Mode Aman".equals(value)) {
+                        try {
+                            kernel.safeModeController().exitIfHealthy();
+                            closeOverlay();
+                            toast("Mode normal aktif.");
+                        } catch (RuntimeException error) {
+                            toast("Belum dapat keluar: pemulihan masih diperlukan.");
+                        }
+                    } else if ("Buang Perubahan Kerja".equals(value)) {
+                        try {
+                            kernel.safeModeController().discardWorkingChanges();
+                            closeOverlay();
+                            renderAll();
+                            toast("Working state dikembalikan ke revisi tersimpan.");
+                        } catch (IOException error) {
+                            toast("Pemulihan working state gagal aman.");
+                        }
+                    } else if ("Diagnostik Lengkap".equals(value)) {
+                        closeOverlay();
+                        showDiagnostics();
+                    }
+                }
         );
     }
 
@@ -2083,19 +2126,68 @@ public final class WorkspaceShellView extends FrameLayout {
     }
 
     private void showEvolution() {
-        showInfoOverlay(
+        String packageStatus = getContext() instanceof WorkspaceHostActions
+                ? ((WorkspaceHostActions) getContext()).evolutionPackageStatus()
+                : kernel.evolutionManager().state().name();
+        showActionOverlay(
                 "Evolusi Tanpa Rebuild",
                 Arrays.asList(
-                        "App.patch deklaratif: SIAP",
-                        "Verifikasi signature remote: WAJIB",
-                        "Staging: SIAP",
-                        "Pratinjau perubahan: SIAP",
-                        "Recovery point sebelum mutasi: WAJIB",
-                        "Apply atomik: SIAP",
-                        "Pemeriksaan kesehatan: SIAP",
-                        "Rollback: SIAP",
-                        "Kode executable baru: memerlukan APK baru"
-                )
+                        "Status • " + kernel.evolutionManager().state().name(),
+                        "Pilih Paket app.patch",
+                        "Pratinjau • " + packageStatus,
+                        "Terapkan Paket Terverifikasi",
+                        "Rollback ke Revisi Dasar",
+                        "Batas • kode executable memerlukan APK baru"
+                ),
+                value -> {
+                    if ("Pilih Paket app.patch".equals(value)) {
+                        closeOverlay();
+                        if (getContext() instanceof WorkspaceHostActions) {
+                            ((WorkspaceHostActions) getContext())
+                                    .requestEvolutionPackage();
+                        } else {
+                            toast("Pemilih app.patch tidak tersedia.");
+                        }
+                    } else if ("Terapkan Paket Terverifikasi".equals(value)) {
+                        try {
+                            com.toolbox.tools.delivery.PatchApplyResult result =
+                                    kernel.evolutionManager().apply();
+                            closeOverlay();
+                            renderAll();
+                            HealthReport health =
+                                    kernel.healthMonitor().inspect(kernel);
+                            toast(
+                                    result.state().name()
+                                            + " • health "
+                                            + health.state().name()
+                            );
+                        } catch (RuntimeException error) {
+                            toast("Paket belum berada pada state siap apply.");
+                        }
+                    } else if ("Rollback ke Revisi Dasar".equals(value)) {
+                        try {
+                            com.toolbox.tools.delivery.PatchApplyResult result =
+                                    kernel.evolutionManager().rollback();
+                            closeOverlay();
+                            renderAll();
+                            toast("Rollback: " + result.state().name());
+                        } catch (RuntimeException error) {
+                            toast("Tidak ada revisi dasar yang dapat di-rollback.");
+                        }
+                    } else if (value.startsWith("Pratinjau")) {
+                        closeOverlay();
+                        showInfoOverlay(
+                                "Pratinjau Evolusi",
+                                Arrays.asList(
+                                        packageStatus,
+                                        "Signature remote: wajib dan diverifikasi sebelum staging siap",
+                                        "Recovery snapshot: dibuat sebelum mutasi",
+                                        "Apply: transaksional",
+                                        "Failure: restore / failed-safe"
+                                )
+                        );
+                    }
+                }
         );
     }
 
