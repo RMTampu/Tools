@@ -14,7 +14,7 @@ failures = int(suite.attrib.get("failures", "0"))
 errors = int(suite.attrib.get("errors", "0"))
 skipped = int(suite.attrib.get("skipped", "0"))
 
-if tests < 3:
+if tests < 4:
     raise SystemExit("PRODUCT_BEHAVIOR_TEST_COUNT_TOO_LOW")
 if failures or errors or skipped:
     raise SystemExit(
@@ -28,6 +28,7 @@ case_names = sorted(
 required = {
     "all135DesignSectionsRequireBehaviorAndPass",
     "completionServicesCoverPreviouslyMissingDomains",
+    "deepContractsCloseFormerMetadataOnlyGaps",
     "behaviorGateIsRepeatable",
 }
 if not required.issubset(set(case_names)):
