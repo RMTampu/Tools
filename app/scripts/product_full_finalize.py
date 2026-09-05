@@ -29,8 +29,8 @@ assert mutation["status"]=="PASS"
 assert mutation["mutationsEscaped"]==0
 
 assert candidate["status"]=="PUBLIC_FULL_PRODUCT_READY_PRIVATE_SIGNING"
-assert candidate["versionCode"]==13
-assert candidate["versionName"]=="13.0-produk-penuh-maksimal"
+assert candidate["versionCode"]==14
+assert candidate["versionName"]=="14.0-visual-first-open-editor"
 assert candidate["baselineStage"]==12
 assert candidate["baselineName"]=="ToolBox Produk Penuh v12"
 assert candidate["baselineVersionCode"]==12
@@ -74,6 +74,11 @@ required_runtime=[
  "PROCESS_DEATH_RESTART=PASS",
  "GFXINFO_RUNTIME=PASS",
  "PSS_BUDGET_RUNTIME=PASS",
+ "UI_CONFIG_MATRIX=PASS",
+ "INSTALLED_APP_PICKER_OPEN=PASS",
+ "BLANK_UI_CANVAS=PASS",
+ "VISUAL_FIRST_MENU=PASS",
+ "BUBBLE_RADIAL=PASS",
  "FLOATING_EDITOR_MOVE_PIN_RESIZE=PASS",
  "EXTERNAL_ASSET_PICKER_ROUTE=PASS",
  "HEALTH_SAFE_MODE_UI=PASS",
@@ -171,15 +176,18 @@ required_android_cases={
     "patchJournalInterruptedStateRollsBackOnDevice",
     "runtimePatchIdentityMatchesInstalledApk",
     "managedExternalEditingDoorUsesRealProviderBackedEditor",
+    "installedApplicationCatalogListsUnmanagedAppsBeforeCapabilityFiltering",
+    "blankVisualCanvasStartsWithoutDemoSurface",
+    "androidBackgroundTaskUsesJobScheduler",
 }
 assert required_android_cases.issubset(android_case_names),(
     required_android_cases-android_case_names
 )
 
 evidence={
- "schemaVersion":13,
+ "schemaVersion":14,
  "projectId":"ToolBox",
- "stage":"Produk Penuh v13 Maksimal",
+ "stage":"Produk Penuh v14 Visual First",
  "status":"PASS",
  "sourceRepository":os.environ.get("GITHUB_REPOSITORY","LOCAL"),
  "sourceCommitSha":os.environ.get("GITHUB_SHA","LOCAL"),

@@ -27,10 +27,10 @@ baseline_firebase_run="33933089444"
 baseline_firebase_matrix="4946808111994836277"
 
 canonical=(
- "TBX_FULL_PRODUCT_CANDIDATE_V3\n"
+ "TBX_FULL_PRODUCT_CANDIDATE_V4\n"
  "com.toolbox.tools\n"
- "13\n"
- "13.0-produk-penuh-maksimal\n"
+ "14\n"
+ "14.0-visual-first-open-editor\n"
  +baseline_name+"\n"
  +str(baseline_version_code)+"\n"
  +baseline+"\n"
@@ -44,8 +44,8 @@ payload={
  "schemaVersion":2,
  "status":"PUBLIC_FULL_PRODUCT_READY_PRIVATE_SIGNING",
  "applicationId":"com.toolbox.tools",
- "versionCode":13,
- "versionName":"13.0-produk-penuh-maksimal",
+ "versionCode":14,
+ "versionName":"14.0-visual-first-open-editor",
  "baselineStage":baseline_version_code,
  "baselineName":baseline_name,
  "baselineVersionCode":baseline_version_code,

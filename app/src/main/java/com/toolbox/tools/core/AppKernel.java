@@ -459,7 +459,7 @@ public final class AppKernel {
             );
             configStore.put("targetApi", "30");
             configStore.put("targetAbi", "arm64");
-            configStore.put("tahap", "produk-penuh-v13-maksimal");
+            configStore.put("tahap", "produk-penuh-v14-visual-first");
             configStore.put("bahasaDefault", "id");
             visibleWorkspaceStore.ensureLayout();
             projectManager.bootstrap(bootstrapProjectId);

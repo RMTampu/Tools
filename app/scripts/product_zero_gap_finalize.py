@@ -77,6 +77,11 @@ for marker in [
     "PROCESS_DEATH_RESTART=PASS",
     "GFXINFO_RUNTIME=PASS",
     "PSS_BUDGET_RUNTIME=PASS",
+    "UI_CONFIG_MATRIX=PASS",
+    "INSTALLED_APP_PICKER_OPEN=PASS",
+    "BLANK_UI_CANVAS=PASS",
+    "VISUAL_FIRST_MENU=PASS",
+    "BUBBLE_RADIAL=PASS",
     "FLOATING_EDITOR_MOVE_PIN_RESIZE=PASS",
     "EXTERNAL_ASSET_PICKER_ROUTE=PASS",
     "HEALTH_SAFE_MODE_UI=PASS",
@@ -145,6 +150,9 @@ required_android_cases={
     "patchJournalInterruptedStateRollsBackOnDevice",
     "runtimePatchIdentityMatchesInstalledApk",
     "managedExternalEditingDoorUsesRealProviderBackedEditor",
+    "installedApplicationCatalogListsUnmanagedAppsBeforeCapabilityFiltering",
+    "blankVisualCanvasStartsWithoutDemoSurface",
+    "androidBackgroundTaskUsesJobScheduler",
 }
 assert required_android_cases.issubset(android_case_names),(
     required_android_cases-android_case_names

@@ -13,8 +13,8 @@
     "certificateSha256": "290fb37d527935766e327781833493400dd647cfc8bdbe433254a2df52e4b8e4"
   },
   "candidate": {
-    "versionCode": 13,
-    "versionName": "13.0-produk-penuh-maksimal"
+    "versionCode": 14,
+    "versionName": "14.0-visual-first-open-editor"
   },
   "firebasePolicy": "REQUIRES_EXPLICIT_USER_PERMISSION",
   "signingPolicy": "PRIVATE_ONLY",

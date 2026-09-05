@@ -8,7 +8,7 @@ OUT=APP/"build"/"assurance"
 OUT.mkdir(parents=True,exist_ok=True)
 plan=json.loads((APP/"ASSET_ASSURANCE_PLAN.json").read_text())
 
-assert plan["stage"]=="Produk Penuh v13 Maksimal"
+assert plan["stage"]=="Produk Penuh v14 Visual First"
 expected={item["path"]:item for item in plan["shippedAndroidAssets"]}
 actual={}
 for base in [APP/"src/main/res",APP/"src/main/assets"]:

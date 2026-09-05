@@ -26,7 +26,7 @@ public final class AppKernelTest {
         assertEquals(AppState.READY, kernel.state());
         assertEquals("30", kernel.configStore().get("targetApi", ""));
         assertEquals("arm64", kernel.configStore().get("targetAbi", ""));
-        assertEquals("produk-penuh-v13-maksimal", kernel.configStore().get("tahap", ""));
+        assertEquals("produk-penuh-v14-visual-first", kernel.configStore().get("tahap", ""));
         assertEquals("id", kernel.configStore().get("bahasaDefault", ""));
         assertNotNull(kernel.runtimeEnvironment());
         assertNotNull(kernel.editorEnvironment());

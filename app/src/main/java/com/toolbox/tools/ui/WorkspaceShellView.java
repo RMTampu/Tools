@@ -4554,6 +4554,12 @@ public final class WorkspaceShellView extends FrameLayout {
         return lastSoakMaxCycleMs;
     }
 
+    public boolean edgeHandleFusedForTest() {
+        return edgeHandle.getBackground() instanceof GradientDrawable
+                && edgeHandle.getElevation()
+                    <= UiKit.dp(getContext(), 4) + 0.5f;
+    }
+
     private void addInfo(LinearLayout parent, String title, String detail) {
         TextView a = UiKit.judul(getContext(), title, 13f);
         a.setTextColor(UiKit.TEKS);

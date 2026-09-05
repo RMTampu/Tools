@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "projectId": "ToolBox",
-  "stage": "Produk Penuh v13 Maksimal",
+  "stage": "Produk Penuh v14 Visual First",
   "stageMap": "FULL_PRODUCT",
   "statusPolicy": {
     "readyRequiresValidation": true,

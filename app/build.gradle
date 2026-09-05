@@ -18,8 +18,8 @@ android {
         applicationId 'com.toolbox.tools'
         minSdk 30
         targetSdk 30
-        versionCode 13
-        versionName '13.0-produk-penuh-maksimal'
+        versionCode 14
+        versionName '14.0-visual-first-open-editor'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
         buildConfigField 'String', 'SOURCE_REPOSITORY',
                 buildString(gitEnv('GITHUB_REPOSITORY', 'RMTampu/Tools'))
