@@ -85,6 +85,20 @@ public final class ToolboxAwareTargetDiscovery {
                     "com.toolbox.PROVIDER_AUTHORITY",
                     ""
             );
+            String baselineApkSha256 = meta.getString(
+                    "com.toolbox.BASELINE_APK_SHA256",
+                    ""
+            );
+            if (baselineApkSha256 != null) {
+                baselineApkSha256 =
+                        baselineApkSha256.trim()
+                                .toLowerCase(Locale.ROOT);
+                if (!baselineApkSha256.matches(
+                        "[0-9a-f]{64}"
+                )) {
+                    baselineApkSha256 = "";
+                }
+            }
             boolean writable = false;
             if (!providerAuthority.trim().isEmpty()) {
                 android.content.pm.ProviderInfo provider =
@@ -111,7 +125,8 @@ public final class ToolboxAwareTargetDiscovery {
                                 .InstalledTargetBridge
                                 .DOOR_MANAGED_RUNTIME,
                         writable,
-                        providerAuthority
+                        providerAuthority,
+                        baselineApkSha256
                 );
                 seen.add(packageName);
             } catch (IllegalArgumentException ignored) {

@@ -60,11 +60,10 @@ public final class EvolutionPackageGateway {
         );
 
         int schemaVersion = root.optInt("schemaVersion", -1);
-        if (schemaVersion != 1
-                && schemaVersion
-                    != PatchManifest.CURRENT_SCHEMA_VERSION) {
+        if (schemaVersion
+                != PatchManifest.CURRENT_SCHEMA_VERSION) {
             throw new IllegalArgumentException(
-                    "schema app.patch tidak didukung"
+                    "app.patch produksi wajib schema V2"
             );
         }
 

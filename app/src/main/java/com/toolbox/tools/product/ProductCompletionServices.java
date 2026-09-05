@@ -741,6 +741,7 @@ public final class ProductCompletionServices {
             private final String editDoor;
             private final boolean writable;
             private final String providerAuthority;
+            private final String baselineApkSha256;
 
             Target(
                     String packageName,
@@ -751,7 +752,8 @@ public final class ProductCompletionServices {
                     long revision,
                     String editDoor,
                     boolean writable,
-                    String providerAuthority
+                    String providerAuthority,
+                    String baselineApkSha256
             ) {
                 this.packageName = packageName;
                 this.label = label;
@@ -764,6 +766,7 @@ public final class ProductCompletionServices {
                 this.editDoor = editDoor;
                 this.writable = writable;
                 this.providerAuthority = providerAuthority;
+                this.baselineApkSha256 = baselineApkSha256;
             }
 
             public String packageName(){return packageName;}
@@ -775,6 +778,7 @@ public final class ProductCompletionServices {
             public String editDoor(){return editDoor;}
             public boolean writable(){return writable;}
             public String providerAuthority(){return providerAuthority;}
+            public String baselineApkSha256(){return baselineApkSha256;}
 
             public boolean toolboxAware(){
                 return DOOR_MANAGED_RUNTIME.equals(editDoor)
@@ -877,6 +881,32 @@ public final class ProductCompletionServices {
                 boolean writable,
                 String providerAuthority
         ) {
+            registerTarget(
+                    packageName,
+                    label,
+                    capabilities,
+                    protocolVersion,
+                    projectId,
+                    revision,
+                    editDoor,
+                    writable,
+                    providerAuthority,
+                    null
+            );
+        }
+
+        public synchronized void registerTarget(
+                String packageName,
+                String label,
+                List<String> capabilities,
+                int protocolVersion,
+                String projectId,
+                long revision,
+                String editDoor,
+                boolean writable,
+                String providerAuthority,
+                String baselineApkSha256
+        ) {
             if (packageName == null
                     || !packageName.contains(".")
                     || label == null
@@ -912,7 +942,8 @@ public final class ProductCompletionServices {
                     revision,
                     editDoor,
                     writable,
-                    normalizeAuthority(providerAuthority)
+                    normalizeAuthority(providerAuthority),
+                    normalizeSha256(baselineApkSha256)
             );
 
             Target existing = targets.get(packageName);
@@ -948,6 +979,18 @@ public final class ProductCompletionServices {
                 );
             }
             return value;
+        }
+
+        private static String normalizeSha256(String value) {
+            if (value == null || value.trim().isEmpty()) return null;
+            String normalized = value.trim()
+                    .toLowerCase(java.util.Locale.ROOT);
+            if (!normalized.matches("[0-9a-f]{64}")) {
+                throw new IllegalArgumentException(
+                        "baseline APK SHA-256 invalid"
+                );
+            }
+            return normalized;
         }
 
         private static int priority(String door) {

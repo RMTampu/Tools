@@ -18,9 +18,9 @@ public final class SafePatchManager {
     private final PatchActivationHook activationHook;
     private final ProjectValidator projectValidator = new ProjectValidator();
     private final PatchTransactionJournal journal;
-    private final String hostPackageName;
-    private final int hostVersionCode;
-    private final java.util.Set<String> hostCapabilities;
+    private String hostPackageName;
+    private int hostVersionCode;
+    private java.util.Set<String> hostCapabilities;
     private String runtimeParentApkSha256;
     private String runtimeRollbackBaselineApkSha256;
     private PatchHealthGate healthGate = PatchHealthGate.PROJECT_ONLY;
@@ -132,24 +132,70 @@ public final class SafePatchManager {
         this.journal = new PatchTransactionJournal(
                 Objects.requireNonNull(runtimeState, "runtimeState")
         );
-        this.hostPackageName = Objects.requireNonNull(
+        bindHostContext(
                 hostPackageName,
-                "hostPackageName"
+                hostVersionCode,
+                hostCapabilities
         );
-        if (hostVersionCode < 1) {
+    }
+
+    public synchronized void bindHostContext(
+            String packageName,
+            int versionCode,
+            java.util.Set<String> capabilities
+    ) {
+        if (packageName == null
+                || !packageName.matches(
+                        "[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)+"
+                )) {
+            throw new IllegalArgumentException(
+                    "hostPackageName invalid"
+            );
+        }
+        if (versionCode < 1) {
             throw new IllegalArgumentException(
                     "hostVersionCode invalid"
             );
         }
-        this.hostVersionCode = hostVersionCode;
-        this.hostCapabilities = java.util.Collections.unmodifiableSet(
-                new java.util.LinkedHashSet<>(
-                        Objects.requireNonNull(
-                                hostCapabilities,
-                                "hostCapabilities"
-                        )
-                )
-        );
+        java.util.LinkedHashSet<String> normalized =
+                new java.util.LinkedHashSet<>();
+        for (String capability : Objects.requireNonNull(
+                capabilities,
+                "hostCapabilities"
+        )) {
+            if (capability == null) continue;
+            String value = capability.trim().toLowerCase(
+                    java.util.Locale.ROOT
+            );
+            if (!java.util.Arrays.asList(
+                    "ui",
+                    "logic",
+                    "data",
+                    "binding",
+                    "asset"
+            ).contains(value)) {
+                throw new IllegalArgumentException(
+                        "host capability invalid:" + capability
+                );
+            }
+            normalized.add(value);
+        }
+        this.hostPackageName = packageName;
+        this.hostVersionCode = versionCode;
+        this.hostCapabilities =
+                java.util.Collections.unmodifiableSet(normalized);
+    }
+
+    public synchronized String hostPackageName() {
+        return hostPackageName;
+    }
+
+    public synchronized int hostVersionCode() {
+        return hostVersionCode;
+    }
+
+    public synchronized java.util.Set<String> hostCapabilities() {
+        return hostCapabilities;
     }
 
     public synchronized void bindRuntimeApkIdentity(
@@ -484,6 +530,10 @@ public final class SafePatchManager {
         }
         if (!manifest.payloadSha256().equals(payload.sha256())) {
             return "patch payload digest mismatch";
+        }
+        if (runtimeApkIdentityBound()
+                && manifest.schemaVersion() < 2) {
+            return "legacy patch schema disabled for bound runtime";
         }
         if (manifest.schemaVersion() >= 2
                 && !runtimeApkIdentityBound()) {

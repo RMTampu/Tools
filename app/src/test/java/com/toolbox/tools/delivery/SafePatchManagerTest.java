@@ -150,6 +150,81 @@ public class SafePatchManagerTest {
     }
 
     @Test
+    public void boundRuntimeRejectsLegacyV1Patch()
+            throws Exception {
+        Fixture f = fixture();
+        long base = f.kernel.projectManager().savedRevision();
+        PatchPayload payload = new PatchPayload(
+                Collections.singletonMap(
+                        "ui.patch.legacy",
+                        "blocked"
+                ),
+                Collections.emptySet()
+        );
+        PatchManifest manifest = manifest(payload, base);
+        f.manager.bindRuntimeApkIdentity(
+                manifest.parentSignedApkSha256(),
+                manifest.rollbackBaselineApkSha256()
+        );
+
+        PatchDryRunResult result = f.manager.dryRun(
+                manifest,
+                payload,
+                sign(f.pair, f.identity, manifest)
+        );
+
+        assertFalse(result.isPass());
+        assertEquals(
+                "legacy patch schema disabled for bound runtime",
+                result.reason()
+        );
+    }
+
+    @Test
+    public void managedTargetHostContextRejectsWrongTargetPackage()
+            throws Exception {
+        Fixture f = fixture();
+        long base = f.kernel.projectManager().savedRevision();
+        PatchPayload payload = new PatchPayload(
+                Collections.singletonMap(
+                        "ui.patch.target",
+                        "blocked"
+                ),
+                Collections.emptySet()
+        );
+        String current = repeat('a');
+        String baseline = repeat('b');
+        f.manager.bindHostContext(
+                "com.example.target",
+                7,
+                new java.util.LinkedHashSet<>(
+                        java.util.Arrays.asList("ui", "asset")
+                )
+        );
+        f.manager.bindRuntimeApkIdentity(current, baseline);
+
+        PatchManifest wrongHost = manifestV2(
+                payload,
+                base,
+                current,
+                baseline
+        );
+        PatchDryRunResult result = f.manager.dryRun(
+                wrongHost,
+                payload,
+                sign(f.pair, f.identity, wrongHost)
+        );
+
+        assertFalse(result.isPass());
+        assertEquals(
+                "patch host compatibility mismatch",
+                result.reason()
+        );
+        assertEquals("com.example.target", f.manager.hostPackageName());
+        assertEquals(7, f.manager.hostVersionCode());
+    }
+
+    @Test
     public void postActivationHealthFailureRollsBackAutomatically()
             throws Exception {
         Fixture f = fixture();

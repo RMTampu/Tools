@@ -31,8 +31,21 @@ public final class InstalledApkIdentity {
     public static InstalledApkIdentity read(Context context)
             throws IOException {
         Objects.requireNonNull(context, "context");
+        return read(context, context.getPackageName());
+    }
+
+    public static InstalledApkIdentity read(
+            Context context,
+            String packageName
+    ) throws IOException {
+        Objects.requireNonNull(context, "context");
+        Objects.requireNonNull(packageName, "packageName");
+        if (!packageName.matches(
+                "[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)+"
+        )) {
+            throw new IOException("installed APK package invalid");
+        }
         PackageManager pm = context.getPackageManager();
-        String packageName = context.getPackageName();
         try {
             ApplicationInfo applicationInfo =
                     pm.getApplicationInfo(packageName, 0);

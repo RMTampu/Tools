@@ -23,6 +23,7 @@ import com.toolbox.tools.core.ProjectLoadResult;
 import com.toolbox.tools.core.VisibleWorkspaceStore;
 import com.toolbox.tools.product.AppLifecycleManager;
 import com.toolbox.tools.product.ProductStoragePolicy;
+import com.toolbox.tools.product.ProductCompletionServices;
 import com.toolbox.tools.ui.StoragePickerHost;
 import com.toolbox.tools.ui.StorageSetupView;
 import com.toolbox.tools.ui.SafeRecoveryView;
@@ -450,8 +451,41 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
                 return false;
             }
 
+            ProductCompletionServices.InstalledTargetBridge.Target
+                    target = source.productServices()
+                            .completion()
+                            .installedTargets
+                            .lookup(packageName);
+            InstalledApkIdentity targetIdentity =
+                    InstalledApkIdentity.read(
+                            this,
+                            packageName
+                    );
+            if (targetIdentity.versionCode()
+                    > Integer.MAX_VALUE) {
+                throw new IOException(
+                        "target versionCode melebihi kontrak app.patch"
+                );
+            }
+            java.util.Set<String> targetCapabilities =
+                    target == null
+                            ? java.util.Collections.emptySet()
+                            : target.capabilities();
+            external.safePatchManager().bindHostContext(
+                    packageName,
+                    (int) targetIdentity.versionCode(),
+                    targetCapabilities
+            );
+            if (target != null
+                    && target.baselineApkSha256() != null) {
+                external.safePatchManager()
+                        .bindRuntimeApkIdentity(
+                                targetIdentity.apkSha256(),
+                                target.baselineApkSha256()
+                        );
+            }
+
             kernel = external;
-            bindRuntimeApkIdentity(kernel);
             externalTargetPackage = packageName;
             resourceController =
                     new RuntimeResourceController(this, kernel);
