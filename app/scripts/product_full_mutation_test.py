@@ -37,6 +37,34 @@ mutations=[
   "test":"com.toolbox.tools.protocol.ManagedAppProtocolTest.rejectsUnsupportedProtocolAndEmptyNegotiation"
  },
  {
+  "name":"patch_host_compatibility_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/delivery/PatchManifest.java",
+  "old":"if (versionCode < minHostVersionCode\n                || versionCode > maxHostVersionCode) {",
+  "new":"if (false) {",
+  "test":"com.toolbox.tools.product.MaximalProductionClosureTest.patchManifestV2ClosesCompatibilityCapabilitiesAndFiles"
+ },
+ {
+  "name":"runtime_pressure_degradation_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/product/ResourceGuard.java",
+  "old":"previewQuality = 0.5f;\n                preloadEnabled = false;\n                releaseGeneration++;",
+  "new":"previewQuality = 1.0f;\n                preloadEnabled = true;\n                releaseGeneration++;",
+  "test":"com.toolbox.tools.product.MaximalProductionClosureTest.memoryPressureActuallyReducesWorkingSetPolicy"
+ },
+ {
+  "name":"patch_journal_phase_persistence_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/delivery/PatchTransactionJournal.java",
+  "old":"state.put(KEY_PHASE, Objects.requireNonNull(phase, \"phase\").name());",
+  "new":"state.remove(KEY_PHASE);",
+  "test":"com.toolbox.tools.product.MaximalProductionClosureTest.interruptedPatchJournalRollsBackOnBootstrap"
+ },
+ {
+  "name":"runtime_state_put_persistence_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/core/FileRuntimeStateStore.java",
+  "old":"values.put(\n                StableId.require(key, \"runtimeStateKey\"),\n                java.util.Objects.requireNonNull(value, \"value\")\n        );\n        persist();",
+  "new":"values.put(\n                StableId.require(key, \"runtimeStateKey\"),\n                java.util.Objects.requireNonNull(value, \"value\")\n        );",
+  "test":"com.toolbox.tools.product.MaximalProductionClosureTest.runtimeStateSurvivesFreshStoreInstance"
+ },
+ {
   "name":"full_product_verifier_bypass",
   "path":APP/"src/main/java/com/toolbox/tools/product/FullProductVerifier.java",
   "old":"&& available.size() == ProductCapability.values().length;",
@@ -69,7 +97,7 @@ for mutation in mutations:
         path.write_text(original)
 
 evidence={
- "schemaVersion":12,
+ "schemaVersion":13,
  "status":"PASS",
  "mutationsTotal":len(mutations),
  "mutationsKilled":len(killed),
