@@ -235,45 +235,66 @@ public final class ProductAcceptanceMatrix {
         pass(101, kernel.declarativeRuntime() != null, "EXECUTABLE_BOUNDARY", failures);
 
         // 102-118: live target, update/freeze, safety, health, performance and integrity.
-        pass(102, completion.contains("installed_target_bridge"), "INSTALLED_TARGET_BRIDGE", failures);
-        pass(103, deliveryReady && deep.contains("update_intent_pipeline"), "DECLARATIVE_UPDATE", failures);
-        pass(104, deliveryReady && deep.contains("update_intent_pipeline"), "UPDATE_PIPELINE", failures);
-        pass(105, completion.contains("freeze_ab_overlay")
-                && s.freeze() != null, "FREEZE_ENGINE", failures);
-        pass(106, completion.contains("freeze_ab_overlay")
-                && s.freeze().state() != null, "FREEZE_STATE_MACHINE", failures);
-        pass(107, repairReady && deep.contains("safe_ui"), "SAFE_MODE_UI", failures);
-        pass(108, repairReady && deep.contains("comprehensive_health"), "HEALTH_CHECK", failures);
-        pass(109, completion.contains("screen_memory_budget"), "MEMORY_ARCHITECTURE", failures);
+        pass(102, installedTargetBridgeContractPass(), "INSTALLED_TARGET_BRIDGE", failures);
+        pass(103, deliveryReady && patchManifestV2ContractPass(), "DECLARATIVE_UPDATE", failures);
+        pass(104, deliveryReady && patchJournalContractPass(), "UPDATE_PIPELINE", failures);
+        pass(105, s.freeze() != null
+                && kernel.runtimeStateStore() != null, "FREEZE_ENGINE", failures);
+        pass(106, s.freeze().state() != null
+                && kernel.runtimeStateStore().snapshot() != null, "FREEZE_STATE_MACHINE", failures);
+        pass(107, repairReady
+                && kernel.safeModeController().readOnlyInspectionAllowed()
+                && kernel.visibleWorkspaceStore() != null, "SAFE_MODE_UI", failures);
+        pass(108, repairReady
+                && kernel.healthMonitor().inspect(kernel) != null
+                && kernel.safePatchManager().journal() != null, "HEALTH_CHECK", failures);
+        pass(109, resourcePressureContractPass(), "MEMORY_ARCHITECTURE", failures);
         pass(110, !s.resources().budgets().isEmpty()
-                && completion.contains("screen_memory_budget"),
+                && resourcePressureContractPass(),
                 "PER_SCREEN_MEMORY", failures);
         pass(111, completion.contains("render_cost")
                 && renderBudgetPass(), "OVERDRAW_RENDERING", failures);
-        pass(112, completion.contains("leak_discipline")
-                && leakDisciplinePass(), "LEAK_DISCIPLINE", failures);
-        pass(113, completion.contains("soak_test") && completion.contains("crash_matrix"), "TEST_BENCHMARK", failures);
-        pass(114, completion.contains("soak_test"), "SOAK_TEST", failures);
-        pass(115, completion.contains("crash_matrix"), "CRASH_TRANSACTION", failures);
-        pass(116, completion.contains("scale_classes"), "SCALE_CLASSES", failures);
-        pass(117, completion.contains("external_integrity"), "EXTERNAL_INTEGRITY", failures);
+        pass(112, leakDisciplinePass()
+                && s.resources().invariantPass(), "LEAK_DISCIPLINE", failures);
+        pass(113, s.benchmark() != null
+                && patchJournalContractPass()
+                && scaleClassesPass(s), "TEST_BENCHMARK", failures);
+        pass(114, s.benchmark() != null
+                && s.resources().budgets().size() >= 2, "SOAK_TEST", failures);
+        pass(115, patchJournalContractPass()
+                && kernel.runtimeStateStore() != null, "CRASH_TRANSACTION", failures);
+        pass(116, scaleClassesPass(s), "SCALE_CLASSES", failures);
+        pass(117, kernel.visibleWorkspaceStore() != null
+                && s.assetLoads() != null
+                && deep.contains("source_of_truth_policy"), "EXTERNAL_INTEGRITY", failures);
         pass(118, completion.contains("immutable_build_package"), "DEPENDENCY_DETERMINISM", failures);
 
         // 119-135: audit, diagnostic policy, source of truth and complete end-to-end architecture.
         pass(119, completion.contains("audit_behavior_gate"), "AUDIT_AGENT", failures);
         pass(120, s.autoRepair() != null, "AUTO_REPAIR_POLICY", failures);
         pass(121, s.diagnostics() != null, "DIAGNOSTIC_CODES", failures);
-        pass(122, completion.contains("saf_user_storage") && projectReady && deep.contains("source_of_truth_policy"), "SOURCE_OF_TRUTH", failures);
+        pass(122, kernel.visibleWorkspaceStore() != null
+                && projectReady
+                && deep.contains("source_of_truth_policy"), "SOURCE_OF_TRUTH", failures);
         pass(123, completionReady && kernelReady, "INVARIANTS", failures);
         pass(124, editorReady && buildReady && projectReady, "PROJECT_TO_APK_FLOW", failures);
         pass(125, editorReady && completion.contains("ui_state_hold"), "UI_EDITOR_FLOW", failures);
-        pass(126, libraryReady && completion.contains("authoritative_inventory"), "ASSET_TO_OBJECT_FLOW", failures);
+        pass(126, libraryReady
+                && kernel.visibleWorkspaceStore() != null
+                && s.assetLoads() != null
+                && s.inventory().complete(), "ASSET_TO_OBJECT_FLOW", failures);
         pass(127, runtimeReady && completion.contains("incremental_validation"), "BINDING_FLOW", failures);
         pass(128, completion.contains("flow_execution"), "LOGIC_FLOW", failures);
-        pass(129, repairReady && deliveryReady, "REPAIR_EVOLUTION_FLOW", failures);
-        pass(130, completion.contains("freeze_ab_overlay"), "FREEZE_FLOW", failures);
-        pass(131, completion.contains("screen_memory_budget") && completion.contains("leak_discipline"), "RAM_ARCHITECTURE", failures);
-        pass(132, completion.contains("saf_user_storage") && s.backups() != null, "STORAGE_ARCHITECTURE", failures);
+        pass(129, repairReady && deliveryReady
+                && kernel.safePatchManager().journal() != null, "REPAIR_EVOLUTION_FLOW", failures);
+        pass(130, s.freeze() != null
+                && kernel.runtimeStateStore() != null, "FREEZE_FLOW", failures);
+        pass(131, resourcePressureContractPass()
+                && leakDisciplinePass(), "RAM_ARCHITECTURE", failures);
+        pass(132, kernel.visibleWorkspaceStore() != null
+                && s.backups() != null
+                && com.toolbox.tools.core.VisibleWorkspaceStore.Area.values().length == 6,
+                "STORAGE_ARCHITECTURE", failures);
         pass(
                 133,
                 specBoundaryPass(kernel),
@@ -419,6 +440,238 @@ public final class ProductAcceptanceMatrix {
                 bad,
                 Collections.emptySet()
         ).isPass();
+    }
+
+    private static boolean installedTargetBridgeContractPass() {
+        try {
+            ProductCompletionServices.InstalledTargetBridge bridge =
+                    new ProductCompletionServices.InstalledTargetBridge();
+            bridge.registerTarget(
+                    "com.example.generic",
+                    "Generic",
+                    java.util.Arrays.asList("ui", "asset"),
+                    0,
+                    "project.com_example_generic",
+                    0,
+                    ProductCompletionServices.InstalledTargetBridge
+                            .DOOR_GENERIC_EDIT,
+                    false
+            );
+            bridge.registerTarget(
+                    "com.example.managed",
+                    "Managed",
+                    java.util.Arrays.asList(
+                            "ui",
+                            "logic",
+                            "data",
+                            "binding",
+                            "asset"
+                    ),
+                    1,
+                    "project.com_example_managed",
+                    3,
+                    ProductCompletionServices.InstalledTargetBridge
+                            .DOOR_MANAGED_RUNTIME,
+                    true
+            );
+            ProductCompletionServices.InstalledTargetBridge.Target managed =
+                    bridge.lookup("com.example.managed");
+            ProductCompletionServices.InstalledTargetBridge.Target generic =
+                    bridge.lookup("com.example.generic");
+            return managed != null
+                    && managed.toolboxAware()
+                    && managed.writable()
+                    && generic != null
+                    && generic.hasEditingDoor()
+                    && !generic.writable()
+                    && bridge.all().size() == 2;
+        } catch (RuntimeException error) {
+            return false;
+        }
+    }
+
+    private static boolean patchManifestV2ContractPass() {
+        try {
+            com.toolbox.tools.delivery.PatchPayload payload =
+                    new com.toolbox.tools.delivery.PatchPayload(
+                            Collections.singletonMap(
+                                    "ui.acceptance.patch",
+                                    "ok"
+                            ),
+                            Collections.emptySet()
+                    );
+            LinkedHashMap<String, String> hashes =
+                    new LinkedHashMap<>();
+            hashes.put("payload", payload.sha256());
+            Set<String> capabilities =
+                    new java.util.LinkedHashSet<>(
+                            java.util.Arrays.asList(
+                                    "ui",
+                                    "asset"
+                            )
+                    );
+            com.toolbox.tools.delivery.PatchManifest manifest =
+                    new com.toolbox.tools.delivery.PatchManifest(
+                            "patch.acceptance.v2",
+                            "project.default",
+                            1,
+                            2,
+                            repeatHex('a'),
+                            repeatHex('b'),
+                            repeatHex('c'),
+                            payload.sha256(),
+                            "DECLARATIVE_PATCH",
+                            "com.toolbox.tools",
+                            "13.0",
+                            13,
+                            13,
+                            Collections.emptySet(),
+                            capabilities,
+                            hashes,
+                            "EVOLUTION"
+                    );
+            return manifest.schemaVersion() == 2
+                    && manifest.canonical()
+                        .startsWith("TBX_PATCH_V2")
+                    && manifest.supportsHost(
+                            "com.toolbox.tools",
+                            13,
+                            capabilities
+                    )
+                    && !manifest.supportsHost(
+                            "com.toolbox.tools",
+                            12,
+                            capabilities
+                    );
+        } catch (RuntimeException error) {
+            return false;
+        }
+    }
+
+    private static boolean patchJournalContractPass() {
+        try {
+            com.toolbox.tools.core.MemoryRuntimeStateStore state =
+                    new com.toolbox.tools.core.MemoryRuntimeStateStore();
+            com.toolbox.tools.delivery.PatchTransactionJournal journal =
+                    new com.toolbox.tools.delivery.PatchTransactionJournal(
+                            state
+                    );
+            com.toolbox.tools.delivery.PatchPayload payload =
+                    new com.toolbox.tools.delivery.PatchPayload(
+                            Collections.singletonMap(
+                                    "ui.acceptance.journal",
+                                    "ok"
+                            ),
+                            Collections.emptySet()
+                    );
+            com.toolbox.tools.delivery.PatchManifest manifest =
+                    new com.toolbox.tools.delivery.PatchManifest(
+                            "patch.acceptance.journal",
+                            "project.default",
+                            1,
+                            2,
+                            repeatHex('1'),
+                            repeatHex('2'),
+                            repeatHex('3'),
+                            payload.sha256()
+                    );
+            journal.begin(manifest, payload);
+            journal.phase(
+                    com.toolbox.tools.delivery
+                            .PatchTransactionJournal.Phase.MUTATING
+            );
+            boolean active = journal.active()
+                    && journal.baseRevision() == 1
+                    && journal.targetRevision() == 2
+                    && "patch.acceptance.journal"
+                        .equals(journal.patchId());
+            journal.clear();
+            return active
+                    && journal.phase()
+                        == com.toolbox.tools.delivery
+                            .PatchTransactionJournal.Phase.IDLE;
+        } catch (RuntimeException error) {
+            return false;
+        }
+    }
+
+    private static boolean resourcePressureContractPass() {
+        try {
+            ResourceGuard guard = new ResourceGuard();
+            guard.applyPressure(ResourceGuard.Pressure.NORMAL);
+            if (guard.previewQuality() != 1.0f
+                    || !guard.preloadEnabled()) {
+                return false;
+            }
+            guard.applyPressure(ResourceGuard.Pressure.REDUCED);
+            if (guard.previewQuality() != 0.75f
+                    || guard.preloadEnabled()) {
+                return false;
+            }
+            int before = guard.releaseGeneration();
+            guard.applyPressure(ResourceGuard.Pressure.CRITICAL);
+            return guard.previewQuality() == 0.5f
+                    && !guard.preloadEnabled()
+                    && guard.releaseGeneration() > before
+                    && guard.invariantPass();
+        } catch (RuntimeException error) {
+            return false;
+        }
+    }
+
+    private static boolean scaleClassesPass(
+            ProductServices services
+    ) {
+        try {
+            ScaleBenchmarkHarness harness = services.benchmark();
+            ScaleBenchmarkHarness.Result small =
+                    harness.estimate(
+                            ScaleBenchmarkHarness.ScaleClass.SMALL,
+                            100,
+                            40,
+                            2L * 1024L * 1024L,
+                            96L * 1024L * 1024L
+                    );
+            ScaleBenchmarkHarness.Result medium =
+                    harness.estimate(
+                            ScaleBenchmarkHarness.ScaleClass.MEDIUM,
+                            800,
+                            100,
+                            8L * 1024L * 1024L,
+                            96L * 1024L * 1024L
+                    );
+            ScaleBenchmarkHarness.Result large =
+                    harness.estimate(
+                            ScaleBenchmarkHarness.ScaleClass.LARGE,
+                            4000,
+                            160,
+                            24L * 1024L * 1024L,
+                            96L * 1024L * 1024L
+                    );
+            ScaleBenchmarkHarness.Result stress =
+                    harness.estimate(
+                            ScaleBenchmarkHarness.ScaleClass.STRESS,
+                            20000,
+                            200,
+                            64L * 1024L * 1024L,
+                            96L * 1024L * 1024L
+                    );
+            return small.withinBudget()
+                    && medium.withinBudget()
+                    && large.withinBudget()
+                    && stress.estimatedWorkingBytes()
+                        > large.estimatedWorkingBytes()
+                    && stress.scaleClass()
+                        == ScaleBenchmarkHarness.ScaleClass.STRESS;
+        } catch (RuntimeException error) {
+            return false;
+        }
+    }
+
+    private static String repeatHex(char value) {
+        char[] out = new char[64];
+        java.util.Arrays.fill(out, value);
+        return new String(out);
     }
 
     private static boolean renderBudgetPass() {
