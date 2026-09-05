@@ -2,6 +2,8 @@ package com.toolbox.tools.ui;
 
 import android.content.Context;
 import android.graphics.Color;
+import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
 import android.view.DragEvent;
 import android.view.Gravity;
 import android.view.MotionEvent;
@@ -420,28 +422,88 @@ public final class UiCanvasView extends FrameLayout {
 
         primaryButton = UiKit.judul(
                 c,
-                resource("ui.object.home.primary.text", "Buka Detail"),
-                floatResource("ui.object.home.primary.text.size.sp", 13f)
+                primaryDisplayText(),
+                floatResource(
+                        "ui.object.home.primary.text.size.sp",
+                        13f
+                )
         );
         primaryButton.setGravity(Gravity.CENTER);
         primaryButton.setTextColor(buttonTextColor());
-        int radius = intResource("ui.object.home.primary.radius.dp", 14);
-        int border = intResource("ui.object.home.primary.border.dp", 1);
-        int fill = buttonColor();
-        primaryButton.setBackground(UiKit.kartuPx(
-                c,
-                fill,
-                fill == UiKit.NEON ? UiKit.NEON_BIRU : UiKit.NEON,
-                radius,
-                border
-        ));
+        primaryButton.setBackground(primaryBackground());
 
-        int padding = intResource("ui.object.home.primary.padding.dp", 12);
+        int padding = intResource(
+                "ui.object.home.primary.padding.dp",
+                12
+        );
         primaryButton.setPadding(
-                UiKit.dp(c, padding),
-                UiKit.dp(c, 6),
-                UiKit.dp(c, padding),
-                UiKit.dp(c, 6)
+                UiKit.dp(
+                        c,
+                        intResource(
+                                "ui.object.home.primary.padding.left.dp",
+                                padding
+                        )
+                ),
+                UiKit.dp(
+                        c,
+                        intResource(
+                                "ui.object.home.primary.padding.top.dp",
+                                6
+                        )
+                ),
+                UiKit.dp(
+                        c,
+                        intResource(
+                                "ui.object.home.primary.padding.right.dp",
+                                padding
+                        )
+                ),
+                UiKit.dp(
+                        c,
+                        intResource(
+                                "ui.object.home.primary.padding.bottom.dp",
+                                6
+                        )
+                )
+        );
+        int weight = intResource(
+                "ui.object.home.primary.text.weight",
+                600
+        );
+        boolean italic = boolResource(
+                "ui.object.home.primary.text.italic",
+                false
+        );
+        primaryButton.setTypeface(
+                primaryButton.getTypeface(),
+                (weight >= 600 ? Typeface.BOLD : Typeface.NORMAL)
+                        | (italic ? Typeface.ITALIC : Typeface.NORMAL)
+        );
+        primaryButton.setLetterSpacing(clamp(
+                floatResource(
+                        "ui.object.home.primary.text.letterSpacing",
+                        0f
+                ),
+                -0.05f,
+                0.5f
+        ));
+        primaryButton.setMaxLines(Math.max(
+                1,
+                Math.min(
+                        8,
+                        intResource(
+                                "ui.object.home.primary.text.maxLines",
+                                1
+                        )
+                )
+        ));
+        primaryButton.setAllCaps(
+                "upper".equalsIgnoreCase(
+                        resource(
+                                "ui.object.home.primary.text.case",
+                                "normal"
+                        )
+                )
         );
         primaryButton.setAlpha(clamp(floatResource(
                 "ui.object.home.primary.opacity",
@@ -451,12 +513,44 @@ public final class UiCanvasView extends FrameLayout {
                 "ui.object.home.primary.rotation",
                 0f
         ));
-        float scale = clamp(floatResource(
-                "ui.object.home.primary.scale",
-                1f
-        ), 0.2f, 3f);
-        primaryButton.setScaleX(scale);
-        primaryButton.setScaleY(scale);
+        float scale = clamp(
+                floatResource(
+                        "ui.object.home.primary.scale",
+                        1f
+                ),
+                0.2f,
+                3f
+        );
+        float scaleX = clamp(
+                floatResource(
+                        "ui.object.home.primary.scale.x",
+                        scale
+                ),
+                0.2f,
+                3f
+        );
+        float scaleY = clamp(
+                floatResource(
+                        "ui.object.home.primary.scale.y",
+                        scale
+                ),
+                0.2f,
+                3f
+        );
+        if (boolResource(
+                "ui.object.home.primary.flip.x",
+                false
+        )) {
+            scaleX = -scaleX;
+        }
+        if (boolResource(
+                "ui.object.home.primary.flip.y",
+                false
+        )) {
+            scaleY = -scaleY;
+        }
+        primaryButton.setScaleX(scaleX);
+        primaryButton.setScaleY(scaleY);
         primaryButton.setElevation(UiKit.dp(
                 c,
                 intResource("ui.object.home.primary.elevation.dp", 4)
@@ -514,13 +608,29 @@ public final class UiCanvasView extends FrameLayout {
                 UiKit.dp(c, buttonWidth),
                 UiKit.dp(c, buttonHeight)
         );
+        int margin = intResource(
+                "ui.object.home.primary.margin.dp",
+                0
+        );
         buttonParams.leftMargin = UiKit.dp(
                 c,
-                intResource("ui.object.home.primary.position.x.dp", 18)
+                intResource(
+                        "ui.object.home.primary.position.x.dp",
+                        18
+                ) + intResource(
+                        "ui.object.home.primary.margin.left.dp",
+                        margin
+                )
         );
         buttonParams.topMargin = UiKit.dp(
                 c,
-                intResource("ui.object.home.primary.position.y.dp", 50)
+                intResource(
+                        "ui.object.home.primary.position.y.dp",
+                        50
+                ) + intResource(
+                        "ui.object.home.primary.margin.top.dp",
+                        margin
+                )
         );
         freeArea.addView(primaryButton, buttonParams);
         renderDroppedObjects(freeArea);
@@ -1200,21 +1310,160 @@ public final class UiCanvasView extends FrameLayout {
         }
     }
 
-    private int buttonColor() {
-        String value = resource(
+    private String primaryDisplayText() {
+        String text = resource(
+                "ui.object.home.primary.text",
+                "Buka Detail"
+        );
+        String icon = resource(
+                "ui.object.home.primary.icon",
+                ""
+        ).trim();
+        String placement = resource(
+                "ui.object.home.primary.icon.placement",
+                "start"
+        );
+        if (icon.isEmpty() || "none".equalsIgnoreCase(icon)) {
+            return text;
+        }
+        return "end".equalsIgnoreCase(placement)
+                ? text + "  " + icon
+                : icon + "  " + text;
+    }
+
+    private GradientDrawable primaryBackground() {
+        String colorSpec = resource(
                 "ui.object.home.primary.color",
                 "neon"
         );
-        if ("blue".equals(value)) return UiKit.NEON_BIRU;
-        if ("surface".equals(value)) return UiKit.PERMUKAAN_2;
-        return UiKit.NEON;
+        GradientDrawable background;
+        if (colorSpec.startsWith("gradient:")) {
+            String[] parts = colorSpec
+                    .substring("gradient:".length())
+                    .split(",");
+            if (parts.length == 2) {
+                background = new GradientDrawable(
+                        GradientDrawable.Orientation.LEFT_RIGHT,
+                        new int[] {
+                                parseColor(parts[0], UiKit.NEON),
+                                parseColor(parts[1], UiKit.NEON_BIRU)
+                        }
+                );
+            } else {
+                background = new GradientDrawable();
+                background.setColor(buttonColor());
+            }
+        } else {
+            background = new GradientDrawable();
+            background.setColor(buttonColor());
+        }
+
+        float density = getResources()
+                .getDisplayMetrics()
+                .density;
+        int baseRadius = intResource(
+                "ui.object.home.primary.radius.dp",
+                14
+        );
+        float tl = intResource(
+                "ui.object.home.primary.radius.topLeft.dp",
+                baseRadius
+        ) * density;
+        float tr = intResource(
+                "ui.object.home.primary.radius.topRight.dp",
+                baseRadius
+        ) * density;
+        float br = intResource(
+                "ui.object.home.primary.radius.bottomRight.dp",
+                baseRadius
+        ) * density;
+        float bl = intResource(
+                "ui.object.home.primary.radius.bottomLeft.dp",
+                baseRadius
+        ) * density;
+        background.setCornerRadii(new float[] {
+                tl, tl,
+                tr, tr,
+                br, br,
+                bl, bl
+        });
+
+        int border = Math.max(
+                0,
+                intResource(
+                        "ui.object.home.primary.border.dp",
+                        1
+                )
+        );
+        int borderColor = parseColor(
+                resource(
+                        "ui.object.home.primary.border.color",
+                        buttonColor() == UiKit.NEON
+                                ? "blue"
+                                : "neon"
+                ),
+                UiKit.NEON_BIRU
+        );
+        if (border > 0) {
+            background.setStroke(
+                    UiKit.dp(getContext(), border),
+                    borderColor
+            );
+        }
+        return background;
+    }
+
+    private int buttonColor() {
+        return parseColor(
+                resource(
+                        "ui.object.home.primary.color",
+                        "neon"
+                ),
+                UiKit.NEON
+        );
     }
 
     private int buttonTextColor() {
-        return "surface".equals(resource(
-                "ui.object.home.primary.color",
-                "neon"
-        )) ? UiKit.TEKS : UiKit.LATAR;
+        return parseColor(
+                resource(
+                        "ui.object.home.primary.text.color",
+                        "surface".equals(resource(
+                                "ui.object.home.primary.color",
+                                "neon"
+                        ))
+                                ? "text"
+                                : "background"
+                ),
+                UiKit.LATAR
+        );
+    }
+
+    private int parseColor(
+            String raw,
+            int fallback
+    ) {
+        if (raw == null) return fallback;
+        String value = raw.trim();
+        if ("neon".equalsIgnoreCase(value)) return UiKit.NEON;
+        if ("blue".equalsIgnoreCase(value)) return UiKit.NEON_BIRU;
+        if ("surface".equalsIgnoreCase(value)) {
+            return UiKit.PERMUKAAN_2;
+        }
+        if ("text".equalsIgnoreCase(value)) return UiKit.TEKS;
+        if ("background".equalsIgnoreCase(value)) return UiKit.LATAR;
+        if (value.startsWith("gradient:")) {
+            String[] parts = value
+                    .substring("gradient:".length())
+                    .split(",");
+            if (parts.length > 0) {
+                return parseColor(parts[0], fallback);
+            }
+        }
+        try {
+            return Color.parseColor(value);
+        } catch (IllegalArgumentException error) {
+            return fallback;
+        }
     }
 
     private String resource(String id, String fallback) {
