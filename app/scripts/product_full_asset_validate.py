@@ -35,6 +35,18 @@ for rel,item in sorted(expected.items()):
         assert data["invariants"]["implementationRequired"] is True
         assert data["invariants"]["ownerRequired"] is True
         assert data["invariants"]["unknownAllowed"] is False
+    elif item["type"] in {
+        "ANDROID_VECTOR_XML",
+        "ANDROID_ADAPTIVE_ICON_XML",
+    }:
+        root=ET.parse(path).getroot()
+        tag=root.tag.split("}")[-1]
+        if item["type"]=="ANDROID_VECTOR_XML":
+            assert tag=="vector"
+        else:
+            assert tag=="adaptive-icon"
+            children={child.tag.split("}")[-1] for child in root}
+            assert {"background","foreground"}.issubset(children)
     elif item["type"] == "ANDROID_WEBP":
         raw=path.read_bytes()
         assert len(raw)>=16
