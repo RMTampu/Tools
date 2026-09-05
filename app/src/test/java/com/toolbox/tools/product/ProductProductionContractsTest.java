@@ -1,5 +1,6 @@
 package com.toolbox.tools.product;
 
+import com.toolbox.tools.core.AppKernel;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -91,6 +92,37 @@ public final class ProductProductionContractsTest {
         assertNotNull(l.formatDate(0,"id-ID"));
         assertTrue(l.isRtl("ar"));
         assertFalse(l.isRtl("id"));
+    }
+
+    @Test public void freezeMaintainsFrozenBaseAndRecoverySlots() throws Exception {
+        AppKernel kernel = AppKernel.createDefault();
+        FreezeEngine freeze = kernel.productServices().freeze();
+        freeze.freeze();
+        long initial = freeze.frozenRevision();
+        assertTrue(initial > 0);
+        assertEquals(initial, freeze.recoveryARevision());
+        assertTrue(freeze.hasFrozenBase());
+
+        Map<String,String> change = new LinkedHashMap<>();
+        change.put("ui.screen.home.title", "Working");
+        kernel.projectManager().applyResourceTransaction(
+                change,
+                Collections.emptySet()
+        );
+        freeze.commit();
+        assertTrue(freeze.frozenRevision() >= initial);
+        assertEquals(initial, freeze.recoveryBRevision());
+
+        Map<String,String> second = new LinkedHashMap<>();
+        second.put("ui.screen.home.title", "Temporary");
+        kernel.projectManager().applyResourceTransaction(
+                second,
+                Collections.emptySet()
+        );
+        freeze.recover();
+        assertEquals(FreezeEngine.State.FROZEN, freeze.state());
+        freeze.thaw();
+        assertEquals(FreezeEngine.State.NORMAL, freeze.state());
     }
 
     @Test public void resourceGuardHasRealPerScreenBudgetsAndLeakTrend() {
