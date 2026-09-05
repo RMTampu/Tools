@@ -7,6 +7,7 @@ import android.widget.Toast;
 import android.os.Bundle;
 import android.view.Window;
 
+import com.toolbox.tools.android.EvolutionPackageGateway;
 import com.toolbox.tools.android.ExternalAssetGateway;
 import com.toolbox.tools.android.SafProjectAccessGateway;
 import com.toolbox.tools.android.SafProjectStore;
@@ -27,6 +28,7 @@ import java.util.LinkedHashMap;
 public final class MainActivity extends Activity implements StoragePickerHost, WorkspaceHostActions {
     private static final int REQUEST_TOOLBOX_TREE = 4301;
     private static final int REQUEST_EXTERNAL_ASSET = 4302;
+    private static final int REQUEST_EVOLUTION_PACKAGE = 4303;
     private static final String PREFS = "toolbox.storage";
     private static final String KEY_TREE_URI = "project.tree.uri";
 
@@ -34,6 +36,8 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
     private WorkspaceShellView shell;
     private final SafProjectAccessGateway safGateway = new SafProjectAccessGateway();
     private final ExternalAssetGateway externalAssets = new ExternalAssetGateway();
+    private final EvolutionPackageGateway evolutionPackages = new EvolutionPackageGateway();
+    private String evolutionStatus = "Belum ada paket staged";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,6 +92,10 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
         }
         if (requestCode == REQUEST_EXTERNAL_ASSET) {
             importExternalAsset(data);
+            return;
+        }
+        if (requestCode == REQUEST_EVOLUTION_PACKAGE) {
+            importEvolutionPackage(data);
             return;
         }
         if (requestCode != REQUEST_TOOLBOX_TREE) return;
@@ -161,6 +169,59 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
                 id + ".name"
         );
         return name == null ? id : name;
+    }
+
+    @Override
+    public void requestEvolutionPackage() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/json");
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        startActivityForResult(intent, REQUEST_EVOLUTION_PACKAGE);
+    }
+
+    @Override
+    public String evolutionPackageStatus() {
+        return evolutionStatus;
+    }
+
+    private void importEvolutionPackage(Intent data) {
+        try {
+            EvolutionPackageGateway.Package value =
+                    evolutionPackages.read(
+                            getContentResolver(),
+                            data.getData()
+                    );
+            kernel.evolutionManager().reset();
+            kernel.evolutionManager().stage(
+                    value.manifest(),
+                    value.payload(),
+                    value.proof()
+            );
+            if (!kernel.evolutionManager().validate()) {
+                evolutionStatus = "Ditolak • signature/hash tidak valid";
+                Toast.makeText(
+                        this,
+                        evolutionStatus,
+                        Toast.LENGTH_LONG
+                ).show();
+                return;
+            }
+            evolutionStatus = kernel.evolutionManager().preview();
+            renderShell();
+            Toast.makeText(
+                    this,
+                    "Paket evolusi terverifikasi dan siap diterapkan.",
+                    Toast.LENGTH_LONG
+            ).show();
+        } catch (Exception error) {
+            evolutionStatus = "Ditolak • " + error.getMessage();
+            Toast.makeText(
+                    this,
+                    evolutionStatus,
+                    Toast.LENGTH_LONG
+            ).show();
+        }
     }
 
     private void importExternalAsset(Intent data) {
@@ -282,5 +343,9 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
 
     public AppKernel kernelForTest() {
         return kernel;
+    }
+
+    public WorkspaceShellView shellForTest() {
+        return shell;
     }
 }
