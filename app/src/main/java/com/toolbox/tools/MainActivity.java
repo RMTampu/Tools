@@ -297,7 +297,7 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
                     );
                     return result;
                 }
-            } catch (RuntimeException ignored) {
+            } catch (IOException | RuntimeException ignored) {
                 // Fallback app-private dipakai sampai user melakukan relink.
             }
         }
