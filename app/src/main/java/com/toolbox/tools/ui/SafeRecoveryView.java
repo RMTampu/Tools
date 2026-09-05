@@ -7,6 +7,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.toolbox.tools.core.ProjectManager;
+import com.toolbox.tools.core.RecoveryCandidate;
 import com.toolbox.tools.core.ProjectValidationResult;
 import com.toolbox.tools.core.ProjectValidator;
 import com.toolbox.tools.core.VisibleWorkspaceStore;
@@ -145,6 +146,21 @@ public final class SafeRecoveryView extends LinearLayout {
         );
         addButton(
                 card,
+                "Pulihkan Snapshot Known-Good",
+                this::restoreKnownGood
+        );
+        addButton(
+                card,
+                "Karantina Project Aktif",
+                this::quarantineProject
+        );
+        addButton(
+                card,
+                "Lepas Karantina Project",
+                this::releaseProjectQuarantine
+        );
+        addButton(
+                card,
                 "Inspeksi Read-Only",
                 this::inspectReadOnly
         );
@@ -220,6 +236,70 @@ public final class SafeRecoveryView extends LinearLayout {
         } catch (IOException | RuntimeException error) {
             safeMode.enter();
             toast("Working state gagal dipulihkan.");
+        }
+        render();
+    }
+
+    private void restoreKnownGood() {
+        try {
+            RecoveryCandidate selected = null;
+            for (RecoveryCandidate candidate
+                    : projects.recoveryCandidates()) {
+                if (candidate.kind()
+                        == RecoveryCandidate.Kind
+                            .FINAL_RECOVERY_SNAPSHOT) {
+                    selected = candidate;
+                    break;
+                }
+                if (selected == null
+                        && candidate.kind()
+                            == RecoveryCandidate.Kind
+                                .LAST_VALID_RECOVERY) {
+                    selected = candidate;
+                }
+                if (selected == null
+                        && candidate.kind()
+                            == RecoveryCandidate.Kind
+                                .LAST_VALID_REVISION) {
+                    selected = candidate;
+                }
+            }
+            if (selected == null) {
+                toast("Snapshot known-good tidak tersedia.");
+                return;
+            }
+            projects.restoreRecoveryCandidate(selected);
+            toast(
+                    "Snapshot dipulihkan • revisi "
+                            + projects.savedRevision()
+            );
+        } catch (IOException | RuntimeException error) {
+            safeMode.enter();
+            toast("Pemulihan snapshot gagal.");
+        }
+        render();
+    }
+
+    private void quarantineProject() {
+        try {
+            safeMode.quarantine(
+                    projects.current().projectId()
+            );
+            toast("Project aktif masuk karantina.");
+        } catch (RuntimeException error) {
+            toast("Karantina project gagal.");
+        }
+        render();
+    }
+
+    private void releaseProjectQuarantine() {
+        try {
+            safeMode.removeFromQuarantine(
+                    projects.current().projectId()
+            );
+            toast("Karantina project dilepas.");
+        } catch (RuntimeException error) {
+            toast("Karantina tidak dapat dilepas.");
         }
         render();
     }
