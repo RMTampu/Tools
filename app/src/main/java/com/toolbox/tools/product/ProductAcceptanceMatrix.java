@@ -214,8 +214,20 @@ public final class ProductAcceptanceMatrix {
         pass(74, completion.contains("access_relink"), "ACCESS_RELINK", failures);
         pass(75, projectReady && completion.contains("external_integrity"), "PROJECT_SECURITY", failures);
         pass(76, kernel.remotePatchVerifier() != null, "SECRET_SEPARATION", failures);
-        pass(77, s.importSecurity() != null && deep.contains("import_security_deep"), "IMPORT_SECURITY", failures);
-        pass(78, s.importMerge() != null, "IMPORT_MERGE", failures);
+        pass(
+                77,
+                s.importSecurity() != null
+                        && importSecurityContractPass(s),
+                "IMPORT_SECURITY",
+                failures
+        );
+        pass(
+                78,
+                s.importMerge() != null
+                        && importMergeContractPass(s),
+                "IMPORT_MERGE",
+                failures
+        );
         pass(79, kernel.externalIntegrationManager() != null && deep.contains("full_project_export"), "EXPORT_CONTRACT", failures);
         pass(
                 80,
