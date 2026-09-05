@@ -659,6 +659,237 @@ public final class EditorPaneFactory {
         );
         addEditableProperty(
                 root, c, fields,
+                prefix + ".icon",
+                "Ikon / simbol",
+                resources.getOrDefault(prefix + ".icon", "")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".icon.placement",
+                "Posisi ikon start/end",
+                resources.getOrDefault(
+                        prefix + ".icon.placement",
+                        "start"
+                )
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".padding.dp",
+                "Padding umum (dp)",
+                resources.getOrDefault(prefix + ".padding.dp", "12")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".padding.left.dp",
+                "Padding kiri (dp)",
+                resources.getOrDefault(prefix + ".padding.left.dp", "12")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".padding.top.dp",
+                "Padding atas (dp)",
+                resources.getOrDefault(prefix + ".padding.top.dp", "6")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".padding.right.dp",
+                "Padding kanan (dp)",
+                resources.getOrDefault(prefix + ".padding.right.dp", "12")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".padding.bottom.dp",
+                "Padding bawah (dp)",
+                resources.getOrDefault(prefix + ".padding.bottom.dp", "6")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".margin.dp",
+                "Margin umum (dp)",
+                resources.getOrDefault(prefix + ".margin.dp", "0")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".margin.left.dp",
+                "Margin kiri (dp)",
+                resources.getOrDefault(prefix + ".margin.left.dp", "0")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".margin.top.dp",
+                "Margin atas (dp)",
+                resources.getOrDefault(prefix + ".margin.top.dp", "0")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".radius.dp",
+                "Radius umum (dp)",
+                resources.getOrDefault(prefix + ".radius.dp", "14")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".radius.topLeft.dp",
+                "Radius kiri atas (dp)",
+                resources.getOrDefault(
+                        prefix + ".radius.topLeft.dp",
+                        "14"
+                )
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".radius.topRight.dp",
+                "Radius kanan atas (dp)",
+                resources.getOrDefault(
+                        prefix + ".radius.topRight.dp",
+                        "14"
+                )
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".radius.bottomRight.dp",
+                "Radius kanan bawah (dp)",
+                resources.getOrDefault(
+                        prefix + ".radius.bottomRight.dp",
+                        "14"
+                )
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".radius.bottomLeft.dp",
+                "Radius kiri bawah (dp)",
+                resources.getOrDefault(
+                        prefix + ".radius.bottomLeft.dp",
+                        "14"
+                )
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".border.dp",
+                "Border (dp)",
+                resources.getOrDefault(prefix + ".border.dp", "1")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".border.color",
+                "Warna border (token / HEX)",
+                resources.getOrDefault(
+                        prefix + ".border.color",
+                        "blue"
+                )
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".color",
+                "Warna / gradient",
+                resources.getOrDefault(prefix + ".color", "neon")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".text.color",
+                "Warna teks",
+                resources.getOrDefault(
+                        prefix + ".text.color",
+                        "background"
+                )
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".text.size.sp",
+                "Ukuran teks (sp)",
+                resources.getOrDefault(
+                        prefix + ".text.size.sp",
+                        "13"
+                )
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".text.weight",
+                "Berat teks 100..900",
+                resources.getOrDefault(
+                        prefix + ".text.weight",
+                        "600"
+                )
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".text.italic",
+                "Italic true/false",
+                resources.getOrDefault(
+                        prefix + ".text.italic",
+                        "false"
+                )
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".text.letterSpacing",
+                "Letter spacing -0.05..0.5",
+                resources.getOrDefault(
+                        prefix + ".text.letterSpacing",
+                        "0"
+                )
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".text.maxLines",
+                "Maksimum baris 1..8",
+                resources.getOrDefault(
+                        prefix + ".text.maxLines",
+                        "1"
+                )
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".text.case",
+                "Case normal/upper",
+                resources.getOrDefault(
+                        prefix + ".text.case",
+                        "normal"
+                )
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".rotation",
+                "Rotasi derajat",
+                resources.getOrDefault(prefix + ".rotation", "0")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".scale.x",
+                "Skala X 0.2..3",
+                resources.getOrDefault(prefix + ".scale.x", "1")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".scale.y",
+                "Skala Y 0.2..3",
+                resources.getOrDefault(prefix + ".scale.y", "1")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".flip.x",
+                "Flip X true/false",
+                resources.getOrDefault(prefix + ".flip.x", "false")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".flip.y",
+                "Flip Y true/false",
+                resources.getOrDefault(prefix + ".flip.y", "false")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".accessibility.label",
+                "Label aksesibilitas",
+                resources.getOrDefault(
+                        prefix + ".accessibility.label",
+                        resources.getOrDefault(
+                                prefix + ".text",
+                                "Buka Detail"
+                        )
+                )
+        );
+        addEditableProperty(
+                root, c, fields,
                 prefix + ".opacity",
                 "Opasitas 0..1",
                 resources.getOrDefault(prefix + ".opacity", "1.0")
@@ -776,6 +1007,70 @@ public final class EditorPaneFactory {
                         "opasitas harus 0..1"
                 );
             }
+        }
+        if (key.endsWith(".text.italic")
+                || key.endsWith(".flip.x")
+                || key.endsWith(".flip.y")) {
+            if (!"true".equalsIgnoreCase(value)
+                    && !"false".equalsIgnoreCase(value)) {
+                throw new IllegalArgumentException(
+                        "nilai boolean harus true/false"
+                );
+            }
+        }
+        if (key.endsWith(".text.weight")) {
+            int weight = Integer.parseInt(value);
+            if (weight < 100 || weight > 900) {
+                throw new IllegalArgumentException(
+                        "weight harus 100..900"
+                );
+            }
+        }
+        if (key.endsWith(".text.maxLines")) {
+            int maxLines = Integer.parseInt(value);
+            if (maxLines < 1 || maxLines > 8) {
+                throw new IllegalArgumentException(
+                        "maxLines harus 1..8"
+                );
+            }
+        }
+        if (key.endsWith(".text.letterSpacing")) {
+            float spacing = Float.parseFloat(value);
+            if (spacing < -0.05f || spacing > 0.5f) {
+                throw new IllegalArgumentException(
+                        "letterSpacing harus -0.05..0.5"
+                );
+            }
+        }
+        if (key.endsWith(".scale.x")
+                || key.endsWith(".scale.y")) {
+            float scale = Float.parseFloat(value);
+            if (scale < 0.2f || scale > 3f) {
+                throw new IllegalArgumentException(
+                        "scale harus 0.2..3"
+                );
+            }
+        }
+        if (key.endsWith(".text.case")
+                && !"normal".equalsIgnoreCase(value)
+                && !"upper".equalsIgnoreCase(value)) {
+            throw new IllegalArgumentException(
+                    "case harus normal/upper"
+            );
+        }
+        if (key.endsWith(".icon.placement")
+                && !"start".equalsIgnoreCase(value)
+                && !"end".equalsIgnoreCase(value)) {
+            throw new IllegalArgumentException(
+                    "posisi ikon harus start/end"
+            );
+        }
+        if ((key.endsWith(".color")
+                || key.endsWith(".border.color"))
+                && value.length() > 80) {
+            throw new IllegalArgumentException(
+                    "nilai warna terlalu panjang"
+            );
         }
         if (key.endsWith(".dp")) {
             int number = Integer.parseInt(value);
