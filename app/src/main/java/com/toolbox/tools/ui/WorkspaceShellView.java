@@ -1,6 +1,8 @@
 package com.toolbox.tools.ui;
 
 import android.content.Context;
+import android.content.SharedPreferences;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
@@ -8,7 +10,6 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
-import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -19,37 +20,56 @@ import com.toolbox.tools.core.AppKernel;
 import com.toolbox.tools.editor.EdgeItem;
 import com.toolbox.tools.editor.EdgePanelModel;
 import com.toolbox.tools.editor.EditorMode;
+import com.toolbox.tools.editor.VisualCapability;
 import com.toolbox.tools.editor.VisualCapabilitySet;
-import com.toolbox.tools.product.FullProductVerifier;
 import com.toolbox.tools.product.FreezeEngine;
+import com.toolbox.tools.product.FullProductVerifier;
 import com.toolbox.tools.repair.HealthReport;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public final class WorkspaceShellView extends FrameLayout {
+    private enum Screen {
+        HOME,
+        EDITOR_CHOOSER,
+        EDITOR_WORKSPACE
+    }
+
     private enum Representation {
-        VISUAL, PROPERTI, KODE
+        VISUAL,
+        PROPERTI,
+        KODE
+    }
+
+    private enum PanelPage {
+        ROOT,
+        FUNCTIONS,
+        REPRESENTATION,
+        MODES,
+        CONTEXT
     }
 
     private final AppKernel kernel;
-    private final LinearLayout topActions;
-    private final LinearLayout representationBar;
-    private final LinearLayout runtimeModeBar;
     private final FrameLayout workspace;
-    private final LinearLayout bottomTools;
     private final FrameLayout edgeContainer;
     private final LinearLayout edgeContent;
     private final TextView edgeHandle;
-    private final TextView bubble;
     private final FrameLayout overlayLayer;
-    private final TextView statusLine;
+    private final TextView bubble;
 
-    private AuthoringSection active = AuthoringSection.UI;
+    private Screen screen = Screen.HOME;
+    private PanelPage panelPage = PanelPage.ROOT;
     private Representation representation = Representation.VISUAL;
+    private AuthoringSection active = AuthoringSection.UI;
+    private String editorEntry = "Proyek Tersimpan";
     private boolean edgeOpen = true;
+
     private boolean bubbleDragging;
     private float bubbleDownX;
     private float bubbleDownY;
@@ -62,121 +82,11 @@ public final class WorkspaceShellView extends FrameLayout {
         setBackgroundColor(UiKit.LATAR);
         setClipChildren(false);
 
-        LinearLayout body = UiKit.kolom(context);
-        body.setBackgroundColor(UiKit.LATAR);
-        addView(body, new FrameLayout.LayoutParams(
-                LayoutParams.MATCH_PARENT,
-                LayoutParams.MATCH_PARENT
-        ));
-
-        topActions = UiKit.baris(context);
-        topActions.setPadding(
-                UiKit.dp(context, 12),
-                UiKit.dp(context, 8),
-                UiKit.dp(context, 12),
-                UiKit.dp(context, 6)
-        );
-        body.addView(topActions, new LinearLayout.LayoutParams(
-                LayoutParams.MATCH_PARENT,
-                UiKit.dp(context, 58)
-        ));
-
-        LinearLayout titleBlock = UiKit.kolom(context);
-        TextView title = UiKit.judul(context, "ToolBox", 21f);
-        title.setTextColor(UiKit.NEON);
-        TextView subtitle = UiKit.teks(
-                context,
-                "Proyek Demo • Produk Penuh • Bahasa Indonesia",
-                10.5f,
-                UiKit.TEKS_REDUP
-        );
-        titleBlock.addView(title);
-        titleBlock.addView(subtitle);
-        topActions.addView(titleBlock, new LinearLayout.LayoutParams(
-                0,
-                LayoutParams.MATCH_PARENT,
-                1
-        ));
-
-        TextView simpan = actionSmall("Simpan");
-        simpan.setOnClickListener(v -> saveProject());
-        topActions.addView(simpan);
-
-        TextView batal = actionSmall("Urungkan");
-        batal.setOnClickListener(v -> undo());
-        topActions.addView(batal);
-
-        TextView ulangi = actionSmall("Ulangi");
-        ulangi.setOnClickListener(v -> redo());
-        topActions.addView(ulangi);
-
-        TextView alat = actionSmall("Alat");
-        alat.setOnClickListener(v -> showTools());
-        topActions.addView(alat);
-
-        representationBar = UiKit.baris(context);
-        representationBar.setPadding(
-                UiKit.dp(context, 10), 0,
-                UiKit.dp(context, 10), 0
-        );
-        body.addView(horizontal(representationBar), new LinearLayout.LayoutParams(
-                LayoutParams.MATCH_PARENT,
-                UiKit.dp(context, 44)
-        ));
-
-        runtimeModeBar = UiKit.baris(context);
-        runtimeModeBar.setPadding(
-                UiKit.dp(context, 10), 0,
-                UiKit.dp(context, 10), 0
-        );
-        body.addView(horizontal(runtimeModeBar), new LinearLayout.LayoutParams(
-                LayoutParams.MATCH_PARENT,
-                UiKit.dp(context, 42)
-        ));
-
-        statusLine = UiKit.teks(
-                context,
-                "Siap • 5 engine aktif • simpan otomatis nonaktif",
-                10.5f,
-                UiKit.TEKS_REDUP
-        );
-        statusLine.setPadding(
-                UiKit.dp(context, 14),
-                0,
-                UiKit.dp(context, 14),
-                UiKit.dp(context, 4)
-        );
-        body.addView(statusLine, new LinearLayout.LayoutParams(
-                LayoutParams.MATCH_PARENT,
-                UiKit.dp(context, 28)
-        ));
-
         workspace = new FrameLayout(context);
         workspace.setBackgroundColor(UiKit.LATAR);
-        body.addView(workspace, new LinearLayout.LayoutParams(
+        addView(workspace, new FrameLayout.LayoutParams(
                 LayoutParams.MATCH_PARENT,
-                0,
-                1
-        ));
-
-        bottomTools = UiKit.baris(context);
-        bottomTools.setGravity(Gravity.CENTER);
-        bottomTools.setPadding(
-                UiKit.dp(context, 8),
-                UiKit.dp(context, 5),
-                UiKit.dp(context, 8),
-                UiKit.dp(context, 7)
-        );
-        bottomTools.setBackground(UiKit.kartuPx(
-                context,
-                UiKit.PERMUKAAN,
-                UiKit.GARIS,
-                0,
-                1
-        ));
-        body.addView(bottomTools, new LinearLayout.LayoutParams(
-                LayoutParams.MATCH_PARENT,
-                UiKit.dp(context, 64)
+                LayoutParams.MATCH_PARENT
         ));
 
         edgeContainer = new FrameLayout(context);
@@ -187,23 +97,24 @@ public final class WorkspaceShellView extends FrameLayout {
                 18,
                 1
         ));
-        FrameLayout.LayoutParams ep = new FrameLayout.LayoutParams(
-                UiKit.dp(context, 150),
+        FrameLayout.LayoutParams edgeParams = new FrameLayout.LayoutParams(
+                UiKit.dp(context, 238),
                 LayoutParams.MATCH_PARENT,
                 Gravity.END
         );
-        ep.topMargin = UiKit.dp(context, 144);
-        ep.bottomMargin = UiKit.dp(context, 68);
-        ep.rightMargin = UiKit.dp(context, 4);
-        addView(edgeContainer, ep);
+        edgeParams.topMargin = UiKit.dp(context, 14);
+        edgeParams.bottomMargin = UiKit.dp(context, 14);
+        edgeParams.rightMargin = UiKit.dp(context, 4);
+        addView(edgeContainer, edgeParams);
 
         ScrollView edgeScroll = new ScrollView(context);
+        edgeScroll.setFillViewport(true);
         edgeContent = UiKit.kolom(context);
         edgeContent.setPadding(
-                UiKit.dp(context, 10),
-                UiKit.dp(context, 10),
-                UiKit.dp(context, 10),
-                UiKit.dp(context, 14)
+                UiKit.dp(context, 12),
+                UiKit.dp(context, 12),
+                UiKit.dp(context, 12),
+                UiKit.dp(context, 18)
         );
         edgeScroll.addView(edgeContent);
         edgeContainer.addView(edgeScroll, new FrameLayout.LayoutParams(
@@ -212,6 +123,7 @@ public final class WorkspaceShellView extends FrameLayout {
         ));
 
         edgeHandle = UiKit.judul(context, "‹", 22f);
+        edgeHandle.setContentDescription("Tutup panel");
         edgeHandle.setGravity(Gravity.CENTER);
         edgeHandle.setTextColor(UiKit.NEON);
         edgeHandle.setBackground(UiKit.kartuPx(
@@ -222,13 +134,13 @@ public final class WorkspaceShellView extends FrameLayout {
                 1
         ));
         edgeHandle.setOnClickListener(v -> toggleEdge());
-        FrameLayout.LayoutParams hp = new FrameLayout.LayoutParams(
-                UiKit.dp(context, 34),
-                UiKit.dp(context, 52),
+        FrameLayout.LayoutParams handleParams = new FrameLayout.LayoutParams(
+                UiKit.dp(context, 36),
+                UiKit.dp(context, 56),
                 Gravity.CENTER_VERTICAL | Gravity.START
         );
-        hp.leftMargin = -UiKit.dp(context, 28);
-        edgeContainer.addView(edgeHandle, hp);
+        handleParams.leftMargin = -UiKit.dp(context, 30);
+        edgeContainer.addView(edgeHandle, handleParams);
 
         overlayLayer = new FrameLayout(context);
         overlayLayer.setVisibility(GONE);
@@ -238,205 +150,239 @@ public final class WorkspaceShellView extends FrameLayout {
         ));
 
         bubble = UiKit.judul(context, "TB", 14f);
+        bubble.setContentDescription("Akses cepat ToolBox");
         bubble.setGravity(Gravity.CENTER);
         bubble.setTextColor(UiKit.LATAR);
         bubble.setBackground(circle(UiKit.NEON));
-        bubble.setElevation(UiKit.dp(context, 10));
+        bubble.setElevation(UiKit.dp(context, 12));
         bubble.setOnTouchListener(this::handleBubbleTouch);
-        FrameLayout.LayoutParams bp = new FrameLayout.LayoutParams(
-                UiKit.dp(context, 54),
-                UiKit.dp(context, 54),
-                Gravity.END | Gravity.BOTTOM
+        FrameLayout.LayoutParams bubbleParams = new FrameLayout.LayoutParams(
+                UiKit.dp(context, 56),
+                UiKit.dp(context, 56),
+                Gravity.TOP | Gravity.START
         );
-        bp.rightMargin = UiKit.dp(context, 22);
-        bp.bottomMargin = UiKit.dp(context, 82);
-        addView(bubble, bp);
+        bubbleParams.leftMargin = UiKit.dp(context, 16);
+        bubbleParams.topMargin = UiKit.dp(context, 100);
+        addView(bubble, bubbleParams);
 
         kernel.editorEnvironment().shell().setLiveCapability(true);
-        renderRepresentationBar();
-        renderRuntimeModeBar();
-        renderToolBar();
+        renderAll();
+        post(this::restoreBubblePosition);
+    }
+
+    public boolean handleBack() {
+        if (overlayLayer.getVisibility() == VISIBLE) {
+            closeOverlay();
+            return true;
+        }
+        if (panelPage != PanelPage.ROOT) {
+            panelPage = PanelPage.ROOT;
+            renderEdge();
+            return true;
+        }
+        if (screen == Screen.EDITOR_WORKSPACE) {
+            openEditorChooser();
+            return true;
+        }
+        if (screen == Screen.EDITOR_CHOOSER) {
+            openHome();
+            return true;
+        }
+        return false;
+    }
+
+    private void renderAll() {
         renderWorkspace();
         renderEdge();
     }
 
-    private TextView actionSmall(String text) {
-        TextView v = UiKit.tombol(getContext(), text, false);
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
-                LayoutParams.WRAP_CONTENT,
-                UiKit.dp(getContext(), 38)
-        );
-        p.leftMargin = UiKit.dp(getContext(), 5);
-        v.setLayoutParams(p);
-        return v;
+    private void renderWorkspace() {
+        workspace.removeAllViews();
+        switch (screen) {
+            case HOME:
+                renderHome();
+                break;
+            case EDITOR_CHOOSER:
+                renderEditorChooser();
+                break;
+            case EDITOR_WORKSPACE:
+                renderEditorWorkspace();
+                break;
+            default:
+                throw new IllegalStateException("layar tidak dikenal");
+        }
     }
 
-    private void renderRepresentationBar() {
-        representationBar.removeAllViews();
-        representationBar.addView(modeChip(
-                "Visual",
-                representation == Representation.VISUAL,
-                () -> setRepresentation(Representation.VISUAL)
-        ));
-        representationBar.addView(modeChip(
-                "Properti",
-                representation == Representation.PROPERTI,
-                () -> setRepresentation(Representation.PROPERTI)
-        ));
-        representationBar.addView(modeChip(
-                "Kode",
-                representation == Representation.KODE,
-                () -> setRepresentation(Representation.KODE)
-        ));
-        TextView divider = UiKit.teks(
+    private void renderHome() {
+        ScrollView scroll = new ScrollView(getContext());
+        LinearLayout root = UiKit.kolom(getContext());
+        root.setPadding(
+                UiKit.dp(getContext(), 24),
+                UiKit.dp(getContext(), 28),
+                UiKit.dp(getContext(), 270),
+                UiKit.dp(getContext(), 28)
+        );
+        scroll.addView(root);
+
+        TextView title = UiKit.judul(getContext(), "ToolBox", 30f);
+        title.setTextColor(UiKit.NEON);
+        root.addView(title);
+
+        TextView subtitle = UiKit.teks(
                 getContext(),
-                "   •   Model sama • sinkron dua arah aman",
+                "Antarmuka ToolBox • Android 11 • Visual-first",
+                13f,
+                UiKit.TEKS_REDUP
+        );
+        subtitle.setPadding(0, UiKit.dp(getContext(), 4), 0, UiKit.dp(getContext(), 20));
+        root.addView(subtitle);
+
+        LinearLayout hero = card();
+        hero.addView(UiKit.labelBagian(getContext(), "EDITOR TERPADU"));
+        hero.addView(UiKit.judul(getContext(), "Satu Editor • lima fungsi di dalamnya", 19f));
+        TextView heroBody = UiKit.teks(
+                getContext(),
+                "Masuk ke Editor dari panel. ToolBox tidak langsung membuka layar edit. "
+                        + "Di dalam Editor tersedia UI, Logika, Data, Pengikatan, dan Aset sebagai satu ruang kerja.",
+                12.5f,
+                UiKit.TEKS_REDUP
+        );
+        heroBody.setPadding(0, UiKit.dp(getContext(), 8), 0, UiKit.dp(getContext(), 8));
+        hero.addView(heroBody);
+        root.addView(hero);
+
+        UiKit.ruang(root, getContext(), 14);
+
+        LinearLayout routes = card();
+        routes.addView(UiKit.labelBagian(getContext(), "4 PILIHAN EDITOR"));
+        addInfo(routes, "1. Proyek Tersimpan", "Buka dan lanjutkan project yang sudah ada.");
+        addInfo(routes, "2. Aplikasi Terinstal", "Masuk melalui pemindaian kapabilitas yang tersedia.");
+        addInfo(routes, "3. Edit ToolBox", "Edit permukaan deklaratif ToolBox dengan core keselamatan tetap terlindungi.");
+        addInfo(routes, "4. Buat / Edit Komponen", "Kelola komponen, varian, template, dan kit.");
+        root.addView(routes);
+
+        UiKit.ruang(root, getContext(), 14);
+
+        FullProductVerifier.Result result = new FullProductVerifier().verify(kernel);
+        LinearLayout health = card();
+        health.addView(UiKit.labelBagian(getContext(), "STATUS PRODUK"));
+        addInfo(
+                health,
+                "Kelengkapan",
+                result.isPass()
+                        ? "LULUS • " + result.available().size() + "/" + result.requiredCount()
+                        : "PERLU PERHATIAN • " + result.errors().size() + " masalah"
+        );
+        addInfo(health, "Penyimpanan", kernel.projectManager().hasUnsavedChanges()
+                ? "Ada perubahan belum disimpan"
+                : "Tidak ada perubahan tertunda");
+        addInfo(health, "Panel", "Selalu tersedia dan dapat dibuka/tutup pada semua mode.");
+        root.addView(health);
+
+        workspace.addView(scroll, new FrameLayout.LayoutParams(
+                LayoutParams.MATCH_PARENT,
+                LayoutParams.MATCH_PARENT
+        ));
+    }
+
+    private void renderEditorChooser() {
+        ScrollView scroll = new ScrollView(getContext());
+        LinearLayout root = UiKit.kolom(getContext());
+        root.setPadding(
+                UiKit.dp(getContext(), 24),
+                UiKit.dp(getContext(), 28),
+                UiKit.dp(getContext(), 270),
+                UiKit.dp(getContext(), 28)
+        );
+        scroll.addView(root);
+
+        TextView title = UiKit.judul(getContext(), "Editor", 27f);
+        title.setTextColor(UiKit.NEON);
+        root.addView(title);
+
+        TextView desc = UiKit.teks(
+                getContext(),
+                "Pilih Jalur Editor dari panel. Keempat jalur masuk ke Editor terpadu yang sama; "
+                        + "konteks dan kapabilitasnya yang berbeda.",
+                12.5f,
+                UiKit.TEKS_REDUP
+        );
+        desc.setPadding(0, UiKit.dp(getContext(), 5), 0, UiKit.dp(getContext(), 18));
+        root.addView(desc);
+
+        LinearLayout card = card();
+        addInfo(card, "Proyek Tersimpan", "Project Store • revisi " + kernel.projectManager().savedRevision());
+        addInfo(card, "Aplikasi Terinstal", "Capability Scan • tanpa bypass sandbox/signature.");
+        addInfo(card, "Edit ToolBox", "Permukaan deklaratif dapat diedit; kernel/recovery/safety core terlindungi.");
+        addInfo(card, "Buat / Edit Komponen", "Component Registry • varian • composite • template.");
+        root.addView(card);
+
+        workspace.addView(scroll, new FrameLayout.LayoutParams(
+                LayoutParams.MATCH_PARENT,
+                LayoutParams.MATCH_PARENT
+        ));
+    }
+
+    private void renderEditorWorkspace() {
+        View pane;
+        if (kernel.editorEnvironment().shell().mode() != EditorMode.EDIT) {
+            pane = new UiCanvasView(getContext(), kernel, objectId -> {
+                panelPage = PanelPage.CONTEXT;
+                renderEdge();
+            });
+        } else {
+            switch (representation) {
+                case PROPERTI:
+                    pane = EditorPaneFactory.properties(getContext(), kernel, active);
+                    break;
+                case KODE:
+                    pane = EditorPaneFactory.code(getContext(), kernel, active);
+                    break;
+                case VISUAL:
+                default:
+                    pane = EditorPaneFactory.visual(
+                            getContext(),
+                            kernel,
+                            active,
+                            objectId -> {
+                                panelPage = PanelPage.CONTEXT;
+                                renderEdge();
+                            }
+                    );
+                    break;
+            }
+        }
+
+        FrameLayout holder = new FrameLayout(getContext());
+        holder.setBackgroundColor(UiKit.LATAR);
+        FrameLayout.LayoutParams paneParams = new FrameLayout.LayoutParams(
+                LayoutParams.MATCH_PARENT,
+                LayoutParams.MATCH_PARENT
+        );
+        paneParams.rightMargin = UiKit.dp(getContext(), 8);
+        holder.addView(pane, paneParams);
+
+        TextView context = UiKit.teks(
+                getContext(),
+                "Editor • " + editorEntry + " • " + labelSection(active)
+                        + " • " + labelRepresentation() + " • " + labelEditorMode(),
                 10.5f,
                 UiKit.TEKS_REDUP
         );
-        representationBar.addView(divider);
-    }
-
-    private void renderRuntimeModeBar() {
-        runtimeModeBar.removeAllViews();
-        EditorMode mode = kernel.editorEnvironment().shell().mode();
-        runtimeModeBar.addView(runtimeChip("Edit", mode == EditorMode.EDIT, EditorMode.EDIT));
-        runtimeModeBar.addView(runtimeChip(
-                "Pratinjau",
-                mode == EditorMode.PREVIEW,
-                EditorMode.PREVIEW
-        ));
-        runtimeModeBar.addView(runtimeChip("Uji", mode == EditorMode.TEST, EditorMode.TEST));
-        runtimeModeBar.addView(runtimeChip(
-                "Langsung",
-                mode == EditorMode.LIVE,
-                EditorMode.LIVE
-        ));
-
-        TextView edit = UiKit.chip(
-                getContext(),
-                kernel.editorEnvironment().shell().editEnabled()
-                        ? "Edit AKTIF"
-                        : "Edit NONAKTIF",
-                kernel.editorEnvironment().shell().editEnabled()
+        context.setPadding(
+                UiKit.dp(getContext(), 12),
+                UiKit.dp(getContext(), 5),
+                UiKit.dp(getContext(), 12),
+                UiKit.dp(getContext(), 5)
         );
-        LinearLayout.LayoutParams ep = new LinearLayout.LayoutParams(
-                LayoutParams.WRAP_CONTENT,
-                UiKit.dp(getContext(), 32)
-        );
-        ep.leftMargin = UiKit.dp(getContext(), 8);
-        edit.setLayoutParams(ep);
-        edit.setOnClickListener(v -> {
-            boolean next = !kernel.editorEnvironment().shell().editEnabled();
-            kernel.editorEnvironment().shell().setEditEnabled(next);
-            renderRuntimeModeBar();
-            renderWorkspace();
-            renderEdge();
-        });
-        runtimeModeBar.addView(edit);
-    }
-
-    private void renderToolBar() {
-        bottomTools.removeAllViews();
-        addTool("UI", AuthoringSection.UI);
-        addTool("Logika", AuthoringSection.LOGIC);
-        addTool("Data", AuthoringSection.DATA);
-        addTool("Pengikatan", AuthoringSection.BINDING);
-        addTool("Aset", AuthoringSection.ASSET);
-    }
-
-    private void addTool(String label, AuthoringSection section) {
-        boolean selected = active == section;
-        TextView v = UiKit.teks(
-                getContext(),
-                label,
-                11.5f,
-                selected ? UiKit.NEON : UiKit.TEKS_REDUP
-        );
-        v.setGravity(Gravity.CENTER);
-        v.setTypeface(android.graphics.Typeface.create(
-                "sans-serif-medium",
-                android.graphics.Typeface.NORMAL
-        ));
-        v.setBackground(UiKit.kartuPx(
-                getContext(),
-                selected ? Color.rgb(8, 55, 49) : Color.TRANSPARENT,
-                selected ? UiKit.NEON : Color.TRANSPARENT,
-                14,
-                selected ? 1 : 0
-        ));
-        v.setOnClickListener(view -> {
-            active = section;
-            kernel.authoringWorkspace().activate(section);
-            kernel.productServices().resources().activate(section);
-            kernel.productServices().toolLifecycle().activate(toolId(section));
-            kernel.editorEnvironment().shell().clearSelection();
-            renderToolBar();
-            renderWorkspace();
-            renderEdge();
-            updateStatus();
-        });
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
-                0,
+        context.setBackgroundColor(Color.argb(210, 7, 16, 22));
+        holder.addView(context, new FrameLayout.LayoutParams(
                 LayoutParams.MATCH_PARENT,
-                1
-        );
-        p.setMargins(
-                UiKit.dp(getContext(), 2),
-                UiKit.dp(getContext(), 1),
-                UiKit.dp(getContext(), 2),
-                UiKit.dp(getContext(), 1)
-        );
-        bottomTools.addView(v, p);
-    }
+                UiKit.dp(getContext(), 30),
+                Gravity.TOP
+        ));
 
-    private void renderWorkspace() {
-        workspace.removeAllViews();
-        View pane;
-        if (kernel.editorEnvironment().shell().mode() != EditorMode.EDIT) {
-            pane = new UiCanvasView(
-                    getContext(),
-                    kernel,
-                    null
-            );
-        } else switch (representation) {
-            case PROPERTI:
-                pane = EditorPaneFactory.properties(
-                        getContext(),
-                        kernel,
-                        active
-                );
-                break;
-            case KODE:
-                pane = EditorPaneFactory.code(
-                        getContext(),
-                        kernel,
-                        active
-                );
-                break;
-            case VISUAL:
-            default:
-                pane = EditorPaneFactory.visual(
-                        getContext(),
-                        kernel,
-                        active,
-                        objectId -> {
-                            renderEdge();
-                            showFloatingEditor("Edit Objek", Arrays.asList(
-                                    "Gaya",
-                                    "Ukuran",
-                                    "Posisi",
-                                    "Konten",
-                                    "Warna",
-                                    "Spasi",
-                                    "Aksesibilitas",
-                                    "Kunci"
-                            ));
-                        }
-                );
-                break;
-        }
-        workspace.addView(pane, new FrameLayout.LayoutParams(
+        workspace.addView(holder, new FrameLayout.LayoutParams(
                 LayoutParams.MATCH_PARENT,
                 LayoutParams.MATCH_PARENT
         ));
@@ -444,98 +390,217 @@ public final class WorkspaceShellView extends FrameLayout {
 
     private void renderEdge() {
         edgeContent.removeAllViews();
+
+        if (screen == Screen.HOME) {
+            edgeHeader("ToolBox", "Panel Utama");
+            addEdgeCommand("Editor", this::openEditorChooser);
+            addEdgeCommand("Proyek & File", () -> showProjectInfo());
+            addEdgeCommand("Pemulihan & Backup", this::showRecovery);
+            addEdgeCommand("Freeze / Mode Simpan", this::showFreeze);
+            addEdgeCommand("Perbaikan & Kesehatan", this::showHealth);
+            addEdgeCommand("Paket Evolusi", this::showEvolution);
+            addEdgeCommand("Bangun & SIAP", this::showBuild);
+            addEdgeCommand("Diagnostik", this::showDiagnostics);
+            addEdgeCommand("Pengaturan", this::showSettings);
+            return;
+        }
+
+        if (screen == Screen.EDITOR_CHOOSER) {
+            edgeHeader("Editor", "4 Pilihan Edit");
+            addEdgeCommand("Proyek Tersimpan", () -> openEditor("Proyek Tersimpan"));
+            addEdgeCommand("Aplikasi Terinstal", () -> openEditor("Aplikasi Terinstal"));
+            addEdgeCommand("Edit ToolBox", () -> openEditor("Edit ToolBox"));
+            addEdgeCommand("Buat / Edit Komponen", () -> openEditor("Buat / Edit Komponen"));
+            addEdgeCommand("‹ Antarmuka ToolBox", this::openHome);
+            return;
+        }
+
+        switch (panelPage) {
+            case FUNCTIONS:
+                edgeHeader("Editor", "Fungsi 5-in-1");
+                addFunction("UI", AuthoringSection.UI);
+                addFunction("Logika", AuthoringSection.LOGIC);
+                addFunction("Data", AuthoringSection.DATA);
+                addFunction("Pengikatan", AuthoringSection.BINDING);
+                addFunction("Aset", AuthoringSection.ASSET);
+                addEdgeCommand("‹ Kembali", this::edgeRoot);
+                break;
+            case REPRESENTATION:
+                edgeHeader("Editor", "Representasi");
+                addEdgeCommand(mark("Visual", representation == Representation.VISUAL),
+                        () -> setRepresentation(Representation.VISUAL));
+                addEdgeCommand(mark("Properti", representation == Representation.PROPERTI),
+                        () -> setRepresentation(Representation.PROPERTI));
+                addEdgeCommand(mark("Kode", representation == Representation.KODE),
+                        () -> setRepresentation(Representation.KODE));
+                addEdgeCommand("‹ Kembali", this::edgeRoot);
+                break;
+            case MODES:
+                edgeHeader("Editor", "Mode Kerja");
+                EditorMode mode = kernel.editorEnvironment().shell().mode();
+                addEdgeCommand(mark("Edit", mode == EditorMode.EDIT), () -> setRuntimeMode(EditorMode.EDIT));
+                addEdgeCommand(mark("Pratinjau", mode == EditorMode.PREVIEW), () -> setRuntimeMode(EditorMode.PREVIEW));
+                addEdgeCommand(mark("Uji", mode == EditorMode.TEST), () -> setRuntimeMode(EditorMode.TEST));
+                addEdgeCommand(mark("Langsung", mode == EditorMode.LIVE), () -> setRuntimeMode(EditorMode.LIVE));
+                addEdgeCommand("‹ Kembali", this::edgeRoot);
+                break;
+            case CONTEXT:
+                renderContextEdge();
+                break;
+            case ROOT:
+            default:
+                renderEditorRootEdge();
+                break;
+        }
+    }
+
+    private void renderEditorRootEdge() {
+        edgeHeader("Editor", editorEntry);
+        addEdgeCommand("Fungsi Editor • 5-in-1", () -> {
+            panelPage = PanelPage.FUNCTIONS;
+            renderEdge();
+        });
+        addEdgeCommand("Representasi • " + labelRepresentation(), () -> {
+            panelPage = PanelPage.REPRESENTATION;
+            renderEdge();
+        });
+        addEdgeCommand("Mode Kerja • " + labelEditorMode(), () -> {
+            panelPage = PanelPage.MODES;
+            renderEdge();
+        });
+        addEdgeCommand(
+                kernel.editorEnvironment().shell().editEnabled()
+                        ? "Edit Objek • AKTIF"
+                        : "Edit Objek • NONAKTIF",
+                this::toggleEditEnabled
+        );
+        addEdgeCommand("Konteks • " + labelSection(active), () -> {
+            panelPage = PanelPage.CONTEXT;
+            renderEdge();
+        });
+        addEdgeHeading("Perubahan");
+        addEdgeCommand("Simpan", this::saveProject);
+        addEdgeCommand("Urungkan", this::undo);
+        addEdgeCommand("Ulangi", this::redo);
+        addEdgeCommand("‹ Pilih Jalur Editor", this::openEditorChooser);
+        addEdgeCommand("⌂ Antarmuka ToolBox", this::openHome);
+    }
+
+    private void renderContextEdge() {
         EdgePanelModel model = kernel.editorEnvironment().shell().edgePanel(
                 VisualCapabilitySet.defaultEditable()
         );
-
-        TextView crumb = UiKit.teks(
-                getContext(),
-                translate(model.breadcrumb()),
-                9.5f,
-                UiKit.TEKS_REDUP
-        );
-        edgeContent.addView(crumb);
-
-        TextView title = UiKit.judul(
-                getContext(),
-                translate(model.titleIndonesia()),
-                13f
-        );
-        title.setTextColor(UiKit.NEON_BIRU);
-        title.setPadding(0, UiKit.dp(getContext(), 4), 0, UiKit.dp(getContext(), 8));
-        edgeContent.addView(title);
-
+        edgeHeader(translate(model.titleIndonesia()), translate(model.breadcrumb()));
         for (EdgeItem item : model.items()) {
             String label = translate(item.labelIndonesia());
-            TextView v = UiKit.tombol(getContext(), label, false);
-            v.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
-            v.setTextSize(11f);
-            v.setOnClickListener(view -> showFloatingEditor(
-                    label,
-                    editorOptions(label)
-            ));
-            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
-                    LayoutParams.MATCH_PARENT,
-                    UiKit.dp(getContext(), 40)
-            );
-            p.bottomMargin = UiKit.dp(getContext(), 5);
-            edgeContent.addView(v, p);
+            addEdgeCommand(label, () -> showEditorAction(label));
         }
+        addEdgeCommand("‹ Kembali", this::edgeRoot);
+    }
+
+    private void addFunction(String label, AuthoringSection section) {
+        addEdgeCommand(mark(label, active == section), () -> {
+            active = section;
+            kernel.authoringWorkspace().activate(section);
+            panelPage = PanelPage.ROOT;
+            renderWorkspace();
+            renderEdge();
+        });
+    }
+
+    private void edgeRoot() {
+        panelPage = PanelPage.ROOT;
+        renderEdge();
+    }
+
+    private void edgeHeader(String title, String crumb) {
+        TextView c = UiKit.teks(getContext(), crumb, 10f, UiKit.TEKS_REDUP);
+        edgeContent.addView(c);
+        TextView t = UiKit.judul(getContext(), title, 16f);
+        t.setTextColor(UiKit.NEON_BIRU);
+        t.setPadding(0, UiKit.dp(getContext(), 3), 0, UiKit.dp(getContext(), 10));
+        edgeContent.addView(t);
+    }
+
+    private void addEdgeHeading(String label) {
+        TextView v = UiKit.labelBagian(getContext(), label.toUpperCase());
+        v.setPadding(0, UiKit.dp(getContext(), 9), 0, UiKit.dp(getContext(), 4));
+        edgeContent.addView(v);
+    }
+
+    private void addEdgeCommand(String label, Runnable action) {
+        TextView v = UiKit.tombol(getContext(), label, false);
+        v.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+        v.setTextSize(12f);
+        v.setOnClickListener(view -> action.run());
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
+                LayoutParams.MATCH_PARENT,
+                UiKit.dp(getContext(), 44)
+        );
+        p.bottomMargin = UiKit.dp(getContext(), 6);
+        edgeContent.addView(v, p);
+    }
+
+    private void openHome() {
+        closeOverlay();
+        screen = Screen.HOME;
+        panelPage = PanelPage.ROOT;
+        kernel.editorEnvironment().shell().clearSelection();
+        renderAll();
+    }
+
+    private void openEditorChooser() {
+        closeOverlay();
+        screen = Screen.EDITOR_CHOOSER;
+        panelPage = PanelPage.ROOT;
+        kernel.editorEnvironment().shell().clearSelection();
+        renderAll();
+    }
+
+    private void openEditor(String entry) {
+        editorEntry = entry;
+        screen = Screen.EDITOR_WORKSPACE;
+        panelPage = PanelPage.ROOT;
+        representation = Representation.VISUAL;
+        active = AuthoringSection.UI;
+        kernel.authoringWorkspace().activate(active);
+        kernel.editorEnvironment().shell().setMode(EditorMode.EDIT);
+        kernel.editorEnvironment().shell().setEditEnabled(true);
+        renderAll();
     }
 
     private void setRepresentation(Representation next) {
         representation = next;
-        renderRepresentationBar();
-        renderWorkspace();
-        updateStatus();
+        panelPage = PanelPage.ROOT;
+        renderAll();
     }
 
     private void setRuntimeMode(EditorMode mode) {
         try {
             kernel.editorEnvironment().shell().setMode(mode);
-            edgeContainer.setVisibility(
-                    mode == EditorMode.EDIT ? VISIBLE : GONE
-            );
-            renderRuntimeModeBar();
-            renderWorkspace();
-            renderEdge();
-            updateStatus();
+            panelPage = PanelPage.ROOT;
+            renderAll();
         } catch (RuntimeException error) {
             toast("Mode Langsung belum tersedia untuk target ini.");
         }
     }
 
-    private TextView modeChip(
-            String label,
-            boolean selected,
-            Runnable action
-    ) {
-        TextView v = UiKit.chip(getContext(), label, selected);
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
-                LayoutParams.WRAP_CONTENT,
-                UiKit.dp(getContext(), 32)
+    private void toggleEditEnabled() {
+        kernel.editorEnvironment().shell().setEditEnabled(
+                !kernel.editorEnvironment().shell().editEnabled()
         );
-        p.rightMargin = UiKit.dp(getContext(), 6);
-        v.setLayoutParams(p);
-        v.setOnClickListener(view -> action.run());
-        return v;
-    }
-
-    private TextView runtimeChip(
-            String label,
-            boolean selected,
-            EditorMode mode
-    ) {
-        return modeChip(label, selected, () -> setRuntimeMode(mode));
+        renderAll();
     }
 
     private void toggleEdge() {
         edgeOpen = !edgeOpen;
+        float closedX = UiKit.dp(getContext(), 208);
         edgeContainer.animate()
-                .translationX(edgeOpen ? 0 : UiKit.dp(getContext(), 136))
-                .setDuration(180)
+                .translationX(edgeOpen ? 0 : closedX)
+                .setDuration(160)
                 .start();
         edgeHandle.setText(edgeOpen ? "‹" : "›");
+        edgeHandle.setContentDescription(edgeOpen ? "Tutup panel" : "Buka panel");
     }
 
     private boolean handleBubbleTouch(View view, MotionEvent event) {
@@ -560,7 +625,11 @@ public final class WorkspaceShellView extends FrameLayout {
                 view.setY(Math.max(0, Math.min(maxY, bubbleStartY + dy)));
                 return true;
             case MotionEvent.ACTION_UP:
-                if (!bubbleDragging) showBubbleMenu();
+                if (bubbleDragging) {
+                    persistBubblePosition(view);
+                } else {
+                    showBubbleMenu();
+                }
                 return true;
             default:
                 return false;
@@ -572,43 +641,36 @@ public final class WorkspaceShellView extends FrameLayout {
         rows.add(kernel.editorEnvironment().shell().editEnabled()
                 ? "Edit: AKTIF"
                 : "Edit: NONAKTIF");
+        rows.add("Editor");
         rows.add("Alat");
         rows.add("Pengaturan");
         rows.add("Jendela Mengambang");
-        rows.add("Reset Shell");
-        showCommandOverlay("Akses Cepat", rows, value -> {
+        showActionOverlay("Akses Cepat", rows, value -> {
             if (value.startsWith("Edit:")) {
                 kernel.editorEnvironment().shell().setEditEnabled(
                         !kernel.editorEnvironment().shell().editEnabled()
                 );
                 closeOverlay();
-                renderRuntimeModeBar();
-                renderWorkspace();
-                renderEdge();
+                renderAll();
+            } else if ("Editor".equals(value)) {
+                openEditorChooser();
             } else if ("Alat".equals(value)) {
                 closeOverlay();
                 showTools();
             } else if ("Pengaturan".equals(value)) {
                 closeOverlay();
                 showSettings();
-            } else if ("Reset Shell".equals(value)) {
-                kernel.editorEnvironment().shell().emergencyReset();
+            } else if ("Jendela Mengambang".equals(value)) {
                 closeOverlay();
-                active = AuthoringSection.UI;
-                representation = Representation.VISUAL;
-                renderRepresentationBar();
-                renderRuntimeModeBar();
-                renderToolBar();
-                renderWorkspace();
-                renderEdge();
-            } else {
-                closeOverlay();
-                showFloatingEditor(
-                        "Jendela Mengambang",
+                showInfoOverlay(
+                        "Konteks Aktif",
                         Arrays.asList(
-                                "Konteks aktif: " + labelSection(active),
+                                "Layar: " + labelScreen(),
+                                "Editor: " + editorEntry,
+                                "Fungsi: " + labelSection(active),
                                 "Representasi: " + labelRepresentation(),
-                                "Mode: " + labelEditorMode()
+                                "Mode: " + labelEditorMode(),
+                                "Panel: " + (edgeOpen ? "TERBUKA" : "TERTUTUP")
                         )
                 );
             }
@@ -616,7 +678,7 @@ public final class WorkspaceShellView extends FrameLayout {
     }
 
     private void showTools() {
-        showCommandOverlay(
+        showActionOverlay(
                 "Alat ToolBox",
                 Arrays.asList(
                         "Proyek Tersimpan",
@@ -626,123 +688,427 @@ public final class WorkspaceShellView extends FrameLayout {
                         "Pemulihan & Backup",
                         "Freeze / Mode Simpan",
                         "Perbaikan & Kesehatan",
-                        "Paket Evolusi Tanpa Rebuild",
+                        "Paket Evolusi",
                         "Bangun & SIAP",
-                        "Diagnostik",
-                        "Pengaturan"
+                        "Diagnostik"
                 ),
                 value -> {
                     closeOverlay();
-                    if ("Pengaturan".equals(value)) {
-                        showSettings();
+                    if ("Proyek Tersimpan".equals(value)
+                            || "Aplikasi Terinstal".equals(value)
+                            || "Edit ToolBox".equals(value)
+                            || "Buat / Edit Komponen".equals(value)) {
+                        openEditor(value);
+                    } else if ("Pemulihan & Backup".equals(value)) {
+                        showRecovery();
                     } else if ("Freeze / Mode Simpan".equals(value)) {
                         showFreeze();
                     } else if ("Perbaikan & Kesehatan".equals(value)) {
                         showHealth();
+                    } else if ("Paket Evolusi".equals(value)) {
+                        showEvolution();
                     } else if ("Bangun & SIAP".equals(value)) {
                         showBuild();
                     } else if ("Diagnostik".equals(value)) {
                         showDiagnostics();
-                    } else if ("Pemulihan & Backup".equals(value)) {
-                        showRecovery();
-                    } else if ("Paket Evolusi Tanpa Rebuild".equals(value)) {
-                        showEvolution();
-                    } else if ("Aplikasi Terinstal".equals(value)) {
-                        showInstalledTarget();
-                    } else if ("Edit ToolBox".equals(value)) {
-                        showSelfEdit();
-                    } else if ("Buat / Edit Komponen".equals(value)) {
-                        active = AuthoringSection.UI;
-                        renderToolBar();
-                        renderWorkspace();
-                        showFloatingEditor(
-                                "Editor Komponen",
-                                Arrays.asList(
-                                        "Master / Instance",
-                                        "Variant",
-                                        "Composite",
-                                        "Detach / Rebase",
-                                        "Uji Komponen"
-                                )
-                        );
-                    } else {
-                        showFloatingEditor(
-                                value,
-                                Arrays.asList(
-                                        "project.default",
-                                        "Revisi: " + kernel.projectManager().savedRevision(),
-                                        kernel.projectManager().hasUnsavedChanges()
-                                                ? "Ada perubahan belum disimpan"
-                                                : "Semua perubahan tersimpan"
-                                )
-                        );
                     }
                 }
         );
     }
 
+    private void showEditorAction(String label) {
+        if ("Komponen".equals(label)) {
+            showActionOverlay(
+                    "Komponen",
+                    Arrays.asList("Tombol Aksi", "Tombol Sekunder", "Reset Komponen"),
+                    value -> {
+                        if ("Tombol Aksi".equals(value)) {
+                            applyResource("ui.object.home.primary.text", "Tombol Aksi", "Komponen diterapkan.");
+                        } else if ("Tombol Sekunder".equals(value)) {
+                            applyResource("ui.object.home.primary.text", "Tombol Sekunder", "Komponen diterapkan.");
+                        } else {
+                            resetDemoObject();
+                        }
+                    }
+            );
+            return;
+        }
+        if ("Template".equals(label)) {
+            showActionOverlay(
+                    "Template",
+                    Arrays.asList("Layar Dasar", "Layar Formulir", "Reset Template"),
+                    value -> applyTemplate(value)
+            );
+            return;
+        }
+        if ("Kit".equals(label) || "Aset".equals(label)
+                || "Terbaru".equals(label) || "Favorit".equals(label)) {
+            showActionOverlay(
+                    label,
+                    Arrays.asList("Gelap Neon", "Biru Neon", "Permukaan Tenang"),
+                    value -> applyStylePreset(value)
+            );
+            return;
+        }
+
+        List<String> rows = editorCommands(label);
+        showActionOverlay(label, rows, value -> applyEditorCommand(label, value));
+    }
+
+    private List<String> editorCommands(String label) {
+        if ("Gaya".equals(label)) return Arrays.asList("Gelap Neon", "Biru Neon", "Reset Gaya");
+        if ("Ukuran".equals(label)) return Arrays.asList("Kecil", "Sedang", "Besar", "Lebar Penuh");
+        if ("Posisi".equals(label)) return Arrays.asList("Kiri", "Tengah", "Kanan", "Reset Posisi");
+        if ("Konten".equals(label)) return Arrays.asList("Buka Detail", "Simpan", "Lanjut");
+        if ("Warna".equals(label)) return Arrays.asList("Neon", "Biru", "Permukaan");
+        if ("Spasi".equals(label)) return Arrays.asList("Rapat", "Normal", "Lapang");
+        if ("Bentuk".equals(label)) return Arrays.asList("Kotak", "Rounded", "Pill");
+        if ("Garis Tepi".equals(label)) return Arrays.asList("Tanpa Garis", "Tipis", "Tebal");
+        if ("Font/Teks".equals(label)) return Arrays.asList("Kecil", "Normal", "Besar");
+        if ("Opasitas".equals(label)) return Arrays.asList("100%", "75%", "50%");
+        if ("Rotasi/Transformasi".equals(label)) return Arrays.asList("Normal", "Putar 90°", "Skala 110%");
+        if ("Perataan".equals(label)) return Arrays.asList("Kiri", "Tengah", "Kanan");
+        if ("Lapisan".equals(label)) return Arrays.asList("Belakang", "Normal", "Depan");
+        if ("Keadaan".equals(label)) return Arrays.asList("Aktif", "Nonaktif");
+        if ("Animasi".equals(label)) return Arrays.asList("Tanpa Animasi", "Fade", "Scale");
+        if ("Hubungkan Pengikatan Otomatis".equals(label)) return Arrays.asList("Hubungkan Otomatis", "Lepaskan");
+        if ("Peristiwa/Aksi".equals(label)) return Arrays.asList("Buka Detail", "Tampilkan Pesan", "Tanpa Aksi");
+        if ("Aksesibilitas".equals(label)) return Arrays.asList("Label Otomatis", "Label: Buka Detail");
+        if ("Kunci".equals(label)) return Arrays.asList("Kunci Posisi", "Buka Kunci Posisi", "Kunci Ukuran", "Buka Kunci Ukuran");
+        if ("Lainnya".equals(label)) return Arrays.asList("Reset Objek", "Simpan sebagai Template");
+        return Arrays.asList("Gunakan Nilai Bawaan", "Reset");
+    }
+
+    private void applyEditorCommand(String label, String value) {
+        if ("Gaya".equals(label) || "Warna".equals(label)) {
+            applyStylePreset(value);
+            return;
+        }
+        if ("Ukuran".equals(label)) {
+            LinkedHashMap<String, String> map = new LinkedHashMap<>();
+            if ("Kecil".equals(value)) {
+                map.put("ui.object.home.primary.width.dp", "120");
+                map.put("ui.object.home.primary.height.dp", "40");
+            } else if ("Besar".equals(value)) {
+                map.put("ui.object.home.primary.width.dp", "196");
+                map.put("ui.object.home.primary.height.dp", "56");
+            } else if ("Lebar Penuh".equals(value)) {
+                map.put("ui.object.home.primary.width.dp", "260");
+                map.put("ui.object.home.primary.height.dp", "48");
+            } else {
+                map.put("ui.object.home.primary.width.dp", "148");
+                map.put("ui.object.home.primary.height.dp", "46");
+            }
+            applyResourceValues(map, "Ukuran diperbarui.");
+            return;
+        }
+        if ("Posisi".equals(label) || "Perataan".equals(label)) {
+            String x = "18";
+            if ("Tengah".equals(value)) x = "72";
+            if ("Kanan".equals(value)) x = "128";
+            LinkedHashMap<String, String> map = new LinkedHashMap<>();
+            map.put("ui.object.home.primary.position.x.dp", x);
+            map.put("ui.object.home.primary.position.y.dp", "50");
+            applyResourceValues(map, "Posisi diperbarui.");
+            return;
+        }
+        if ("Konten".equals(label)) {
+            applyResource("ui.object.home.primary.text", value, "Konten diperbarui.");
+            return;
+        }
+        if ("Spasi".equals(label)) {
+            String padding = "12";
+            if ("Rapat".equals(value)) padding = "6";
+            if ("Lapang".equals(value)) padding = "18";
+            applyResource("ui.object.home.primary.padding.dp", padding, "Spasi diperbarui.");
+            return;
+        }
+        if ("Bentuk".equals(label)) {
+            String radius = "14";
+            if ("Kotak".equals(value)) radius = "2";
+            if ("Pill".equals(value)) radius = "40";
+            applyResource("ui.object.home.primary.radius.dp", radius, "Bentuk diperbarui.");
+            return;
+        }
+        if ("Garis Tepi".equals(label)) {
+            String border = "1";
+            if ("Tanpa Garis".equals(value)) border = "0";
+            if ("Tebal".equals(value)) border = "3";
+            applyResource("ui.object.home.primary.border.dp", border, "Garis tepi diperbarui.");
+            return;
+        }
+        if ("Font/Teks".equals(label)) {
+            String size = "13";
+            if ("Kecil".equals(value)) size = "11";
+            if ("Besar".equals(value)) size = "17";
+            applyResource("ui.object.home.primary.text.size.sp", size, "Teks diperbarui.");
+            return;
+        }
+        if ("Opasitas".equals(label)) {
+            String alpha = "1.0";
+            if ("75%".equals(value)) alpha = "0.75";
+            if ("50%".equals(value)) alpha = "0.5";
+            applyResource("ui.object.home.primary.opacity", alpha, "Opasitas diperbarui.");
+            return;
+        }
+        if ("Rotasi/Transformasi".equals(label)) {
+            LinkedHashMap<String, String> map = new LinkedHashMap<>();
+            map.put("ui.object.home.primary.rotation", "Putar 90°".equals(value) ? "90" : "0");
+            map.put("ui.object.home.primary.scale", "Skala 110%".equals(value) ? "1.1" : "1.0");
+            applyResourceValues(map, "Transformasi diperbarui.");
+            return;
+        }
+        if ("Lapisan".equals(label)) {
+            String elevation = "4";
+            if ("Belakang".equals(value)) elevation = "0";
+            if ("Depan".equals(value)) elevation = "12";
+            applyResource("ui.object.home.primary.elevation.dp", elevation, "Lapisan diperbarui.");
+            return;
+        }
+        if ("Keadaan".equals(label)) {
+            applyResource("ui.object.home.primary.enabled",
+                    "Aktif".equals(value) ? "true" : "false",
+                    "Keadaan diperbarui.");
+            return;
+        }
+        if ("Animasi".equals(label)) {
+            String animation = "none";
+            if ("Fade".equals(value)) animation = "fade";
+            if ("Scale".equals(value)) animation = "scale";
+            applyResource("ui.object.home.primary.animation", animation, "Pratinjau animasi diperbarui.");
+            return;
+        }
+        if ("Hubungkan Pengikatan Otomatis".equals(label)) {
+            applyResource(
+                    "binding.ui.home.primary.mode",
+                    "Hubungkan Otomatis".equals(value) ? "auto" : "none",
+                    "Status pengikatan diperbarui."
+            );
+            return;
+        }
+        if ("Peristiwa/Aksi".equals(label)) {
+            String action = "none";
+            if ("Buka Detail".equals(value)) action = "open.detail";
+            if ("Tampilkan Pesan".equals(value)) action = "show.message";
+            applyResource("logic.ui.home.primary.action", action, "Aksi diperbarui.");
+            return;
+        }
+        if ("Aksesibilitas".equals(label)) {
+            applyResource(
+                    "ui.object.home.primary.accessibility.label",
+                    "Label Otomatis".equals(value) ? "Buka Detail" : "Buka Detail",
+                    "Aksesibilitas diperbarui."
+            );
+            return;
+        }
+        if ("Kunci".equals(label)) {
+            boolean locked = value.startsWith("Kunci");
+            VisualCapability cap = value.contains("Ukuran")
+                    ? VisualCapability.SIZE
+                    : VisualCapability.POSITION;
+            try {
+                kernel.editorEnvironment().visualSession().setLocked(
+                        "object.home.primary",
+                        cap,
+                        locked
+                );
+                closeOverlay();
+                toast(locked ? "Area edit dikunci." : "Area edit dibuka.");
+            } catch (RuntimeException error) {
+                toast("Objek belum tersedia untuk dikunci.");
+            }
+            return;
+        }
+        if ("Lainnya".equals(label)) {
+            if ("Reset Objek".equals(value)) {
+                resetDemoObject();
+            } else {
+                applyResource(
+                        "template.user.primary.label",
+                        kernel.projectManager().current().resources().getOrDefault(
+                                "ui.object.home.primary.text",
+                                "Buka Detail"
+                        ),
+                        "Template pengguna tersimpan."
+                );
+            }
+            return;
+        }
+        resetDemoObject();
+    }
+
+    private void applyTemplate(String value) {
+        LinkedHashMap<String, String> map = new LinkedHashMap<>();
+        if ("Layar Formulir".equals(value)) {
+            map.put("ui.screen.home.title", "Formulir Baru");
+            map.put("ui.screen.home.subtitle", "Masukkan data lalu lanjutkan.");
+            map.put("ui.object.home.primary.text", "Lanjut");
+        } else if ("Reset Template".equals(value)) {
+            map.put("ui.screen.home.title", "Bangun aplikasi secara visual");
+            map.put("ui.screen.home.subtitle", "Layar ini adalah permukaan yang sama saat Edit aktif maupun nonaktif.");
+            map.put("ui.object.home.primary.text", "Buka Detail");
+        } else {
+            map.put("ui.screen.home.title", "Layar Dasar");
+            map.put("ui.screen.home.subtitle", "Template dasar siap diedit.");
+            map.put("ui.object.home.primary.text", "Mulai");
+        }
+        applyResourceValues(map, "Template diterapkan.");
+    }
+
+    private void applyStylePreset(String value) {
+        LinkedHashMap<String, String> map = new LinkedHashMap<>();
+        if ("Biru Neon".equals(value) || "Biru".equals(value)) {
+            map.put("ui.object.home.primary.color", "blue");
+            map.put("ui.object.home.primary.radius.dp", "14");
+        } else if ("Permukaan Tenang".equals(value) || "Permukaan".equals(value)) {
+            map.put("ui.object.home.primary.color", "surface");
+            map.put("ui.object.home.primary.radius.dp", "12");
+        } else {
+            map.put("ui.object.home.primary.color", "neon");
+            map.put("ui.object.home.primary.radius.dp", "14");
+        }
+        applyResourceValues(map, "Gaya diterapkan.");
+    }
+
+    private void resetDemoObject() {
+        LinkedHashMap<String, String> map = new LinkedHashMap<>();
+        map.put("ui.object.home.primary.text", "Buka Detail");
+        map.put("ui.object.home.primary.width.dp", "148");
+        map.put("ui.object.home.primary.height.dp", "46");
+        map.put("ui.object.home.primary.position.x.dp", "18");
+        map.put("ui.object.home.primary.position.y.dp", "50");
+        map.put("ui.object.home.primary.padding.dp", "12");
+        map.put("ui.object.home.primary.radius.dp", "14");
+        map.put("ui.object.home.primary.border.dp", "1");
+        map.put("ui.object.home.primary.text.size.sp", "13");
+        map.put("ui.object.home.primary.opacity", "1.0");
+        map.put("ui.object.home.primary.rotation", "0");
+        map.put("ui.object.home.primary.scale", "1.0");
+        map.put("ui.object.home.primary.elevation.dp", "4");
+        map.put("ui.object.home.primary.enabled", "true");
+        map.put("ui.object.home.primary.animation", "none");
+        map.put("ui.object.home.primary.color", "neon");
+        map.put("logic.ui.home.primary.action", "open.detail");
+        applyResourceValues(map, "Objek dikembalikan ke nilai bawaan.");
+    }
+
+    private void applyResource(String key, String value, String success) {
+        LinkedHashMap<String, String> map = new LinkedHashMap<>();
+        map.put(key, value);
+        applyResourceValues(map, success);
+    }
+
+    private void applyResourceValues(Map<String, String> values, String success) {
+        try {
+            kernel.projectManager().applyResourceTransaction(
+                    values,
+                    Collections.emptySet()
+            );
+            closeOverlay();
+            renderWorkspace();
+            renderEdge();
+            toast(success);
+        } catch (RuntimeException error) {
+            toast("Perubahan ditolak secara aman.");
+        }
+    }
+
+    private void saveProject() {
+        try {
+            kernel.projectManager().save();
+            toast("Proyek tersimpan secara transaksional.");
+            renderWorkspace();
+            renderEdge();
+        } catch (Exception error) {
+            toast("Simpan gagal aman. Revisi valid sebelumnya tetap dipertahankan.");
+        }
+    }
+
+    private void undo() {
+        boolean visual = kernel.editorEnvironment().visualSession().undo();
+        boolean project = kernel.projectManager().undo();
+        toast((visual || project)
+                ? "Perubahan diurungkan."
+                : "Tidak ada perubahan untuk diurungkan.");
+        renderWorkspace();
+        renderEdge();
+    }
+
+    private void redo() {
+        boolean visual = kernel.editorEnvironment().visualSession().redo();
+        boolean project = kernel.projectManager().redo();
+        toast((visual || project)
+                ? "Perubahan diulangi."
+                : "Tidak ada perubahan untuk diulangi.");
+        renderWorkspace();
+        renderEdge();
+    }
+
+    private void showProjectInfo() {
+        showInfoOverlay(
+                "Proyek & File",
+                Arrays.asList(
+                        "Project: " + kernel.projectManager().current().projectId(),
+                        "Revisi tersimpan: " + kernel.projectManager().savedRevision(),
+                        "Perubahan tertunda: " + (kernel.projectManager().hasUnsavedChanges() ? "YA" : "TIDAK"),
+                        "Status akses: " + kernel.projectManager().accessStatus().name()
+                )
+        );
+    }
+
     private void showSettings() {
-        showCommandOverlay(
+        showInfoOverlay(
                 "Pengaturan",
                 Arrays.asList(
                         "Bahasa: Bahasa Indonesia",
                         "Tema: Gelap Neon",
-                        "Representasi Default: Visual",
+                        "Representasi default: Visual",
                         "Autosave: NONAKTIF",
                         "Simpan: Manual Transaksional",
                         "Satu fungsi berat aktif",
                         "Target Host: Android 11 / API 30 / arm64-v8a"
-                ),
-                value -> {}
+                )
         );
     }
 
     private void showFreeze() {
         FreezeEngine freeze = kernel.productServices().freeze();
-        List<String> rows = new ArrayList<>();
-        rows.add("Status: " + freezeStateIndonesia(freeze.state()));
-        rows.add("Mode Normal");
-        rows.add("Mode Simpan • Titik Pemeriksaan");
-        rows.add("Mode Simpan • Pemulihan");
-        rows.add("Commit Baseline Kerja");
-        rows.add("Thaw / Kembali Normal");
-        showCommandOverlay("Freeze & Mode Simpan", rows, value -> {
-            try {
-                if ("Mode Simpan • Titik Pemeriksaan".equals(value)) {
-                    if (freeze.state() == FreezeEngine.State.NORMAL) {
-                        freeze.freeze();
-                    } else if (freeze.state() == FreezeEngine.State.FROZEN) {
-                        freeze.commit();
+        showActionOverlay(
+                "Freeze & Mode Simpan",
+                Arrays.asList(
+                        "Mode Normal",
+                        "Mode Simpan • Titik Pemeriksaan",
+                        "Mode Simpan • Pemulihan",
+                        "Commit Baseline Kerja",
+                        "Thaw / Kembali Normal"
+                ),
+                value -> {
+                    try {
+                        if ("Mode Simpan • Titik Pemeriksaan".equals(value)) {
+                            if (freeze.state() == FreezeEngine.State.NORMAL) freeze.freeze();
+                            else if (freeze.state() == FreezeEngine.State.FROZEN) freeze.commit();
+                            toast("Titik pemeriksaan aktif.");
+                        } else if ("Mode Simpan • Pemulihan".equals(value)) {
+                            if (freeze.state() == FreezeEngine.State.FROZEN) freeze.recover();
+                            toast("Pemulihan selesai.");
+                        } else if ("Commit Baseline Kerja".equals(value)) {
+                            if (freeze.state() == FreezeEngine.State.FROZEN) freeze.commit();
+                            toast("Baseline kerja diperbarui.");
+                        } else {
+                            if (freeze.state() == FreezeEngine.State.FROZEN) freeze.thaw();
+                            toast("Mode normal aktif.");
+                        }
+                        closeOverlay();
+                    } catch (Exception error) {
+                        toast("Operasi Freeze gagal aman.");
                     }
-                    toast("Titik pemeriksaan aktif.");
-                } else if ("Mode Simpan • Pemulihan".equals(value)) {
-                    if (freeze.state() == FreezeEngine.State.FROZEN) {
-                        freeze.recover();
-                        toast("Pemulihan selesai.");
-                    }
-                } else if ("Commit Baseline Kerja".equals(value)) {
-                    if (freeze.state() == FreezeEngine.State.FROZEN) {
-                        freeze.commit();
-                        toast("Baseline kerja diperbarui.");
-                    }
-                } else if ("Thaw / Kembali Normal".equals(value)
-                        || "Mode Normal".equals(value)) {
-                    if (freeze.state() == FreezeEngine.State.FROZEN) {
-                        freeze.thaw();
-                    }
-                    toast("Mode normal aktif.");
                 }
-                closeOverlay();
-                updateStatus();
-            } catch (Exception error) {
-                toast("Operasi Freeze gagal aman.");
-            }
-        });
+        );
     }
 
     private void showHealth() {
         HealthReport report = kernel.healthMonitor().inspect(kernel);
-        showCommandOverlay(
+        showInfoOverlay(
                 "Kesehatan & Perbaikan",
                 Arrays.asList(
                         "Status: " + (report.isHealthy() ? "SEHAT" : "PERLU PERHATIAN"),
@@ -751,70 +1117,69 @@ public final class WorkspaceShellView extends FrameLayout {
                         "Aktivasi + Verifikasi: tersedia",
                         "Rollback Otomatis: tersedia",
                         "Mode Aman: " + kernel.safeModeController().statusIndonesia()
-                ),
-                value -> {}
+                )
         );
     }
 
     private void showBuild() {
-        FullProductVerifier.Result product =
-                new FullProductVerifier().verify(kernel);
+        FullProductVerifier.Result product = new FullProductVerifier().verify(kernel);
         boolean buildReady = kernel.readyCoordinator().preview().isPass();
-        showCommandOverlay(
+        showInfoOverlay(
                 "Bangun & SIAP",
                 Arrays.asList(
-                        "Kelengkapan Produk: "
-                                + (product.isPass() ? "LULUS" : "BELUM LULUS"),
-                        "Komponen Wajib: " + product.available().size()
-                                + "/" + product.requiredCount(),
+                        "Kelengkapan Produk: " + (product.isPass() ? "LULUS" : "BELUM LULUS"),
+                        "Komponen Wajib: " + product.available().size() + "/" + product.requiredCount(),
                         "Validator Build: " + (buildReady ? "LULUS" : "BLOKIR"),
                         "IR Kanonik: tersedia",
                         "Signing: hanya jalur Private",
                         "Firebase: hanya setelah izin pengguna"
-                ),
-                value -> {}
+                )
         );
     }
 
     private void showDiagnostics() {
-        FullProductVerifier.Result result =
-                new FullProductVerifier().verify(kernel);
-        List<String> rows = new ArrayList<>();
-        rows.add("Kelengkapan: " + (result.isPass() ? "LULUS" : "GAGAL"));
-        rows.add("Masalah wajib: " + result.errors().size());
-        rows.add("Engine aktif: " + kernel.engineManager().snapshot().size());
-        rows.add("Komponen siap: "
-                + kernel.libraryManager().components().allReady().size());
-        rows.add("Aset siap: "
-                + kernel.libraryManager().assets().allReady().size());
-        rows.add("Template siap: "
-                + kernel.libraryManager().templates().allReady().size());
-        rows.add("⧉ Salin Laporan");
-        showCommandOverlay("Diagnostik", rows, value -> {});
+        FullProductVerifier.Result result = new FullProductVerifier().verify(kernel);
+        showInfoOverlay(
+                "Diagnostik",
+                Arrays.asList(
+                        "Kelengkapan: " + (result.isPass() ? "LULUS" : "GAGAL"),
+                        "Masalah wajib: " + result.errors().size(),
+                        "Engine aktif: " + kernel.engineManager().snapshot().size(),
+                        "Komponen siap: " + kernel.libraryManager().components().allReady().size(),
+                        "Aset siap: " + kernel.libraryManager().assets().allReady().size(),
+                        "Template siap: " + kernel.libraryManager().templates().allReady().size()
+                )
+        );
     }
 
     private void showRecovery() {
         try {
             int candidates = kernel.projectManager().recoveryCandidates().size();
-            showCommandOverlay(
+            showActionOverlay(
                     "Pemulihan & Backup",
                     Arrays.asList(
-                            "Kandidat Pemulihan: " + candidates,
-                            "Titik Pemulihan Final: didukung",
-                            "Pemulihan Valid Terakhir: didukung",
-                            "Riwayat Revisi: didukung",
-                            "Backup Pengguna: " + kernel.productServices().backups().records().size(),
-                            "Buat Backup Terverifikasi"
+                            "Buat Backup Terverifikasi",
+                            "Lihat Kandidat Pemulihan"
                     ),
                     value -> {
                         if ("Buat Backup Terverifikasi".equals(value)) {
                             try {
                                 kernel.productServices().backups().createVerified();
-                                toast("Backup terverifikasi dibuat.");
                                 closeOverlay();
+                                toast("Backup terverifikasi dibuat.");
                             } catch (Exception error) {
                                 toast("Backup gagal dibuat.");
                             }
+                        } else {
+                            closeOverlay();
+                            showInfoOverlay(
+                                    "Kandidat Pemulihan",
+                                    Arrays.asList(
+                                            "Jumlah kandidat: " + candidates,
+                                            "Titik pemulihan final: didukung",
+                                            "Riwayat revisi: didukung"
+                                    )
+                            );
                         }
                     }
             );
@@ -824,7 +1189,7 @@ public final class WorkspaceShellView extends FrameLayout {
     }
 
     private void showEvolution() {
-        showCommandOverlay(
+        showInfoOverlay(
                 "Evolusi Tanpa Rebuild",
                 Arrays.asList(
                         "App.patch deklaratif: SIAP",
@@ -833,109 +1198,14 @@ public final class WorkspaceShellView extends FrameLayout {
                         "Pratinjau perubahan: SIAP",
                         "Recovery point sebelum mutasi: WAJIB",
                         "Apply atomik: SIAP",
-                        "Pemeriksaan Kesehatan: SIAP",
+                        "Pemeriksaan kesehatan: SIAP",
                         "Rollback: SIAP",
                         "Kode executable baru: memerlukan APK baru"
-                ),
-                value -> {}
+                )
         );
     }
 
-    private void showInstalledTarget() {
-        com.toolbox.tools.live.CapabilityScanResult scan =
-                kernel.capabilityScanner().scan(kernel.selfTargetDescriptor());
-        showCommandOverlay(
-                "Pemindaian Kapabilitas",
-                Arrays.asList(
-                        "Target: " + kernel.selfTargetDescriptor().labelIndonesia(),
-                        "Terinstal: " + (scan.installed() ? "YA" : "TIDAK"),
-                        "UI: " + availability(scan, com.toolbox.tools.live.CapabilityArea.UI),
-                        "Logika: " + availability(scan, com.toolbox.tools.live.CapabilityArea.LOGIC),
-                        "Data: " + availability(scan, com.toolbox.tools.live.CapabilityArea.DATA),
-                        "Pengikatan: " + availability(scan, com.toolbox.tools.live.CapabilityArea.BINDING),
-                        "Aset: " + availability(scan, com.toolbox.tools.live.CapabilityArea.ASSET),
-                        "Penerapan Runtime: " + availability(scan, com.toolbox.tools.live.CapabilityArea.RUNTIME)
-                ),
-                value -> {}
-        );
-    }
-
-    private void showSelfEdit() {
-        showCommandOverlay(
-                "Edit ToolBox",
-                Arrays.asList(
-                        "Permukaan deklaratif: DAPAT DIEDIT",
-                        "UI/Logika/Data/Pengikatan/Aset: capability-based",
-                        "Kernel: TERPROTEKSI",
-                        "Recovery Core: TERPROTEKSI",
-                        "Safety Core: TERPROTEKSI",
-                        "Alur: Kerja → Area Uji → Validasi → Pemulihan → Aktivasi → Verifikasi"
-                ),
-                value -> {}
-        );
-    }
-
-    private void showFloatingEditor(
-            String title,
-            List<String> rows
-    ) {
-        overlayLayer.removeAllViews();
-        overlayLayer.setVisibility(VISIBLE);
-        overlayLayer.setOnClickListener(v -> closeOverlay());
-
-        LinearLayout card = UiKit.kolom(getContext());
-        card.setPadding(
-                UiKit.dp(getContext(), 14),
-                UiKit.dp(getContext(), 12),
-                UiKit.dp(getContext(), 14),
-                UiKit.dp(getContext(), 14)
-        );
-        card.setBackground(UiKit.kartuPx(
-                getContext(),
-                Color.rgb(9, 26, 34),
-                UiKit.NEON_BIRU,
-                20,
-                1
-        ));
-        card.setElevation(UiKit.dp(getContext(), 14));
-        card.setOnClickListener(v -> {});
-
-        LinearLayout header = UiKit.baris(getContext());
-        TextView t = UiKit.judul(getContext(), title, 15f);
-        t.setTextColor(UiKit.NEON_BIRU);
-        header.addView(t, new LinearLayout.LayoutParams(
-                0, UiKit.dp(getContext(), 38), 1
-        ));
-        TextView close = UiKit.chip(getContext(), "Tutup", false);
-        close.setOnClickListener(v -> closeOverlay());
-        header.addView(close);
-        card.addView(header);
-
-        for (String row : rows) {
-            TextView item = UiKit.tombol(getContext(), row, false);
-            item.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
-            item.setTextSize(11.5f);
-            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
-                    LayoutParams.MATCH_PARENT,
-                    UiKit.dp(getContext(), 42)
-            );
-            p.bottomMargin = UiKit.dp(getContext(), 5);
-            card.addView(item, p);
-        }
-
-        FrameLayout.LayoutParams cp = new FrameLayout.LayoutParams(
-                UiKit.dp(getContext(), 286),
-                LayoutParams.WRAP_CONTENT,
-                Gravity.CENTER
-        );
-        overlayLayer.addView(card, cp);
-    }
-
-    private interface CommandHandler {
-        void onCommand(String value);
-    }
-
-    private void showCommandOverlay(
+    private void showActionOverlay(
             String title,
             List<String> rows,
             CommandHandler handler
@@ -964,15 +1234,19 @@ public final class WorkspaceShellView extends FrameLayout {
         scroll.addView(card);
 
         LinearLayout header = UiKit.baris(getContext());
-        TextView t = UiKit.judul(getContext(), title, 17f);
-        t.setTextColor(UiKit.NEON);
-        header.addView(t, new LinearLayout.LayoutParams(
-                0, UiKit.dp(getContext(), 42), 1
+        TextView titleView = UiKit.judul(getContext(), title, 17f);
+        titleView.setTextColor(UiKit.NEON);
+        header.addView(titleView, new LinearLayout.LayoutParams(
+                0,
+                UiKit.dp(getContext(), 42),
+                1
         ));
         TextView close = UiKit.chip(getContext(), "Tutup", false);
         close.setOnClickListener(v -> closeOverlay());
         header.addView(close);
         card.addView(header);
+
+        makeHeaderDraggable(titleView, scroll);
 
         for (String row : rows) {
             TextView item = UiKit.tombol(getContext(), row, false);
@@ -981,20 +1255,104 @@ public final class WorkspaceShellView extends FrameLayout {
             item.setOnClickListener(v -> handler.onCommand(row));
             LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
                     LayoutParams.MATCH_PARENT,
-                    UiKit.dp(getContext(), 44)
+                    UiKit.dp(getContext(), 46)
             );
             p.bottomMargin = UiKit.dp(getContext(), 6);
             card.addView(item, p);
         }
 
-        FrameLayout.LayoutParams sp = new FrameLayout.LayoutParams(
-                Math.min(UiKit.dp(getContext(), 340),
-                        getResources().getDisplayMetrics().widthPixels
-                                - UiKit.dp(getContext(), 32)),
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                Math.min(
+                        UiKit.dp(getContext(), 340),
+                        getResources().getDisplayMetrics().widthPixels - UiKit.dp(getContext(), 32)
+                ),
                 LayoutParams.WRAP_CONTENT,
                 Gravity.CENTER
         );
-        overlayLayer.addView(scroll, sp);
+        overlayLayer.addView(scroll, params);
+    }
+
+    private void showInfoOverlay(String title, List<String> rows) {
+        overlayLayer.removeAllViews();
+        overlayLayer.setVisibility(VISIBLE);
+        overlayLayer.setBackgroundColor(Color.argb(150, 0, 0, 0));
+        overlayLayer.setOnClickListener(v -> closeOverlay());
+
+        LinearLayout card = UiKit.kolom(getContext());
+        card.setPadding(
+                UiKit.dp(getContext(), 16),
+                UiKit.dp(getContext(), 14),
+                UiKit.dp(getContext(), 16),
+                UiKit.dp(getContext(), 16)
+        );
+        card.setBackground(UiKit.kartuPx(
+                getContext(),
+                Color.rgb(9, 26, 34),
+                UiKit.NEON_BIRU,
+                22,
+                1
+        ));
+        card.setOnClickListener(v -> {});
+
+        LinearLayout header = UiKit.baris(getContext());
+        TextView titleView = UiKit.judul(getContext(), title, 17f);
+        titleView.setTextColor(UiKit.NEON_BIRU);
+        header.addView(titleView, new LinearLayout.LayoutParams(
+                0,
+                UiKit.dp(getContext(), 42),
+                1
+        ));
+        TextView close = UiKit.chip(getContext(), "Tutup", false);
+        close.setOnClickListener(v -> closeOverlay());
+        header.addView(close);
+        card.addView(header);
+
+        makeHeaderDraggable(titleView, card);
+
+        for (String row : rows) {
+            TextView item = UiKit.teks(getContext(), row, 12f, UiKit.TEKS);
+            item.setPadding(
+                    UiKit.dp(getContext(), 8),
+                    UiKit.dp(getContext(), 8),
+                    UiKit.dp(getContext(), 8),
+                    UiKit.dp(getContext(), 8)
+            );
+            card.addView(item);
+        }
+
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                Math.min(
+                        UiKit.dp(getContext(), 340),
+                        getResources().getDisplayMetrics().widthPixels - UiKit.dp(getContext(), 32)
+                ),
+                LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER
+        );
+        overlayLayer.addView(card, params);
+    }
+
+    private void makeHeaderDraggable(View handle, View card) {
+        final float[] down = new float[4];
+        handle.setOnTouchListener((v, event) -> {
+            switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    down[0] = event.getRawX();
+                    down[1] = event.getRawY();
+                    down[2] = card.getX();
+                    down[3] = card.getY();
+                    return true;
+                case MotionEvent.ACTION_MOVE:
+                    float nx = down[2] + event.getRawX() - down[0];
+                    float ny = down[3] + event.getRawY() - down[1];
+                    float maxX = Math.max(0, getWidth() - card.getWidth());
+                    float maxY = Math.max(0, getHeight() - card.getHeight());
+                    card.setX(Math.max(0, Math.min(maxX, nx)));
+                    card.setY(Math.max(0, Math.min(maxY, ny)));
+                    return true;
+                default:
+                    return true;
+            }
+        });
     }
 
     private void closeOverlay() {
@@ -1003,125 +1361,39 @@ public final class WorkspaceShellView extends FrameLayout {
         overlayLayer.setBackgroundColor(Color.TRANSPARENT);
     }
 
-    private List<String> editorOptions(String label) {
-        if ("Ukuran".equals(label)) {
-            return Arrays.asList(
-                    "Lebar: 148 dp",
-                    "Tinggi: 46 dp",
-                    "Fixed / Content / Fill",
-                    "Kunci Rasio",
-                    "Snap",
-                    "Reset"
-            );
-        }
-        if ("Posisi".equals(label)) {
-            return Arrays.asList(
-                    "Mode Terikat Layout",
-                    "Mode Posisi Bebas",
-                    "Anchor",
-                    "Grid & Guide",
-                    "Snap Edge / Center / Object"
-            );
-        }
-        if ("Warna".equals(label)) {
-            return Arrays.asList(
-                    "Token",
-                    "Palet",
-                    "Kustom",
-                    "Gradient",
-                    "Transparan",
-                    "Terbaru",
-                    "Favorit"
-            );
-        }
-        if ("Spasi".equals(label)) {
-            return Arrays.asList(
-                    "Padding",
-                    "Margin",
-                    "Spacing",
-                    "Atas / Kanan / Bawah / Kiri",
-                    "Linked / Unlinked"
-            );
-        }
-        if ("Aksesibilitas".equals(label)) {
-            return Arrays.asList(
-                    "Label: Buka Detail",
-                    "Role: Tombol",
-                    "Focus: Aktif",
-                    "Urutan Fokus",
-                    "Status / Error"
-            );
-        }
-        if ("Animasi".equals(label)) {
-            return Arrays.asList(
-                    "Fade",
-                    "Slide",
-                    "Scale",
-                    "Rotate",
-                    "Trigger",
-                    "Durasi / Delay / Easing",
-                    "Pratinjau Sekali"
-            );
-        }
-        return Arrays.asList(
-                "Gunakan nilai bawaan",
-                "Ubah nilai",
-                "Reset",
-                "Kunci properti",
-                "Tambahkan ke Favorit"
+    private void addInfo(LinearLayout parent, String title, String detail) {
+        TextView a = UiKit.judul(getContext(), title, 13f);
+        a.setTextColor(UiKit.TEKS);
+        parent.addView(a);
+        TextView b = UiKit.teks(getContext(), detail, 11.5f, UiKit.TEKS_REDUP);
+        b.setPadding(0, UiKit.dp(getContext(), 2), 0, UiKit.dp(getContext(), 10));
+        parent.addView(b);
+    }
+
+    private LinearLayout card() {
+        LinearLayout card = UiKit.kolom(getContext());
+        card.setPadding(
+                UiKit.dp(getContext(), 16),
+                UiKit.dp(getContext(), 16),
+                UiKit.dp(getContext(), 16),
+                UiKit.dp(getContext(), 16)
         );
+        card.setBackground(UiKit.kartuPx(
+                getContext(),
+                UiKit.PERMUKAAN,
+                UiKit.GARIS,
+                18,
+                1
+        ));
+        return card;
     }
 
-    private void saveProject() {
-        try {
-            kernel.projectManager().save();
-            toast("Proyek tersimpan secara transaksional.");
-            updateStatus();
-        } catch (Exception error) {
-            toast("Simpan gagal aman. Revisi valid sebelumnya tetap dipertahankan.");
-        }
-    }
-
-    private void undo() {
-        boolean visual = kernel.editorEnvironment().visualSession().undo();
-        boolean project = kernel.projectManager().undo();
-        boolean done = visual || project;
-        toast(done ? "Perubahan diurungkan." : "Tidak ada perubahan untuk diurungkan.");
-        renderWorkspace();
-        updateStatus();
-    }
-
-    private void redo() {
-        boolean visual = kernel.editorEnvironment().visualSession().redo();
-        boolean project = kernel.projectManager().redo();
-        boolean done = visual || project;
-        toast(done ? "Perubahan diulangi." : "Tidak ada perubahan untuk diulangi.");
-        renderWorkspace();
-        updateStatus();
-    }
-
-    private void updateStatus() {
-        FullProductVerifier.Result result =
-                new FullProductVerifier().verify(kernel);
-        statusLine.setText(
-                labelSection(active)
-                        + " • " + labelRepresentation()
-                        + " • " + labelEditorMode()
-                        + " • Produk " + (result.isPass() ? "LULUS" : "BELUM LULUS")
-                        + " • " + result.available().size()
-                        + "/" + result.requiredCount()
-        );
-        statusLine.setTextColor(result.isPass() ? UiKit.NEON : UiKit.PERINGATAN);
-    }
-
-    private static String toolId(AuthoringSection section) {
-        switch (section) {
-            case UI: return "tool.ui";
-            case LOGIC: return "tool.logic";
-            case DATA: return "tool.data";
-            case BINDING: return "tool.binding";
-            case ASSET: return "tool.asset";
-            default: throw new IllegalStateException("fungsi tidak dikenal");
+    private String labelScreen() {
+        switch (screen) {
+            case HOME: return "Antarmuka ToolBox";
+            case EDITOR_CHOOSER: return "Pilihan Editor";
+            case EDITOR_WORKSPACE:
+            default: return "Editor";
         }
     }
 
@@ -1155,31 +1427,8 @@ public final class WorkspaceShellView extends FrameLayout {
         }
     }
 
-    private static String freezeStateIndonesia(FreezeEngine.State state) {
-        switch (state) {
-            case NORMAL: return "Normal";
-            case CREATING_SNAPSHOT: return "Membuat Snapshot";
-            case FROZEN: return "Beku";
-            case COMMITTING: return "Menyimpan Baseline Kerja";
-            case RESTORING: return "Memulihkan";
-            case THAWING: return "Kembali Normal";
-            case VERIFYING: return "Memverifikasi";
-            case RECOVERY_REQUIRED: return "Pemulihan Diperlukan";
-            case FAILED_SAFE:
-            default: return "Gagal Aman";
-        }
-    }
-
-    private static String availability(
-            com.toolbox.tools.live.CapabilityScanResult scan,
-            com.toolbox.tools.live.CapabilityArea area
-    ) {
-        switch (scan.status(area)) {
-            case AVAILABLE: return "TERSEDIA";
-            case READ_ONLY: return "HANYA BACA";
-            case UNAVAILABLE:
-            default: return "TIDAK TERSEDIA";
-        }
+    private static String mark(String label, boolean active) {
+        return active ? "✓ " + label : label;
     }
 
     private static String translate(String value) {
@@ -1197,6 +1446,42 @@ public final class WorkspaceShellView extends FrameLayout {
                 .replace("Dependency", "Dependensi");
     }
 
+    private void persistBubblePosition(View view) {
+        preferences().edit()
+                .putFloat("bubble.x." + orientationSuffix(), view.getX())
+                .putFloat("bubble.y." + orientationSuffix(), view.getY())
+                .apply();
+    }
+
+    private void restoreBubblePosition() {
+        float x = preferences().getFloat(
+                "bubble.x." + orientationSuffix(),
+                UiKit.dp(getContext(), 16)
+        );
+        float y = preferences().getFloat(
+                "bubble.y." + orientationSuffix(),
+                UiKit.dp(getContext(), 100)
+        );
+        float maxX = Math.max(0, getWidth() - bubble.getWidth());
+        float maxY = Math.max(0, getHeight() - bubble.getHeight());
+        bubble.setX(Math.max(0, Math.min(maxX, x)));
+        bubble.setY(Math.max(0, Math.min(maxY, y)));
+    }
+
+    private SharedPreferences preferences() {
+        return getContext().getSharedPreferences(
+                "toolbox.shell",
+                Context.MODE_PRIVATE
+        );
+    }
+
+    private String orientationSuffix() {
+        return getResources().getConfiguration().orientation
+                == Configuration.ORIENTATION_LANDSCAPE
+                ? "landscape"
+                : "portrait";
+    }
+
     private static GradientDrawable circle(int color) {
         GradientDrawable d = new GradientDrawable();
         d.setShape(GradientDrawable.OVAL);
@@ -1204,14 +1489,11 @@ public final class WorkspaceShellView extends FrameLayout {
         return d;
     }
 
-    private static View horizontal(LinearLayout child) {
-        HorizontalScrollView h = new HorizontalScrollView(child.getContext());
-        h.setHorizontalScrollBarEnabled(false);
-        h.addView(child);
-        return h;
+    private void toast(String message) {
+        Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
     }
 
-    private void toast(String text) {
-        Toast.makeText(getContext(), text, Toast.LENGTH_SHORT).show();
+    private interface CommandHandler {
+        void onCommand(String value);
     }
 }
