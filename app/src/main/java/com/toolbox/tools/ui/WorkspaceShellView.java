@@ -2015,14 +2015,74 @@ public final class WorkspaceShellView extends FrameLayout {
     }
 
     private void showProjectInfo() {
-        showInfoOverlay(
+        List<String> rows = new ArrayList<>();
+        rows.add(
+                "Project • "
+                        + kernel.projectManager()
+                            .current()
+                            .projectId()
+        );
+        rows.add(
+                "Revisi tersimpan • "
+                        + kernel.projectManager()
+                            .savedRevision()
+        );
+        rows.add(
+                "Perubahan tertunda • "
+                        + (kernel.projectManager()
+                                .hasUnsavedChanges()
+                                ? "YA"
+                                : "TIDAK")
+        );
+        rows.add(
+                "Status akses • "
+                        + kernel.projectManager()
+                            .accessStatus()
+                            .name()
+        );
+        rows.add("Ekspor Project Terverifikasi");
+        rows.add("Buat Snapshot Visible");
+
+        showActionOverlay(
                 "Proyek & File",
-                Arrays.asList(
-                        "Project: " + kernel.projectManager().current().projectId(),
-                        "Revisi tersimpan: " + kernel.projectManager().savedRevision(),
-                        "Perubahan tertunda: " + (kernel.projectManager().hasUnsavedChanges() ? "YA" : "TIDAK"),
-                        "Status akses: " + kernel.projectManager().accessStatus().name()
-                )
+                rows,
+                value -> {
+                    if ("Ekspor Project Terverifikasi".equals(value)) {
+                        try {
+                            com.toolbox.tools.product.VisibleArtifactManager.Record record =
+                                    kernel.productServices()
+                                            .visibleArtifacts()
+                                            .exportCurrent();
+                            closeOverlay();
+                            toast(
+                                    "Ekspor selesai • Exports/"
+                                            + record.fileName()
+                            );
+                        } catch (Exception error) {
+                            toast(
+                                    "Ekspor diblokir: simpan project dan pastikan storage tersedia."
+                            );
+                        }
+                    } else if ("Buat Snapshot Visible".equals(value)) {
+                        try {
+                            com.toolbox.tools.product.VisibleArtifactManager.Record record =
+                                    kernel.productServices()
+                                            .visibleArtifacts()
+                                            .snapshotCurrent(
+                                                    "manual"
+                                            );
+                            closeOverlay();
+                            toast(
+                                    "Snapshot selesai • Snapshots/"
+                                            + record.fileName()
+                            );
+                        } catch (Exception error) {
+                            toast(
+                                    "Snapshot diblokir: project harus clean dan tersimpan."
+                            );
+                        }
+                    }
+                }
         );
     }
 
