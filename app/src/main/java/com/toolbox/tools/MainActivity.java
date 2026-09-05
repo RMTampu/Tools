@@ -19,6 +19,7 @@ import com.toolbox.tools.core.ProjectAccessStatus;
 import com.toolbox.tools.core.ProjectLoadResult;
 import com.toolbox.tools.core.VisibleWorkspaceStore;
 import com.toolbox.tools.ui.StoragePickerHost;
+import com.toolbox.tools.ui.SafeRecoveryView;
 import com.toolbox.tools.ui.UiKit;
 import com.toolbox.tools.ui.WorkspaceHostActions;
 import com.toolbox.tools.ui.WorkspaceShellView;
@@ -52,7 +53,7 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
 
         kernel = createKernelFromRememberedStorage();
         discoverAwareTargets();
-        renderShell();
+        renderEntry();
     }
 
     @Override
@@ -128,7 +129,7 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
                     true
             );
             discoverAwareTargets();
-            renderShell();
+            renderEntry();
         } catch (IOException | RuntimeException error) {
             Toast.makeText(
                     this,
@@ -418,6 +419,24 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
                 this,
                 kernel.productServices().completion().installedTargets
         );
+    }
+
+    private void renderEntry() {
+        if (kernel.safeModeController().isSafeMode()) {
+            shell = null;
+            setContentView(new SafeRecoveryView(
+                    this,
+                    kernel.safeModeController(),
+                    kernel.projectManager(),
+                    kernel.visibleWorkspaceStore(),
+                    () -> {
+                        discoverAwareTargets();
+                        renderShell();
+                    }
+            ));
+            return;
+        }
+        renderShell();
     }
 
     private void renderShell() {
