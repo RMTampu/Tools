@@ -5,4 +5,12 @@ public interface WorkspaceHostActions {
     String externalAssetStatus();
     void requestEvolutionPackage();
     String evolutionPackageStatus();
+
+    boolean launchInstalledTarget(
+            String packageName,
+            String editDoor,
+            String sessionId,
+            String projectId,
+            long revision
+    );
 }
