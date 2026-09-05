@@ -36,8 +36,8 @@ public final class SafePatchManager {
                 remoteVerifier,
                 PatchActivationHook.NO_OP,
                 recoveryManager.stateStore(),
-                "com.toolbox.tools",
-                13,
+                com.toolbox.tools.BuildConfig.APPLICATION_ID,
+                com.toolbox.tools.BuildConfig.VERSION_CODE,
                 new java.util.LinkedHashSet<>(
                         java.util.Arrays.asList(
                                 "ui",
@@ -62,8 +62,8 @@ public final class SafePatchManager {
                 remoteVerifier,
                 activationHook,
                 recoveryManager.stateStore(),
-                "com.toolbox.tools",
-                13,
+                com.toolbox.tools.BuildConfig.APPLICATION_ID,
+                com.toolbox.tools.BuildConfig.VERSION_CODE,
                 new java.util.LinkedHashSet<>(
                         java.util.Arrays.asList(
                                 "ui",
@@ -89,8 +89,8 @@ public final class SafePatchManager {
                 remoteVerifier,
                 activationHook,
                 runtimeState,
-                "com.toolbox.tools",
-                13,
+                com.toolbox.tools.BuildConfig.APPLICATION_ID,
+                com.toolbox.tools.BuildConfig.VERSION_CODE,
                 new java.util.LinkedHashSet<>(
                         java.util.Arrays.asList(
                                 "ui",
