@@ -18,6 +18,9 @@ public final class SafePatchManager {
     private final PatchActivationHook activationHook;
     private final ProjectValidator projectValidator = new ProjectValidator();
     private final PatchTransactionJournal journal;
+    private final String hostPackageName;
+    private final int hostVersionCode;
+    private final java.util.Set<String> hostCapabilities;
     private PatchHealthGate healthGate = PatchHealthGate.PROJECT_ONLY;
 
     public SafePatchManager(
@@ -30,7 +33,18 @@ public final class SafePatchManager {
                 recoveryManager,
                 remoteVerifier,
                 PatchActivationHook.NO_OP,
-                recoveryManager.stateStore()
+                recoveryManager.stateStore(),
+                "com.toolbox.tools",
+                13,
+                new java.util.LinkedHashSet<>(
+                        java.util.Arrays.asList(
+                                "ui",
+                                "logic",
+                                "data",
+                                "binding",
+                                "asset"
+                        )
+                )
         );
     }
 
@@ -45,7 +59,18 @@ public final class SafePatchManager {
                 recoveryManager,
                 remoteVerifier,
                 activationHook,
-                recoveryManager.stateStore()
+                recoveryManager.stateStore(),
+                "com.toolbox.tools",
+                13,
+                new java.util.LinkedHashSet<>(
+                        java.util.Arrays.asList(
+                                "ui",
+                                "logic",
+                                "data",
+                                "binding",
+                                "asset"
+                        )
+                )
         );
     }
 
@@ -55,6 +80,36 @@ public final class SafePatchManager {
             RemotePatchVerifier remoteVerifier,
             PatchActivationHook activationHook,
             RuntimeStateStore runtimeState
+    ){
+        this(
+                projectManager,
+                recoveryManager,
+                remoteVerifier,
+                activationHook,
+                runtimeState,
+                "com.toolbox.tools",
+                13,
+                new java.util.LinkedHashSet<>(
+                        java.util.Arrays.asList(
+                                "ui",
+                                "logic",
+                                "data",
+                                "binding",
+                                "asset"
+                        )
+                )
+        );
+    }
+
+    public SafePatchManager(
+            ProjectManager projectManager,
+            RecoveryManager recoveryManager,
+            RemotePatchVerifier remoteVerifier,
+            PatchActivationHook activationHook,
+            RuntimeStateStore runtimeState,
+            String hostPackageName,
+            int hostVersionCode,
+            java.util.Set<String> hostCapabilities
     ){
         this.projectManager = Objects.requireNonNull(
                 projectManager,
@@ -74,6 +129,24 @@ public final class SafePatchManager {
         );
         this.journal = new PatchTransactionJournal(
                 Objects.requireNonNull(runtimeState, "runtimeState")
+        );
+        this.hostPackageName = Objects.requireNonNull(
+                hostPackageName,
+                "hostPackageName"
+        );
+        if (hostVersionCode < 1) {
+            throw new IllegalArgumentException(
+                    "hostVersionCode invalid"
+            );
+        }
+        this.hostVersionCode = hostVersionCode;
+        this.hostCapabilities = java.util.Collections.unmodifiableSet(
+                new java.util.LinkedHashSet<>(
+                        Objects.requireNonNull(
+                                hostCapabilities,
+                                "hostCapabilities"
+                        )
+                )
         );
     }
 
@@ -378,6 +451,18 @@ public final class SafePatchManager {
         }
         if (!manifest.payloadSha256().equals(payload.sha256())) {
             return "patch payload digest mismatch";
+        }
+        if (!manifest.supportsHost(
+                hostPackageName,
+                hostVersionCode,
+                hostCapabilities
+        )) {
+            return "patch host compatibility mismatch";
+        }
+        if (!projectManager.current()
+                .dependencyRefs()
+                .containsAll(manifest.dependencies())) {
+            return "patch dependency requirement missing";
         }
         if (!remoteVerifier.verify(manifest, payload, proof)) {
             return "remote verification failed";
