@@ -111,7 +111,13 @@ jobs:
           grep -F 'mipmap/ic_launcher' <<< "$R"
           grep -F 'mipmap/ic_launcher_round' <<< "$R"
           grep -F 'drawable/ic_launcher_foreground' <<< "$R"
-          if unzip -l "$APK" | grep -Eq '[[:space:]]lib/[^ ]+\.so          # table proves launcher IDs; this proves a physical raster payload exists.
+          if unzip -l "$APK" | grep -Eq '[[:space:]]lib/[^ ]+\.so$'; then
+            echo 'NATIVE_ABI_PAYLOAD_PRESENT=YES'
+          else
+            echo 'ABI_NEUTRAL_JAVA_PACKAGE=PASS'
+          fi
+          # AAPT2 may flatten/rename compiled resource entries. The resource
+          # table proves launcher IDs; this proves a physical raster payload exists.
           unzip -l "$APK" | grep -E 'res/.*\.(webp|png)$'
           echo 'PUBLIC_UNSIGNED_APK = PASS'
           echo 'PUBLIC_SIGNING_USED = NO'
