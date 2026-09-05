@@ -6,6 +6,7 @@ on:
     paths:
       - 'app/**'
       - 'build.gradle'
+      - 'gradle.properties'
       - 'settings.gradle'
       - 'RANCANGAN_PRODUK_PENUH.md'
       - '.github/workflows/product-full-branch-ci.yml'
