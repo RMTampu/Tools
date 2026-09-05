@@ -1,6 +1,7 @@
 name: ToolBox Produk Penuh Public CI
 
 on:
+  workflow_dispatch:
   push:
     branches: [produk-penuh-work, baseline-v12-maximal-work]
     paths:
