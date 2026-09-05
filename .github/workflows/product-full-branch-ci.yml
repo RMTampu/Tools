@@ -133,6 +133,10 @@ jobs:
           test "$API_LEVEL" = 30
           test "$ABI" = x86_64
 
+          gradle --no-daemon :app:connectedDebugAndroidTest --rerun-tasks
+          test -d app/build/outputs/androidTest-results/connected
+          ANDROID_INSTRUMENTATION_PASS=1
+
           adb install -r app/build/outputs/apk/debug/app-debug.apk
           START="$(adb shell am start -W -n com.toolbox.tools/.MainActivity)"
           grep -F 'Status: ok' <<< "$START"
@@ -477,10 +481,34 @@ jobs:
           tap_text 'Tutup'
 
           adb exec-out screencap -p > app/build/assurance/product-full-api30.png
+
+          adb shell dumpsys gfxinfo com.toolbox.tools             > app/build/assurance/product-full-gfxinfo.txt
+          test -s app/build/assurance/product-full-gfxinfo.txt
+          GFXINFO_RUNTIME_PASS=1
+
+          PSS_KB="$(adb shell dumpsys meminfo com.toolbox.tools             | awk '/TOTAL PSS:/ {print $3; exit} /^ *TOTAL / {print $2; exit}'             | tr -d '\r')"
+          [[ "$PSS_KB" =~ ^[0-9]+$ ]]
+          test "$PSS_KB" -lt 196608
+          PSS_BUDGET_RUNTIME_PASS=1
+
+          adb shell am force-stop com.toolbox.tools
+          RESTART="$(adb shell am start -W -n com.toolbox.tools/.MainActivity)"
+          grep -F 'Status: ok' <<< "$RESTART"
+          sleep 2
+          assert_text 'Beranda ToolBox • ruang kerja aplikasi'
+          adb exec-out screencap -p             > app/build/assurance/product-full-api30-after-restart.png
+          PROCESS_DEATH_RESTART_PASS=1
+
           {
             echo "API_LEVEL=$API_LEVEL"
             echo "EMULATOR_ABI=$ABI"
             echo "API30_APP_LAUNCH=PASS"
+            echo "ANDROID_INSTRUMENTATION=PASS"
+            echo "SOAK_100_RUNTIME=PASS"
+            echo "PROCESS_DEATH_RESTART=PASS"
+            echo "GFXINFO_RUNTIME=PASS"
+            echo "PSS_BUDGET_RUNTIME=PASS"
+            echo "PSS_KB=$PSS_KB"
             echo "BAHASA_INDONESIA_RUNTIME=PASS"
             echo "DARK_NEON_RUNTIME=PASS"
             echo "FIVE_TOOL_NAVIGATION=PASS"
@@ -549,5 +577,9 @@ jobs:
             app/build/assurance/product-full-r1-r9-evidence.json
             app/build/assurance/product-full-api30-runtime.txt
             app/build/assurance/product-full-api30.png
+            app/build/assurance/product-full-api30-after-restart.png
+            app/build/assurance/product-full-gfxinfo.txt
+            app/build/outputs/androidTest-results/connected/
+            app/build/reports/androidTests/connected/
           if-no-files-found: error
           retention-days: 14
