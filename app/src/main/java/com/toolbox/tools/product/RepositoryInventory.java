@@ -57,6 +57,9 @@ public final class RepositoryInventory {
         register("implementation.freeze", Type.IMPLEMENTATION, "FreezeEngine", "foundation");
         register("implementation.evolution", Type.IMPLEMENTATION, "EvolutionManager", "foundation");
         register("implementation.safe.mode", Type.IMPLEMENTATION, "SafeModeController", "foundation");
+        register("implementation.managed.app.protocol", Type.IMPLEMENTATION, "ManagedAppProtocol", "foundation");
+        register("implementation.asset.external", Type.IMPLEMENTATION, "ExternalAssetGateway", "tool.asset");
+        register("implementation.incremental.validation", Type.IMPLEMENTATION, "IncrementalResourceValidator", "foundation");
     }
 
     public synchronized void register(
