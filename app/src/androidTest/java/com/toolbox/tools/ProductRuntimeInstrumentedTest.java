@@ -2,6 +2,7 @@ package com.toolbox.tools;
 
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
+import androidx.test.filters.LargeTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 
 import android.content.Intent;
@@ -118,6 +119,7 @@ public final class ProductRuntimeInstrumentedTest {
     }
 
     @Test
+    @LargeTest
     public void editorSoakOneHundredCyclesStaysBounded() {
         try (ActivityScenario<MainActivity> scenario =
                      ActivityScenario.launch(MainActivity.class)) {
