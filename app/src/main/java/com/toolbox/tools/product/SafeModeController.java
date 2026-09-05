@@ -105,7 +105,7 @@ public final class SafeModeController {
         out.put("recoveryOperation", recovery.operation());
         out.put(
                 "quarantine",
-                android.text.TextUtils.join(",", quarantined())
+                join(quarantined())
         );
         out.put(
                 "savedRevision",
@@ -132,6 +132,15 @@ public final class SafeModeController {
         return out;
     }
 
+    private static String join(Iterable<String> values) {
+        StringBuilder out = new StringBuilder();
+        for (String value : values) {
+            if (out.length() > 0) out.append(',');
+            out.append(value);
+        }
+        return out.toString();
+    }
+
     private void persistQuarantine(Set<String> values) {
         if (values.isEmpty()) {
             state.remove(KEY_QUARANTINE);
@@ -139,6 +148,6 @@ public final class SafeModeController {
         }
         List<String> sorted = new ArrayList<>(values);
         Collections.sort(sorted);
-        state.put(KEY_QUARANTINE, android.text.TextUtils.join(",", sorted));
+        state.put(KEY_QUARANTINE, join(sorted));
     }
 }
