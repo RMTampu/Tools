@@ -16,11 +16,19 @@ public final class ProjectGraphManager {
     private final Set<String> entities = new LinkedHashSet<>();
     private final Map<String, Set<String>> outgoing = new LinkedHashMap<>();
     private final Set<String> tombstones = new LinkedHashSet<>();
+    private final Set<String> everUsedIds = new LinkedHashSet<>();
     private final Deque<String> undoDelete = new ArrayDeque<>();
 
     public synchronized void registerEntity(String id) {
         String stable = StableId.require(id, "entityId");
-        if (!tombstones.contains(stable)) entities.add(stable);
+        if (entities.contains(stable)) return;
+        if (everUsedIds.contains(stable)) {
+            throw new IllegalArgumentException(
+                    "Stable ID tidak boleh didaur ulang"
+            );
+        }
+        entities.add(stable);
+        everUsedIds.add(stable);
     }
 
     public synchronized void link(String fromId, String toId) {
@@ -38,7 +46,9 @@ public final class ProjectGraphManager {
         outgoing.clear();
 
         for (String id : project.resources().keySet()) {
-            entities.add(StableId.require(id, "resourceId"));
+            String stable = StableId.require(id, "resourceId");
+            entities.add(stable);
+            everUsedIds.add(stable);
         }
         for (Map.Entry<String, Set<String>> entry
                 : project.references().entrySet()) {
@@ -47,13 +57,14 @@ public final class ProjectGraphManager {
                     "referenceSource"
             );
             entities.add(source);
+            everUsedIds.add(source);
             for (String target : entry.getValue()) {
-                entities.add(
-                        StableId.require(
-                                target,
-                                "referenceTarget"
-                        )
+                String stableTarget = StableId.require(
+                        target,
+                        "referenceTarget"
                 );
+                entities.add(stableTarget);
+                everUsedIds.add(stableTarget);
             }
         }
         for (Map.Entry<String, Set<String>> entry
@@ -131,6 +142,24 @@ public final class ProjectGraphManager {
 
     public synchronized List<String> tombstones() {
         return Collections.unmodifiableList(new ArrayList<>(tombstones));
+    }
+
+    public synchronized boolean wasEverUsed(String id) {
+        return everUsedIds.contains(
+                StableId.require(id, "entityId")
+        );
+    }
+
+    public synchronized boolean canAllocate(String id) {
+        String stable = StableId.require(id, "entityId");
+        return !entities.contains(stable)
+                && !everUsedIds.contains(stable);
+    }
+
+    public synchronized Set<String> everUsedIds() {
+        return Collections.unmodifiableSet(
+                new LinkedHashSet<>(everUsedIds)
+        );
     }
 
     private static boolean intersects(Set<String> a, Set<String> b) {
