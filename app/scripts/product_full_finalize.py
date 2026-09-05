@@ -29,6 +29,8 @@ assert mutation["status"]=="PASS"
 assert mutation["mutationsEscaped"]==0
 
 assert candidate["status"]=="PUBLIC_FULL_PRODUCT_READY_PRIVATE_SIGNING"
+assert candidate["versionCode"]==13
+assert candidate["versionName"]=="13.0-produk-penuh-maksimal"
 assert candidate["baselineStage"]==12
 assert candidate["baselineName"]=="ToolBox Produk Penuh v12"
 assert candidate["baselineVersionCode"]==12
@@ -76,6 +78,11 @@ required_runtime=[
  "HEALTH_SAFE_MODE_UI=PASS",
  "EVOLUTION_UI=PASS",
  "FREEZE_SAVE_MODE_INDICATOR=PASS",
+ "LAUNCHER_TB_PACKAGE=PASS",
+ "ASSET_RUNTIME_RENDERER=PASS",
+ "MEMORY_PRESSURE_POLICY=PASS",
+ "PATCH_JOURNAL_RUNTIME=PASS",
+ "SAFE_RECOVERY_RUNTIME=PASS",
  "BAHASA_INDONESIA_RUNTIME=PASS",
  "DARK_NEON_RUNTIME=PASS",
  "FIVE_TOOL_NAVIGATION=PASS",
@@ -136,9 +143,9 @@ assert android_errors==0
 assert android_skipped==0
 
 evidence={
- "schemaVersion":12,
+ "schemaVersion":13,
  "projectId":"ToolBox",
- "stage":"Produk Penuh v12",
+ "stage":"Produk Penuh v13 Maksimal",
  "status":"PASS",
  "sourceRepository":os.environ.get("GITHUB_REPOSITORY","LOCAL"),
  "sourceCommitSha":os.environ.get("GITHUB_SHA","LOCAL"),
@@ -185,6 +192,11 @@ evidence={
   "healthSafeModeUi":"PASS",
   "evolutionUi":"PASS",
   "freezeSaveModeIndicator":"PASS",
+  "launcherTbPackage":"PASS",
+  "assetRuntimeRenderer":"PASS",
+  "memoryPressurePolicy":"PASS",
+  "patchJournalRuntime":"PASS",
+  "safeRecoveryRuntime":"PASS",
  },
  "r1ToR9":{
   domain:{
