@@ -73,6 +73,10 @@ public final class EditorPaneFactory {
         scroll.addView(root);
 
         root.addView(UiKit.judul(c, "Properti Terstruktur", 18f));
+        if (section == AuthoringSection.UI) {
+            buildUiProperties(c, kernel, root);
+            return scroll;
+        }
         TextView info = UiKit.teks(
                 c,
                 "Representasi Properti mengedit Project Store yang sama dengan Visual dan Kode. "
@@ -190,14 +194,35 @@ public final class EditorPaneFactory {
 
         final String key = editableResourceKey(section);
         final String fallback = editableFallback(section);
-        final String prefix = editablePrefix(section);
+        final String prefix = section == AuthoringSection.UI
+                ? selectedUiResourcePrefix(kernel)
+                : editablePrefix(section);
         String current = kernel.projectManager().current().resources().getOrDefault(
                 key,
                 fallback
         );
 
         EditText code = new EditText(c);
-        code.setText(key + "=" + current);
+        if (section == AuthoringSection.UI) {
+            StringBuilder source = new StringBuilder();
+            for (Map.Entry<String, String> entry
+                    : kernel.projectManager().current().resources().entrySet()) {
+                if (entry.getKey().startsWith(prefix + ".")) {
+                    source.append(entry.getKey())
+                            .append("=")
+                            .append(entry.getValue())
+                            .append("\n");
+                }
+            }
+            if (source.length() == 0) {
+                source.append(prefix)
+                        .append(".text=")
+                        .append(current);
+            }
+            code.setText(source.toString());
+        } else {
+            code.setText(key + "=" + current);
+        }
         code.setTypeface(Typeface.MONOSPACE);
         code.setTextColor(UiKit.TEKS);
         code.setHintTextColor(UiKit.TEKS_REDUP);
@@ -581,6 +606,201 @@ public final class EditorPaneFactory {
             default:
                 return "{}";
         }
+    }
+
+    private static void buildUiProperties(
+            Context c,
+            AppKernel kernel,
+            LinearLayout root
+    ) {
+        String prefix = selectedUiResourcePrefix(kernel);
+        Map<String, String> resources =
+                kernel.projectManager().current().resources();
+
+        TextView selected = UiKit.teks(
+                c,
+                "Objek aktif: " + prefix,
+                11.5f,
+                UiKit.NEON_BIRU
+        );
+        selected.setPadding(0, UiKit.dp(c, 4), 0, UiKit.dp(c, 10));
+        root.addView(selected);
+
+        LinkedHashMap<String, EditText> fields = new LinkedHashMap<>();
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".text",
+                "Teks",
+                resources.getOrDefault(prefix + ".text", "Buka Detail")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".width.dp",
+                "Lebar (dp)",
+                resources.getOrDefault(prefix + ".width.dp", "148")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".height.dp",
+                "Tinggi (dp)",
+                resources.getOrDefault(prefix + ".height.dp", "46")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".position.x.dp",
+                "Posisi X (dp)",
+                resources.getOrDefault(prefix + ".position.x.dp", "18")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".position.y.dp",
+                "Posisi Y (dp)",
+                resources.getOrDefault(prefix + ".position.y.dp", "50")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".opacity",
+                "Opasitas 0..1",
+                resources.getOrDefault(prefix + ".opacity", "1.0")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".enabled",
+                "Aktif true/false",
+                resources.getOrDefault(prefix + ".enabled", "true")
+        );
+
+        TextView status = UiKit.teks(
+                c,
+                "Status: sinkron dengan Visual dan Kode",
+                11f,
+                UiKit.TEKS_REDUP
+        );
+        root.addView(status);
+
+        TextView apply = UiKit.tombol(
+                c,
+                "Terapkan Properti Objek",
+                true
+        );
+        apply.setOnClickListener(v -> {
+            try {
+                LinkedHashMap<String, String> updates =
+                        new LinkedHashMap<>();
+                for (Map.Entry<String, EditText> entry
+                        : fields.entrySet()) {
+                    String value = entry.getValue()
+                            .getText()
+                            .toString()
+                            .trim();
+                    validateUiProperty(entry.getKey(), value);
+                    updates.put(entry.getKey(), value);
+                }
+                kernel.projectManager().applyResourceTransaction(
+                        updates,
+                        Collections.emptySet()
+                );
+                status.setText(
+                        "Diterapkan • working state belum disimpan"
+                );
+            } catch (RuntimeException error) {
+                status.setText(
+                        "Ditolak aman • " + error.getMessage()
+                );
+            }
+        });
+        root.addView(apply);
+    }
+
+    private static void addEditableProperty(
+            LinearLayout root,
+            Context c,
+            Map<String, EditText> fields,
+            String key,
+            String label,
+            String value
+    ) {
+        TextView title = UiKit.teks(
+                c,
+                label + "  •  " + key,
+                10.5f,
+                UiKit.TEKS_REDUP
+        );
+        root.addView(title);
+        EditText input = new EditText(c);
+        input.setSingleLine(true);
+        input.setText(value);
+        input.setTextColor(UiKit.TEKS);
+        input.setHintTextColor(UiKit.TEKS_REDUP);
+        input.setBackground(UiKit.kartuPx(
+                c,
+                UiKit.PERMUKAAN,
+                UiKit.GARIS,
+                10,
+                1
+        ));
+        input.setPadding(
+                UiKit.dp(c, 10),
+                UiKit.dp(c, 7),
+                UiKit.dp(c, 10),
+                UiKit.dp(c, 7)
+        );
+        root.addView(input, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                UiKit.dp(c, 44)
+        ));
+        fields.put(key, input);
+        UiKit.ruang(root, c, 6);
+    }
+
+    private static void validateUiProperty(
+            String key,
+            String value
+    ) {
+        if (value == null || value.trim().isEmpty()) {
+            throw new IllegalArgumentException(
+                    "nilai tidak boleh kosong"
+            );
+        }
+        if (key.endsWith(".enabled")
+                && !"true".equalsIgnoreCase(value)
+                && !"false".equalsIgnoreCase(value)) {
+            throw new IllegalArgumentException(
+                    "enabled harus true/false"
+            );
+        }
+        if (key.endsWith(".opacity")) {
+            float opacity = Float.parseFloat(value);
+            if (opacity < 0f || opacity > 1f) {
+                throw new IllegalArgumentException(
+                        "opasitas harus 0..1"
+                );
+            }
+        }
+        if (key.endsWith(".dp")) {
+            int number = Integer.parseInt(value);
+            if (number < 0 || number > 4096) {
+                throw new IllegalArgumentException(
+                        "nilai dp di luar batas"
+                );
+            }
+        }
+    }
+
+    private static String selectedUiResourcePrefix(
+            AppKernel kernel
+    ) {
+        String selected = kernel.editorEnvironment()
+                .shell()
+                .selectedObjectId();
+        if (selected == null
+                || "object.home.primary".equals(selected)) {
+            return "ui.object.home.primary";
+        }
+        if (selected.startsWith("ui.object.")) {
+            return selected;
+        }
+        return "ui.object.home.primary";
     }
 
     private static String editableResourceKey(AuthoringSection section) {
