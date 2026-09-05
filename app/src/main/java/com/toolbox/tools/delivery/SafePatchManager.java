@@ -5,7 +5,10 @@ import com.toolbox.tools.core.ProjectState;
 import com.toolbox.tools.core.ProjectValidationResult;
 import com.toolbox.tools.core.ProjectValidator;
 import com.toolbox.tools.core.RecoveryManager;
+import com.toolbox.tools.core.RuntimeStateStore;
+
 import java.io.IOException;
+import java.util.Map;
 import java.util.Objects;
 
 public final class SafePatchManager {
@@ -13,7 +16,9 @@ public final class SafePatchManager {
     private final RecoveryManager recoveryManager;
     private final RemotePatchVerifier remoteVerifier;
     private final PatchActivationHook activationHook;
-    private final ProjectValidator projectValidator=new ProjectValidator();
+    private final ProjectValidator projectValidator = new ProjectValidator();
+    private final PatchTransactionJournal journal;
+    private PatchHealthGate healthGate = PatchHealthGate.PROJECT_ONLY;
 
     public SafePatchManager(
             ProjectManager projectManager,
@@ -24,7 +29,8 @@ public final class SafePatchManager {
                 projectManager,
                 recoveryManager,
                 remoteVerifier,
-                PatchActivationHook.NO_OP
+                PatchActivationHook.NO_OP,
+                recoveryManager.stateStore()
         );
     }
 
@@ -34,10 +40,158 @@ public final class SafePatchManager {
             RemotePatchVerifier remoteVerifier,
             PatchActivationHook activationHook
     ){
-        this.projectManager=Objects.requireNonNull(projectManager,"projectManager");
-        this.recoveryManager=Objects.requireNonNull(recoveryManager,"recoveryManager");
-        this.remoteVerifier=Objects.requireNonNull(remoteVerifier,"remoteVerifier");
-        this.activationHook=Objects.requireNonNull(activationHook,"activationHook");
+        this(
+                projectManager,
+                recoveryManager,
+                remoteVerifier,
+                activationHook,
+                recoveryManager.stateStore()
+        );
+    }
+
+    public SafePatchManager(
+            ProjectManager projectManager,
+            RecoveryManager recoveryManager,
+            RemotePatchVerifier remoteVerifier,
+            PatchActivationHook activationHook,
+            RuntimeStateStore runtimeState
+    ){
+        this.projectManager = Objects.requireNonNull(
+                projectManager,
+                "projectManager"
+        );
+        this.recoveryManager = Objects.requireNonNull(
+                recoveryManager,
+                "recoveryManager"
+        );
+        this.remoteVerifier = Objects.requireNonNull(
+                remoteVerifier,
+                "remoteVerifier"
+        );
+        this.activationHook = Objects.requireNonNull(
+                activationHook,
+                "activationHook"
+        );
+        this.journal = new PatchTransactionJournal(
+                Objects.requireNonNull(runtimeState, "runtimeState")
+        );
+    }
+
+    public synchronized void setHealthGate(PatchHealthGate healthGate) {
+        this.healthGate = Objects.requireNonNull(
+                healthGate,
+                "healthGate"
+        );
+    }
+
+    public synchronized PatchTransactionJournal journal() {
+        return journal;
+    }
+
+    public synchronized void bootstrap() throws IOException {
+        if (!journal.active()) return;
+
+        long baseRevision = journal.baseRevision();
+        recoveryManager.markRecoveryRequired(
+                "INTERRUPTED_PATCH_TRANSACTION",
+                journal.patchId()
+        );
+        journal.phase(PatchTransactionJournal.Phase.ROLLING_BACK);
+
+        if (baseRevision <= 0) {
+            journal.phase(PatchTransactionJournal.Phase.FAILED_SAFE);
+            throw new IOException("patch journal base revision missing");
+        }
+
+        try {
+            ProjectState restored =
+                    projectManager.restoreRevision(baseRevision);
+            activationHook.onActivated(restored);
+            if (!projectValidator.validate(restored).isPass()
+                    || !healthGate.isHealthy(restored)) {
+                throw new IOException(
+                        "restored patch baseline failed health"
+                );
+            }
+            journal.clear();
+            recoveryManager.clearRecoveryRequired();
+        } catch (Exception error) {
+            journal.phase(PatchTransactionJournal.Phase.FAILED_SAFE);
+            recoveryManager.markRecoveryRequired(
+                    "PATCH_BOOTSTRAP_ROLLBACK_FAILED",
+                    journal.patchId()
+            );
+            if (error instanceof IOException) {
+                throw (IOException) error;
+            }
+            throw new IOException(
+                    "patch bootstrap rollback failed",
+                    error
+            );
+        }
+    }
+
+    public synchronized PatchDryRunResult dryRun(
+            PatchManifest manifest,
+            PatchPayload payload,
+            RemoteVerificationProof proof
+    ) {
+        String rejected = validateInputs(manifest, payload, proof);
+        if (rejected != null) {
+            return new PatchDryRunResult(
+                    false,
+                    rejected,
+                    null
+            );
+        }
+
+        try {
+            ProjectState candidate = projectManager.current();
+            for (Map.Entry<String, String> entry
+                    : payload.upserts().entrySet()) {
+                candidate = candidate.withResource(
+                        entry.getKey(),
+                        entry.getValue()
+                );
+            }
+            for (String id : payload.deletes()) {
+                candidate = candidate.withoutResource(id);
+            }
+            candidate = candidate.withRevision(
+                    manifest.targetRevision()
+            );
+
+            ProjectValidationResult validation =
+                    projectValidator.validate(candidate);
+            if (!validation.isPass()) {
+                return new PatchDryRunResult(
+                        false,
+                        "patch dry-run validation failed:"
+                                + validation.message(),
+                        candidate
+                );
+            }
+            if (!healthGate.isHealthy(candidate)) {
+                return new PatchDryRunResult(
+                        false,
+                        "patch dry-run health gate failed",
+                        candidate
+                );
+            }
+            return new PatchDryRunResult(
+                    true,
+                    "DRY_RUN_PASS",
+                    candidate
+            );
+        } catch (RuntimeException error) {
+            return new PatchDryRunResult(
+                    false,
+                    error.getMessage() == null
+                            ? "patch dry-run failed"
+                            : error.getMessage(),
+                    null
+            );
+        }
     }
 
     public synchronized PatchApplyResult apply(
@@ -45,69 +199,113 @@ public final class SafePatchManager {
             PatchPayload payload,
             RemoteVerificationProof proof
     ){
-        if(manifest==null||payload==null||proof==null) {
-            return rejected("patch input missing");
+        String rejected = validateInputs(manifest, payload, proof);
+        if (rejected != null) return rejected(rejected);
+
+        PatchDryRunResult dryRun = dryRun(
+                manifest,
+                payload,
+                proof
+        );
+        if (!dryRun.isPass()) {
+            return rejected(dryRun.reason());
         }
 
-        ProjectState current=projectManager.current();
-        if(!current.projectId().equals(manifest.projectId())) {
-            return rejected("patch project identity mismatch");
-        }
-        if(projectManager.hasUnsavedChanges()
-                ||projectManager.savedRevision()<=0
-                ||projectManager.savedRevision()!=manifest.baseRevision()
-                ||current.revision()!=manifest.baseRevision()) {
-            return rejected("patch base revision is not clean/current");
-        }
-        if(recoveryManager.isRecoveryRequired()) {
-            return rejected("recovery required before patch");
-        }
-        if (!remoteVerifier.verify(manifest, payload, proof)) {
-            return rejected("remote verification failed");
-        }
-
-        long baseRevision=projectManager.savedRevision();
-        boolean mutationStarted=false;
-        try{
+        long baseRevision = projectManager.savedRevision();
+        boolean mutationStarted = false;
+        journal.begin(manifest, payload);
+        try {
             projectManager.captureFinalRecoverySnapshot();
+            journal.phase(
+                    PatchTransactionJournal.Phase.SNAPSHOT_READY
+            );
+
+            journal.phase(
+                    PatchTransactionJournal.Phase.MUTATING
+            );
             projectManager.applyResourceTransaction(
                     payload.upserts(),
                     payload.deletes()
             );
-            mutationStarted=true;
-            ProjectState committed=projectManager.save();
+            mutationStarted = true;
+            ProjectState committed = projectManager.save();
 
-            if(committed.revision()!=manifest.targetRevision()) {
-                throw new IOException("patch target revision mismatch");
-            }
-            ProjectValidationResult validation=projectValidator.validate(committed);
-            if(!validation.isPass()) {
+            journal.phase(
+                    PatchTransactionJournal.Phase.VERIFYING
+            );
+            if (committed.revision()
+                    != manifest.targetRevision()) {
                 throw new IOException(
-                        "patch validation failed: "+validation.message()
+                        "patch target revision mismatch"
                 );
             }
+
+            ProjectValidationResult validation =
+                    projectValidator.validate(committed);
+            if (!validation.isPass()) {
+                throw new IOException(
+                        "patch validation failed: "
+                                + validation.message()
+                );
+            }
+
             activationHook.onActivated(committed);
+
+            journal.phase(
+                    PatchTransactionJournal.Phase.HEALTH_CHECK
+            );
+            if (!healthGate.isHealthy(committed)) {
+                throw new IOException(
+                        "patch post-activation health check failed"
+                );
+            }
+
+            journal.phase(
+                    PatchTransactionJournal.Phase.COMMITTING
+            );
+            journal.clear();
+            recoveryManager.clearRecoveryRequired();
 
             return new PatchApplyResult(
                     PatchApplyResult.State.APPLIED,
-                    "remote verified and applied",
+                    "remote verified, dry-run pass, health pass, committed",
                     committed.revision()
             );
-        }catch(Exception error){
-            if(!mutationStarted) {
+        } catch (Exception error) {
+            if (!mutationStarted) {
+                journal.clear();
                 return rejected("recovery point unavailable");
             }
-            try{
-                ProjectState restored=projectManager.restoreRevision(baseRevision);
+            journal.phase(
+                    PatchTransactionJournal.Phase.ROLLING_BACK
+            );
+            try {
+                ProjectState restored =
+                        projectManager.restoreRevision(baseRevision);
                 activationHook.onActivated(restored);
+                ProjectValidationResult restoredValidation =
+                        projectValidator.validate(restored);
+                if (!restoredValidation.isPass()
+                        || !healthGate.isHealthy(restored)) {
+                    throw new IOException(
+                            "rollback health check failed"
+                    );
+                }
+                journal.clear();
                 recoveryManager.clearRecoveryRequired();
                 return new PatchApplyResult(
                         PatchApplyResult.State.RESTORED,
                         "patch failed and prior revision restored",
                         restored.revision()
                 );
-            }catch(Exception restoreError){
-                recoveryManager.markRecoveryRequired();
+            } catch (Exception restoreError) {
+                journal.phase(
+                        PatchTransactionJournal.Phase.FAILED_SAFE
+                );
+                recoveryManager.markRecoveryRequired(
+                        "PATCH_ROLLBACK_FAILED",
+                        manifest.patchId()
+                );
                 return new PatchApplyResult(
                         PatchApplyResult.State.FAILED_SAFE,
                         "patch restore failed safely",
@@ -118,9 +316,20 @@ public final class SafePatchManager {
     }
 
     public synchronized PatchApplyResult restore(long revision){
+        journal.phase(PatchTransactionJournal.Phase.ROLLING_BACK);
         try{
-            ProjectState restored=projectManager.restoreRevision(revision);
+            ProjectState restored =
+                    projectManager.restoreRevision(revision);
             activationHook.onActivated(restored);
+            ProjectValidationResult validation =
+                    projectValidator.validate(restored);
+            if (!validation.isPass()
+                    || !healthGate.isHealthy(restored)) {
+                throw new IOException(
+                        "explicit restore health check failed"
+                );
+            }
+            journal.clear();
             recoveryManager.clearRecoveryRequired();
             return new PatchApplyResult(
                     PatchApplyResult.State.RESTORED,
@@ -128,13 +337,52 @@ public final class SafePatchManager {
                     restored.revision()
             );
         }catch(Exception error){
-            recoveryManager.markRecoveryRequired();
+            journal.phase(
+                    PatchTransactionJournal.Phase.FAILED_SAFE
+            );
+            recoveryManager.markRecoveryRequired(
+                    "PATCH_EXPLICIT_RESTORE_FAILED",
+                    "RESTORE"
+            );
             return new PatchApplyResult(
                     PatchApplyResult.State.FAILED_SAFE,
                     "explicit safe restore failed",
                     projectManager.savedRevision()
             );
         }
+    }
+
+    private String validateInputs(
+            PatchManifest manifest,
+            PatchPayload payload,
+            RemoteVerificationProof proof
+    ) {
+        if (manifest == null || payload == null || proof == null) {
+            return "patch input missing";
+        }
+
+        ProjectState current = projectManager.current();
+        if (!current.projectId().equals(manifest.projectId())) {
+            return "patch project identity mismatch";
+        }
+        if (projectManager.hasUnsavedChanges()
+                || projectManager.savedRevision() <= 0
+                || projectManager.savedRevision()
+                    != manifest.baseRevision()
+                || current.revision()
+                    != manifest.baseRevision()) {
+            return "patch base revision is not clean/current";
+        }
+        if (recoveryManager.isRecoveryRequired()) {
+            return "recovery required before patch";
+        }
+        if (!manifest.payloadSha256().equals(payload.sha256())) {
+            return "patch payload digest mismatch";
+        }
+        if (!remoteVerifier.verify(manifest, payload, proof)) {
+            return "remote verification failed";
+        }
+        return null;
     }
 
     private PatchApplyResult rejected(String message){
