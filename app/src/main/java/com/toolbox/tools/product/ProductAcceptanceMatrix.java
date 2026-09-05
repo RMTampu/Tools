@@ -649,7 +649,8 @@ public final class ProductAcceptanceMatrix {
                     3,
                     ProductCompletionServices.InstalledTargetBridge
                             .DOOR_MANAGED_RUNTIME,
-                    true
+                    true,
+                    "com.example.managed.toolbox"
             );
             ProductCompletionServices.InstalledTargetBridge.Target managed =
                     bridge.lookup("com.example.managed");
@@ -658,6 +659,9 @@ public final class ProductAcceptanceMatrix {
             return managed != null
                     && managed.toolboxAware()
                     && managed.writable()
+                    && managed.supportsInternalEditor()
+                    && "com.example.managed.toolbox"
+                        .equals(managed.providerAuthority())
                     && generic != null
                     && generic.hasEditingDoor()
                     && !generic.writable()
