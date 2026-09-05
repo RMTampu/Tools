@@ -41,6 +41,7 @@ public final class FreezeEngine {
     private final ProjectManager projects;
     private final RuntimeStateStore persistent;
     private final RecoveryManager recovery;
+    private final VisibleArtifactManager visibleArtifacts;
 
     private State state = State.NORMAL;
     private long frozenRevision;
@@ -53,7 +54,8 @@ public final class FreezeEngine {
         this(
                 projects,
                 new MemoryRuntimeStateStore(),
-                new RecoveryManager()
+                new RecoveryManager(),
+                null
         );
     }
 
@@ -62,9 +64,19 @@ public final class FreezeEngine {
             RuntimeStateStore persistent,
             RecoveryManager recovery
     ) {
+        this(projects, persistent, recovery, null);
+    }
+
+    public FreezeEngine(
+            ProjectManager projects,
+            RuntimeStateStore persistent,
+            RecoveryManager recovery,
+            VisibleArtifactManager visibleArtifacts
+    ) {
         this.projects = Objects.requireNonNull(projects, "projects");
         this.persistent = Objects.requireNonNull(persistent, "persistent");
         this.recovery = Objects.requireNonNull(recovery, "recovery");
+        this.visibleArtifacts = visibleArtifacts;
         loadPersisted();
     }
 
@@ -113,6 +125,7 @@ public final class FreezeEngine {
             }
             journal("CAPTURE_RECOVERY");
             projects.captureFinalRecoverySnapshot();
+            mirrorSnapshot("frozen-base", projects.current());
             recoveryBRevision = recoveryARevision;
             recoveryARevision = projects.savedRevision();
             frozenRevision = projects.savedRevision();
@@ -137,6 +150,7 @@ public final class FreezeEngine {
             persistState();
             projects.previewRecovery(restored.revision());
             projects.captureFinalRecoverySnapshot();
+            mirrorSnapshot("recovery", restored);
             saveMode = SaveMode.RECOVERY;
             state = State.FROZEN;
             finish();
@@ -162,6 +176,7 @@ public final class FreezeEngine {
             persistState();
             projects.previewRecovery(committed.revision());
             projects.captureFinalRecoverySnapshot();
+            mirrorSnapshot("commit", committed);
             recoveryBRevision = recoveryARevision;
             recoveryARevision = previousFrozen;
             lastWorkingRevision = committed.revision();
@@ -205,6 +220,7 @@ public final class FreezeEngine {
             ProjectState restored = projects.restoreRevision(frozenRevision);
             projects.previewRecovery(restored.revision());
             projects.captureFinalRecoverySnapshot();
+            mirrorSnapshot("bootstrap-recovery", restored);
             saveMode = SaveMode.RECOVERY;
             state = State.FROZEN;
             finish();
@@ -213,6 +229,14 @@ public final class FreezeEngine {
             failSafe("RECOVERY_RUNNING_FAILED", operation);
             throw error;
         }
+    }
+
+    private void mirrorSnapshot(
+            String label,
+            ProjectState state
+    ) throws IOException {
+        if (visibleArtifacts == null) return;
+        visibleArtifacts.snapshot(label, state);
     }
 
     private void begin(
