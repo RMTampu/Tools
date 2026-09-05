@@ -719,21 +719,108 @@ public final class ProductCompletionServices {
     }
 
     public static final class InstalledTargetBridge {
-        public static final class Target{
-            private final String packageName,label;private final Set<String> capabilities;
-            Target(String packageName,String label,List<String> caps){
-                this.packageName=packageName;this.label=label;this.capabilities=Collections.unmodifiableSet(new LinkedHashSet<>(caps));
+        public static final class Target {
+            private final String packageName;
+            private final String label;
+            private final Set<String> capabilities;
+            private final int protocolVersion;
+            private final String projectId;
+            private final long revision;
+
+            Target(
+                    String packageName,
+                    String label,
+                    List<String> capabilities,
+                    int protocolVersion,
+                    String projectId,
+                    long revision
+            ) {
+                this.packageName = packageName;
+                this.label = label;
+                this.capabilities = Collections.unmodifiableSet(
+                        new LinkedHashSet<>(capabilities)
+                );
+                this.protocolVersion = protocolVersion;
+                this.projectId = projectId;
+                this.revision = revision;
             }
-            public String packageName(){return packageName;} public String label(){return label;}
-            public Set<String> capabilities(){return capabilities;} public boolean toolboxAware(){return !capabilities.isEmpty();}
+
+            public String packageName(){return packageName;}
+            public String label(){return label;}
+            public Set<String> capabilities(){return capabilities;}
+            public int protocolVersion(){return protocolVersion;}
+            public String projectId(){return projectId;}
+            public long revision(){return revision;}
+            public boolean toolboxAware(){
+                return protocolVersion == 1
+                        && projectId != null
+                        && !capabilities.isEmpty();
+            }
         }
-        private final Map<String,Target> targets=new LinkedHashMap<>();
-        public synchronized void registerAwareTarget(String packageName,String label,List<String> capabilities){
-            if(packageName==null||!packageName.contains(".")||capabilities==null||capabilities.isEmpty()) throw new IllegalArgumentException("target invalid");
-            targets.put(packageName,new Target(packageName,label,capabilities));
+
+        private final Map<String,Target> targets =
+                new LinkedHashMap<>();
+
+        public synchronized void registerAwareTarget(
+                String packageName,
+                String label,
+                List<String> capabilities
+        ) {
+            String projectId = "project."
+                    + packageName
+                    .toLowerCase(Locale.ROOT)
+                    .replace('.', '_');
+            registerAwareTarget(
+                    packageName,
+                    label,
+                    capabilities,
+                    1,
+                    projectId,
+                    0
+            );
         }
-        public synchronized Target lookup(String packageName){return targets.get(packageName);}
-        public synchronized List<Target> all(){return Collections.unmodifiableList(new ArrayList<>(targets.values()));}
+
+        public synchronized void registerAwareTarget(
+                String packageName,
+                String label,
+                List<String> capabilities,
+                int protocolVersion,
+                String projectId,
+                long revision
+        ) {
+            if (packageName == null
+                    || !packageName.contains(".")
+                    || label == null
+                    || label.trim().isEmpty()
+                    || capabilities == null
+                    || capabilities.isEmpty()
+                    || protocolVersion != 1
+                    || revision < 0) {
+                throw new IllegalArgumentException("target invalid");
+            }
+            StableId.require(projectId, "projectId");
+            targets.put(
+                    packageName,
+                    new Target(
+                            packageName,
+                            label,
+                            capabilities,
+                            protocolVersion,
+                            projectId,
+                            revision
+                    )
+            );
+        }
+
+        public synchronized Target lookup(String packageName){
+            return targets.get(packageName);
+        }
+
+        public synchronized List<Target> all(){
+            return Collections.unmodifiableList(
+                    new ArrayList<>(targets.values())
+            );
+        }
     }
 
     public static final class BuildPackageModel {
