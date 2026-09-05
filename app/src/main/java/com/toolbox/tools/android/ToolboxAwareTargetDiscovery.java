@@ -81,6 +81,23 @@ public final class ToolboxAwareTargetDiscovery {
                     "com.toolbox.REVISION",
                     0
             );
+            String providerAuthority = meta.getString(
+                    "com.toolbox.PROVIDER_AUTHORITY",
+                    ""
+            );
+            boolean writable = false;
+            if (!providerAuthority.trim().isEmpty()) {
+                android.content.pm.ProviderInfo provider =
+                        pm.resolveContentProvider(
+                                providerAuthority,
+                                PackageManager.GET_META_DATA
+                        );
+                writable = provider != null
+                        && provider.exported
+                        && packageName.equals(provider.packageName);
+                if (!writable) providerAuthority = "";
+            }
+
             String label = label(pm, info, packageName);
             try {
                 bridge.registerTarget(
@@ -93,7 +110,8 @@ public final class ToolboxAwareTargetDiscovery {
                         ProductCompletionServices
                                 .InstalledTargetBridge
                                 .DOOR_MANAGED_RUNTIME,
-                        true
+                        writable,
+                        providerAuthority
                 );
                 seen.add(packageName);
             } catch (IllegalArgumentException ignored) {
