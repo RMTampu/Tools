@@ -10,6 +10,9 @@ import java.security.MessageDigest;
 import java.security.Signature;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.Assert.*;
 
 public class SafePatchManagerTest {
@@ -102,6 +105,94 @@ public class SafePatchManagerTest {
         );
     }
 
+    @Test
+    public void v2PatchRejectsRuntimeApkLineageMismatch()
+            throws Exception {
+        Fixture f = fixture();
+        long base = f.kernel.projectManager().savedRevision();
+        PatchPayload payload = new PatchPayload(
+                Collections.singletonMap(
+                        "ui.patch.lineage",
+                        "blocked"
+                ),
+                Collections.emptySet()
+        );
+        String currentApk = repeat('a');
+        String baselineApk = repeat('b');
+        f.manager.bindRuntimeApkIdentity(
+                currentApk,
+                baselineApk
+        );
+
+        PatchManifest manifest = manifestV2(
+                payload,
+                base,
+                repeat('c'),
+                baselineApk
+        );
+        PatchDryRunResult result = f.manager.dryRun(
+                manifest,
+                payload,
+                sign(f.pair, f.identity, manifest)
+        );
+
+        assertFalse(result.isPass());
+        assertEquals(
+                "patch parent signed APK mismatch",
+                result.reason()
+        );
+        assertEquals(base, f.kernel.projectManager().savedRevision());
+        assertFalse(
+                f.kernel.projectManager().current()
+                        .resources()
+                        .containsKey("ui.patch.lineage")
+        );
+    }
+
+    @Test
+    public void postActivationHealthFailureRollsBackAutomatically()
+            throws Exception {
+        Fixture f = fixture();
+        long base = f.kernel.projectManager().savedRevision();
+        PatchPayload payload = new PatchPayload(
+                Collections.singletonMap(
+                        "ui.patch.health.fail",
+                        "transient"
+                ),
+                Collections.emptySet()
+        );
+        PatchManifest manifest = manifest(payload, base);
+        AtomicInteger healthCalls = new AtomicInteger();
+        f.manager.setHealthGate(state -> {
+            int call = healthCalls.incrementAndGet();
+            return call != 2;
+        });
+
+        PatchApplyResult result = f.manager.apply(
+                manifest,
+                payload,
+                sign(f.pair, f.identity, manifest)
+        );
+
+        assertEquals(
+                PatchApplyResult.State.RESTORED,
+                result.state()
+        );
+        assertTrue(healthCalls.get() >= 3);
+        assertFalse(
+                f.kernel.projectManager().current()
+                        .resources()
+                        .containsKey("ui.patch.health.fail")
+        );
+        assertEquals(
+                PatchTransactionJournal.Phase.IDLE,
+                f.manager.journal().phase()
+        );
+        assertFalse(
+                f.kernel.recoveryManager().isRecoveryRequired()
+        );
+    }
+
     @Test(expected=IllegalArgumentException.class)
     public void protectedResourceCannotEnterPatch(){
         new PatchPayload(
@@ -125,6 +216,41 @@ public class SafePatchManagerTest {
                         new RemotePatchVerifier(pair.getPublic(),identity)
                 )
         );
+    }
+
+    private static PatchManifest manifestV2(
+            PatchPayload payload,
+            long base,
+            String parentApk,
+            String rollbackBaselineApk
+    ) {
+        Map<String,String> hashes = new LinkedHashMap<>();
+        hashes.put("payload", payload.sha256());
+        return new PatchManifest(
+                "patch.v2.lineage." + base,
+                "project.default",
+                base,
+                base + 1,
+                parentApk,
+                repeat('d'),
+                rollbackBaselineApk,
+                payload.sha256(),
+                "DECLARATIVE_PATCH",
+                "com.toolbox.tools",
+                "13.0-test",
+                13,
+                13,
+                Collections.emptySet(),
+                Collections.emptySet(),
+                hashes,
+                "EVOLUTION"
+        );
+    }
+
+    private static String repeat(char value) {
+        char[] out = new char[64];
+        java.util.Arrays.fill(out, value);
+        return new String(out);
     }
 
     private static PatchManifest manifest(PatchPayload payload,long base){
