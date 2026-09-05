@@ -1,5 +1,7 @@
 package com.toolbox.tools.product;
 
+import com.toolbox.tools.protocol.ManagedAppProtocol;
+
 import com.toolbox.tools.core.ProjectManager;
 import java.util.Objects;
 
@@ -35,6 +37,7 @@ public final class ProductServices {
     private final DataProviderRegistry dataProviders;
     private final AssetLoadManager assetLoads;
     private final RenderDiagnostics renderDiagnostics;
+    private final ManagedAppProtocol managedAppProtocol;
 
     public ProductServices(ProjectManager projects) {
         Objects.requireNonNull(projects, "projects");
@@ -69,6 +72,7 @@ public final class ProductServices {
         dataProviders = new DataProviderRegistry();
         assetLoads = new AssetLoadManager();
         renderDiagnostics = new RenderDiagnostics();
+        managedAppProtocol = new ManagedAppProtocol();
         for (com.toolbox.tools.library.BuiltinAssetCatalog.BuiltinAsset item
                 : com.toolbox.tools.library.BuiltinAssetCatalog.all()) {
             assetLoads.register(
@@ -211,6 +215,7 @@ public final class ProductServices {
     public DataProviderRegistry dataProviders() { return dataProviders; }
     public AssetLoadManager assetLoads() { return assetLoads; }
     public RenderDiagnostics renderDiagnostics() { return renderDiagnostics; }
+    public ManagedAppProtocol managedAppProtocol() { return managedAppProtocol; }
 
     public boolean isReady() {
         return screens.startScreenId() != null
