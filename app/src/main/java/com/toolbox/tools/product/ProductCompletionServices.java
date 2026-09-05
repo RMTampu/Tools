@@ -740,6 +740,7 @@ public final class ProductCompletionServices {
             private final long revision;
             private final String editDoor;
             private final boolean writable;
+            private final String providerAuthority;
 
             Target(
                     String packageName,
@@ -749,7 +750,8 @@ public final class ProductCompletionServices {
                     String projectId,
                     long revision,
                     String editDoor,
-                    boolean writable
+                    boolean writable,
+                    String providerAuthority
             ) {
                 this.packageName = packageName;
                 this.label = label;
@@ -761,6 +763,7 @@ public final class ProductCompletionServices {
                 this.revision = revision;
                 this.editDoor = editDoor;
                 this.writable = writable;
+                this.providerAuthority = providerAuthority;
             }
 
             public String packageName(){return packageName;}
@@ -771,6 +774,7 @@ public final class ProductCompletionServices {
             public long revision(){return revision;}
             public String editDoor(){return editDoor;}
             public boolean writable(){return writable;}
+            public String providerAuthority(){return providerAuthority;}
 
             public boolean toolboxAware(){
                 return DOOR_MANAGED_RUNTIME.equals(editDoor)
@@ -783,6 +787,13 @@ public final class ProductCompletionServices {
                 return editDoor != null
                         && !editDoor.trim().isEmpty()
                         && !capabilities.isEmpty();
+            }
+
+            public boolean supportsInternalEditor() {
+                return DOOR_MANAGED_RUNTIME.equals(editDoor)
+                        && writable
+                        && providerAuthority != null
+                        && !providerAuthority.trim().isEmpty();
             }
         }
 
@@ -842,6 +853,30 @@ public final class ProductCompletionServices {
                 String editDoor,
                 boolean writable
         ) {
+            registerTarget(
+                    packageName,
+                    label,
+                    capabilities,
+                    protocolVersion,
+                    projectId,
+                    revision,
+                    editDoor,
+                    writable,
+                    null
+            );
+        }
+
+        public synchronized void registerTarget(
+                String packageName,
+                String label,
+                List<String> capabilities,
+                int protocolVersion,
+                String projectId,
+                long revision,
+                String editDoor,
+                boolean writable,
+                String providerAuthority
+        ) {
             if (packageName == null
                     || !packageName.contains(".")
                     || label == null
@@ -876,7 +911,8 @@ public final class ProductCompletionServices {
                     stableProject,
                     revision,
                     editDoor,
-                    writable
+                    writable,
+                    normalizeAuthority(providerAuthority)
             );
 
             Target existing = targets.get(packageName);
@@ -895,6 +931,23 @@ public final class ProductCompletionServices {
             return Collections.unmodifiableList(
                     new ArrayList<>(targets.values())
             );
+        }
+
+        private static String normalizeAuthority(
+                String authority
+        ) {
+            if (authority == null || authority.trim().isEmpty()) {
+                return null;
+            }
+            String value = authority.trim();
+            if (!value.matches(
+                    "[A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)+"
+            )) {
+                throw new IllegalArgumentException(
+                        "provider authority invalid"
+                );
+            }
+            return value;
         }
 
         private static int priority(String door) {
