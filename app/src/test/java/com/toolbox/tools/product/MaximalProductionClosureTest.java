@@ -2,6 +2,7 @@ package com.toolbox.tools.product;
 
 import com.toolbox.tools.core.AppKernel;
 import com.toolbox.tools.core.FileRuntimeStateStore;
+import com.toolbox.tools.core.FileProjectStore;
 import com.toolbox.tools.core.FileVisibleWorkspaceStore;
 import com.toolbox.tools.core.ProjectState;
 import com.toolbox.tools.core.RuntimeStateStore;
@@ -241,6 +242,45 @@ public final class MaximalProductionClosureTest {
         assertEquals(
                 record.revision(),
                 second.records().get(0).revision()
+        );
+    }
+
+    @Test
+    public void realRecoverySnapshotsLiveInVisibleSnapshotsArea()
+            throws Exception {
+        File storeRoot = temp.newFolder("snapshot-project-store");
+        File privateRoot = temp.newFolder("snapshot-private");
+        File assets = temp.newFolder("snapshot-assets");
+        File visibleRoot = temp.newFolder("snapshot-visible");
+        FileVisibleWorkspaceStore visible =
+                new FileVisibleWorkspaceStore(visibleRoot);
+
+        AppKernel kernel = AppKernel.createPersistent(
+                new FileProjectStore(storeRoot),
+                "project.default",
+                privateRoot,
+                assets,
+                visible
+        );
+        if (kernel.projectManager().savedRevision() <= 0) {
+            kernel.projectManager().save();
+        }
+        kernel.projectManager().captureFinalRecoverySnapshot();
+
+        assertTrue(
+                visible.exists(
+                        VisibleWorkspaceStore.Area.SNAPSHOTS,
+                        "last-valid-recovery.tbx"
+                )
+        );
+        assertTrue(
+                visible.exists(
+                        VisibleWorkspaceStore.Area.SNAPSHOTS,
+                        "final-recovery.tbx"
+                )
+        );
+        assertFalse(
+                new File(privateRoot, "recovery").exists()
         );
     }
 
