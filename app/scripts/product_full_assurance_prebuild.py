@@ -34,7 +34,7 @@ for req in reqs:
     for rel in req["evidenceFiles"]:
         assert (REPO/rel).is_file(),(req["id"],rel)
 
-assert plan["stage"]=="Produk Penuh v12"
+assert plan["stage"]=="Produk Penuh v13 Maksimal"
 assert plan["stageMap"]=="FULL_PRODUCT"
 assert plan["parentBaseline"]["name"]=="ToolBox Produk Penuh v12"
 assert plan["parentBaseline"]["versionCode"]==12
@@ -50,16 +50,18 @@ assert requirements["baseline"]["stage"]==12
 assert requirements["baseline"]["name"]=="ToolBox Produk Penuh v12"
 assert requirements["baseline"]["apkSha256"]=="4f4579d87d867524e1b308de1a9a39ac2be0a18894d9317eea60a67dc4d91c05"
 assert requirements["baseline"]["certificateSha256"]=="290fb37d527935766e327781833493400dd647cfc8bdbe433254a2df52e4b8e4"
+assert requirements["candidate"]["versionCode"]==13
+assert requirements["candidate"]["versionName"]=="13.0-produk-penuh-maksimal"
 assert plan["productContract"]["requiredDesignSections"]==135
 assert plan["productContract"]["defaultLanguage"]=="id"
 assert plan["productContract"]["requiredToolEngines"]==[
     "UI","LOGIC","DATA","BINDING","ASSET"
 ]
-assert asset["stage"]=="Produk Penuh v12"
+assert asset["stage"]=="Produk Penuh v13 Maksimal"
 
 gradle=(APP/"build.gradle").read_text()
-assert re.search(r"\bversionCode\s+12\b",gradle)
-assert "versionName '12.0-produk-penuh'" in gradle
+assert re.search(r"\bversionCode\s+13\b",gradle)
+assert "versionName '13.0-produk-penuh-maksimal'" in gradle
 assert re.search(r"\bminSdk\s+30\b",gradle)
 assert re.search(r"\btargetSdk\s+30\b",gradle)
 
@@ -97,7 +99,7 @@ for marker in [
  "ProductEngineSuite.register",
  "BuiltinAssetCatalog.install",
  'configStore.put("bahasaDefault", "id")',
- 'configStore.put("tahap", "produk-penuh-v12")',
+ 'configStore.put("tahap", "produk-penuh-v13-maksimal")',
  "declarativeRuntime::reload",
 ]:
     assert marker in kernel,marker
@@ -183,17 +185,23 @@ for i in range(1,10):
     method_counts[f"R{i}"]=len(methods)
 
 evidence={
- "schemaVersion":12,
+ "schemaVersion":13,
  "status":"PASS",
  "product":"ToolBox Produk Penuh",
- "versionCode":12,
- "versionName":"12.0-produk-penuh",
+ "versionCode":13,
+ "versionName":"13.0-produk-penuh-maksimal",
  "baselineV12":"PASS",
  "design":{"required":135,"implementedEvidence":135,"missing":0},
  "toolEngines":{"required":5,"sourceBound":5},
  "language":{"default":"id","ui":"Bahasa Indonesia"},
  "theme":"Gelap Neon",
  "patchWithoutRebuild":"BOUND",
+ "candidateOverImmutableBaseline":"PASS",
+ "persistentFreezeJournal":"BOUND",
+ "persistentPatchJournal":"BOUND",
+ "safeRecoveryUi":"BOUND",
+ "visibleStorageArchitecture":"BOUND",
+ "realAssetRuntime":"BOUND",
  "publicSigningUsed":False,
  "firebaseUsed":False,
  "r1R9MethodCounts":method_counts,
