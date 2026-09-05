@@ -46,11 +46,11 @@ public final class VerificationManager {
                 || !"arm64".equals(kernel.configStore().get("targetAbi", ""))) {
             return VerificationResult.fail("target Android tidak cocok");
         }
-        if (!"produk-penuh-v13-maksimal".equals(
+        if (!"produk-penuh-v14-visual-first".equals(
                 kernel.configStore().get("tahap", "")
         )) {
             return VerificationResult.fail(
-                    "konfigurasi produk penuh v13 maksimal tidak tersedia"
+                    "konfigurasi produk penuh v14 visual-first tidak tersedia"
             );
         }
         if (!"id".equals(kernel.configStore().get("bahasaDefault", ""))) {
@@ -319,8 +319,8 @@ public final class VerificationManager {
         CandidateIdentity firstCandidate =
                 kernel.candidateIdentityFactory().create(
                         "com.toolbox.tools",
-                        13,
-                        "13.0-produk-penuh-maksimal",
+                        14,
+                        "14.0-visual-first-open-editor",
                         parentSigned,
                         firstIr.sha256(),
                         previewUnsigned
@@ -328,8 +328,8 @@ public final class VerificationManager {
         CandidateIdentity secondCandidate =
                 kernel.candidateIdentityFactory().create(
                         "com.toolbox.tools",
-                        13,
-                        "13.0-produk-penuh-maksimal",
+                        14,
+                        "14.0-visual-first-open-editor",
                         parentSigned,
                         firstIr.sha256(),
                         previewUnsigned
@@ -337,8 +337,8 @@ public final class VerificationManager {
         CandidateIdentity changedVersion =
                 kernel.candidateIdentityFactory().create(
                         "com.toolbox.tools",
-                        14,
-                        "14.0-produk-penuh-maksimal",
+                        15,
+                        "15.0-version-bound-check",
                         parentSigned,
                         firstIr.sha256(),
                         previewUnsigned
