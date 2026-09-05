@@ -129,6 +129,51 @@ public final class BindingAutoConnectService {
             );
         }
 
+        List<Candidate> declared=new ArrayList<>();
+        for(BindingDefinition binding
+                : runtime.model().bindings().values()){
+            if(!target.instanceId().equals(
+                    binding.targetInstanceId())
+                    || !targetPropertyId.equals(
+                            binding.targetPropertyId())){
+                continue;
+            }
+            DataSourceDefinition source=
+                    runtime.model()
+                            .dataSources()
+                            .get(binding.sourceId());
+            if(validator.isCompatible(
+                    binding,
+                    source,
+                    target,
+                    runtime.components())){
+                declared.add(new Candidate(
+                        binding.sourceId(),
+                        binding.sourceFieldId(),
+                        binding.targetInstanceId(),
+                        binding.targetPropertyId()
+                ));
+            }
+        }
+        declared.sort(
+                Comparator.comparing(Candidate::canonical)
+        );
+        if(declared.size()==1){
+            return persistSingle(declared.get(0));
+        }
+        if(declared.size()>1){
+            String declaredReport=report(
+                    Status.AMBIGUOUS,
+                    declared
+            );
+            addAmbiguousDiagnostic(target.instanceId());
+            return new Result(
+                    Status.AMBIGUOUS,
+                    declared,
+                    declaredReport
+            );
+        }
+
         List<Candidate> matches=new ArrayList<>();
         for(DataSourceDefinition source
                 : runtime.model().dataSources().values()){
@@ -175,18 +220,7 @@ public final class BindingAutoConnectService {
                     Status.AMBIGUOUS,
                     matches
             );
-            diagnostics.add(
-                    "diagnostic.binding.autoconnect.ambiguous",
-                    "ERROR",
-                    "BINDING_AMBIGUOUS",
-                    target.instanceId(),
-                    "binding-auto-connect",
-                    target.instanceId(),
-                    "editor.binding",
-                    "Auto Connect menemukan lebih dari satu sumber kompatibel.",
-                    "Pilih sumber secara eksplisit; ToolBox tidak menebak.",
-                    Collections.emptyList()
-            );
+            addAmbiguousDiagnostic(target.instanceId());
             return new Result(
                     Status.AMBIGUOUS,
                     matches,
@@ -194,38 +228,47 @@ public final class BindingAutoConnectService {
             );
         }
 
-        Candidate selected=matches.get(0);
+        return persistSingle(matches.get(0));
+    }
+
+    private Result persistSingle(Candidate selected) {
         LinkedHashMap<String,String> update =
                 new LinkedHashMap<>();
         String prefix="binding.autoconnect."
-                + normalize(target.instanceId())
+                + normalize(selected.targetInstanceId())
                 + "."
-                + normalize(targetPropertyId);
+                + normalize(selected.targetPropertyId());
         update.put(prefix+".mode","one_way");
-        update.put(
-                prefix+".source",
-                selected.sourceId()
-        );
-        update.put(
-                prefix+".field",
-                selected.sourceFieldId()
-        );
-        update.put(
-                prefix+".target",
-                selected.targetInstanceId()
-        );
-        update.put(
-                prefix+".property",
-                selected.targetPropertyId()
-        );
+        update.put(prefix+".source",selected.sourceId());
+        update.put(prefix+".field",selected.sourceFieldId());
+        update.put(prefix+".target",selected.targetInstanceId());
+        update.put(prefix+".property",selected.targetPropertyId());
         projects.applyResourceTransaction(
                 update,
                 Collections.emptySet()
         );
         return new Result(
                 Status.CONNECTED,
-                matches,
-                report(Status.CONNECTED,matches)
+                Collections.singletonList(selected),
+                report(
+                        Status.CONNECTED,
+                        Collections.singletonList(selected)
+                )
+        );
+    }
+
+    private void addAmbiguousDiagnostic(String targetInstanceId) {
+        diagnostics.add(
+                "diagnostic.binding.autoconnect.ambiguous",
+                "ERROR",
+                "BINDING_AMBIGUOUS",
+                targetInstanceId,
+                "binding-auto-connect",
+                targetInstanceId,
+                "editor.binding",
+                "Auto Connect menemukan lebih dari satu sumber kompatibel.",
+                "Pilih sumber secara eksplisit; ToolBox tidak menebak.",
+                Collections.emptyList()
         );
     }
 
