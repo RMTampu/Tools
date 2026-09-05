@@ -32,6 +32,42 @@ public final class MaximalProductionClosureTest {
     public final TemporaryFolder temp = new TemporaryFolder();
 
     @Test
+    public void productionRequiresUserOwnedSafBeforeEditing() {
+        assertTrue(
+                ProductStoragePolicy
+                        .requiresUserOwnedStorageSetup(
+                                false,
+                                false,
+                                false
+                        )
+        );
+        assertFalse(
+                ProductStoragePolicy
+                        .requiresUserOwnedStorageSetup(
+                                false,
+                                false,
+                                true
+                        )
+        );
+        assertFalse(
+                ProductStoragePolicy
+                        .requiresUserOwnedStorageSetup(
+                                true,
+                                false,
+                                false
+                        )
+        );
+        assertFalse(
+                ProductStoragePolicy
+                        .requiresUserOwnedStorageSetup(
+                                false,
+                                true,
+                                false
+                        )
+        );
+    }
+
+    @Test
     public void runtimeStateSurvivesFreshStoreInstance() throws Exception {
         File file = new File(temp.newFolder("state"), "runtime.properties");
         RuntimeStateStore first = new FileRuntimeStateStore(file);
