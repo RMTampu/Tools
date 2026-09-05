@@ -443,6 +443,55 @@ public final class MaximalProductionClosureTest {
     }
 
     @Test
+    public void installedTargetBridgePrefersRicherManagedDescriptor() {
+        ProductCompletionServices.InstalledTargetBridge bridge =
+                new ProductCompletionServices.InstalledTargetBridge();
+        bridge.registerTarget(
+                "com.example.rich",
+                "Rich",
+                java.util.Arrays.asList("ui"),
+                1,
+                "project.com_example_rich",
+                1,
+                ProductCompletionServices.InstalledTargetBridge
+                        .DOOR_MANAGED_RUNTIME,
+                false,
+                null,
+                null
+        );
+        String baseline =
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                        + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        bridge.registerTarget(
+                "com.example.rich",
+                "Rich",
+                java.util.Arrays.asList(
+                        "ui",
+                        "logic",
+                        "data",
+                        "binding",
+                        "asset"
+                ),
+                1,
+                "project.com_example_rich",
+                2,
+                ProductCompletionServices.InstalledTargetBridge
+                        .DOOR_MANAGED_RUNTIME,
+                true,
+                "com.example.rich.toolbox",
+                baseline
+        );
+
+        ProductCompletionServices.InstalledTargetBridge.Target
+                selected = bridge.lookup("com.example.rich");
+        assertNotNull(selected);
+        assertTrue(selected.supportsInternalEditor());
+        assertEquals(2L, selected.revision());
+        assertEquals(baseline, selected.baselineApkSha256());
+        assertEquals(5, selected.capabilities().size());
+    }
+
+    @Test
     public void productionEvolutionPackagePolicyRejectsLegacySchema() {
         EvolutionPackagePolicy.requireProductionSchema(
                 PatchManifest.CURRENT_SCHEMA_VERSION

@@ -180,6 +180,7 @@ assert "safeModeAndFreezeSurviveKernelRecreation" in maximal_cases
 assert "realRecoverySnapshotsLiveInVisibleSnapshotsArea" in maximal_cases
 assert "productionRequiresUserOwnedSafBeforeEditing" in maximal_cases
 assert "productionEvolutionPackagePolicyRejectsLegacySchema" in maximal_cases
+assert "installedTargetBridgePrefersRicherManagedDescriptor" in maximal_cases
 
 evidence={
     "schemaVersion":2,

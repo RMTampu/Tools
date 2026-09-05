@@ -30,6 +30,13 @@ mutations=[
   "test":"com.toolbox.tools.product.ProductProductionContractsTest.projectManagerRejectsInvalidIncrementalMutation"
  },
  {
+  "name":"installed_target_rich_descriptor_merge_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/product/ProductCompletionServices.java",
+  "old":"if (existing == null\n                    || rank(candidate) > rank(existing)\n                    || (rank(candidate) == rank(existing)\n                        && candidate.revision()\n                            > existing.revision())) {",
+  "new":"if (existing == null\n                    || priority(candidate.editDoor())\n                        > priority(existing.editDoor())) {",
+  "test":"com.toolbox.tools.product.MaximalProductionClosureTest.installedTargetBridgePrefersRicherManagedDescriptor"
+ },
+ {
   "name":"managed_protocol_version_bypass",
   "path":APP/"src/main/java/com/toolbox/tools/protocol/ManagedAppProtocol.java",
   "old":"if (protocolVersion < 1\n                    || protocolVersion > CURRENT_VERSION) {",

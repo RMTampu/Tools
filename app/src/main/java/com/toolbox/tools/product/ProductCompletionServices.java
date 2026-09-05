@@ -948,8 +948,10 @@ public final class ProductCompletionServices {
 
             Target existing = targets.get(packageName);
             if (existing == null
-                    || priority(candidate.editDoor())
-                        > priority(existing.editDoor())) {
+                    || rank(candidate) > rank(existing)
+                    || (rank(candidate) == rank(existing)
+                        && candidate.revision()
+                            > existing.revision())) {
                 targets.put(packageName, candidate);
             }
         }
@@ -991,6 +993,15 @@ public final class ProductCompletionServices {
                 );
             }
             return normalized;
+        }
+
+        private static int rank(Target target) {
+            int score = priority(target.editDoor()) * 1000;
+            if (target.supportsInternalEditor()) score += 100;
+            if (target.baselineApkSha256() != null) score += 50;
+            if (target.writable()) score += 20;
+            score += Math.min(10, target.capabilities().size());
+            return score;
         }
 
         private static int priority(String door) {
