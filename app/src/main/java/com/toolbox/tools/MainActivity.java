@@ -1,7 +1,6 @@
 package com.toolbox.tools;
 
 import android.app.Activity;
-import android.graphics.Color;
 import android.os.Bundle;
 import android.view.Window;
 
@@ -13,6 +12,7 @@ import java.io.File;
 
 public final class MainActivity extends Activity {
     private AppKernel kernel;
+    private WorkspaceShellView shell;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,11 +36,19 @@ public final class MainActivity extends Activity {
                 assetLibraryRoot
         );
 
-        WorkspaceShellView shell = new WorkspaceShellView(
+        shell = new WorkspaceShellView(
                 this,
                 kernel
         );
         setContentView(shell);
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (shell != null && shell.handleBack()) {
+            return;
+        }
+        super.onBackPressed();
     }
 
     public AppKernel kernelForTest() {
