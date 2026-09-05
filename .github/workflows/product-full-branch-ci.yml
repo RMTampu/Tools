@@ -337,6 +337,20 @@ jobs:
             sleep 1
           }
 
+          wait_process_death(){
+            local attempt pid
+            for attempt in $(seq 1 40); do
+              pid="$(timeout 5s adb shell pidof com.toolbox.tools 2>/dev/null | tr -d '\r\n' || true)"
+              if test -z "$pid"; then
+                echo "PROCESS_DEATH_CONFIRMED_ATTEMPT=$attempt"
+                return 0
+              fi
+              sleep 0.25
+            done
+            echo "PROCESS_STILL_ALIVE=$pid" >&2
+            return 1
+          }
+
           wait_patch_recovery_clean(){
             local attempt state
             for attempt in $(seq 1 20); do
@@ -416,6 +430,7 @@ jobs:
             sleep 1
             HARNESS_MARKER="$(adb_cmd shell run-as com.toolbox.tools cat files/crash-harness-last.txt 2>/dev/null | tr -d '\r\n')"
             test "$HARNESS_MARKER" = "patch:$PHASE"
+            wait_process_death
             RESTART_PATCH="$(adb_cmd shell am start -W -n com.toolbox.tools/.MainActivity)"
             grep -F 'Status: ok' <<< "$RESTART_PATCH"
             wait_patch_recovery_clean
@@ -436,6 +451,7 @@ jobs:
             sleep 1
             HARNESS_MARKER="$(adb_cmd shell run-as com.toolbox.tools cat files/crash-harness-last.txt 2>/dev/null | tr -d '\r\n')"
             test "$HARNESS_MARKER" = "freeze:$FREEZE_PHASE"
+            wait_process_death
             RESTART_FREEZE="$(adb_cmd shell am start -W -n com.toolbox.tools/.MainActivity)"
             grep -F 'Status: ok' <<< "$RESTART_FREEZE"
             wait_freeze_recovery_clean
