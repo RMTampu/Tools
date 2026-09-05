@@ -5,6 +5,7 @@ import java.util.List;
 
 public interface VisibleWorkspaceStore {
     enum Area {
+        PROJECTS("Projects"),
         ASSETS("Assets"),
         TEMPLATES("Templates"),
         EXPORTS("Exports"),
