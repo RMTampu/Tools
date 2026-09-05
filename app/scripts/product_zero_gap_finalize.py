@@ -90,6 +90,8 @@ for marker in [
     "PATCH_DESTRUCTIVE_MATRIX=PASS",
     "FREEZE_DESTRUCTIVE_MATRIX=PASS",
     "EXTERNAL_MANAGED_EDITOR=PASS",
+ "RUNTIME_APK_IDENTITY=PASS",
+ "EXTERNAL_ASSET_TAMPER_REJECTED=PASS",
     "RANCANGAN_BEHAVIOR_135=PASS",
 ]:
     assert marker in runtime,marker
@@ -131,6 +133,8 @@ assert "advancedUiPropertiesMaterializeOnRealAndroidView" in android_case_names
 assert "externalAssetRendererUsesRealAndroidImageConsumer" in android_case_names
 assert "safeRecoveryUiPersistsAcrossActivityRecreation" in android_case_names
 assert "managedExternalEditingDoorUsesRealProviderBackedEditor" in android_case_names
+assert "runtimePatchIdentityMatchesInstalledApk" in android_case_names
+assert "externalAssetTamperIsRejectedAtUse" in android_case_names
 
 maximal_xml=(
     APP/"build/test-results/testDebugUnitTest"
@@ -193,6 +197,8 @@ evidence={
         "freezeDestructiveMatrix":"PASS",
         "visibleRecoverySnapshots":"PASS",
         "externalManagedEditor":"PASS",
+        "runtimeApkIdentity":"PASS",
+        "externalAssetTamperRejected":"PASS",
     },
     "boundary":{
         "unconditionalAcceptancePass":0,
