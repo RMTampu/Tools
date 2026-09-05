@@ -59,7 +59,7 @@
     {
       "assetId": "android.launcher.tb",
       "path": "app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp",
-      "sha256": "521d3944ee2e662e5d80ba9bcdae84a370295638b892affa9c13d58f7009450f",
+      "sha256": "966e5ed5f3ff68f35d0b1b05b21aa04552159c0f8140907b8a0f52a777968f43",
       "type": "ANDROID_WEBP",
       "required": true,
       "owner": "application.host",
@@ -70,7 +70,7 @@
     {
       "assetId": "android.launcher.tb.round",
       "path": "app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.webp",
-      "sha256": "521d3944ee2e662e5d80ba9bcdae84a370295638b892affa9c13d58f7009450f",
+      "sha256": "966e5ed5f3ff68f35d0b1b05b21aa04552159c0f8140907b8a0f52a777968f43",
       "type": "ANDROID_WEBP",
       "required": true,
       "owner": "application.host",
