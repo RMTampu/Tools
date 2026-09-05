@@ -148,18 +148,37 @@ jobs:
           adb install -r "$FIXTURE"
           adb shell pm path com.toolbox.fixture | grep -F 'package:'
 
-          gradle --no-daemon :app:connectedDebugAndroidTest --rerun-tasks
+          # Jalankan 12 witness reguler lebih dulu. Soak 100 siklus dipisah
+          # agar kegagalan/hang tidak menutupi bukti Android lainnya.
+          timeout 20m gradle --no-daemon :app:connectedDebugAndroidTest --rerun-tasks \
+            -Pandroid.testInstrumentationRunnerArguments.notAnnotation=androidx.test.filters.LargeTest
           test -d app/build/outputs/androidTest-results/connected
-          grep -R 'realSafDocumentsProviderBacksAllVisibleAreasAndProjectStore' app/build/outputs/androidTest-results/connected
-          grep -R 'launcherTbResourceIsBoundAndDecodable' app/build/outputs/androidTest-results/connected
-          grep -R 'externalAssetRendererUsesRealAndroidImageConsumer' app/build/outputs/androidTest-results/connected
-          grep -R 'advancedUiPropertiesMaterializeOnRealAndroidView' app/build/outputs/androidTest-results/connected
-          grep -R 'memoryPressurePolicyDegradesAndRecoversOnDevice' app/build/outputs/androidTest-results/connected
-          grep -R 'safeRecoveryUiPersistsAcrossActivityRecreation' app/build/outputs/androidTest-results/connected
-          grep -R 'patchJournalInterruptedStateRollsBackOnDevice' app/build/outputs/androidTest-results/connected
-          grep -R 'managedExternalEditingDoorUsesRealProviderBackedEditor' app/build/outputs/androidTest-results/connected
-          grep -R 'runtimePatchIdentityMatchesInstalledApk' app/build/outputs/androidTest-results/connected
-          grep -R 'externalAssetTamperIsRejectedAtUse' app/build/outputs/androidTest-results/connected
+          mkdir -p "$RUNNER_TEMP/android-test-regular"
+          find app/build/outputs/androidTest-results/connected -name '*.xml' -type f \
+            -exec cp '{}' "$RUNNER_TEMP/android-test-regular/" \;
+
+          grep -R 'realSafDocumentsProviderBacksAllVisibleAreasAndProjectStore' "$RUNNER_TEMP/android-test-regular"
+          grep -R 'launcherTbResourceIsBoundAndDecodable' "$RUNNER_TEMP/android-test-regular"
+          grep -R 'externalAssetRendererUsesRealAndroidImageConsumer' "$RUNNER_TEMP/android-test-regular"
+          grep -R 'advancedUiPropertiesMaterializeOnRealAndroidView' "$RUNNER_TEMP/android-test-regular"
+          grep -R 'memoryPressurePolicyDegradesAndRecoversOnDevice' "$RUNNER_TEMP/android-test-regular"
+          grep -R 'safeRecoveryUiPersistsAcrossActivityRecreation' "$RUNNER_TEMP/android-test-regular"
+          grep -R 'patchJournalInterruptedStateRollsBackOnDevice' "$RUNNER_TEMP/android-test-regular"
+          grep -R 'managedExternalEditingDoorUsesRealProviderBackedEditor' "$RUNNER_TEMP/android-test-regular"
+          grep -R 'runtimePatchIdentityMatchesInstalledApk' "$RUNNER_TEMP/android-test-regular"
+          grep -R 'externalAssetTamperIsRejectedAtUse' "$RUNNER_TEMP/android-test-regular"
+
+          # Jalankan soak sendirian dengan batas keras. Jika macet, CI fail
+          # pada test yang tepat, bukan menunggu job timeout global.
+          timeout 12m gradle --no-daemon :app:connectedDebugAndroidTest --rerun-tasks \
+            -Pandroid.testInstrumentationRunnerArguments.annotation=androidx.test.filters.LargeTest
+          test -d app/build/outputs/androidTest-results/connected
+          grep -R 'editorSoakOneHundredCyclesStaysBounded' app/build/outputs/androidTest-results/connected
+
+          # Gabungkan kembali XML reguler + soak untuk finalizer/evidence.
+          mkdir -p app/build/outputs/androidTest-results/connected/regular-evidence
+          cp "$RUNNER_TEMP/android-test-regular/"*.xml \
+            app/build/outputs/androidTest-results/connected/regular-evidence/
           ANDROID_INSTRUMENTATION_PASS=1
           EXTERNAL_MANAGED_EDITOR_PASS=1
           RUNTIME_APK_IDENTITY_PASS=1
