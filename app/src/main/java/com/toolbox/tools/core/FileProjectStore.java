@@ -285,6 +285,35 @@ public final class FileProjectStore implements ProjectStore {
         return out;
     }
 
+    @Override
+    public synchronized boolean deleteRecoveryRevision(long revision)
+            throws IOException {
+        if (revision <= 0) return false;
+        Files.createDirectories(root);
+        Files.createDirectories(revisions);
+
+        try (FileChannel channel = FileChannel.open(
+                lockFile,
+                java.nio.file.StandardOpenOption.CREATE,
+                java.nio.file.StandardOpenOption.WRITE);
+             FileLock ignored = channel.lock()) {
+            long current = Files.isRegularFile(currentRef)
+                    ? readRef(currentRef)
+                    : -1;
+            long previous = Files.isRegularFile(previousRef)
+                    ? readRef(previousRef)
+                    : -1;
+            if (revision == current || revision == previous) {
+                return false;
+            }
+            Path target = revisions.resolve(Long.toString(revision));
+            ensureChild(revisions, target);
+            if (!Files.isDirectory(target)) return false;
+            deleteTree(target);
+            return true;
+        }
+    }
+
     private ProjectState readRevision(Path revisionDir) throws IOException {
         Path projectFile = revisionDir.resolve("project.json");
         Path manifestFile = revisionDir.resolve("project.manifest");
