@@ -48,6 +48,7 @@ if production_failures or production_errors or production_skipped:
     raise SystemExit("PRODUCT_PRODUCTION_CONTRACT_GATE_FAILED")
 
 critical_classes = [
+    "com.toolbox.tools.product.MaximalProductionClosureTest",
     "com.toolbox.tools.core.FileProjectStoreTest",
     "com.toolbox.tools.core.ProjectManagerTest",
     "com.toolbox.tools.delivery.RemotePatchVerifierTest",
@@ -80,7 +81,7 @@ for class_name in critical_classes:
     critical_evidence[class_name] = summary
 
 evidence = {
-    "schemaVersion": 1,
+    "schemaVersion": 2,
     "gate": "PRODUCT_BEHAVIOR_135",
     "status": "PASS",
     "designSections": {
