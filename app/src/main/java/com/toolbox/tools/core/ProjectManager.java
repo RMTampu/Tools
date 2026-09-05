@@ -20,6 +20,8 @@ public final class ProjectManager {
     private final RecoveryManager recoveryManager;
     private final ProjectMigrationRegistry migrationRegistry;
     private final ProjectValidator validator = new ProjectValidator();
+    private final IncrementalResourceValidator incrementalValidator = new IncrementalResourceValidator();
+    private IncrementalResourceValidator.Result lastIncrementalValidation;
     private final Deque<ProjectChangeSet> undo = new ArrayDeque<>();
     private final Deque<ProjectChangeSet> redo = new ArrayDeque<>();
 
@@ -160,6 +162,17 @@ public final class ProjectManager {
         requireStarted();
         if (upserts.isEmpty() && deletes.isEmpty()) {
             return;
+        }
+
+        lastIncrementalValidation = incrementalValidator.validate(
+                current,
+                upserts,
+                deletes
+        );
+        if (!lastIncrementalValidation.isPass()) {
+            throw new IllegalArgumentException(
+                    lastIncrementalValidation.diagnostic()
+            );
         }
 
         LinkedHashSet<String> touched = new LinkedHashSet<>();
@@ -431,6 +444,11 @@ public final class ProjectManager {
             recoveryManager.markRecoveryRequired();
             throw error;
         }
+    }
+
+    public synchronized IncrementalResourceValidator.Result
+            lastIncrementalValidation() {
+        return lastIncrementalValidation;
     }
 
     public synchronized boolean canUndo() {
