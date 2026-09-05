@@ -2261,6 +2261,11 @@ public final class WorkspaceShellView extends FrameLayout {
             );
             item.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
             item.setTextSize(12f);
+            if (activeRow) {
+                item.setContentDescription(
+                        "Pilihan aktif • " + stripMark(row)
+                );
+            }
             item.setOnClickListener(v -> handler.onCommand(row));
             LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
                     LayoutParams.MATCH_PARENT,
