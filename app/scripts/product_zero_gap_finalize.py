@@ -121,7 +121,7 @@ for file in android_xml:
     failures+=int(root.attrib.get("failures","0"))
     errors+=int(root.attrib.get("errors","0"))
     skipped+=int(root.attrib.get("skipped","0"))
-assert tests>=13 and failures==0 and errors==0 and skipped==0
+assert tests>=14 and failures==0 and errors==0 and skipped==0
 
 android_case_names=set()
 for file in android_xml:
@@ -138,6 +138,7 @@ required_android_cases={
     "launcherTbResourceIsBoundAndDecodable",
     "externalAssetRendererUsesRealAndroidImageConsumer",
     "externalAssetTamperIsRejectedAtUse",
+    "externalAudioVideoAssetsUseStreamingBackends",
     "advancedUiPropertiesMaterializeOnRealAndroidView",
     "memoryPressurePolicyDegradesAndRecoversOnDevice",
     "safeRecoveryUiPersistsAcrossActivityRecreation",
@@ -232,6 +233,7 @@ evidence={
         "externalManagedEditor":"PASS",
         "runtimeApkIdentity":"PASS",
         "externalAssetTamperRejected":"PASS",
+        "assetMediaStreaming":"PASS",
     },
     "boundary":{
         "unconditionalAcceptancePass":0,

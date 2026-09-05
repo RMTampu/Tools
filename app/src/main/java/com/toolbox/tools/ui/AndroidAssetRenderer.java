@@ -5,6 +5,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Typeface;
 import android.media.MediaPlayer;
+import android.net.Uri;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.FrameLayout;
@@ -13,6 +14,8 @@ import android.widget.TextView;
 import android.widget.VideoView;
 
 import com.toolbox.tools.core.AppKernel;
+import com.toolbox.tools.core.FileVisibleWorkspaceStore;
+import com.toolbox.tools.android.SafVisibleWorkspaceStore;
 import com.toolbox.tools.core.VisibleWorkspaceStore;
 import com.toolbox.tools.product.CacheManager;
 
@@ -256,7 +259,7 @@ public final class AndroidAssetRenderer {
             String storageName,
             String sha256
     ) throws IOException {
-        File file = verifiedCacheFile(
+        MediaSource source = mediaSource(
                 context,
                 cache,
                 visible,
@@ -275,8 +278,12 @@ public final class AndroidAssetRenderer {
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
         ));
-        button.setOnClickListener(v -> frame.toggle(file, button));
-        frame.setContentDescription("Pratinjau aset audio");
+        button.setOnClickListener(
+                v -> frame.toggle(source, button)
+        );
+        frame.setContentDescription(
+                "Pratinjau aset audio • streaming " + source.backend
+        );
         return frame;
     }
 
@@ -287,7 +294,7 @@ public final class AndroidAssetRenderer {
             String storageName,
             String sha256
     ) throws IOException {
-        File file = verifiedCacheFile(
+        MediaSource source = mediaSource(
                 context,
                 cache,
                 visible,
@@ -297,7 +304,11 @@ public final class AndroidAssetRenderer {
         );
         VideoPreviewFrame frame = new VideoPreviewFrame(context);
         VideoView video = new VideoView(context);
-        video.setVideoPath(file.getAbsolutePath());
+        if (source.uri != null) {
+            video.setVideoURI(source.uri);
+        } else {
+            video.setVideoPath(source.file.getAbsolutePath());
+        }
         frame.video = video;
         frame.addView(video, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
@@ -323,8 +334,12 @@ public final class AndroidAssetRenderer {
                 play.setText("❚❚ Jeda");
             }
         });
-        video.setOnCompletionListener(mp -> play.setText("▶ Video"));
-        frame.setContentDescription("Pratinjau aset video");
+        video.setOnCompletionListener(
+                mp -> play.setText("▶ Video")
+        );
+        frame.setContentDescription(
+                "Pratinjau aset video • streaming " + source.backend
+        );
         return frame;
     }
 
@@ -376,6 +391,67 @@ public final class AndroidAssetRenderer {
                 UiKit.dp(context, 8)
         );
         return view;
+    }
+
+    public static String streamingBackendForTest(
+            VisibleWorkspaceStore visible,
+            String storageName,
+            String expectedSha256
+    ) throws IOException {
+        if (!verify(visible, storageName, expectedSha256)) {
+            throw new IOException("asset integrity mismatch");
+        }
+        if (visible instanceof SafVisibleWorkspaceStore) {
+            ((SafVisibleWorkspaceStore) visible).itemUri(
+                    VisibleWorkspaceStore.Area.ASSETS,
+                    storageName
+            );
+            return "SAF_URI";
+        }
+        if (visible instanceof FileVisibleWorkspaceStore) {
+            ((FileVisibleWorkspaceStore) visible).itemFile(
+                    VisibleWorkspaceStore.Area.ASSETS,
+                    storageName
+            );
+            return "FILE_PATH";
+        }
+        return "CACHE_FALLBACK";
+    }
+
+    private static MediaSource mediaSource(
+            Context context,
+            CacheManager cache,
+            VisibleWorkspaceStore visible,
+            String storageName,
+            String sha256,
+            String fallbackSuffix
+    ) throws IOException {
+        if (!verify(visible, storageName, sha256)) {
+            throw new IOException("asset integrity mismatch");
+        }
+        if (visible instanceof SafVisibleWorkspaceStore) {
+            Uri uri = ((SafVisibleWorkspaceStore) visible).itemUri(
+                    VisibleWorkspaceStore.Area.ASSETS,
+                    storageName
+            );
+            return new MediaSource("SAF_URI", uri, null);
+        }
+        if (visible instanceof FileVisibleWorkspaceStore) {
+            File file = ((FileVisibleWorkspaceStore) visible).itemFile(
+                    VisibleWorkspaceStore.Area.ASSETS,
+                    storageName
+            );
+            return new MediaSource("FILE_PATH", null, file);
+        }
+        File fallback = verifiedCacheFile(
+                context,
+                cache,
+                visible,
+                storageName,
+                sha256,
+                fallbackSuffix
+        );
+        return new MediaSource("CACHE_FALLBACK", null, fallback);
     }
 
     private static File verifiedCacheFile(
@@ -510,6 +586,23 @@ public final class AndroidAssetRenderer {
         return value;
     }
 
+    private static final class MediaSource {
+        final String backend;
+        final Uri uri;
+        final File file;
+
+        MediaSource(String backend, Uri uri, File file) {
+            this.backend = backend;
+            this.uri = uri;
+            this.file = file;
+            if ((uri == null) == (file == null)) {
+                throw new IllegalArgumentException(
+                        "exactly one media source required"
+                );
+            }
+        }
+    }
+
     private static final class AudioPreviewFrame extends FrameLayout {
         private MediaPlayer player;
 
@@ -517,7 +610,7 @@ public final class AndroidAssetRenderer {
             super(context);
         }
 
-        void toggle(File file, TextView button) {
+        void toggle(MediaSource source, TextView button) {
             try {
                 if (player != null && player.isPlaying()) {
                     player.pause();
@@ -526,7 +619,13 @@ public final class AndroidAssetRenderer {
                 }
                 if (player == null) {
                     player = new MediaPlayer();
-                    player.setDataSource(file.getAbsolutePath());
+                    if (source.uri != null) {
+                        player.setDataSource(getContext(), source.uri);
+                    } else {
+                        player.setDataSource(
+                                source.file.getAbsolutePath()
+                        );
+                    }
                     player.setOnCompletionListener(mp -> {
                         button.setText("▶ Putar Audio");
                         releasePlayer();

@@ -89,6 +89,7 @@ required_runtime=[
  "EXTERNAL_MANAGED_EDITOR=PASS",
  "RUNTIME_APK_IDENTITY=PASS",
  "EXTERNAL_ASSET_TAMPER_REJECTED=PASS",
+ "ASSET_MEDIA_STREAMING=PASS",
  "BAHASA_INDONESIA_RUNTIME=PASS",
  "DARK_NEON_RUNTIME=PASS",
  "FIVE_TOOL_NAVIGATION=PASS",
@@ -163,6 +164,7 @@ required_android_cases={
     "launcherTbResourceIsBoundAndDecodable",
     "externalAssetRendererUsesRealAndroidImageConsumer",
     "externalAssetTamperIsRejectedAtUse",
+    "externalAudioVideoAssetsUseStreamingBackends",
     "advancedUiPropertiesMaterializeOnRealAndroidView",
     "memoryPressurePolicyDegradesAndRecoversOnDevice",
     "safeRecoveryUiPersistsAcrossActivityRecreation",
@@ -233,6 +235,7 @@ evidence={
   "externalManagedEditor":"PASS",
   "runtimeApkIdentity":"PASS",
   "externalAssetTamperRejected":"PASS",
+  "assetMediaStreaming":"PASS",
  },
  "r1ToR9":{
   domain:{

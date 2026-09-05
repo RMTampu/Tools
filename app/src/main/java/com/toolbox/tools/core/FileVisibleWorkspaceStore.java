@@ -129,6 +129,15 @@ public final class FileVisibleWorkspaceStore implements VisibleWorkspaceStore {
         return new FileInputStream(file);
     }
 
+    public synchronized File itemFile(
+            Area area,
+            String name
+    ) throws IOException {
+        File file = new File(directory(area), safeName(name));
+        if (!file.isFile()) throw new IOException("visible item missing");
+        return file;
+    }
+
     @Override
     public synchronized boolean exists(Area area, String name) {
         return new File(directory(area), safeName(name)).isFile();

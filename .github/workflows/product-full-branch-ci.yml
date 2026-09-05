@@ -167,6 +167,7 @@ jobs:
           grep -R 'managedExternalEditingDoorUsesRealProviderBackedEditor' "$RUNNER_TEMP/android-test-regular"
           grep -R 'runtimePatchIdentityMatchesInstalledApk' "$RUNNER_TEMP/android-test-regular"
           grep -R 'externalAssetTamperIsRejectedAtUse' "$RUNNER_TEMP/android-test-regular"
+          grep -R 'externalAudioVideoAssetsUseStreamingBackends' "$RUNNER_TEMP/android-test-regular"
 
           # Jalankan soak sendirian dengan batas keras. Jika macet, CI fail
           # pada test yang tepat, bukan menunggu job timeout global.
@@ -183,6 +184,7 @@ jobs:
           EXTERNAL_MANAGED_EDITOR_PASS=1
           RUNTIME_APK_IDENTITY_PASS=1
           EXTERNAL_ASSET_TAMPER_PASS=1
+          ASSET_MEDIA_STREAMING_PASS=1
           LAUNCHER_TB_RUNTIME_PASS=1
           ASSET_RUNTIME_RENDERER_PASS=1
           ADVANCED_UI_PROPERTIES_PASS=1
@@ -676,6 +678,7 @@ jobs:
             echo "EXTERNAL_MANAGED_EDITOR=PASS"
             echo "RUNTIME_APK_IDENTITY=PASS"
             echo "EXTERNAL_ASSET_TAMPER_REJECTED=PASS"
+            echo "ASSET_MEDIA_STREAMING=PASS"
             echo "PATCH_DESTRUCTIVE_MATRIX=PASS"
             echo "FREEZE_DESTRUCTIVE_MATRIX=PASS"
             echo "SAFE_RECOVERY_RUNTIME=PASS"

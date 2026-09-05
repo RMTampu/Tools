@@ -365,6 +365,114 @@ public final class ProductRuntimeInstrumentedTest {
     }
 
     @Test
+    public void externalAudioVideoAssetsUseStreamingBackends()
+            throws Exception {
+        try (ActivityScenario<MainActivity> scenario =
+                     ActivityScenario.launch(MainActivity.class)) {
+            scenario.onActivity(activity -> {
+                try {
+                    byte[] media = new byte[32 * 1024];
+                    for (int i = 0; i < media.length; i++) {
+                        media[i] = (byte) (i & 0x7f);
+                    }
+                    String sha = sha256(media);
+
+                    Uri tree = DocumentsContract.buildTreeDocumentUri(
+                            DebugDocumentsProvider.AUTHORITY,
+                            DebugDocumentsProvider.ROOT_ID
+                    );
+                    SafVisibleWorkspaceStore saf =
+                            new SafVisibleWorkspaceStore(
+                                    activity.getContentResolver(),
+                                    tree
+                            );
+                    saf.ensureLayout();
+                    saf.write(
+                            VisibleWorkspaceStore.Area.ASSETS,
+                            "stream-media.bin",
+                            media
+                    );
+                    assertEquals(
+                            "SAF_URI",
+                            AndroidAssetRenderer.streamingBackendForTest(
+                                    saf,
+                                    "stream-media.bin",
+                                    sha
+                            )
+                    );
+
+                    AppKernel kernel = activity.kernelForTest();
+                    kernel.visibleWorkspaceStore().write(
+                            VisibleWorkspaceStore.Area.ASSETS,
+                            "stream-file.bin",
+                            media
+                    );
+                    assertEquals(
+                            "FILE_PATH",
+                            AndroidAssetRenderer.streamingBackendForTest(
+                                    kernel.visibleWorkspaceStore(),
+                                    "stream-file.bin",
+                                    sha
+                            )
+                    );
+
+                    Map<String, String> audio =
+                            new LinkedHashMap<>();
+                    String audioId = "asset.external.streamaudio";
+                    audio.put(audioId + ".storage.area", "Assets");
+                    audio.put(audioId + ".storage.name", "stream-file.bin");
+                    audio.put(audioId + ".sha256", sha);
+                    audio.put(audioId + ".kind", "AUDIO");
+                    audio.put(audioId + ".mime", "audio/wav");
+                    kernel.projectManager().applyResourceTransaction(
+                            audio,
+                            Collections.emptySet()
+                    );
+                    View audioView = AndroidAssetRenderer.render(
+                            activity,
+                            kernel,
+                            audioId,
+                            200,
+                            80
+                    );
+                    assertTrue(
+                            String.valueOf(
+                                    audioView.getContentDescription()
+                            ).contains("streaming FILE_PATH")
+                    );
+
+                    Map<String, String> video =
+                            new LinkedHashMap<>();
+                    String videoId = "asset.external.streamvideo";
+                    video.put(videoId + ".storage.area", "Assets");
+                    video.put(videoId + ".storage.name", "stream-file.bin");
+                    video.put(videoId + ".sha256", sha);
+                    video.put(videoId + ".kind", "VIDEO");
+                    video.put(videoId + ".mime", "video/mp4");
+                    kernel.projectManager().applyResourceTransaction(
+                            video,
+                            Collections.emptySet()
+                    );
+                    View videoView = AndroidAssetRenderer.render(
+                            activity,
+                            kernel,
+                            videoId,
+                            240,
+                            160
+                    );
+                    assertTrue(
+                            String.valueOf(
+                                    videoView.getContentDescription()
+                            ).contains("streaming FILE_PATH")
+                    );
+                } catch (Exception error) {
+                    throw new AssertionError(error);
+                }
+            });
+        }
+    }
+
+    @Test
     public void externalAssetTamperIsRejectedAtUse()
             throws Exception {
         try (ActivityScenario<MainActivity> scenario =
