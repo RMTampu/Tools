@@ -79,6 +79,8 @@ maximal_required_cases = {
     "patchManifestV2ClosesCompatibilityCapabilitiesAndFiles",
     "permissionContractDerivesPhaseAndFailurePathFromCapability",
     "projectExportCarriesRequiredAssetsAndExcludesTransientState",
+    "importSecurityRejectsTraversalBombExecutableAndUntrustedPackage",
+    "importAndMergePreserveNewProjectAndRemapConflictingReferences",
     "memoryPressureActuallyReducesWorkingSetPolicy",
     "scaleClassesMaterializeRealProjectGraphs",
 }
