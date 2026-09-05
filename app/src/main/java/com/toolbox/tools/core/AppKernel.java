@@ -287,17 +287,17 @@ public final class AppKernel {
                 new File(projectRoot, "secure-runtime.properties")
         );
         RecoveryManager recovery = new RecoveryManager(runtimeState);
+        VisibleWorkspaceStore visible = new FileVisibleWorkspaceStore(
+                new File(projectRoot, "visible-fallback")
+        );
         ProjectManager projectManager = new ProjectManager(
                 new FileProjectStore(projectRoot),
                 new DraftRecoveryStore(projectRoot),
-                new RecoverySnapshotStore(projectRoot),
+                new RecoverySnapshotStore(visible),
                 recovery,
                 new ProjectMigrationRegistry()
         );
         LibraryManager library = DefaultLibraryFactory.create();
-        VisibleWorkspaceStore visible = new FileVisibleWorkspaceStore(
-                new File(projectRoot, "visible-fallback")
-        );
         return create(
                 recovery,
                 runtimeState,
@@ -364,7 +364,7 @@ public final class AppKernel {
         ProjectManager projectManager = new ProjectManager(
                 projectStore,
                 new DraftRecoveryStore(privateProjectRoot),
-                new RecoverySnapshotStore(privateProjectRoot),
+                new RecoverySnapshotStore(visibleWorkspace),
                 recovery,
                 new ProjectMigrationRegistry()
         );
