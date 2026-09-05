@@ -251,6 +251,28 @@ public final class SafVisibleWorkspaceStore implements VisibleWorkspaceStore {
     }
 
     @Override
+    public synchronized boolean delete(Area area, String name)
+            throws IOException {
+        Uri target = findChild(
+                directoryUri(area),
+                FileVisibleWorkspaceStore.safeName(name),
+                false
+        );
+        if (target == null) return false;
+        try {
+            return DocumentsContract.deleteDocument(
+                    resolver,
+                    target
+            );
+        } catch (RuntimeException error) {
+            throw new IOException(
+                    "SAF visible item delete failed",
+                    error
+            );
+        }
+    }
+
+    @Override
     public synchronized List<String> list(Area area) throws IOException {
         Uri parent = directoryUri(area);
         String parentId = DocumentsContract.getDocumentId(parent);
