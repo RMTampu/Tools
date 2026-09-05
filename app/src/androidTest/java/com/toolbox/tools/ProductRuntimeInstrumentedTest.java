@@ -6,6 +6,7 @@ import androidx.test.filters.LargeTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 
 import android.content.Intent;
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
@@ -22,6 +23,8 @@ import com.toolbox.tools.core.ProjectLoadResult;
 import com.toolbox.tools.core.ProjectState;
 import com.toolbox.tools.core.VisibleWorkspaceStore;
 import com.toolbox.tools.android.ManagedAppProjectStore;
+import com.toolbox.tools.android.InstalledApplicationCatalog;
+import com.toolbox.tools.android.AndroidBackgroundTaskScheduler;
 import com.toolbox.tools.android.InstalledApkIdentity;
 import com.toolbox.tools.android.SafProjectStore;
 import com.toolbox.tools.android.SafVisibleWorkspaceStore;
@@ -1127,6 +1130,140 @@ public final class ProductRuntimeInstrumentedTest {
         char[] out = new char[64];
         Arrays.fill(out, value);
         return new String(out);
+    }
+
+
+    @Test
+    public void installedApplicationCatalogListsUnmanagedAppsBeforeCapabilityFiltering() {
+        Context context = InstrumentationRegistry.getInstrumentation()
+                .getTargetContext();
+        java.util.List<InstalledApplicationCatalog.Entry> apps =
+                InstalledApplicationCatalog.list(context);
+        assertFalse(apps.isEmpty());
+        boolean self = false;
+        boolean fixture = false;
+        for (InstalledApplicationCatalog.Entry app : apps) {
+            if ("com.toolbox.tools".equals(app.packageName())) self = true;
+            if ("com.toolbox.fixture".equals(app.packageName())) fixture = true;
+        }
+        assertTrue("ToolBox harus terlihat di katalog aplikasi", self);
+        assertTrue(
+                "fixture tanpa prefilter editing-door harus tetap terlihat",
+                fixture
+        );
+    }
+
+    @Test
+    public void blankVisualCanvasStartsWithoutDemoSurface() {
+        try (ActivityScenario<MainActivity> scenario =
+                     ActivityScenario.launch(MainActivity.class)) {
+            scenario.onActivity(activity -> {
+                UiCanvasView canvas = new UiCanvasView(
+                        activity,
+                        activity.kernelForTest(),
+                        objectId -> {},
+                        true,
+                        "ui.object.audit."
+                );
+                assertTrue(
+                        treeContainsDescriptionForAudit(
+                                canvas,
+                                "Kanvas UI kosong"
+                        )
+                );
+                assertFalse(
+                        treeContainsTextForAudit(
+                                canvas,
+                                "Bangun aplikasi secara visual"
+                        )
+                );
+                assertTrue(activity.shellForTest().edgeHandleFusedForTest());
+            });
+        }
+    }
+
+    @Test
+    public void androidBackgroundTaskUsesJobScheduler() throws Exception {
+        Context context = InstrumentationRegistry.getInstrumentation()
+                .getTargetContext();
+        context.getSharedPreferences(
+                AndroidBackgroundTaskScheduler.PREFS,
+                Context.MODE_PRIVATE
+        ).edit().clear().commit();
+
+        AppKernel kernel = AppKernel.createDefault();
+        int jobId = kernel.productServices()
+                .backgroundTasks()
+                .scheduleAndroid(
+                        context,
+                        "task.project.index.refresh",
+                        0
+                );
+        assertTrue(jobId != 0);
+
+        long deadline = System.currentTimeMillis() + 15_000L;
+        String completed = "";
+        String result = "";
+        while (System.currentTimeMillis() < deadline) {
+            completed = AndroidBackgroundTaskScheduler
+                    .lastCompletedTask(context);
+            result = AndroidBackgroundTaskScheduler
+                    .lastResult(context);
+            if ("task.project.index.refresh".equals(completed)) break;
+            Thread.sleep(250L);
+        }
+        assertEquals("task.project.index.refresh", completed);
+        assertEquals("SUCCESS", result);
+        assertTrue(
+                new File(
+                        context.getFilesDir(),
+                        "background/project-index-refresh.marker"
+                ).isFile()
+        );
+    }
+
+    private static boolean treeContainsTextForAudit(
+            View view,
+            String target
+    ) {
+        if (view instanceof TextView) {
+            CharSequence text = ((TextView) view).getText();
+            if (text != null && text.toString().contains(target)) {
+                return true;
+            }
+        }
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                if (treeContainsTextForAudit(group.getChildAt(i), target)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean treeContainsDescriptionForAudit(
+            View view,
+            String target
+    ) {
+        CharSequence description = view.getContentDescription();
+        if (description != null
+                && description.toString().contains(target)) {
+            return true;
+        }
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                if (treeContainsDescriptionForAudit(
+                        group.getChildAt(i),
+                        target
+                )) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
 }
