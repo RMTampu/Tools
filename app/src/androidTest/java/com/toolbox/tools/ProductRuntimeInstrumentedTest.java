@@ -14,6 +14,7 @@ import com.toolbox.tools.core.AppKernel;
 import com.toolbox.tools.core.AppState;
 import com.toolbox.tools.core.VisibleWorkspaceStore;
 import com.toolbox.tools.android.ManagedAppProjectStore;
+import com.toolbox.tools.android.InstalledApkIdentity;
 import com.toolbox.tools.android.ToolboxAwareTargetDiscovery;
 import com.toolbox.tools.product.ProductCompletionServices;
 import com.toolbox.tools.delivery.PatchManifest;
@@ -526,6 +527,43 @@ public final class ProductRuntimeInstrumentedTest {
                             recovered.safePatchManager()
                                     .journal()
                                     .phase()
+                    );
+                } catch (Exception error) {
+                    throw new AssertionError(error);
+                }
+            });
+        }
+    }
+
+    @Test
+    public void runtimePatchIdentityMatchesInstalledApk()
+            throws Exception {
+        try (ActivityScenario<MainActivity> scenario =
+                     ActivityScenario.launch(MainActivity.class)) {
+            scenario.onActivity(activity -> {
+                try {
+                    InstalledApkIdentity identity =
+                            InstalledApkIdentity.read(activity);
+                    assertTrue(
+                            activity.kernelForTest()
+                                    .safePatchManager()
+                                    .runtimeApkIdentityBound()
+                    );
+                    assertEquals(
+                            identity.apkSha256(),
+                            activity.kernelForTest()
+                                    .safePatchManager()
+                                    .runtimeParentApkSha256()
+                    );
+                    assertEquals(
+                            BuildConfig.BASELINE_APK_SHA256,
+                            activity.kernelForTest()
+                                    .safePatchManager()
+                                    .runtimeRollbackBaselineApkSha256()
+                    );
+                    assertEquals(
+                            BuildConfig.VERSION_CODE,
+                            identity.versionCode()
                     );
                 } catch (Exception error) {
                     throw new AssertionError(error);
