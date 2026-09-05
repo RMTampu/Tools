@@ -2550,8 +2550,8 @@ public final class WorkspaceShellView extends FrameLayout {
             showInfoOverlay(
                     "Aplikasi Terinstal",
                     Arrays.asList(
-                            "Tidak ada target ToolBox-aware yang ditemukan.",
-                            "Target harus mendeklarasikan intent com.toolbox.AWARE.",
+                            "Tidak ada aplikasi dengan editing door yang ditemukan.",
+                            "Target dapat memakai Managed Runtime atau ACTION_EDIT yang kompatibel.",
                             "Sandbox dan signature aplikasi tetap dihormati."
                     )
             );
@@ -2561,32 +2561,45 @@ public final class WorkspaceShellView extends FrameLayout {
         for (ProductCompletionServices.InstalledTargetBridge.Target target : targets) {
             rows.add(target.label() + " • " + target.packageName());
         }
-        showActionOverlay("Pilih Target ToolBox-aware", rows, value -> {
+        showActionOverlay("Pilih Target Berdasarkan Capability", rows, value -> {
             for (ProductCompletionServices.InstalledTargetBridge.Target target : targets) {
                 String row = target.label() + " • " + target.packageName();
                 if (!row.equals(value)) continue;
                 try {
-                    ManagedAppProtocol.Descriptor descriptor =
-                            new ManagedAppProtocol.Descriptor(
-                                    target.packageName(),
-                                    target.protocolVersion(),
-                                    kernel.productServices()
+                    String sessionId;
+                    if (ProductCompletionServices
+                            .InstalledTargetBridge
+                            .DOOR_MANAGED_RUNTIME
+                            .equals(target.editDoor())) {
+                        ManagedAppProtocol.Descriptor descriptor =
+                                new ManagedAppProtocol.Descriptor(
+                                        target.packageName(),
+                                        target.protocolVersion(),
+                                        kernel.productServices()
                                             .managedAppProtocol()
                                             .parseCapabilities(
                                                     target.capabilities()
                                             ),
-                                    target.projectId(),
-                                    target.revision()
-                            );
-                    ManagedAppProtocol.Session session =
-                            kernel.productServices()
+                                        target.projectId(),
+                                        target.revision()
+                                );
+                        ManagedAppProtocol.Session session =
+                                kernel.productServices()
                                     .managedAppProtocol()
                                     .negotiate(
                                             descriptor,
                                             descriptor.capabilities()
                                     );
+                        sessionId = session.sessionId();
+                    } else {
+                        sessionId = "session.generic."
+                                + target.packageName()
+                                    .toLowerCase(java.util.Locale.ROOT)
+                                    .replace('.', '_');
+                    }
+
                     activeTargetPackage = target.packageName();
-                    activeTargetSession = session.sessionId();
+                    activeTargetSession = sessionId;
                     LinkedHashMap<String, String> metadata =
                             new LinkedHashMap<>();
                     metadata.put(
@@ -2595,13 +2608,11 @@ public final class WorkspaceShellView extends FrameLayout {
                     );
                     metadata.put(
                             "target.active.session",
-                            session.sessionId()
+                            sessionId
                     );
                     metadata.put(
                             "target.active.protocol",
-                            Integer.toString(
-                                    target.protocolVersion()
-                            )
+                            Integer.toString(target.protocolVersion())
                     );
                     metadata.put(
                             "target.active.project",
@@ -2610,6 +2621,14 @@ public final class WorkspaceShellView extends FrameLayout {
                     metadata.put(
                             "target.active.revision",
                             Long.toString(target.revision())
+                    );
+                    metadata.put(
+                            "target.active.editDoor",
+                            target.editDoor()
+                    );
+                    metadata.put(
+                            "target.active.writable",
+                            Boolean.toString(target.writable())
                     );
                     metadata.put(
                             "target.active.capabilities",
@@ -2622,14 +2641,49 @@ public final class WorkspaceShellView extends FrameLayout {
                             metadata,
                             Collections.emptySet()
                     );
+
+                    if (!(getContext()
+                            instanceof WorkspaceHostActions)) {
+                        toast("Host editing door tidak tersedia.");
+                        return;
+                    }
+                    boolean launched =
+                            ((WorkspaceHostActions) getContext())
+                                    .launchInstalledTarget(
+                                            target.packageName(),
+                                            target.editDoor(),
+                                            sessionId,
+                                            target.projectId(),
+                                            target.revision()
+                                    );
+                    if (!launched) {
+                        toast("Editing door target tidak dapat dibuka.");
+                        return;
+                    }
+
+                    closeOverlay();
+                    showInfoOverlay(
+                            "Editing Door Dibuka",
+                            Arrays.asList(
+                                    target.label()
+                                            + " • "
+                                            + target.packageName(),
+                                    "Pintu: " + target.editDoor(),
+                                    "Capability: "
+                                            + android.text.TextUtils.join(
+                                                    ", ",
+                                                    target.capabilities()
+                                            ),
+                                    target.writable()
+                                            ? "Mode: target mengizinkan write"
+                                            : "Mode: read-only / handoff",
+                                    "Sandbox dan signature Android tetap dihormati.",
+                                    "ToolBox tidak menyalin UI target ke project internal."
+                            )
+                    );
                 } catch (RuntimeException error) {
                     toast("Target gagal dinegosiasikan secara aman.");
-                    return;
                 }
-                closeOverlay();
-                openEditor(
-                        "Aplikasi Terinstal • " + target.label()
-                );
                 return;
             }
         });
