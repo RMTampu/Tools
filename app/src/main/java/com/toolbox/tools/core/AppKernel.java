@@ -234,12 +234,8 @@ public final class AppKernel {
                 this.recoveryManager,
                 this.runtimeStateStore
         );
-        this.safePatchManager.setHealthGate(projectState ->
-                new ProjectValidator().validate(projectState).isPass()
-                        && this.productServices.isReady()
-                        && new RuntimeModelValidator()
-                            .validate(this.runtimeEnvironment)
-                            .isEmpty()
+        this.safePatchManager.setHealthGate(
+                this::patchHealthGate
         );
         this.state = AppState.CREATED;
     }
@@ -477,6 +473,73 @@ public final class AppKernel {
                     "BOOTSTRAP"
             );
             state = AppState.ERROR;
+        }
+    }
+
+    private boolean patchHealthGate(ProjectState projectState) {
+        if (projectState == null
+                || !new ProjectValidator()
+                    .validate(projectState)
+                    .isPass()
+                || !productServices.isReady()
+                || !new RuntimeModelValidator()
+                    .validate(runtimeEnvironment)
+                    .isEmpty()
+                || !runtimeEnvironment
+                    .navigation()
+                    .validateRoutes()
+                    .isEmpty()
+                || productEngines == null
+                || !productEngines.semuaSiap()
+                || libraryManager.components().allReady().isEmpty()
+                || libraryManager.assets().allReady().isEmpty()
+                || libraryManager.templates().allReady().isEmpty()
+                || !productServices.inventory().complete()
+                || !productServices.resources().invariantPass()
+                || safeModeController.isSafeMode()
+                || recoveryManager.isRecoveryRequired()) {
+            return false;
+        }
+
+        try {
+            visibleWorkspaceStore.ensureLayout();
+            for (VisibleWorkspaceStore.Area area
+                    : VisibleWorkspaceStore.Area.values()) {
+                visibleWorkspaceStore.list(area);
+            }
+            for (java.util.Map.Entry<String, String> entry
+                    : projectState.resources().entrySet()) {
+                String key = entry.getKey();
+                if (!key.startsWith("asset.external.")
+                        || !key.endsWith(".storage.name")) {
+                    continue;
+                }
+                String assetId = key.substring(
+                        0,
+                        key.length() - ".storage.name".length()
+                );
+                String area = projectState.resources().get(
+                        assetId + ".storage.area"
+                );
+                String sha = projectState.resources().get(
+                        assetId + ".sha256"
+                );
+                if (!VisibleWorkspaceStore.Area.ASSETS.folder()
+                        .equals(area)
+                        || sha == null
+                        || !sha.matches("[0-9a-f]{64}")
+                        || !productServices.assetIntegrity().verify(
+                            visibleWorkspaceStore,
+                            VisibleWorkspaceStore.Area.ASSETS,
+                            entry.getValue(),
+                            sha
+                        )) {
+                    return false;
+                }
+            }
+            return true;
+        } catch (IOException | RuntimeException error) {
+            return false;
         }
     }
 
