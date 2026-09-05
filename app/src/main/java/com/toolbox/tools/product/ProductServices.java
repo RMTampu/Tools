@@ -42,6 +42,7 @@ public final class ProductServices {
     private final AssetLoadManager assetLoads;
     private final RenderDiagnostics renderDiagnostics;
     private final ManagedAppProtocol managedAppProtocol;
+    private final VisibleArtifactManager visibleArtifacts;
 
     public ProductServices(ProjectManager projects) {
         this(
@@ -94,6 +95,10 @@ public final class ProductServices {
         assetLoads = new AssetLoadManager();
         renderDiagnostics = new RenderDiagnostics();
         managedAppProtocol = new ManagedAppProtocol();
+        visibleArtifacts = new VisibleArtifactManager(
+                projects,
+                visibleWorkspace
+        );
         for (com.toolbox.tools.library.BuiltinAssetCatalog.BuiltinAsset item
                 : com.toolbox.tools.library.BuiltinAssetCatalog.all()) {
             assetLoads.register(
@@ -237,6 +242,7 @@ public final class ProductServices {
     public AssetLoadManager assetLoads() { return assetLoads; }
     public RenderDiagnostics renderDiagnostics() { return renderDiagnostics; }
     public ManagedAppProtocol managedAppProtocol() { return managedAppProtocol; }
+    public VisibleArtifactManager visibleArtifacts() { return visibleArtifacts; }
 
     public boolean isReady() {
         return screens.startScreenId() != null
@@ -254,6 +260,7 @@ public final class ProductServices {
                 && inventory.complete()
                 && inputRouter.complete()
                 && dataProviders.complete()
-                && assetLoads.audit().isPass();
+                && assetLoads.audit().isPass()
+                && visibleArtifacts != null;
     }
 }
