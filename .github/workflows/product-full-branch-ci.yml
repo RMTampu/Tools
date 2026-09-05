@@ -108,7 +108,9 @@ jobs:
           # AAPT2 may flatten/rename compiled resource entries. The
           # resource table above proves the manifest-bound launcher IDs,
           # while this proves at least one physical raster payload is in APK.
-          unzip -l "$APK" | grep -E 'res/.*\.(webp|png)          echo 'PUBLIC_SIGNING_USED = NO'
+          unzip -l "$APK" | grep -E 'res/.*\.(webp|png)$'
+          echo 'PUBLIC_UNSIGNED_APK = PASS'
+          echo 'PUBLIC_SIGNING_USED = NO'
           echo 'FIREBASE_USED = NO'
 
       - name: Uji workbench produk penuh pada emulator API30
