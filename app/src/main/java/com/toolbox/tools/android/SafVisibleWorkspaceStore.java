@@ -8,6 +8,7 @@ import android.provider.DocumentsContract;
 import com.toolbox.tools.core.FileVisibleWorkspaceStore;
 import com.toolbox.tools.core.VisibleWorkspaceStore;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -69,10 +70,28 @@ public final class SafVisibleWorkspaceStore implements VisibleWorkspaceStore {
             String name,
             byte[] bytes
     ) throws IOException {
-        String safe = FileVisibleWorkspaceStore.safeName(name);
-        if (bytes == null || bytes.length > MAX_BYTES) {
-            throw new IOException("visible item exceeds budget");
+        if (bytes == null) throw new NullPointerException("bytes");
+        writeStream(
+                area,
+                name,
+                new ByteArrayInputStream(bytes),
+                MAX_BYTES
+        );
+    }
+
+    @Override
+    public synchronized WriteResult writeStream(
+            Area area,
+            String name,
+            InputStream input,
+            long maxBytes
+    ) throws IOException {
+        if (input == null) throw new NullPointerException("input");
+        if (maxBytes <= 0 || maxBytes > MAX_BYTES) {
+            throw new IOException("visible stream budget invalid");
         }
+
+        String safe = FileVisibleWorkspaceStore.safeName(name);
         Uri parent = directoryUri(area);
         String pendingName = safe + ".pending";
         deleteIfExists(parent, pendingName);
@@ -86,34 +105,99 @@ public final class SafVisibleWorkspaceStore implements VisibleWorkspaceStore {
         if (pending == null) {
             throw new IOException("cannot create SAF pending item");
         }
-        writeBytes(pending, bytes);
-        byte[] verified = readBytes(pending);
-        if (!sha256(bytes).equals(sha256(verified))) {
-            DocumentsContract.deleteDocument(resolver, pending);
-            throw new IOException("SAF visible item verification failed");
-        }
 
-        deleteIfExists(parent, safe);
-        Uri renamed = DocumentsContract.renameDocument(
-                resolver,
-                pending,
-                safe
-        );
-        if (renamed == null) {
-            Uri target = DocumentsContract.createDocument(
+        StreamDigest written;
+        try {
+            written = writeStreamToUri(
+                    pending,
+                    input,
+                    maxBytes
+            );
+            StreamDigest verified = digestUri(
+                    pending,
+                    maxBytes
+            );
+            if (written.bytes != verified.bytes
+                    || !written.sha256.equals(verified.sha256)) {
+                throw new IOException(
+                        "SAF visible item verification failed"
+                );
+            }
+
+            deleteIfExists(parent, safe);
+            Uri published = DocumentsContract.renameDocument(
                     resolver,
-                    parent,
-                    MIME_BINARY,
+                    pending,
                     safe
             );
-            if (target == null) {
-                throw new IOException("cannot publish SAF visible item");
+            if (published == null) {
+                Uri target = DocumentsContract.createDocument(
+                        resolver,
+                        parent,
+                        MIME_BINARY,
+                        safe
+                );
+                if (target == null) {
+                    throw new IOException(
+                            "cannot publish SAF visible item"
+                    );
+                }
+                try (InputStream pendingInput =
+                             resolver.openInputStream(pending)) {
+                    if (pendingInput == null) {
+                        throw new IOException(
+                                "SAF pending input unavailable"
+                        );
+                    }
+                    StreamDigest copied = writeStreamToUri(
+                            target,
+                            pendingInput,
+                            maxBytes
+                    );
+                    StreamDigest targetVerified = digestUri(
+                            target,
+                            maxBytes
+                    );
+                    if (copied.bytes != written.bytes
+                            || !copied.sha256.equals(written.sha256)
+                            || targetVerified.bytes != written.bytes
+                            || !targetVerified.sha256.equals(
+                                    written.sha256
+                            )) {
+                        DocumentsContract.deleteDocument(
+                                resolver,
+                                target
+                        );
+                        throw new IOException(
+                                "SAF publish verification failed"
+                        );
+                    }
+                }
+                DocumentsContract.deleteDocument(
+                        resolver,
+                        pending
+                );
             }
-            writeBytes(target, bytes);
-            if (!sha256(bytes).equals(sha256(readBytes(target)))) {
-                throw new IOException("SAF publish verification failed");
+            return new WriteResult(
+                    written.bytes,
+                    written.sha256
+            );
+        } catch (IOException | RuntimeException error) {
+            try {
+                DocumentsContract.deleteDocument(
+                        resolver,
+                        pending
+                );
+            } catch (RuntimeException ignored) {
+                // Best-effort cleanup; original error remains authoritative.
             }
-            DocumentsContract.deleteDocument(resolver, pending);
+            if (error instanceof IOException) {
+                throw (IOException) error;
+            }
+            throw new IOException(
+                    "SAF visible stream write failed",
+                    error
+            );
         }
     }
 
@@ -285,6 +369,70 @@ public final class SafVisibleWorkspaceStore implements VisibleWorkspaceStore {
         }
     }
 
+    private StreamDigest writeStreamToUri(
+            Uri uri,
+            InputStream input,
+            long maxBytes
+    ) throws IOException {
+        MessageDigest digest = sha256Digest();
+        long total = 0;
+        try (OutputStream output =
+                     resolver.openOutputStream(uri, "wt")) {
+            if (output == null) {
+                throw new IOException("SAF output unavailable");
+            }
+            byte[] buffer = new byte[64 * 1024];
+            int read;
+            while ((read = input.read(buffer)) != -1) {
+                total += read;
+                if (total > maxBytes) {
+                    throw new IOException(
+                            "SAF visible item exceeds budget"
+                    );
+                }
+                digest.update(buffer, 0, read);
+                output.write(buffer, 0, read);
+            }
+            output.flush();
+        } catch (RuntimeException error) {
+            throw new IOException("SAF write failed", error);
+        }
+        return new StreamDigest(
+                total,
+                hex(digest.digest())
+        );
+    }
+
+    private StreamDigest digestUri(
+            Uri uri,
+            long maxBytes
+    ) throws IOException {
+        MessageDigest digest = sha256Digest();
+        long total = 0;
+        try (InputStream input = resolver.openInputStream(uri)) {
+            if (input == null) {
+                throw new IOException("SAF input unavailable");
+            }
+            byte[] buffer = new byte[64 * 1024];
+            int read;
+            while ((read = input.read(buffer)) != -1) {
+                total += read;
+                if (total > maxBytes) {
+                    throw new IOException(
+                            "SAF visible item exceeds budget"
+                    );
+                }
+                digest.update(buffer, 0, read);
+            }
+        } catch (RuntimeException error) {
+            throw new IOException("SAF read failed", error);
+        }
+        return new StreamDigest(
+                total,
+                hex(digest.digest())
+        );
+    }
+
     private void writeBytes(Uri uri, byte[] bytes) throws IOException {
         try (OutputStream output = resolver.openOutputStream(uri, "wt")) {
             if (output == null) throw new IOException("SAF output unavailable");
@@ -296,15 +444,37 @@ public final class SafVisibleWorkspaceStore implements VisibleWorkspaceStore {
     }
 
     private static String sha256(byte[] bytes) throws IOException {
+        MessageDigest digest = sha256Digest();
+        return hex(digest.digest(bytes));
+    }
+
+    private static MessageDigest sha256Digest() throws IOException {
         try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            StringBuilder out = new StringBuilder();
-            for (byte value : digest.digest(bytes)) {
-                out.append(String.format(Locale.ROOT, "%02x", value));
-            }
-            return out.toString();
+            return MessageDigest.getInstance("SHA-256");
         } catch (Exception error) {
             throw new IOException("SHA-256 unavailable", error);
+        }
+    }
+
+    private static String hex(byte[] bytes) {
+        StringBuilder out = new StringBuilder();
+        for (byte value : bytes) {
+            out.append(String.format(
+                    Locale.ROOT,
+                    "%02x",
+                    value
+            ));
+        }
+        return out.toString();
+    }
+
+    private static final class StreamDigest {
+        final long bytes;
+        final String sha256;
+
+        StreamDigest(long bytes, String sha256) {
+            this.bytes = bytes;
+            this.sha256 = sha256;
         }
     }
 }
