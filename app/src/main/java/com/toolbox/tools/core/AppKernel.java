@@ -29,6 +29,7 @@ import com.toolbox.tools.runtime.RuntimeEnvironment;
 import com.toolbox.tools.repair.HealthMonitor;
 import com.toolbox.tools.repair.RecoveryPreviewService;
 import com.toolbox.tools.repair.RepairSessionManager;
+import com.toolbox.tools.runtime.RuntimeModelValidator;
 import com.toolbox.tools.product.DeclarativeProjectRuntime;
 import com.toolbox.tools.product.EvolutionManager;
 import com.toolbox.tools.product.ProductServices;
@@ -187,6 +188,13 @@ public final class AppKernel {
                 this.projectManager,
                 this.recoveryManager,
                 this.runtimeStateStore
+        );
+        this.safePatchManager.setHealthGate(projectState ->
+                new ProjectValidator().validate(projectState).isPass()
+                        && this.productServices.isReady()
+                        && new RuntimeModelValidator()
+                            .validate(this.runtimeEnvironment)
+                            .isEmpty()
         );
         this.state = AppState.CREATED;
     }
@@ -371,6 +379,7 @@ public final class AppKernel {
             configStore.put("bahasaDefault", "id");
             visibleWorkspaceStore.ensureLayout();
             projectManager.bootstrap("project.default");
+            safePatchManager.bootstrap();
             productServices.freeze().bootstrap();
             declarativeRuntime.reload(projectManager.current());
             state = AppState.READY;
