@@ -1,5 +1,6 @@
 package com.toolbox.tools.ui;
 
+import android.content.ClipData;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
@@ -581,7 +582,33 @@ public final class WorkspaceShellView extends FrameLayout {
         for (EdgeItem item : model.items()) {
             String actionLabel = translate(item.labelIndonesia());
             String displayLabel = contextDisplayLabel(active, actionLabel);
-            addEdgeCommand(displayLabel, () -> showEditorAction(actionLabel));
+            TextView command = addEdgeCommand(
+                    displayLabel,
+                    () -> showEditorAction(actionLabel)
+            );
+            if (active == AuthoringSection.UI
+                    && ("Komponen".equals(actionLabel)
+                    || "Aset".equals(actionLabel))) {
+                command.setContentDescription(
+                        displayLabel + " • ketuk untuk pilih • tekan lama lalu seret ke canvas"
+                );
+                command.setOnLongClickListener(v -> {
+                    String payload = "Komponen".equals(actionLabel)
+                            ? "component.button"
+                            : "asset.theme.dark.neon";
+                    ClipData data = ClipData.newPlainText(
+                            "toolbox-drop",
+                            payload
+                    );
+                    v.startDragAndDrop(
+                            data,
+                            new View.DragShadowBuilder(v),
+                            payload,
+                            0
+                    );
+                    return true;
+                });
+            }
         }
         addEdgeCommand("‹ Kembali", this::edgeRoot);
     }
@@ -616,7 +643,7 @@ public final class WorkspaceShellView extends FrameLayout {
         edgeContent.addView(v);
     }
 
-    private void addEdgeCommand(String label, Runnable action) {
+    private TextView addEdgeCommand(String label, Runnable action) {
         TextView v = UiKit.tombol(getContext(), label, false);
         v.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
         v.setTextSize(12f);
@@ -627,6 +654,7 @@ public final class WorkspaceShellView extends FrameLayout {
         );
         p.bottomMargin = UiKit.dp(getContext(), 6);
         edgeContent.addView(v, p);
+        return v;
     }
 
     private void openHome() {
