@@ -37,6 +37,41 @@ public final class HealthMonitor {
         if (kernel.externalIntegrationManager() == null) {
             reasons.add("EXTERNAL_INTEGRATION_UNAVAILABLE");
         }
+        if (kernel.productEngines() == null
+                || !kernel.productEngines().semuaSiap()) {
+            reasons.add("ENGINE_CAPABILITY_UNAVAILABLE");
+        }
+        if (kernel.libraryManager().components().allReady().isEmpty()) {
+            reasons.add("COMPONENT_REGISTRY_EMPTY");
+        }
+        if (kernel.libraryManager().assets().allReady().isEmpty()) {
+            reasons.add("ASSET_REGISTRY_EMPTY");
+        }
+        if (kernel.libraryManager().templates().allReady().isEmpty()) {
+            reasons.add("TEMPLATE_REGISTRY_EMPTY");
+        }
+        if (!kernel.runtimeEnvironment()
+                .navigation()
+                .validateRoutes()
+                .isEmpty()) {
+            reasons.add("NAVIGATION_DIAGNOSTIC");
+        }
+        if (kernel.runtimeEnvironment()
+                .model()
+                .bindings()
+                .isEmpty()) {
+            reasons.add("BINDING_MODEL_EMPTY");
+        }
+        if (kernel.projectManager().current().schemaVersion()
+                != com.toolbox.tools.core.ProjectState.CURRENT_SCHEMA_VERSION) {
+            reasons.add("SCHEMA_VERSION_MISMATCH");
+        }
+        if (!kernel.productServices().inventory().complete()) {
+            reasons.add("REPOSITORY_INVENTORY_INCOMPLETE");
+        }
+        if (!kernel.productServices().resources().invariantPass()) {
+            reasons.add("RESOURCE_INVARIANT_FAILED");
+        }
 
         if (reasons.contains("RECOVERY_REQUIRED")
                 || reasons.contains("KERNEL_NOT_READY")) {
