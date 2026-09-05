@@ -12,16 +12,29 @@ import java.util.List;
 
 public final class RecoverySnapshotStore {
     private final Path directory;
+    private final VisibleWorkspaceStore visibleWorkspace;
     private final ProjectCodec codec = new ProjectCodec();
     private ProjectState memoryFinal;
     private ProjectState memoryLastValid;
 
     public RecoverySnapshotStore() {
         this.directory = null;
+        this.visibleWorkspace = null;
     }
 
     public RecoverySnapshotStore(File projectRoot) {
         this.directory = projectRoot.toPath().resolve("recovery");
+        this.visibleWorkspace = null;
+    }
+
+    public RecoverySnapshotStore(
+            VisibleWorkspaceStore visibleWorkspace
+    ) {
+        this.directory = null;
+        this.visibleWorkspace = java.util.Objects.requireNonNull(
+                visibleWorkspace,
+                "visibleWorkspace"
+        );
     }
 
     public synchronized void captureLastValid(ProjectState state) throws IOException {
@@ -62,8 +75,10 @@ public final class RecoverySnapshotStore {
             return;
         }
         long size;
-        if (directory == null) {
-            size = codec.encode(state).getBytes(StandardCharsets.UTF_8).length;
+        if (visibleWorkspace != null || directory == null) {
+            size = codec.encode(state)
+                    .getBytes(StandardCharsets.UTF_8)
+                    .length;
         } else {
             size = Files.size(path(kind));
         }
@@ -86,6 +101,21 @@ public final class RecoverySnapshotStore {
         }
         if (!verified.equals(state)) {
             throw new IOException("recovery snapshot round-trip mismatch");
+        }
+
+        if (visibleWorkspace != null) {
+            visibleWorkspace.write(
+                    VisibleWorkspaceStore.Area.SNAPSHOTS,
+                    visibleName(kind),
+                    encoded.getBytes(StandardCharsets.UTF_8)
+            );
+            ProjectState persisted = read(kind);
+            if (!state.equals(persisted)) {
+                throw new IOException(
+                        "visible recovery snapshot verification failed"
+                );
+            }
+            return;
         }
 
         if (directory == null) {
@@ -125,6 +155,32 @@ public final class RecoverySnapshotStore {
     }
 
     private ProjectState read(RecoveryCandidate.Kind kind) throws IOException {
+        if (visibleWorkspace != null) {
+            String name = visibleName(kind);
+            if (!visibleWorkspace.exists(
+                    VisibleWorkspaceStore.Area.SNAPSHOTS,
+                    name
+            )) {
+                return null;
+            }
+            try {
+                return codec.decode(
+                        new String(
+                                visibleWorkspace.read(
+                                        VisibleWorkspaceStore.Area.SNAPSHOTS,
+                                        name
+                                ),
+                                StandardCharsets.UTF_8
+                        )
+                );
+            } catch (IllegalArgumentException error) {
+                throw new IOException(
+                        "visible recovery snapshot corrupt",
+                        error
+                );
+            }
+        }
+
         if (directory == null) {
             if (kind == RecoveryCandidate.Kind.FINAL_RECOVERY_SNAPSHOT) {
                 return memoryFinal;
@@ -146,6 +202,20 @@ public final class RecoverySnapshotStore {
         } catch (IllegalArgumentException error) {
             throw new IOException("recovery snapshot corrupt", error);
         }
+    }
+
+    private static String visibleName(
+            RecoveryCandidate.Kind kind
+    ) {
+        if (kind == RecoveryCandidate.Kind.FINAL_RECOVERY_SNAPSHOT) {
+            return "final-recovery.tbx";
+        }
+        if (kind == RecoveryCandidate.Kind.LAST_VALID_RECOVERY) {
+            return "last-valid-recovery.tbx";
+        }
+        throw new IllegalArgumentException(
+                "unsupported snapshot kind"
+        );
     }
 
     private Path path(RecoveryCandidate.Kind kind) {
