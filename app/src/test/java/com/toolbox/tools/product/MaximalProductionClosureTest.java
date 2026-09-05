@@ -94,12 +94,18 @@ public final class MaximalProductionClosureTest {
             first.projectManager().save();
         }
         first.safeModeController().enter();
+        first.safeModeController().quarantine("project.default");
         first.productServices().freeze().freeze();
         long frozen = first.productServices().freeze().frozenRevision();
         assertTrue(frozen > 0);
 
         AppKernel second = AppKernel.createPersistent(projectRoot, assets);
         assertTrue(second.safeModeController().isSafeMode());
+        assertTrue(
+                second.safeModeController()
+                        .quarantined()
+                        .contains("project.default")
+        );
         assertEquals(
                 FreezeEngine.State.FROZEN,
                 second.productServices().freeze().state()
