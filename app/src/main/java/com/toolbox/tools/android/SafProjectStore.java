@@ -223,7 +223,8 @@ public final class SafProjectStore implements ProjectStore {
                             ? RecoveryCandidate.Kind.LAST_VALID_REVISION
                             : RecoveryCandidate.Kind.OLDER_REVISION,
                     revision,
-                    size
+                    size,
+                    uri == null ? 0 : lastModified(uri)
             ));
         }
         return out;
@@ -383,6 +384,29 @@ public final class SafProjectStore implements ProjectStore {
             if (name.equals(child.name)) return child.uri;
         }
         return null;
+    }
+
+    private long lastModified(Uri uri) {
+        String[] projection = {
+                DocumentsContract.Document.COLUMN_LAST_MODIFIED
+        };
+        try (Cursor cursor = resolver.query(
+                uri,
+                projection,
+                null,
+                null,
+                null
+        )) {
+            if (cursor != null
+                    && cursor.moveToFirst()
+                    && !cursor.isNull(0)) {
+                return Math.max(0, cursor.getLong(0));
+            }
+        } catch (RuntimeException ignored) {
+            // Timestamp is descriptive metadata only; integrity does not
+            // depend on provider timestamp support.
+        }
+        return 0;
     }
 
     private Uri createChild(String name) throws IOException {
