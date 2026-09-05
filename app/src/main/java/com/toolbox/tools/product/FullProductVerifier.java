@@ -143,6 +143,17 @@ public final class FullProductVerifier {
                 errors.add("KOMPONEN_WAJIB_HILANG:" + capability.name());
             }
         }
+
+        ProductAcceptanceMatrix.Result acceptance =
+                new ProductAcceptanceMatrix().evaluate(kernel);
+        if (!acceptance.isPass()) {
+            errors.add(
+                    "RANCANGAN_BEHAVIOR_GAGAL:"
+                            + acceptance.passedCount()
+                            + "/" + acceptance.requiredCount()
+                            + ":" + acceptance.failedSections()
+            );
+        }
         return new Result(ok, errors);
     }
 
