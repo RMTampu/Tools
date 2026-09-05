@@ -47,5 +47,6 @@ public interface VisibleWorkspaceStore {
     byte[] read(Area area, String name) throws IOException;
     InputStream openInputStream(Area area, String name) throws IOException;
     boolean exists(Area area, String name) throws IOException;
+    boolean delete(Area area, String name) throws IOException;
     List<String> list(Area area) throws IOException;
 }
