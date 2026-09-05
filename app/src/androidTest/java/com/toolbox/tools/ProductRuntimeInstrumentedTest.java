@@ -2,7 +2,9 @@ package com.toolbox.tools;
 
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
+import androidx.test.platform.app.InstrumentationRegistry;
 
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
@@ -193,6 +195,15 @@ public final class ProductRuntimeInstrumentedTest {
                             TestDocumentsProvider.AUTHORITY,
                             TestDocumentsProvider.ROOT_ID
                     );
+                    InstrumentationRegistry.getInstrumentation()
+                            .getContext()
+                            .grantUriPermission(
+                                    activity.getPackageName(),
+                                    tree,
+                                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                            | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                                            | Intent.FLAG_GRANT_PREFIX_URI_PERMISSION
+                            );
                     SafVisibleWorkspaceStore visible =
                             new SafVisibleWorkspaceStore(
                                     activity.getContentResolver(),
