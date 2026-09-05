@@ -36,7 +36,7 @@ public final class FullProductArchitectureTest {
                 kernel.configStore().get("bahasaDefault", "")
         );
         assertEquals(
-                "produk-penuh-v13-maksimal",
+                "produk-penuh-v14-visual-first",
                 kernel.configStore().get("tahap", "")
         );
         assertTrue(
