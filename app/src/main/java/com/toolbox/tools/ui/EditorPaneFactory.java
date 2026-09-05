@@ -292,16 +292,19 @@ public final class EditorPaneFactory {
                         entry.getValue().type().name(),
                         false
                 );
+                type.setClickable(false);
+                type.setFocusable(false);
                 row.addView(type);
                 card.addView(row);
             }
             UiKit.ruang(card, c, 8);
-            LinearLayout actions = UiKit.baris(c);
-            actions.addView(UiKit.tombol(c, "+ Tambah Field", false),
-                    new LinearLayout.LayoutParams(0, UiKit.dp(c, 42), 1));
-            actions.addView(UiKit.tombol(c, "Data Contoh", false),
-                    new LinearLayout.LayoutParams(0, UiKit.dp(c, 42), 1));
-            card.addView(actions);
+            TextView panelHint = UiKit.teks(
+                    c,
+                    "Tambah kolom, kueri, relasi, dan data contoh dikelola dari Edge Panel.",
+                    10.5f,
+                    UiKit.TEKS_REDUP
+            );
+            card.addView(panelHint);
             root.addView(card);
             UiKit.ruang(root, c, 10);
         }
@@ -321,9 +324,10 @@ public final class EditorPaneFactory {
 
         LinearLayout header = UiKit.baris(c);
         TextView title = UiKit.judul(c, "Pusat Pengikatan", 18f);
-        header.addView(title, new LinearLayout.LayoutParams(0, UiKit.dp(c, 44), 1));
-        TextView auto = UiKit.tombol(c, "Hubungkan Semua Otomatis", true);
-        header.addView(auto);
+        header.addView(title, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                UiKit.dp(c, 44)
+        ));
         root.addView(header);
 
         TextView desc = UiKit.teks(
@@ -344,7 +348,10 @@ public final class EditorPaneFactory {
             row.addView(name, new LinearLayout.LayoutParams(
                     0, UiKit.dp(c, 36), 1
             ));
-            row.addView(UiKit.chip(c, "TERHUBUNG", true));
+            TextView connected = UiKit.chip(c, "TERHUBUNG", true);
+            connected.setClickable(false);
+            connected.setFocusable(false);
+            row.addView(connected);
             card.addView(row);
 
             TextView detail = UiKit.teks(
@@ -434,7 +441,10 @@ public final class EditorPaneFactory {
             row.addView(label, new LinearLayout.LayoutParams(
                     0, UiKit.dp(c, 38), 1
             ));
-            row.addView(UiKit.chip(c, "SIAP", true));
+            TextView ready = UiKit.chip(c, "SIAP", true);
+            ready.setClickable(false);
+            ready.setFocusable(false);
+            row.addView(ready);
             root.addView(row);
         }
 
