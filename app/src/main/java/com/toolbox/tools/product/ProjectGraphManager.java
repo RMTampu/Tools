@@ -116,11 +116,16 @@ public final class ProjectGraphManager {
         return true;
     }
 
-    public synchronized void compactTombstones(Set<String> stillReferencedByHistory) {
+    public synchronized void compactTombstones(
+            Set<String> stillReferencedByHistory
+    ) {
         Set<String> keep = stillReferencedByHistory == null
                 ? Collections.emptySet()
-                : stillReferencedByHistory;
+                : new LinkedHashSet<>(
+                        stillReferencedByHistory
+                );
         tombstones.removeIf(id -> !keep.contains(id));
+        undoDelete.removeIf(id -> !keep.contains(id));
     }
 
     public synchronized boolean isBrokenReference(String fromId, String toId) {
