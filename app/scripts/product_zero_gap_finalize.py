@@ -72,6 +72,7 @@ for key in [
 runtime=(OUT/"product-full-api30-runtime.txt").read_text()
 for marker in [
     "ANDROID_INSTRUMENTATION=PASS",
+    "SAF_DOCUMENTS_PROVIDER_RUNTIME=PASS",
     "SOAK_100_RUNTIME=PASS",
     "PROCESS_DEATH_RESTART=PASS",
     "GFXINFO_RUNTIME=PASS",
@@ -120,7 +121,7 @@ for file in android_xml:
     failures+=int(root.attrib.get("failures","0"))
     errors+=int(root.attrib.get("errors","0"))
     skipped+=int(root.attrib.get("skipped","0"))
-assert tests>=3 and failures==0 and errors==0 and skipped==0
+assert tests>=13 and failures==0 and errors==0 and skipped==0
 
 android_case_names=set()
 for file in android_xml:
@@ -129,12 +130,24 @@ for file in android_xml:
         continue
     for case in root.findall("testcase"):
         android_case_names.add(case.attrib.get("name",""))
-assert "advancedUiPropertiesMaterializeOnRealAndroidView" in android_case_names
-assert "externalAssetRendererUsesRealAndroidImageConsumer" in android_case_names
-assert "safeRecoveryUiPersistsAcrossActivityRecreation" in android_case_names
-assert "managedExternalEditingDoorUsesRealProviderBackedEditor" in android_case_names
-assert "runtimePatchIdentityMatchesInstalledApk" in android_case_names
-assert "externalAssetTamperIsRejectedAtUse" in android_case_names
+required_android_cases={
+    "activityLaunchesRealKernelAndShell",
+    "freezeRecoveryRunsOnDevice",
+    "editorSoakOneHundredCyclesStaysBounded",
+    "realSafDocumentsProviderBacksAllVisibleAreasAndProjectStore",
+    "launcherTbResourceIsBoundAndDecodable",
+    "externalAssetRendererUsesRealAndroidImageConsumer",
+    "externalAssetTamperIsRejectedAtUse",
+    "advancedUiPropertiesMaterializeOnRealAndroidView",
+    "memoryPressurePolicyDegradesAndRecoversOnDevice",
+    "safeRecoveryUiPersistsAcrossActivityRecreation",
+    "patchJournalInterruptedStateRollsBackOnDevice",
+    "runtimePatchIdentityMatchesInstalledApk",
+    "managedExternalEditingDoorUsesRealProviderBackedEditor",
+}
+assert required_android_cases.issubset(android_case_names),(
+    required_android_cases-android_case_names
+)
 
 safe_patch_xml=(
     APP/"build/test-results/testDebugUnitTest"
@@ -193,6 +206,7 @@ evidence={
         "mutationKilled":mutation["mutationsKilled"],
         "mutationEscape":0,
         "androidInstrumentationTests":tests,
+        "safDocumentsProviderRuntime":"PASS",
         "androidInstrumentationFailures":0,
         "androidInstrumentationErrors":0,
         "androidInstrumentationSkipped":0,
