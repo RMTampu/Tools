@@ -36,6 +36,21 @@ public final class ProductAcceptanceMatrixTest {
     }
 
     @Test
+    public void deepContractsCloseFormerMetadataOnlyGaps() {
+        ProductDeepContracts deep = new ProductDeepContracts();
+        Set<String> pass = deep.selfTest();
+
+        assertEquals(
+                ProductDeepContracts.REQUIRED_BEHAVIORS.size(),
+                pass.size()
+        );
+        assertTrue(pass.containsAll(
+                ProductDeepContracts.REQUIRED_BEHAVIORS
+        ));
+        assertTrue(deep.isReady());
+    }
+
+    @Test
     public void behaviorGateIsRepeatable() {
         ProductCompletionServices services = new ProductCompletionServices();
         assertTrue(services.isReady());
