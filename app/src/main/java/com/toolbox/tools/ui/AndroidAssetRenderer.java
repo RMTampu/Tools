@@ -65,6 +65,17 @@ public final class AndroidAssetRenderer {
         }
         VisibleWorkspaceStore visible = kernel.visibleWorkspaceStore();
         CacheManager cache = kernel.productServices().cache();
+        if (!kernel.productServices()
+                .assetIntegrity()
+                .verify(
+                        visible,
+                        VisibleWorkspaceStore.Area.ASSETS,
+                        storageName,
+                        sha256,
+                        MAX_MEDIA_BYTES
+                )) {
+            throw new IOException("asset integrity mismatch");
+        }
 
         float quality = kernel.productServices()
                 .resources()
