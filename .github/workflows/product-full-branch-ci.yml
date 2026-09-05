@@ -155,6 +155,63 @@ jobs:
           PY
           }
 
+          assert_desc(){
+            local target="$1"
+            dump_ui
+            python3 - "$RUNNER_TEMP/window.xml" "$target" <<'PY'
+          import sys,xml.etree.ElementTree as ET
+          root=ET.parse(sys.argv[1]).getroot()
+          target=sys.argv[2]
+          for n in root.iter('node'):
+              if target in n.attrib.get('content-desc',''):
+                  print('UI_DESC_PASS='+target)
+                  raise SystemExit
+          raise SystemExit('UI_DESC_MISSING='+target)
+          PY
+          }
+
+          tap_desc(){
+            local target="$1"
+            dump_ui
+            read X Y < <(python3 - "$RUNNER_TEMP/window.xml" "$target" <<'PY'
+          import re,sys,xml.etree.ElementTree as ET
+          root=ET.parse(sys.argv[1]).getroot()
+          target=sys.argv[2]
+          for n in root.iter('node'):
+              if target in n.attrib.get('content-desc',''):
+                  m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',n.attrib.get('bounds',''))
+                  if m:
+                      l,t,r,b=map(int,m.groups())
+                      print((l+r)//2,(t+b)//2)
+                      raise SystemExit
+          raise SystemExit('UI_DESC_NOT_FOUND='+target)
+          PY
+            )
+            adb shell input tap "$X" "$Y"
+            sleep 0.5
+          }
+
+          long_press_desc(){
+            local target="$1"
+            dump_ui
+            read X Y < <(python3 - "$RUNNER_TEMP/window.xml" "$target" <<'PY'
+          import re,sys,xml.etree.ElementTree as ET
+          root=ET.parse(sys.argv[1]).getroot()
+          target=sys.argv[2]
+          for n in root.iter('node'):
+              if target in n.attrib.get('content-desc',''):
+                  m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',n.attrib.get('bounds',''))
+                  if m:
+                      l,t,r,b=map(int,m.groups())
+                      print((l+r)//2,(t+b)//2)
+                      raise SystemExit
+          raise SystemExit('UI_DESC_NOT_FOUND='+target)
+          PY
+            )
+            adb shell input swipe "$X" "$Y" "$X" "$Y" 900
+            sleep 1
+          }
+
           tap_text(){
             local target="$1"
             dump_ui
@@ -225,22 +282,57 @@ jobs:
           }
 
           assert_text 'ToolBox'
-          assert_text 'Antarmuka ToolBox • Android 11 • Visual-first'
-          assert_text 'Satu Editor • lima fungsi di dalamnya'
-          assert_text '4 PILIHAN EDITOR'
+          assert_text 'Beranda ToolBox • ruang kerja aplikasi'
+          assert_text 'PROYEK AKTIF'
+          assert_text 'AKTIVITAS TOOLBOX'
+          assert_text 'KESEHATAN SISTEM'
           assert_text 'Panel Utama'
           assert_text 'Editor'
 
-          # Antarmuka awal bukan layar edit dan tidak memiliki lima menu bawah.
+          # Cold-start harus selalu masuk Beranda ToolBox, bukan langsung Editor.
           dump_ui
+          ! grep -F 'text="Fungsi Editor • 5-in-1"' "$RUNNER_TEMP/window.xml"
           ! grep -F 'text="UI"' "$RUNNER_TEMP/window.xml"
           ! grep -F 'text="Simpan"' "$RUNNER_TEMP/window.xml"
 
-          # Edge harus bisa ditutup/dibuka bahkan di luar kondisi Edit.
-          tap_text '‹'
-          assert_text '›'
-          tap_text '›'
-          assert_text 'Panel Utama'
+          # Handle Edge memakai touch target besar dan satu ketukan harus langsung merespons.
+          assert_desc 'Handle panel kanan • terbuka'
+          tap_desc 'Handle panel kanan • terbuka'
+          assert_desc 'Handle panel kanan • tertutup'
+          tap_desc 'Handle panel kanan • tertutup'
+          assert_desc 'Handle panel kanan • terbuka'
+
+          # Long-press memindahkan Edge kanan/kiri di portrait.
+          long_press_desc 'Handle panel kanan • terbuka'
+          assert_desc 'Handle panel kiri • terbuka'
+          long_press_desc 'Handle panel kiri • terbuka'
+          assert_desc 'Handle panel kanan • terbuka'
+
+          # Landscape memakai Edge bawah/atas, bukan tetap di sisi kanan.
+          adb shell settings put system accelerometer_rotation 0
+          adb shell settings put system user_rotation 1
+          sleep 3
+          assert_text 'Beranda ToolBox • ruang kerja aplikasi'
+          assert_desc 'Handle panel bawah • terbuka'
+          long_press_desc 'Handle panel bawah • terbuka'
+          assert_desc 'Handle panel atas • terbuka'
+          adb shell settings put system user_rotation 0
+          sleep 3
+          assert_text 'Beranda ToolBox • ruang kerja aplikasi'
+          assert_desc 'Handle panel kanan • terbuka'
+
+          # Bubble menampilkan pintasan langsung di sekitar bubble, bukan window.
+          tap_text 'TB'
+          assert_text 'Edit AKTIF'
+          assert_text 'Tool'
+          assert_text 'Pengaturan'
+          assert_text 'Floating Window'
+          dump_ui
+          ! grep -F 'text="Akses Cepat"' "$RUNNER_TEMP/window.xml"
+          tap_text 'Floating Window'
+          assert_text 'Jendela Mengambang'
+          assert_text 'Tutup'
+          tap_text 'Tutup'
 
           # Entry Editor menampilkan empat pilihan edit sebelum workspace.
           tap_text 'Editor'
@@ -357,11 +449,9 @@ jobs:
           tap_text 'Tutup'
           tap_text '‹ Kembali'
 
-          # Bubble tetap menjadi akses cepat.
+          # Tool dari pintasan Bubble tetap membuka jalur alat yang berbeda dari Floating Window.
           tap_text 'TB'
-          assert_text 'Akses Cepat'
-          assert_text 'Edit: AKTIF'
-          tap_text 'Alat'
+          tap_text 'Tool'
           assert_text 'Alat ToolBox'
           tap_text 'Bangun & SIAP'
           assert_text 'Kelengkapan Produk: LULUS'
@@ -379,6 +469,12 @@ jobs:
             echo "FIVE_TOOL_NAVIGATION=PASS"
             echo "EDITOR_5_IN_1=PASS"
             echo "HOME_INTERFACE_BEFORE_EDITOR=PASS"
+            echo "HOME_REAL_TOOLBOX_INTERFACE=PASS"
+            echo "EDGE_SINGLE_TAP_RESPONSIVE=PASS"
+            echo "EDGE_LONG_PRESS_REPOSITION=PASS"
+            echo "EDGE_LANDSCAPE_TOP_BOTTOM=PASS"
+            echo "BUBBLE_DIRECT_SHORTCUTS=PASS"
+            echo "FLOATING_WINDOW_DISTINCT=PASS"
             echo "EDGE_ALL_MODES=PASS"
             echo "EDITOR_COMMANDS_PANEL_ONLY=PASS"
             echo "FOUR_EDITOR_CHOICES=PASS"
