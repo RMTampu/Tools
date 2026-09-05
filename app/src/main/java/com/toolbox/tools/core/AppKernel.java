@@ -137,7 +137,8 @@ public final class AppKernel {
         this.authoringWorkspace = DefaultAuthoringFactory.create(
                 this.runtimeEnvironment,
                 this.editorEnvironment,
-                this.libraryManager
+                this.libraryManager,
+                this.visibleWorkspaceStore
         );
         this.externalIntegrationManager = new ExternalIntegrationManager();
         this.repairSessionManager = new RepairSessionManager(
