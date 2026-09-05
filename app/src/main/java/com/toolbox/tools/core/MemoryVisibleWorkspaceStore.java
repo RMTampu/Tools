@@ -1,5 +1,6 @@
 package com.toolbox.tools.core;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -82,7 +83,15 @@ public final class MemoryVisibleWorkspaceStore implements VisibleWorkspaceStore 
                 FileVisibleWorkspaceStore.safeName(name)
         );
         if (value == null) throw new IOException("visible item missing");
-        return Arrays.copyOf(value, value.length);
+        return Arrays    @Override
+    public synchronized InputStream openInputStream(
+            Area area,
+            String name
+    ) throws IOException {
+        return new ByteArrayInputStream(read(area, name));
+    }
+
+.copyOf(value, value.length);
     }
 
     @Override
