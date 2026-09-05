@@ -85,6 +85,7 @@ required_runtime=[
  "PATCH_DESTRUCTIVE_MATRIX=PASS",
  "FREEZE_DESTRUCTIVE_MATRIX=PASS",
  "SAFE_RECOVERY_RUNTIME=PASS",
+ "EXTERNAL_MANAGED_EDITOR=PASS",
  "BAHASA_INDONESIA_RUNTIME=PASS",
  "DARK_NEON_RUNTIME=PASS",
  "FIVE_TOOL_NAVIGATION=PASS",
@@ -199,6 +200,7 @@ evidence={
   "memoryPressurePolicy":"PASS",
   "patchJournalRuntime":"PASS",
   "safeRecoveryRuntime":"PASS",
+  "externalManagedEditor":"PASS",
  },
  "r1ToR9":{
   domain:{
