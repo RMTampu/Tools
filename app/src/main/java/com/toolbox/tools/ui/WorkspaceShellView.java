@@ -22,12 +22,14 @@ import android.widget.Toast;
 
 import com.toolbox.tools.authoring.AuthoringSection;
 import com.toolbox.tools.core.AppKernel;
+import com.toolbox.tools.core.RecoveryCandidate;
 import com.toolbox.tools.editor.EdgeItem;
 import com.toolbox.tools.editor.EdgePanelModel;
 import com.toolbox.tools.editor.EditorMode;
 import com.toolbox.tools.editor.EditorRect;
 import com.toolbox.tools.editor.VisualCapability;
 import com.toolbox.tools.editor.VisualCapabilitySet;
+import com.toolbox.tools.product.BackupManager;
 import com.toolbox.tools.product.FreezeEngine;
 import com.toolbox.tools.product.FullProductVerifier;
 import com.toolbox.tools.product.ProductAcceptanceMatrix;
@@ -2203,38 +2205,251 @@ public final class WorkspaceShellView extends FrameLayout {
 
     private void showRecovery() {
         try {
-            int candidates = kernel.projectManager().recoveryCandidates().size();
+            int candidates =
+                    kernel.projectManager()
+                            .recoveryCandidates()
+                            .size();
+            int backups =
+                    kernel.productServices()
+                            .backups()
+                            .records()
+                            .size();
             showActionOverlay(
                     "Pemulihan & Backup",
                     Arrays.asList(
                             "Buat Backup Terverifikasi",
-                            "Lihat Kandidat Pemulihan"
+                            "Backup Tersimpan • " + backups,
+                            "Kandidat Pemulihan • " + candidates,
+                            "Hapus Semua Recovery yang Aman"
                     ),
                     value -> {
                         if ("Buat Backup Terverifikasi".equals(value)) {
                             try {
-                                kernel.productServices().backups().createVerified();
+                                BackupManager.BackupRecord record =
+                                        kernel.productServices()
+                                                .backups()
+                                                .createVerified();
                                 closeOverlay();
-                                toast("Backup terverifikasi dibuat.");
+                                toast(
+                                        "Backup terverifikasi • "
+                                                + record.fileName()
+                                );
                             } catch (Exception error) {
                                 toast("Backup gagal dibuat.");
                             }
+                        } else if (value.startsWith("Backup Tersimpan")) {
+                            showBackupList();
+                        } else if (value.startsWith("Kandidat Pemulihan")) {
+                            showRecoveryCandidates();
                         } else {
-                            closeOverlay();
-                            showInfoOverlay(
-                                    "Kandidat Pemulihan",
-                                    Arrays.asList(
-                                            "Jumlah kandidat: " + candidates,
-                                            "Titik pemulihan final: didukung",
-                                            "Riwayat revisi: didukung"
-                                    )
-                            );
+                            try {
+                                int deleted =
+                                        kernel.projectManager()
+                                                .deleteAllSafeRecoveryCandidates();
+                                closeOverlay();
+                                toast(
+                                        "Recovery deletable dihapus: "
+                                                + deleted
+                                );
+                            } catch (IOException error) {
+                                toast(
+                                        "Recovery aman gagal dibersihkan."
+                                );
+                            }
                         }
                     }
             );
         } catch (IOException error) {
             toast("Daftar pemulihan tidak dapat dibaca.");
         }
+    }
+
+    private void showRecoveryCandidates() {
+        try {
+            List<RecoveryCandidate> candidates =
+                    kernel.projectManager().recoveryCandidates();
+            if (candidates.isEmpty()) {
+                showInfoOverlay(
+                        "Kandidat Pemulihan",
+                        Collections.singletonList(
+                                "Tidak ada recovery revision tambahan."
+                        )
+                );
+                return;
+            }
+
+            List<String> rows = new ArrayList<>();
+            for (RecoveryCandidate item : candidates) {
+                rows.add(recoveryLabel(item));
+            }
+            showActionOverlay(
+                    "Kandidat Pemulihan",
+                    rows,
+                    selected -> {
+                        for (RecoveryCandidate item : candidates) {
+                            if (!recoveryLabel(item).equals(selected)) {
+                                continue;
+                            }
+                            showRecoveryCandidateActions(item);
+                            return;
+                        }
+                    }
+            );
+        } catch (IOException error) {
+            toast("Recovery candidate gagal dibaca.");
+        }
+    }
+
+    private void showRecoveryCandidateActions(
+            RecoveryCandidate candidate
+    ) {
+        List<String> actions = new ArrayList<>();
+        actions.add("Pulihkan Revisi " + candidate.revision());
+        if (candidate.deletable()) {
+            actions.add("Hapus Recovery Ini");
+        } else {
+            actions.add("Status • " + candidate.retention().name());
+        }
+        showActionOverlay(
+                "Recovery r" + candidate.revision(),
+                actions,
+                action -> {
+                    try {
+                        if (action.startsWith("Pulihkan Revisi")) {
+                            kernel.projectManager()
+                                    .restoreRecoveryCandidate(candidate);
+                            closeOverlay();
+                            renderAll();
+                            toast("Recovery berhasil dan diverifikasi.");
+                        } else if ("Hapus Recovery Ini".equals(action)) {
+                            boolean deleted =
+                                    kernel.projectManager()
+                                            .deleteRecoveryCandidate(candidate);
+                            closeOverlay();
+                            toast(
+                                    deleted
+                                            ? "Recovery dihapus."
+                                            : "Recovery dilindungi dan tidak dihapus."
+                            );
+                        }
+                    } catch (IOException error) {
+                        toast("Operasi recovery gagal aman.");
+                    }
+                }
+        );
+    }
+
+    private void showBackupList() {
+        List<BackupManager.BackupRecord> records =
+                kernel.productServices()
+                        .backups()
+                        .records();
+        if (records.isEmpty()) {
+            showInfoOverlay(
+                    "Backup Tersimpan",
+                    Collections.singletonList(
+                            "Belum ada backup pengguna."
+                    )
+            );
+            return;
+        }
+
+        List<String> rows = new ArrayList<>();
+        for (BackupManager.BackupRecord record : records) {
+            rows.add(backupLabel(record));
+        }
+        showActionOverlay(
+                "Backup Tersimpan",
+                rows,
+                selected -> {
+                    for (BackupManager.BackupRecord record : records) {
+                        if (!backupLabel(record).equals(selected)) {
+                            continue;
+                        }
+                        showBackupActions(record);
+                        return;
+                    }
+                }
+        );
+    }
+
+    private void showBackupActions(
+            BackupManager.BackupRecord record
+    ) {
+        showActionOverlay(
+                "Backup r" + record.revision(),
+                Arrays.asList(
+                        "Pulihkan Backup",
+                        "Hapus Backup"
+                ),
+                action -> {
+                    try {
+                        if ("Pulihkan Backup".equals(action)) {
+                            kernel.productServices()
+                                    .backups()
+                                    .restore(record);
+                            closeOverlay();
+                            renderAll();
+                            toast("Backup berhasil dipulihkan.");
+                        } else {
+                            boolean deleted =
+                                    kernel.productServices()
+                                            .backups()
+                                            .delete(record);
+                            closeOverlay();
+                            toast(
+                                    deleted
+                                            ? "Backup dihapus."
+                                            : "Backup tidak ditemukan."
+                            );
+                        }
+                    } catch (IOException error) {
+                        toast("Operasi backup gagal aman.");
+                    }
+                }
+        );
+    }
+
+    private static String recoveryLabel(
+            RecoveryCandidate item
+    ) {
+        return "r"
+                + item.revision()
+                + " • "
+                + item.kind().name()
+                + " • "
+                + humanBytes(item.sizeBytes())
+                + " • "
+                + formatTime(item.createdAt())
+                + " • "
+                + item.retention().name();
+    }
+
+    private static String backupLabel(
+            BackupManager.BackupRecord record
+    ) {
+        return "r"
+                + record.revision()
+                + " • "
+                + formatTime(record.createdAt())
+                + " • "
+                + record.status();
+    }
+
+    private static String formatTime(long epochMs) {
+        if (epochMs <= 0) return "waktu tidak tersedia";
+        return new java.text.SimpleDateFormat(
+                "yyyy-MM-dd HH:mm",
+                java.util.Locale.ROOT
+        ).format(new java.util.Date(epochMs));
+    }
+
+    private static String humanBytes(long bytes) {
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1024L * 1024L) {
+            return (bytes / 1024L) + " KB";
+        }
+        return (bytes / (1024L * 1024L)) + " MB";
     }
 
     private void showEvolution() {
