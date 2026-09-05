@@ -849,43 +849,45 @@ public final class ProductAcceptanceMatrix {
     ) {
         try {
             ScaleBenchmarkHarness harness = services.benchmark();
+            long budget = 96L * 1024L * 1024L;
             ScaleBenchmarkHarness.Result small =
-                    harness.estimate(
+                    harness.runActual(
                             ScaleBenchmarkHarness.ScaleClass.SMALL,
-                            100,
-                            40,
-                            2L * 1024L * 1024L,
-                            96L * 1024L * 1024L
+                            budget
                     );
             ScaleBenchmarkHarness.Result medium =
-                    harness.estimate(
+                    harness.runActual(
                             ScaleBenchmarkHarness.ScaleClass.MEDIUM,
-                            800,
-                            100,
-                            8L * 1024L * 1024L,
-                            96L * 1024L * 1024L
+                            budget
                     );
             ScaleBenchmarkHarness.Result large =
-                    harness.estimate(
+                    harness.runActual(
                             ScaleBenchmarkHarness.ScaleClass.LARGE,
-                            4000,
-                            160,
-                            24L * 1024L * 1024L,
-                            96L * 1024L * 1024L
+                            budget
                     );
             ScaleBenchmarkHarness.Result stress =
-                    harness.estimate(
+                    harness.runActual(
                             ScaleBenchmarkHarness.ScaleClass.STRESS,
-                            20000,
-                            200,
-                            64L * 1024L * 1024L,
-                            96L * 1024L * 1024L
+                            budget
                     );
             return small.withinBudget()
                     && medium.withinBudget()
                     && large.withinBudget()
-                    && stress.estimatedWorkingBytes()
-                        > large.estimatedWorkingBytes()
+                    && stress.withinBudget()
+                    && small.roundTripEqual()
+                    && medium.roundTripEqual()
+                    && large.roundTripEqual()
+                    && stress.roundTripEqual()
+                    && small.resourceCount()
+                        < medium.resourceCount()
+                    && medium.resourceCount()
+                        < large.resourceCount()
+                    && large.resourceCount()
+                        < stress.resourceCount()
+                    && stress.referenceCount()
+                        > large.referenceCount()
+                    && stress.dependencyCount()
+                        > large.dependencyCount()
                     && stress.scaleClass()
                         == ScaleBenchmarkHarness.ScaleClass.STRESS;
         } catch (RuntimeException error) {
