@@ -33,7 +33,7 @@ import com.toolbox.tools.product.FreezeEngine;
 import com.toolbox.tools.product.ResourceGuard;
 import com.toolbox.tools.ui.AndroidAssetRenderer;
 import com.toolbox.tools.ui.UiCanvasView;
-import com.toolbox.tools.testprovider.TestDocumentsProvider;
+import com.toolbox.tools.debug.DebugDocumentsProvider;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -192,14 +192,11 @@ public final class ProductRuntimeInstrumentedTest {
             scenario.onActivity(activity -> {
                 try {
                     Uri tree = DocumentsContract.buildTreeDocumentUri(
-                            TestDocumentsProvider.AUTHORITY,
-                            TestDocumentsProvider.ROOT_ID
+                            DebugDocumentsProvider.AUTHORITY,
+                            DebugDocumentsProvider.ROOT_ID
                     );
                     android.content.ContentResolver testResolver =
-                            InstrumentationRegistry
-                                    .getInstrumentation()
-                                    .getContext()
-                                    .getContentResolver();
+                            activity.getContentResolver();
                     SafVisibleWorkspaceStore visible =
                             new SafVisibleWorkspaceStore(
                                     testResolver,
