@@ -271,7 +271,12 @@ public final class ProductAcceptanceMatrix {
 
         // 119-135: audit, diagnostic policy, source of truth and complete end-to-end architecture.
         pass(119, completion.contains("audit_behavior_gate"), "AUDIT_AGENT", failures);
-        pass(120, s.autoRepair() != null, "AUTO_REPAIR_POLICY", failures);
+        pass(
+                120,
+                autoRepairContractPass(s),
+                "AUTO_REPAIR_POLICY",
+                failures
+        );
         pass(121, s.diagnostics() != null, "DIAGNOSTIC_CODES", failures);
         pass(122, kernel.visibleWorkspaceStore() != null
                 && projectReady
@@ -590,6 +595,54 @@ public final class ProductAcceptanceMatrix {
                     && journal.phase()
                         == com.toolbox.tools.delivery
                             .PatchTransactionJournal.Phase.IDLE;
+        } catch (RuntimeException error) {
+            return false;
+        }
+    }
+
+    private static boolean autoRepairContractPass(
+            ProductServices services
+    ) {
+        try {
+            services.cache().put(
+                    "cache.autorepair.proof",
+                    1024,
+                    CacheManager.Priority.TEMP
+            );
+            AutoRepairEngine.RepairResult result =
+                    services.autoRepair().applyDeterministic(
+                            java.util.Arrays.asList(
+                                    AutoRepairEngine.RepairType
+                                            .CLEAR_DISPOSABLE_CACHE,
+                                    AutoRepairEngine.RepairType
+                                            .REGENERATE_DERIVED_MANIFEST
+                            )
+                    );
+            AutoRepairEngine.RepairResult guarded =
+                    services.autoRepair().applyDeterministic(
+                            java.util.Collections.singletonList(
+                                    AutoRepairEngine.RepairType
+                                            .RELINK_EXACT_STABLE_ID
+                            )
+                    );
+            String manifest =
+                    services.autoRepair()
+                            .lastDerivedManifestSha256();
+            return result.isPass()
+                    && result.applied().size() == 2
+                    && !services.cache()
+                        .snapshot()
+                        .containsKey("cache.autorepair.proof")
+                    && manifest != null
+                    && manifest.matches("[0-9a-f]{64}")
+                    && !guarded.isPass()
+                    && guarded.rejected()
+                        .get(0)
+                        .contains("EXACT_INPUT_REQUIRED")
+                    && !services.autoRepair()
+                        .mayGuessBusinessLogic()
+                    && !services.autoRepair()
+                        .mayDeleteUserData();
         } catch (RuntimeException error) {
             return false;
         }
