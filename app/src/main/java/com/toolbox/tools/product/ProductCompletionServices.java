@@ -724,6 +724,13 @@ public final class ProductCompletionServices {
     }
 
     public static final class InstalledTargetBridge {
+        public static final String DOOR_MANAGED_RUNTIME =
+                "MANAGED_RUNTIME";
+        public static final String DOOR_GENERIC_EDIT =
+                "GENERIC_EDIT";
+        public static final String DOOR_DECLARATIVE =
+                "DECLARATIVE";
+
         public static final class Target {
             private final String packageName;
             private final String label;
@@ -731,6 +738,8 @@ public final class ProductCompletionServices {
             private final int protocolVersion;
             private final String projectId;
             private final long revision;
+            private final String editDoor;
+            private final boolean writable;
 
             Target(
                     String packageName,
@@ -738,7 +747,9 @@ public final class ProductCompletionServices {
                     List<String> capabilities,
                     int protocolVersion,
                     String projectId,
-                    long revision
+                    long revision,
+                    String editDoor,
+                    boolean writable
             ) {
                 this.packageName = packageName;
                 this.label = label;
@@ -748,6 +759,8 @@ public final class ProductCompletionServices {
                 this.protocolVersion = protocolVersion;
                 this.projectId = projectId;
                 this.revision = revision;
+                this.editDoor = editDoor;
+                this.writable = writable;
             }
 
             public String packageName(){return packageName;}
@@ -756,15 +769,29 @@ public final class ProductCompletionServices {
             public int protocolVersion(){return protocolVersion;}
             public String projectId(){return projectId;}
             public long revision(){return revision;}
+            public String editDoor(){return editDoor;}
+            public boolean writable(){return writable;}
+
             public boolean toolboxAware(){
-                return protocolVersion == 1
+                return DOOR_MANAGED_RUNTIME.equals(editDoor)
+                        && protocolVersion == 1
                         && projectId != null
+                        && !capabilities.isEmpty();
+            }
+
+            public boolean hasEditingDoor() {
+                return editDoor != null
+                        && !editDoor.trim().isEmpty()
                         && !capabilities.isEmpty();
             }
         }
 
         private final Map<String,Target> targets =
                 new LinkedHashMap<>();
+
+        public synchronized void clear() {
+            targets.clear();
+        }
 
         public synchronized void registerAwareTarget(
                 String packageName,
@@ -793,28 +820,71 @@ public final class ProductCompletionServices {
                 String projectId,
                 long revision
         ) {
+            registerTarget(
+                    packageName,
+                    label,
+                    capabilities,
+                    protocolVersion,
+                    projectId,
+                    revision,
+                    DOOR_MANAGED_RUNTIME,
+                    true
+            );
+        }
+
+        public synchronized void registerTarget(
+                String packageName,
+                String label,
+                List<String> capabilities,
+                int protocolVersion,
+                String projectId,
+                long revision,
+                String editDoor,
+                boolean writable
+        ) {
             if (packageName == null
                     || !packageName.contains(".")
                     || label == null
                     || label.trim().isEmpty()
                     || capabilities == null
                     || capabilities.isEmpty()
-                    || protocolVersion != 1
-                    || revision < 0) {
+                    || revision < 0
+                    || editDoor == null
+                    || editDoor.trim().isEmpty()) {
                 throw new IllegalArgumentException("target invalid");
             }
-            StableId.require(projectId, "projectId");
-            targets.put(
+            if (DOOR_MANAGED_RUNTIME.equals(editDoor)
+                    && protocolVersion != 1) {
+                throw new IllegalArgumentException(
+                        "managed target protocol invalid"
+                );
+            }
+            String stableProject = projectId;
+            if (stableProject == null
+                    || stableProject.trim().isEmpty()) {
+                stableProject = "project."
+                        + packageName
+                        .toLowerCase(Locale.ROOT)
+                        .replace('.', '_');
+            }
+            StableId.require(stableProject, "projectId");
+            Target candidate = new Target(
                     packageName,
-                    new Target(
-                            packageName,
-                            label,
-                            capabilities,
-                            protocolVersion,
-                            projectId,
-                            revision
-                    )
+                    label.trim(),
+                    capabilities,
+                    protocolVersion,
+                    stableProject,
+                    revision,
+                    editDoor,
+                    writable
             );
+
+            Target existing = targets.get(packageName);
+            if (existing == null
+                    || priority(candidate.editDoor())
+                        > priority(existing.editDoor())) {
+                targets.put(packageName, candidate);
+            }
         }
 
         public synchronized Target lookup(String packageName){
@@ -825,6 +895,13 @@ public final class ProductCompletionServices {
             return Collections.unmodifiableList(
                     new ArrayList<>(targets.values())
             );
+        }
+
+        private static int priority(String door) {
+            if (DOOR_MANAGED_RUNTIME.equals(door)) return 3;
+            if (DOOR_DECLARATIVE.equals(door)) return 2;
+            if (DOOR_GENERIC_EDIT.equals(door)) return 1;
+            return 0;
         }
     }
 
