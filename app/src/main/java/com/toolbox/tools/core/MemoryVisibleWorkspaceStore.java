@@ -1,6 +1,10 @@
 package com.toolbox.tools.core;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.security.MessageDigest;
+import java.util.Locale;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -34,6 +38,41 @@ public final class MemoryVisibleWorkspaceStore implements VisibleWorkspaceStore 
                 FileVisibleWorkspaceStore.safeName(name),
                 Arrays.copyOf(bytes, bytes.length)
         );
+    }
+
+    @Override
+    public synchronized WriteResult writeStream(
+            Area area,
+            String name,
+            InputStream input,
+            long maxBytes
+    ) throws IOException {
+        if (input == null) throw new NullPointerException("input");
+        if (maxBytes <= 0) throw new IOException("visible stream budget invalid");
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        MessageDigest digest;
+        try {
+            digest = MessageDigest.getInstance("SHA-256");
+        } catch (Exception error) {
+            throw new IOException("SHA-256 unavailable", error);
+        }
+        byte[] buffer = new byte[8192];
+        long total = 0;
+        int read;
+        while ((read = input.read(buffer)) != -1) {
+            total += read;
+            if (total > maxBytes) {
+                throw new IOException("visible item exceeds budget");
+            }
+            digest.update(buffer, 0, read);
+            output.write(buffer, 0, read);
+        }
+        write(area, name, output.toByteArray());
+        StringBuilder hex = new StringBuilder();
+        for (byte value : digest.digest()) {
+            hex.append(String.format(Locale.ROOT, "%02x", value));
+        }
+        return new WriteResult(total, hex.toString());
     }
 
     @Override
