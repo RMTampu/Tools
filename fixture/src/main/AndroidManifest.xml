@@ -1,0 +1,35 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application
+        android:allowBackup="false"
+        android:usesCleartextTraffic="false"
+        android:theme="@android:style/Theme.Material.NoActionBar"
+        android:label="ToolBox Managed Fixture">
+        <provider
+            android:name=".FixtureProjectProvider"
+            android:authorities="com.toolbox.fixture.toolbox"
+            android:exported="true" />
+        <activity
+            android:name=".FixtureDescribeActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.toolbox.DESCRIBE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <meta-data
+                android:name="com.toolbox.PROTOCOL_VERSION"
+                android:value="1" />
+            <meta-data
+                android:name="com.toolbox.PROJECT_ID"
+                android:value="project.fixture" />
+            <meta-data
+                android:name="com.toolbox.REVISION"
+                android:value="1" />
+            <meta-data
+                android:name="com.toolbox.CAPABILITIES"
+                android:value="ui,logic,data,binding,asset" />
+            <meta-data
+                android:name="com.toolbox.PROVIDER_AUTHORITY"
+                android:value="com.toolbox.fixture.toolbox" />
+        </activity>
+    </application>
+</manifest>
