@@ -423,7 +423,7 @@ public final class ProductServices {
                 && "id".equals(LocalizationManager.BAHASA_DEFAULT)
                 && themes.get("token.color.neon") != null
                 && resources.invariantPass()
-                && projectGraph.generatedIndex().size() >= 1
+                && projectGraph.rebuildGeneration() >= 1
                 && visualLayout.snapshot().size() >= 2
                 && !animations.all().isEmpty()
                 && !previewSandbox.snapshot().isEmpty()
