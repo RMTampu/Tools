@@ -13,6 +13,7 @@ import com.toolbox.tools.android.SafProjectAccessGateway;
 import com.toolbox.tools.android.SafProjectStore;
 import com.toolbox.tools.android.SafVisibleWorkspaceStore;
 import com.toolbox.tools.android.ToolboxAwareTargetDiscovery;
+import com.toolbox.tools.android.ManagedAppIntentContract;
 import com.toolbox.tools.core.AppKernel;
 import com.toolbox.tools.core.ProjectAccessStatus;
 import com.toolbox.tools.core.ProjectLoadResult;
@@ -358,6 +359,58 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
                 assetLibraryRoot(),
                 visible
         );
+    }
+
+    @Override
+    public boolean launchInstalledTarget(
+            String packageName,
+            String editDoor,
+            String sessionId,
+            String projectId,
+            long revision
+    ) {
+        try {
+            Intent intent;
+            if ("MANAGED_RUNTIME".equals(editDoor)) {
+                intent = new Intent(
+                        ManagedAppIntentContract.ACTION_DESCRIBE
+                );
+                intent.addCategory(Intent.CATEGORY_DEFAULT);
+            } else if ("GENERIC_EDIT".equals(editDoor)) {
+                intent = new Intent(Intent.ACTION_EDIT);
+                intent.addCategory(Intent.CATEGORY_DEFAULT);
+                intent.setType(
+                        ToolboxAwareTargetDiscovery.MIME_TOOLBOX_PROJECT
+                );
+            } else {
+                return false;
+            }
+
+            intent.setPackage(packageName);
+            intent.putExtra(
+                    ManagedAppIntentContract.EXTRA_PROTOCOL_VERSION,
+                    "MANAGED_RUNTIME".equals(editDoor) ? 1 : 0
+            );
+            intent.putExtra(
+                    ManagedAppIntentContract.EXTRA_SESSION_ID,
+                    sessionId
+            );
+            intent.putExtra(
+                    ManagedAppIntentContract.EXTRA_PROJECT_ID,
+                    projectId
+            );
+            intent.putExtra(
+                    ManagedAppIntentContract.EXTRA_REVISION,
+                    revision
+            );
+            if (intent.resolveActivity(getPackageManager()) == null) {
+                return false;
+            }
+            startActivity(intent);
+            return true;
+        } catch (RuntimeException error) {
+            return false;
+        }
     }
 
     private void discoverAwareTargets() {
