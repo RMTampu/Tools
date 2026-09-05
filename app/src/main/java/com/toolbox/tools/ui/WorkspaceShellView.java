@@ -667,7 +667,7 @@ public final class WorkspaceShellView extends FrameLayout {
     private void addFunction(String label, AuthoringSection section) {
         addEdgeCommand(mark(label, active == section), () -> {
             active = section;
-            kernel.authoringWorkspace().activate(section);
+            activateToolSection(section);
             panelPage = PanelPage.ROOT;
             renderWorkspace();
             renderEdge();
@@ -733,7 +733,7 @@ public final class WorkspaceShellView extends FrameLayout {
         panelPage = PanelPage.ROOT;
         representation = Representation.VISUAL;
         active = AuthoringSection.UI;
-        kernel.authoringWorkspace().activate(active);
+        activateToolSection(active);
         kernel.editorEnvironment().shell().setMode(EditorMode.EDIT);
         kernel.editorEnvironment().shell().setEditEnabled(true);
         renderAll();
@@ -2351,6 +2351,24 @@ public final class WorkspaceShellView extends FrameLayout {
         overlayLayer.setBackgroundColor(Color.TRANSPARENT);
     }
 
+    private void activateToolSection(
+            AuthoringSection section
+    ) {
+        kernel.authoringWorkspace().activate(section);
+        kernel.productServices().resources().activate(section);
+        kernel.productServices().toolLifecycle().activate(
+                section == AuthoringSection.UI
+                        ? "tool.ui"
+                        : section == AuthoringSection.LOGIC
+                        ? "tool.logic"
+                        : section == AuthoringSection.DATA
+                        ? "tool.data"
+                        : section == AuthoringSection.BINDING
+                        ? "tool.binding"
+                        : "tool.asset"
+        );
+    }
+
     private void showInstalledTargets() {
         List<ProductCompletionServices.InstalledTargetBridge.Target> targets =
                 kernel.productServices().completion().installedTargets.all();
@@ -2513,12 +2531,12 @@ public final class WorkspaceShellView extends FrameLayout {
         AuthoringSection[] sections = AuthoringSection.values();
         for (int i = 0; i < cycles; i++) {
             active = sections[i % sections.length];
-            kernel.authoringWorkspace().activate(active);
+            activateToolSection(active);
             renderWorkspace();
         }
         active = previous;
         screen = previousScreen;
-        kernel.authoringWorkspace().activate(active);
+        activateToolSection(active);
         renderAll();
         System.gc();
         long after = Debug.getPss() * 1024L;
