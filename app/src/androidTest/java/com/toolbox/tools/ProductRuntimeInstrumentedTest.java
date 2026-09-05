@@ -257,6 +257,78 @@ public final class ProductRuntimeInstrumentedTest {
     }
 
     @Test
+    public void externalAssetTamperIsRejectedAtUse()
+            throws Exception {
+        try (ActivityScenario<MainActivity> scenario =
+                     ActivityScenario.launch(MainActivity.class)) {
+            scenario.onActivity(activity -> {
+                try {
+                    AppKernel kernel = activity.kernelForTest();
+                    byte[] original = pngBytes(0xff00f0b5);
+                    byte[] tampered = pngBytes(0xffff3366);
+                    String originalSha = sha256(original);
+                    String name = "instrumented-tamper.png";
+                    kernel.visibleWorkspaceStore().write(
+                            VisibleWorkspaceStore.Area.ASSETS,
+                            name,
+                            original
+                    );
+
+                    String id =
+                            "asset.external.instrumentedtamper";
+                    Map<String, String> update =
+                            new LinkedHashMap<>();
+                    update.put(id + ".storage.area", "Assets");
+                    update.put(id + ".storage.name", name);
+                    update.put(id + ".sha256", originalSha);
+                    update.put(id + ".kind", "IMAGE");
+                    update.put(id + ".mime", "image/png");
+                    update.put(id + ".name", "Tamper Proof Image");
+                    kernel.projectManager()
+                            .applyResourceTransaction(
+                                    update,
+                                    Collections.emptySet()
+                            );
+
+                    assertTrue(
+                            AndroidAssetRenderer.render(
+                                    activity,
+                                    kernel,
+                                    id,
+                                    64,
+                                    64
+                            ) instanceof ImageView
+                    );
+
+                    kernel.visibleWorkspaceStore().write(
+                            VisibleWorkspaceStore.Area.ASSETS,
+                            name,
+                            tampered
+                    );
+
+                    try {
+                        AndroidAssetRenderer.render(
+                                activity,
+                                kernel,
+                                id,
+                                64,
+                                64
+                        );
+                        fail("tampered asset must be rejected");
+                    } catch (java.io.IOException expected) {
+                        assertTrue(
+                                expected.getMessage()
+                                        .contains("integrity")
+                        );
+                    }
+                } catch (Exception error) {
+                    throw new AssertionError(error);
+                }
+            });
+        }
+    }
+
+    @Test
     public void advancedUiPropertiesMaterializeOnRealAndroidView() {
         try (ActivityScenario<MainActivity> scenario =
                      ActivityScenario.launch(MainActivity.class)) {
@@ -699,6 +771,30 @@ public final class ProductRuntimeInstrumentedTest {
             }
         }
         return null;
+    }
+
+    private static byte[] pngBytes(int color)
+            throws Exception {
+        Bitmap bitmap = Bitmap.createBitmap(
+                16,
+                16,
+                Bitmap.Config.ARGB_8888
+        );
+        bitmap.eraseColor(color);
+        ByteArrayOutputStream out =
+                new ByteArrayOutputStream();
+        if (!bitmap.compress(
+                Bitmap.CompressFormat.PNG,
+                100,
+                out
+        )) {
+            bitmap.recycle();
+            throw new IllegalStateException(
+                    "instrumented PNG encode failed"
+            );
+        }
+        bitmap.recycle();
+        return out.toByteArray();
     }
 
     private static String sha256(byte[] bytes) throws Exception {
