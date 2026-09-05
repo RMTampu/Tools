@@ -130,6 +130,33 @@ public final class SafVisibleWorkspaceStore implements VisibleWorkspaceStore {
     }
 
     @Override
+    public synchronized InputStream openInputStream(
+            Area area,
+            String name
+    ) throws IOException {
+        Uri uri = findChild(
+                directoryUri(area),
+                FileVisibleWorkspaceStore.safeName(name),
+                false
+        );
+        if (uri == null) throw new IOException("visible item missing");
+        InputStream input = resolver.openInputStream(uri);
+        if (input == null) throw new IOException("SAF input unavailable");
+        return input;
+    }
+
+    public synchronized Uri itemUri(Area area, String name)
+            throws IOException {
+        Uri uri = findChild(
+                directoryUri(area),
+                FileVisibleWorkspaceStore.safeName(name),
+                false
+        );
+        if (uri == null) throw new IOException("visible item missing");
+        return uri;
+    }
+
+    @Override
     public synchronized boolean exists(Area area, String name)
             throws IOException {
         return findChild(
