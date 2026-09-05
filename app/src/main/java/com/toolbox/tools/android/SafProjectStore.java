@@ -38,14 +38,40 @@ public final class SafProjectStore implements ProjectStore {
 
     private final ContentResolver resolver;
     private final Uri treeUri;
+    private final Uri parentDocumentUri;
     private final ProjectCodec codec = new ProjectCodec();
     private final ProjectValidator validator = new ProjectValidator();
 
     public SafProjectStore(ContentResolver resolver, Uri treeUri) {
+        this(
+                resolver,
+                treeUri,
+                rootDocumentUri(
+                        Objects.requireNonNull(treeUri, "treeUri")
+                )
+        );
+    }
+
+    public SafProjectStore(
+            ContentResolver resolver,
+            Uri treeUri,
+            Uri parentDocumentUri
+    ) {
         this.resolver = Objects.requireNonNull(resolver, "resolver");
         this.treeUri = Objects.requireNonNull(treeUri, "treeUri");
+        this.parentDocumentUri = Objects.requireNonNull(
+                parentDocumentUri,
+                "parentDocumentUri"
+        );
         if (!DocumentsContract.isTreeUri(treeUri)) {
             throw new IllegalArgumentException("SAF tree URI required");
+        }
+        String treeId = DocumentsContract.getTreeDocumentId(treeUri);
+        String parentId = DocumentsContract.getDocumentId(parentDocumentUri);
+        if (treeId == null || parentId == null) {
+            throw new IllegalArgumentException(
+                    "SAF project directory identity required"
+            );
         }
     }
 
@@ -329,16 +355,9 @@ public final class SafProjectStore implements ProjectStore {
     }
 
     private Uri createChild(String name) throws IOException {
-        String rootDocumentId =
-                DocumentsContract.getTreeDocumentId(treeUri);
-        Uri rootDocument =
-                DocumentsContract.buildDocumentUriUsingTree(
-                        treeUri,
-                        rootDocumentId
-                );
         Uri uri = DocumentsContract.createDocument(
                 resolver,
-                rootDocument,
+                parentDocumentUri,
                 MIME,
                 name
         );
@@ -356,10 +375,12 @@ public final class SafProjectStore implements ProjectStore {
     }
 
     private List<Child> listChildren() throws IOException {
-        String treeId = DocumentsContract.getTreeDocumentId(treeUri);
+        String parentId = DocumentsContract.getDocumentId(
+                parentDocumentUri
+        );
         Uri children = DocumentsContract.buildChildDocumentsUriUsingTree(
                 treeUri,
-                treeId
+                parentId
         );
         List<Child> out = new ArrayList<>();
         String[] projection = new String[] {
@@ -423,6 +444,18 @@ public final class SafProjectStore implements ProjectStore {
             output.write(bytes);
             output.flush();
         }
+    }
+
+    private static Uri rootDocumentUri(Uri treeUri) {
+        if (!DocumentsContract.isTreeUri(treeUri)) {
+            throw new IllegalArgumentException("SAF tree URI required");
+        }
+        String rootDocumentId =
+                DocumentsContract.getTreeDocumentId(treeUri);
+        return DocumentsContract.buildDocumentUriUsingTree(
+                treeUri,
+                rootDocumentId
+        );
     }
 
     private static String revisionName(long revision) {
