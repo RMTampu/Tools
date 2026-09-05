@@ -223,6 +223,33 @@ public final class ProductProductionContractsTest {
         }
     }
 
+    @Test public void visualStateHoldSupportsEmptyAndNonEmptySurfaceSets() {
+        ProductCompletionServices.UiStateHoldManager hold =
+                new ProductCompletionServices.UiStateHoldManager();
+
+        ProductCompletionServices.UiStateHoldManager.Snapshot empty =
+                hold.enterEdit("screen.home");
+        assertTrue(empty.surfaces().isEmpty());
+        ProductCompletionServices.UiStateHoldManager.Snapshot restoredEmpty =
+                hold.exitEdit("screen.home");
+        assertTrue(restoredEmpty.surfaces().isEmpty());
+
+        hold.open(
+                "screen.home",
+                ProductCompletionServices.UiStateHoldManager.Surface.DIALOG
+        );
+        ProductCompletionServices.UiStateHoldManager.Snapshot nonEmpty =
+                hold.enterEdit("screen.home");
+        assertTrue(
+                nonEmpty.surfaces().contains(
+                        ProductCompletionServices.UiStateHoldManager.Surface.DIALOG
+                )
+        );
+        ProductCompletionServices.UiStateHoldManager.Snapshot restored =
+                hold.exitEdit("screen.home");
+        assertEquals(nonEmpty, restored);
+    }
+
     @Test public void freezeMaintainsFrozenBaseAndRecoverySlots() throws Exception {
         AppKernel kernel = AppKernel.createDefault();
         FreezeEngine freeze = kernel.productServices().freeze();
