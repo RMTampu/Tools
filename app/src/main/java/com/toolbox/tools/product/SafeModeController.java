@@ -115,11 +115,30 @@ public final class SafeModeController {
                 "workingDirty",
                 Boolean.toString(projects.hasUnsavedChanges())
         );
+        out.put(
+                "freezeState",
+                value("freeze.state", "NORMAL")
+        );
+        out.put(
+                "freezeMode",
+                value("freeze.save.mode", "NORMAL")
+        );
+        out.put(
+                "frozenRevision",
+                value("freeze.frozen.revision", "0")
+        );
         return Collections.unmodifiableMap(out);
     }
 
     public synchronized boolean readOnlyInspectionAllowed() {
         return true;
+    }
+
+    private String value(String key, String fallback) {
+        String raw = state.get(key);
+        return raw == null || raw.trim().isEmpty()
+                ? fallback
+                : raw;
     }
 
     private Set<String> mutableQuarantine() {
