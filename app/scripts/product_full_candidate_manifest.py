@@ -27,10 +27,10 @@ baseline_firebase_run="33933089444"
 baseline_firebase_matrix="4946808111994836277"
 
 canonical=(
- "TBX_FULL_PRODUCT_CANDIDATE_V2\n"
+ "TBX_FULL_PRODUCT_CANDIDATE_V3\n"
  "com.toolbox.tools\n"
- "12\n"
- "12.0-produk-penuh\n"
+ "13\n"
+ "13.0-produk-penuh-maksimal\n"
  +baseline_name+"\n"
  +str(baseline_version_code)+"\n"
  +baseline+"\n"
@@ -41,11 +41,11 @@ canonical=(
 )
 candidate_sha=hashlib.sha256(canonical.encode()).hexdigest()
 payload={
- "schemaVersion":1,
+ "schemaVersion":2,
  "status":"PUBLIC_FULL_PRODUCT_READY_PRIVATE_SIGNING",
  "applicationId":"com.toolbox.tools",
- "versionCode":12,
- "versionName":"12.0-produk-penuh",
+ "versionCode":13,
+ "versionName":"13.0-produk-penuh-maksimal",
  "baselineStage":baseline_version_code,
  "baselineName":baseline_name,
  "baselineVersionCode":baseline_version_code,
