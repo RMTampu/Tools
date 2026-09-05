@@ -62,6 +62,14 @@ final class ProjectChangeSet {
         out.addAll(afterValues.keySet());
         out.addAll(beforeMissing);
         out.addAll(afterMissing);
+        out.addAll(beforeReferences.keySet());
+        out.addAll(afterReferences.keySet());
+        for (Set<String> targets : beforeReferences.values()) {
+            out.addAll(targets);
+        }
+        for (Set<String> targets : afterReferences.values()) {
+            out.addAll(targets);
+        }
         return Collections.unmodifiableSet(out);
     }
 
