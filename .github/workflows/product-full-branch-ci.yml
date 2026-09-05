@@ -296,6 +296,8 @@ jobs:
           tap_text 'Fungsi Editor • 5-in-1'
           tap_text 'Data'
           assert_text 'Editor Data'
+          dump_ui
+          ! grep -F 'text="+ Tambah Field"' "$RUNNER_TEMP/window.xml"
           tap_text 'Konteks • Data'
           tap_right_text 'Data Contoh'
           assert_text 'Aktifkan'
@@ -308,6 +310,8 @@ jobs:
           tap_text 'Fungsi Editor • 5-in-1'
           tap_text 'Pengikatan'
           assert_text 'Pusat Pengikatan'
+          dump_ui
+          ! grep -F 'text="Hubungkan Semua Otomatis"' "$RUNNER_TEMP/window.xml"
           tap_text 'Konteks • Pengikatan'
           tap_text 'Hubungkan Otomatis'
           assert_text 'Lepaskan'
@@ -352,6 +356,7 @@ jobs:
             echo "EDITOR_5_IN_1=PASS"
             echo "HOME_INTERFACE_BEFORE_EDITOR=PASS"
             echo "EDGE_ALL_MODES=PASS"
+            echo "EDITOR_COMMANDS_PANEL_ONLY=PASS"
             echo "FOUR_EDITOR_CHOICES=PASS"
             echo "CONTEXT_ACTIONS=PASS"
             echo "CONTEXT_ACTIONS_UI=PASS"
