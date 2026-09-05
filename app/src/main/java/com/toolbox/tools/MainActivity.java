@@ -11,10 +11,12 @@ import com.toolbox.tools.android.EvolutionPackageGateway;
 import com.toolbox.tools.android.ExternalAssetGateway;
 import com.toolbox.tools.android.SafProjectAccessGateway;
 import com.toolbox.tools.android.SafProjectStore;
+import com.toolbox.tools.android.SafVisibleWorkspaceStore;
 import com.toolbox.tools.android.ToolboxAwareTargetDiscovery;
 import com.toolbox.tools.core.AppKernel;
 import com.toolbox.tools.core.ProjectAccessStatus;
 import com.toolbox.tools.core.ProjectLoadResult;
+import com.toolbox.tools.core.VisibleWorkspaceStore;
 import com.toolbox.tools.ui.StoragePickerHost;
 import com.toolbox.tools.ui.UiKit;
 import com.toolbox.tools.ui.WorkspaceHostActions;
@@ -108,26 +110,17 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
                     data.getFlags()
             );
 
-            SafProjectStore selected = new SafProjectStore(
-                    getContentResolver(),
-                    treeUri
+            AppKernel selectedKernel = createSafKernel(
+                    treeUri,
+                    kernel
             );
-            ProjectLoadResult existing = selected.load("project.default");
-            if (existing.status() == ProjectAccessStatus.FOLDER_MISSING
-                    && kernel != null) {
-                selected.commit(kernel.projectManager().current(), 0);
-            }
 
             getSharedPreferences(PREFS, MODE_PRIVATE)
                     .edit()
                     .putString(KEY_TREE_URI, treeUri.toString())
                     .apply();
 
-            kernel = AppKernel.createPersistent(
-                    selected,
-                    privateProjectRoot(),
-                    assetLibraryRoot()
-            );
+            kernel = selectedKernel;
             kernel.productServices().completion().storage.relink(
                     treeUri.toString(),
                     true,
@@ -227,15 +220,27 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
     private void importExternalAsset(Intent data) {
         try {
             ExternalAssetGateway.Descriptor asset =
-                    externalAssets.inspectAndPersist(
+                    externalAssets.importToWorkspace(
                             getContentResolver(),
                             data.getData(),
-                            data.getFlags()
+                            data.getFlags(),
+                            kernel.visibleWorkspaceStore()
                     );
             LinkedHashMap<String, String> update = new LinkedHashMap<>();
             update.put("asset.editor.active", asset.assetId());
-            update.put(asset.assetId() + ".uri", asset.uri().toString());
+            update.put(
+                    asset.assetId() + ".source.uri",
+                    asset.uri().toString()
+            );
             update.put(asset.assetId() + ".name", asset.displayName());
+            update.put(
+                    asset.assetId() + ".storage.area",
+                    VisibleWorkspaceStore.Area.ASSETS.folder()
+            );
+            update.put(
+                    asset.assetId() + ".storage.name",
+                    asset.storageName()
+            );
             update.put(asset.assetId() + ".mime", asset.mime());
             update.put(
                     asset.assetId() + ".kind",
@@ -275,13 +280,9 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
                         getContentResolver(),
                         treeUri
                 )) {
-                    AppKernel result = AppKernel.createPersistent(
-                            new SafProjectStore(
-                                    getContentResolver(),
-                                    treeUri
-                            ),
-                            privateProjectRoot(),
-                            assetLibraryRoot()
+                    AppKernel result = createSafKernel(
+                            treeUri,
+                            null
                     );
                     result.productServices().completion().storage.relink(
                             value,
@@ -297,6 +298,65 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
         return AppKernel.createPersistent(
                 fallbackProjectRoot(),
                 assetLibraryRoot()
+        );
+    }
+
+    private AppKernel createSafKernel(
+            Uri treeUri,
+            AppKernel migrationSource
+    ) throws IOException {
+        SafVisibleWorkspaceStore visible =
+                new SafVisibleWorkspaceStore(
+                        getContentResolver(),
+                        treeUri
+                );
+        visible.ensureLayout();
+
+        Uri projectsDirectory = visible.directoryUri(
+                VisibleWorkspaceStore.Area.PROJECTS
+        );
+        SafProjectStore scoped = new SafProjectStore(
+                getContentResolver(),
+                treeUri,
+                projectsDirectory
+        );
+
+        ProjectLoadResult scopedLoad =
+                scoped.load("project.default");
+        if (scopedLoad.status()
+                == ProjectAccessStatus.FOLDER_MISSING) {
+            boolean migrated = false;
+
+            // Upgrade path from older ToolBox builds that stored project
+            // revisions directly in the selected tree root.
+            SafProjectStore legacy = new SafProjectStore(
+                    getContentResolver(),
+                    treeUri
+            );
+            ProjectLoadResult legacyLoad =
+                    legacy.load("project.default");
+            if (legacyLoad.state() != null
+                    && (legacyLoad.status()
+                            == ProjectAccessStatus.PROJECT_OK
+                        || legacyLoad.status()
+                            == ProjectAccessStatus.SCHEMA_INCOMPATIBLE)) {
+                scoped.commit(legacyLoad.state(), 0);
+                migrated = true;
+            }
+
+            if (!migrated && migrationSource != null) {
+                scoped.commit(
+                        migrationSource.projectManager().current(),
+                        0
+                );
+            }
+        }
+
+        return AppKernel.createPersistent(
+                scoped,
+                privateProjectRoot(),
+                assetLibraryRoot(),
+                visible
         );
     }
 
