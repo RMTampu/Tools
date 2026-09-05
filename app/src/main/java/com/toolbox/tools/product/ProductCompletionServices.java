@@ -186,6 +186,7 @@ public final class ProductCompletionServices {
             pass.add("access_relink");
         }
 
+        freezeOverlay.reset();
         FreezeOverlay.Snapshot baseline = freezeOverlay.freeze(12, "known-good");
         freezeOverlay.write("ui.screen.home.title", "Eksperimen");
         if (freezeOverlay.read("ui.screen.home.title").equals("Eksperimen")
@@ -696,6 +697,10 @@ public final class ProductCompletionServices {
             if(state!=State.FROZEN) throw new IllegalStateException("commit state invalid");
             recoveryB=recoveryA; recoveryA=base;
             base=new Snapshot(revision,"commit",new LinkedHashMap<>(working)); return base;
+        }
+        public synchronized void reset(){
+            state=State.NORMAL; base=new Snapshot(0,"empty",Collections.<String,String>emptyMap());
+            working.clear(); recoveryA=null; recoveryB=null;
         }
         public synchronized State state(){return state;}
         public synchronized Snapshot recoveryA(){return recoveryA;}
