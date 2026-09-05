@@ -1799,7 +1799,12 @@ public final class WorkspaceShellView extends FrameLayout {
         if ("Peristiwa/Aksi".equals(label)) return Arrays.asList("Buka Detail", "Tampilkan Pesan", "Tanpa Aksi");
         if ("Aksesibilitas".equals(label)) return Arrays.asList("Label Otomatis", "Label: Buka Detail");
         if ("Kunci".equals(label)) return Arrays.asList("Kunci Posisi", "Buka Kunci Posisi", "Kunci Ukuran", "Buka Kunci Ukuran");
-        if ("Lainnya".equals(label)) return Arrays.asList("Reset Objek", "Simpan sebagai Template");
+        if ("Lainnya".equals(label)) return Arrays.asList(
+                "Salin Objek",
+                "Tempel Objek",
+                "Reset Objek",
+                "Simpan sebagai Template"
+        );
         return Arrays.asList("Gunakan Nilai Bawaan", "Reset");
     }
 
@@ -1946,7 +1951,11 @@ public final class WorkspaceShellView extends FrameLayout {
             return;
         }
         if ("Lainnya".equals(label)) {
-            if ("Reset Objek".equals(value)) {
+            if ("Salin Objek".equals(value)) {
+                copySelectedObject();
+            } else if ("Tempel Objek".equals(value)) {
+                pasteClipboardObject();
+            } else if ("Reset Objek".equals(value)) {
                 resetPrimaryObject();
             } else {
                 applyResource(
@@ -1961,6 +1970,166 @@ public final class WorkspaceShellView extends FrameLayout {
             return;
         }
         resetPrimaryObject();
+    }
+
+    private void copySelectedObject() {
+        String selected =
+                kernel.editorEnvironment().shell().selectedObjectId();
+        if (selected == null) {
+            selected = "object.home.primary";
+        }
+        String resourcePrefix =
+                "object.home.primary".equals(selected)
+                        ? "ui.object.home.primary"
+                        : selected;
+
+        LinkedHashMap<String, String> properties =
+                new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry
+                : kernel.projectManager()
+                    .current()
+                    .resources()
+                    .entrySet()) {
+            String prefix = resourcePrefix + ".";
+            if (entry.getKey().startsWith(prefix)) {
+                properties.put(
+                        entry.getKey().substring(prefix.length()),
+                        entry.getValue()
+                );
+            }
+        }
+        if (properties.isEmpty()) {
+            toast("Objek tidak memiliki property yang dapat disalin.");
+            return;
+        }
+
+        java.util.Set<String> dependencies =
+                kernel.projectManager()
+                    .current()
+                    .references()
+                    .get(selected);
+        if (dependencies == null) {
+            dependencies = java.util.Collections.emptySet();
+        }
+        kernel.productServices().clipboard().copy(
+                selected,
+                properties,
+                dependencies
+        );
+        closeOverlay();
+        toast(
+                "Objek disalin • "
+                        + properties.size()
+                        + " property • "
+                        + dependencies.size()
+                        + " dependensi"
+        );
+    }
+
+    private void pasteClipboardObject() {
+        try {
+            java.util.Set<String> existing =
+                    new java.util.LinkedHashSet<>();
+            for (String key : kernel.projectManager()
+                    .current()
+                    .resources()
+                    .keySet()) {
+                int last = key.lastIndexOf('.');
+                if (last > 0) {
+                    existing.add(key.substring(0, last));
+                }
+            }
+            for (Map.Entry<String, java.util.Set<String>> entry
+                    : kernel.projectManager()
+                        .current()
+                        .references()
+                        .entrySet()) {
+                existing.add(entry.getKey());
+                existing.addAll(entry.getValue());
+            }
+
+            com.toolbox.tools.product.ClipboardService.PasteResult pasted =
+                    kernel.productServices().clipboard().paste(
+                            "ui.object.drop",
+                            existing,
+                            java.util.Collections.emptyMap()
+                    );
+            if (pasted.hasBrokenReferences()) {
+                showInfoOverlay(
+                        "Tempel Diblokir",
+                        Arrays.asList(
+                                "Dependensi tidak tersedia:",
+                                pasted.brokenReferences().toString(),
+                                "Tidak ada referensi yang ditebak otomatis."
+                        )
+                );
+                return;
+            }
+
+            LinkedHashMap<String, String> upserts =
+                    new LinkedHashMap<>();
+            for (Map.Entry<String, String> entry
+                    : pasted.properties().entrySet()) {
+                upserts.put(
+                        pasted.newId() + "." + entry.getKey(),
+                        entry.getValue()
+                );
+            }
+            if (!upserts.containsKey(pasted.newId() + ".text")) {
+                upserts.put(
+                        pasted.newId() + ".text",
+                        "Objek Salinan"
+                );
+            }
+            if (!upserts.containsKey(pasted.newId() + ".kind")) {
+                upserts.put(
+                        pasted.newId() + ".kind",
+                        "component.copy"
+                );
+            }
+            if (!upserts.containsKey(
+                    pasted.newId() + ".position.x.dp"
+            )) {
+                upserts.put(
+                        pasted.newId() + ".position.x.dp",
+                        "34"
+                );
+            }
+            if (!upserts.containsKey(
+                    pasted.newId() + ".position.y.dp"
+            )) {
+                upserts.put(
+                        pasted.newId() + ".position.y.dp",
+                        "78"
+                );
+            }
+
+            kernel.projectManager().applyResourceTransaction(
+                    upserts,
+                    java.util.Collections.emptySet()
+            );
+            kernel.productServices()
+                    .editorContext()
+                    .select(pasted.newId());
+            kernel.editorEnvironment()
+                    .shell()
+                    .selectObject(pasted.newId());
+            closeOverlay();
+            renderAll();
+            toast(
+                    "Objek ditempel dengan Stable ID baru • "
+                            + pasted.newId()
+            );
+        } catch (IllegalStateException error) {
+            toast("Clipboard kosong.");
+        } catch (RuntimeException error) {
+            toast(
+                    "Tempel diblokir secara aman: "
+                            + (error.getMessage() == null
+                                ? "UNKNOWN"
+                                : error.getMessage())
+            );
+        }
     }
 
     private void applyTemplate(String value) {
