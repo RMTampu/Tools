@@ -273,10 +273,14 @@ public final class ProductServices {
                 assetLoads
         );
 
-        projectGraph.registerEntity("screen.home");
-        projectGraph.registerEntity("screen.detail");
-        projectGraph.registerEntity("object.home.primary");
-        projectGraph.link("object.home.primary", "screen.detail");
+        projects.addStateListener(
+                (state, committed, touched) ->
+                        projectGraph.synchronize(
+                                state,
+                                committed,
+                                touched
+                        )
+        );
 
         inputRouter.register("screen.home", null);
         inputRouter.register("container.home.main", "screen.home");

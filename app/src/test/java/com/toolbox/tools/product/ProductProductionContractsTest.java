@@ -312,6 +312,42 @@ public final class ProductProductionContractsTest {
         assertEquals(512, cache.totalBytes());
     }
 
+    @Test public void derivedProjectGraphFollowsRealProjectManagerState() {
+        AppKernel kernel = AppKernel.createDefault();
+        ProjectGraphManager graph =
+                kernel.productServices().projectGraph();
+        long before = graph.rebuildGeneration();
+
+        Map<String,String> update = new LinkedHashMap<>();
+        update.put("object.graph.source", "source");
+        update.put("object.graph.target", "target");
+        kernel.projectManager().applyResourceTransaction(
+                update,
+                Collections.emptySet()
+        );
+
+        ProjectState withReference =
+                kernel.projectManager()
+                        .current()
+                        .withReference(
+                                "object.graph.source",
+                                "object.graph.target"
+                        );
+        try {
+            kernel.projectManager()
+                    .restoreExternalState(withReference);
+        } catch (java.io.IOException error) {
+            throw new AssertionError(error);
+        }
+
+        assertTrue(graph.rebuildGeneration() > before);
+        assertTrue(
+                graph.generatedIndex()
+                        .get("object.graph.source")
+                        .contains("object.graph.target")
+        );
+    }
+
     @Test public void freezeMaintainsFrozenBaseAndRecoverySlots() throws Exception {
         AppKernel kernel = AppKernel.createDefault();
         FreezeEngine freeze = kernel.productServices().freeze();

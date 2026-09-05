@@ -697,11 +697,19 @@ public final class ProductAcceptanceMatrix {
                             "object.ui",
                             "object.binding"
                     );
-            graph.rebuildFrom(state);
+            graph.synchronize(
+                    state,
+                    true,
+                    Collections.singleton("object.data")
+            );
             Set<String> impacted = graph.impactOf("object.data");
             return graph.generatedIndex().size() == 2
                     && impacted.contains("object.binding")
-                    && impacted.contains("object.ui");
+                    && impacted.contains("object.ui")
+                    && graph.committedGeneration()
+                        == graph.rebuildGeneration()
+                    && graph.lastTouched()
+                        .contains("object.data");
         } catch (RuntimeException error) {
             return false;
         }

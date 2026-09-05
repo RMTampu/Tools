@@ -13,6 +13,8 @@ import java.util.Set;
 
 public final class ProjectManager {
     public static final int MAX_UNDO_GROUPS = 64;
+    private static final String RETIRED_ID_PREFIX =
+            "metadata.identity.retired.";
 
     private final ProjectStore store;
     private final DraftRecoveryStore draftRecoveryStore;
@@ -25,6 +27,8 @@ public final class ProjectManager {
     private final Deque<ProjectChangeSet> undo = new ArrayDeque<>();
     private final Deque<ProjectChangeSet> redo = new ArrayDeque<>();
     private final Set<String> tombstones = new LinkedHashSet<>();
+    private final List<ProjectStateListener> listeners =
+            new ArrayList<>();
 
     private ProjectState current;
     private long savedRevision;
@@ -84,6 +88,8 @@ public final class ProjectManager {
             current = ProjectState.create(projectId);
             savedRevision = 0;
             recoveryManager.clearRecoveryRequired();
+            recomputeTombstones();
+            notifyListeners(true, Collections.emptySet());
             return;
         }
 
@@ -95,6 +101,8 @@ public final class ProjectManager {
         current = load.state();
         savedRevision = current.revision();
 
+        recomputeTombstones();
+        notifyListeners(true, Collections.emptySet());
         if (load.status() == ProjectAccessStatus.PROJECT_OK) {
             recoveryManager.clearRecoveryRequired();
             return;
@@ -122,6 +130,28 @@ public final class ProjectManager {
 
     public synchronized long savedRevision() {
         return savedRevision;
+    }
+
+    public synchronized void addStateListener(
+            ProjectStateListener listener
+    ) {
+        if (listener == null) throw new NullPointerException("listener");
+        if (!listeners.contains(listener)) {
+            listeners.add(listener);
+            if (current != null) {
+                listener.onProjectStateChanged(
+                        current,
+                        !dirty,
+                        Collections.emptySet()
+                );
+            }
+        }
+    }
+
+    public synchronized void removeStateListener(
+            ProjectStateListener listener
+    ) {
+        listeners.remove(listener);
     }
 
     public synchronized void setLifecycle(ProjectLifecycle next) {
@@ -185,10 +215,18 @@ public final class ProjectManager {
         touched.addAll(upserts.keySet());
         touched.addAll(deletes);
 
+        for (String id : touched) {
+            if (id.startsWith(RETIRED_ID_PREFIX)) {
+                throw new IllegalArgumentException(
+                        "IDENTITY_RETIREMENT_METADATA_PROTECTED"
+                );
+            }
+        }
+
         for (String id : upserts.keySet()) {
             String stable = StableId.require(id, "resourceId");
             if (!current.resources().containsKey(stable)
-                    && tombstones.contains(stable)) {
+                    && isRetiredIdentity(current, stable)) {
                 throw new IllegalArgumentException(
                         "STABLE_ID_TOMBSTONED:" + stable
                 );
@@ -211,7 +249,15 @@ public final class ProjectManager {
 
         ProjectState next = current;
         for (String id : deletes) {
-            next = next.withoutResource(id);
+            String stable = StableId.require(id, "resourceId");
+            boolean existed = next.resources().containsKey(stable);
+            next = next.withoutResource(stable);
+            if (existed) {
+                next = next.withResource(
+                        retirementMarker(stable),
+                        stable
+                );
+            }
         }
         for (Map.Entry<String, String> entry : upserts.entrySet()) {
             next = next.withResource(entry.getKey(), entry.getValue());
@@ -245,6 +291,7 @@ public final class ProjectManager {
         current = next;
         dirty = true;
         recomputeTombstones();
+        notifyListeners(false, touched);
     }
 
     public synchronized boolean undo() {
@@ -257,6 +304,10 @@ public final class ProjectManager {
         pushBounded(redo, change);
         dirty = true;
         recomputeTombstones();
+        notifyListeners(
+                false,
+                change.referencedResourceIds()
+        );
         return true;
     }
 
@@ -270,6 +321,10 @@ public final class ProjectManager {
         pushBounded(undo, change);
         dirty = true;
         recomputeTombstones();
+        notifyListeners(
+                false,
+                change.referencedResourceIds()
+        );
         return true;
     }
 
@@ -286,6 +341,8 @@ public final class ProjectManager {
             dirty = false;
             accessStatus = ProjectAccessStatus.PROJECT_OK;
             draftRecoveryStore.discard();
+            recomputeTombstones();
+            notifyListeners(true, Collections.emptySet());
 
             try {
                 recoverySnapshotStore.captureLastValid(committed);
@@ -332,6 +389,8 @@ public final class ProjectManager {
         tombstones.clear();
         dirty = false;
         draftRecoveryStore.discard();
+        recomputeTombstones();
+        notifyListeners(true, Collections.emptySet());
     }
 
     public synchronized void writeDraftRecovery() throws IOException {
@@ -443,6 +502,7 @@ public final class ProjectManager {
         }
         current = migrated;
         dirty = true;
+        notifyListeners(false, Collections.emptySet());
         return save();
     }
 
@@ -577,6 +637,26 @@ public final class ProjectManager {
 
     private void recomputeTombstones() {
         tombstones.clear();
+        if (current == null) return;
+
+        for (Map.Entry<String, String> entry
+                : current.resources().entrySet()) {
+            if (entry.getKey().startsWith(RETIRED_ID_PREFIX)) {
+                String retired = entry.getValue();
+                try {
+                    StableId.require(retired, "retiredStableId");
+                    if (!current.resources().containsKey(retired)) {
+                        tombstones.add(retired);
+                    }
+                } catch (RuntimeException error) {
+                    recoveryManager.markRecoveryRequired(
+                            "IDENTITY_RETIREMENT_METADATA_INVALID",
+                            "PROJECT_IDENTITY"
+                    );
+                }
+            }
+        }
+
         LinkedHashSet<String> historyIds = new LinkedHashSet<>();
         for (ProjectChangeSet change : undo) {
             historyIds.addAll(change.referencedResourceIds());
@@ -591,6 +671,48 @@ public final class ProjectManager {
         }
     }
 
+    private static boolean isRetiredIdentity(
+            ProjectState state,
+            String stableId
+    ) {
+        return stableId.equals(
+                state.resources().get(
+                        retirementMarker(stableId)
+                )
+        );
+    }
+
+    private static String retirementMarker(String stableId) {
+        String digest = DigestUtils.sha256(
+                stableId.getBytes(
+                        java.nio.charset.StandardCharsets.UTF_8
+                )
+        );
+        return RETIRED_ID_PREFIX + digest.substring(0, 24);
+    }
+
+    private void notifyListeners(
+            boolean committed,
+            Set<String> touched
+    ) {
+        if (current == null || listeners.isEmpty()) return;
+        Set<String> copy = Collections.unmodifiableSet(
+                new LinkedHashSet<>(
+                        touched == null
+                                ? Collections.emptySet()
+                                : touched
+                )
+        );
+        for (ProjectStateListener listener
+                : new ArrayList<>(listeners)) {
+            listener.onProjectStateChanged(
+                    current,
+                    committed,
+                    copy
+            );
+        }
+    }
+
     private void adoptRecovered(ProjectState recovered) throws IOException {
         current = recovered;
         savedRevision = recovered.revision();
@@ -599,6 +721,8 @@ public final class ProjectManager {
         redo.clear();
         tombstones.clear();
         accessStatus = ProjectAccessStatus.PROJECT_OK;
+        recomputeTombstones();
+        notifyListeners(true, Collections.emptySet());
         recoveryManager.clearRecoveryRequired();
         draftRecoveryStore.discard();
         try {

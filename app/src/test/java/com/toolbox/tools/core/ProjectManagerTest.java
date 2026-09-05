@@ -192,6 +192,70 @@ public final class ProjectManagerTest {
     }
 
     @Test
+    public void retiredIdentityPersistsAcrossSaveAndReopen()
+            throws Exception {
+        InMemoryProjectStore store = new InMemoryProjectStore();
+        ProjectManager first = manager(
+                store,
+                new DraftRecoveryStore()
+        );
+        first.bootstrap("project.alpha");
+        first.putResource("object.permanent", "one");
+        first.save();
+        first.removeResource("object.permanent");
+        first.save();
+
+        ProjectManager reopened = manager(
+                store,
+                new DraftRecoveryStore()
+        );
+        reopened.bootstrap("project.alpha");
+        assertTrue(
+                reopened.tombstones().contains("object.permanent")
+        );
+        IllegalArgumentException rejected = assertThrows(
+                IllegalArgumentException.class,
+                () -> reopened.putResource(
+                        "object.permanent",
+                        "recycled"
+                )
+        );
+        assertTrue(
+                rejected.getMessage()
+                        .contains("STABLE_ID_TOMBSTONED")
+        );
+    }
+
+    @Test
+    public void projectStateListenerTracksWorkingAndCommittedChanges()
+            throws Exception {
+        ProjectManager manager = manager(
+                new InMemoryProjectStore(),
+                new DraftRecoveryStore()
+        );
+        java.util.List<Boolean> committed =
+                new java.util.ArrayList<>();
+        java.util.List<java.util.Set<String>> touched =
+                new java.util.ArrayList<>();
+        manager.addStateListener((state, isCommitted, ids) -> {
+            committed.add(isCommitted);
+            touched.add(
+                    new java.util.LinkedHashSet<>(ids)
+            );
+        });
+
+        manager.bootstrap("project.alpha");
+        manager.putResource("object.live", "one");
+        manager.save();
+
+        assertEquals(
+                java.util.Arrays.asList(true, false, true),
+                committed
+        );
+        assertTrue(touched.get(1).contains("object.live"));
+    }
+
+    @Test
     public void undoHistoryIsBounded() throws Exception {
         ProjectManager manager = manager(
                 new InMemoryProjectStore(),

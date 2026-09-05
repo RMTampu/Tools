@@ -17,6 +17,9 @@ public final class ProjectGraphManager {
     private final Map<String, Set<String>> outgoing = new LinkedHashMap<>();
     private final Set<String> tombstones = new LinkedHashSet<>();
     private final Deque<String> undoDelete = new ArrayDeque<>();
+    private long rebuildGeneration;
+    private long committedGeneration;
+    private Set<String> lastTouched = Collections.emptySet();
 
     public synchronized void registerEntity(String id) {
         String stable = StableId.require(id, "entityId");
@@ -69,6 +72,37 @@ public final class ProjectGraphManager {
                 );
             }
         }
+        rebuildGeneration++;
+    }
+
+    public synchronized void synchronize(
+            ProjectState project,
+            boolean committed,
+            Set<String> touched
+    ) {
+        rebuildFrom(project);
+        lastTouched = Collections.unmodifiableSet(
+                new LinkedHashSet<>(
+                        touched == null
+                                ? Collections.emptySet()
+                                : touched
+                )
+        );
+        if (committed) {
+            committedGeneration = rebuildGeneration;
+        }
+    }
+
+    public synchronized long rebuildGeneration() {
+        return rebuildGeneration;
+    }
+
+    public synchronized long committedGeneration() {
+        return committedGeneration;
+    }
+
+    public synchronized Set<String> lastTouched() {
+        return lastTouched;
     }
 
     public synchronized Set<String> impactOf(String id) {
