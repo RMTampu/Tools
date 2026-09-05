@@ -29,8 +29,15 @@ assert mutation["status"]=="PASS"
 assert mutation["mutationsEscaped"]==0
 
 assert candidate["status"]=="PUBLIC_FULL_PRODUCT_READY_PRIVATE_SIGNING"
-assert candidate["baselineStage"]==11
-assert candidate["baselineSignedApkSha256"]=="f9dcffed7dc5d657c6dbd1c45933db6a4f6215f5145aee1849cc50f35038b76b"
+assert candidate["baselineStage"]==12
+assert candidate["baselineName"]=="ToolBox Produk Penuh v12"
+assert candidate["baselineVersionCode"]==12
+assert candidate["baselineSignedApkSha256"]=="4f4579d87d867524e1b308de1a9a39ac2be0a18894d9317eea60a67dc4d91c05"
+assert candidate["baselineCertificateSha256"]=="290fb37d527935766e327781833493400dd647cfc8bdbe433254a2df52e4b8e4"
+assert candidate["baselinePublicR1R9RunId"]=="33892292329"
+assert candidate["baselinePrivateRuntimeRunId"]=="33932725592"
+assert candidate["baselineFirebaseRunId"]=="33933089444"
+assert candidate["baselineFirebaseMatrixId"]=="4946808111994836277"
 assert candidate["designSections"]==135
 assert candidate["defaultLanguage"]=="id"
 assert candidate["toolEnginesReady"]==5
@@ -59,9 +66,30 @@ required_runtime=[
  "API_LEVEL=30",
  "EMULATOR_ABI=x86_64",
  "API30_APP_LAUNCH=PASS",
+ "ANDROID_INSTRUMENTATION=PASS",
+ "SOAK_100_RUNTIME=PASS",
+ "PROCESS_DEATH_RESTART=PASS",
+ "GFXINFO_RUNTIME=PASS",
+ "PSS_BUDGET_RUNTIME=PASS",
+ "FLOATING_EDITOR_MOVE_PIN_RESIZE=PASS",
+ "EXTERNAL_ASSET_PICKER_ROUTE=PASS",
+ "HEALTH_SAFE_MODE_UI=PASS",
+ "EVOLUTION_UI=PASS",
+ "FREEZE_SAVE_MODE_INDICATOR=PASS",
  "BAHASA_INDONESIA_RUNTIME=PASS",
  "DARK_NEON_RUNTIME=PASS",
  "FIVE_TOOL_NAVIGATION=PASS",
+ "EDITOR_5_IN_1=PASS",
+ "HOME_INTERFACE_BEFORE_EDITOR=PASS",
+ "EDGE_ALL_MODES=PASS",
+ "EDITOR_COMMANDS_PANEL_ONLY=PASS",
+ "FOUR_EDITOR_CHOICES=PASS",
+ "CONTEXT_ACTIONS=PASS",
+ "CONTEXT_ACTIONS_UI=PASS",
+ "CONTEXT_ACTIONS_LOGIC=PASS",
+ "CONTEXT_ACTIONS_DATA=PASS",
+ "CONTEXT_ACTIONS_BINDING=PASS",
+ "CONTEXT_ACTIONS_ASSET=PASS",
  "TOOL_UI=PASS",
  "TOOL_LOGIKA=PASS",
  "TOOL_DATA=PASS",
@@ -72,6 +100,8 @@ required_runtime=[
  "REPRESENTASI_KODE=PASS",
  "MODE_EDIT=PASS",
  "MODE_PRATINJAU=PASS",
+ "MODE_UJI=PASS",
+ "MODE_LANGSUNG=PASS",
  "BUBBLE=PASS",
  "EDGE_PANEL=PASS",
  "PRODUCT_COMPLETENESS_RUNTIME=PASS",
@@ -82,6 +112,28 @@ for marker in required_runtime:
 
 screenshot=OUT/"product-full-api30.png"
 assert screenshot.is_file() and screenshot.stat().st_size>0
+restart_screenshot=OUT/"product-full-api30-after-restart.png"
+assert restart_screenshot.is_file() and restart_screenshot.stat().st_size>0
+gfx=OUT/"product-full-gfxinfo.txt"
+assert gfx.is_file() and gfx.stat().st_size>0
+
+android_xml=sorted(
+    (APP/"build/outputs/androidTest-results/connected").rglob("*.xml")
+)
+assert android_xml,"Android instrumentation evidence missing"
+android_tests=android_failures=android_errors=android_skipped=0
+for file in android_xml:
+    root=ET.parse(file).getroot()
+    if root.tag!="testsuite":
+        continue
+    android_tests+=int(root.attrib.get("tests","0"))
+    android_failures+=int(root.attrib.get("failures","0"))
+    android_errors+=int(root.attrib.get("errors","0"))
+    android_skipped+=int(root.attrib.get("skipped","0"))
+assert android_tests>=3
+assert android_failures==0
+assert android_errors==0
+assert android_skipped==0
 
 evidence={
  "schemaVersion":12,
@@ -92,8 +144,11 @@ evidence={
  "sourceCommitSha":os.environ.get("GITHUB_SHA","LOCAL"),
  "workflowRunId":os.environ.get("GITHUB_RUN_ID","LOCAL"),
  "baseline":{
-  "stage":11,
+  "stage":12,
+  "name":candidate["baselineName"],
+  "versionCode":candidate["baselineVersionCode"],
   "apkSha256":candidate["baselineSignedApkSha256"],
+  "certificateSha256":candidate["baselineCertificateSha256"],
   "rollbackAnchor":True,
  },
  "design":{
@@ -109,11 +164,27 @@ evidence={
   "wysiwyg":"PASS",
   "bubble":"PASS",
   "edgePanel":"PASS",
+  "edgeAllModes":"PASS",
+  "commandsPanelOnly":"PASS",
+  "homeBeforeEditor":"PASS",
+  "fourEditorChoices":"PASS",
+  "editor5In1":"PASS",
+  "contextActionsAllFive":"PASS",
   "floatingEditor":"PASS",
   "visualPropertiesCode":"PASS",
   "editPreviewTestLive":"PASS",
   "patchWithoutRebuild":"PASS",
   "freezeRecoverySafeMode":"PASS",
+  "androidInstrumentation":"PASS",
+  "soak100":"PASS",
+  "processDeathRestart":"PASS",
+  "gfxInfo":"PASS",
+  "pssBudget":"PASS",
+  "floatingEditorMovePinResize":"PASS",
+  "externalAssetPickerRoute":"PASS",
+  "healthSafeModeUi":"PASS",
+  "evolutionUi":"PASS",
+  "freezeSaveModeIndicator":"PASS",
  },
  "r1ToR9":{
   domain:{
@@ -124,7 +195,15 @@ evidence={
  },
  "assetSafe":"PASS",
  "tests":{
-  "tests":tests,"failures":failures,"errors":errors,"skipped":skipped
+  "unit":{
+   "tests":tests,"failures":failures,"errors":errors,"skipped":skipped
+  },
+  "androidInstrumentation":{
+   "tests":android_tests,
+   "failures":android_failures,
+   "errors":android_errors,
+   "skipped":android_skipped
+  }
  },
  "artifact":{
   "fileName":apk.name,

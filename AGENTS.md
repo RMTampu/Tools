@@ -355,13 +355,18 @@ Urutan wajib:
 Jika domain tidak berlaku, status harus `N_A_SCOPE_PROVEN`, bukan dilewati diam-diam.
 
 Workflow canonical aplikasi wajib menghasilkan evidence machine-readable R1-R9 dan meng-upload evidence bersama artifact. Perubahan teknis yang belum melewati gate ini tidak boleh disebut matang atau siap tahap berikutnya.
+  
+## Baseline Permanen ToolBox Produk Penuh v12
 
-## Baseline Permanen Tahap 11
-
-- Baseline/rollback anchor ToolBox yang sah sekarang adalah **Tahap 11**.
-- APK baseline canonical: `f9dcffed7dc5d657c6dbd1c45933db6a4f6215f5145aee1849cc50f35038b76b`.
-- App.patch canonical: `c235da4f9078ee79f9ecbf796232896e806c09501dc0b7e5814970db042adf98`.
-- Tahap 11 sudah lulus R1-R9, ASSET_SAFE, signing, Android 11/API30, dan Firebase Test Lab ARM64.
-- Tahap 7 adalah historical superseded baseline dan bukan lagi rollback anchor aktif.
-- Tahap 12+ jika ada adalah candidate/evolution di atas Tahap 11 dan wajib rollback ke Tahap 11.
-- Firebase PASS tidak otomatis memindahkan baseline; baseline berikutnya hanya berubah jika pengguna memberi instruksi eksplisit baru.
+- Baseline/rollback anchor aktif: **ToolBox Produk Penuh v12**.
+- Record canonical private: `verification/baseline_toolbox_v12.json`.
+- APK SHA-256: `4f4579d87d867524e1b308de1a9a39ac2be0a18894d9317eea60a67dc4d91c05`.
+- Certificate SHA-256: `290fb37d527935766e327781833493400dd647cfc8bdbe433254a2df52e4b8e4`.
+- Public R1-R9/ASSET_SAFE: PASS run `33892292329`.
+- Private signing/API30 runtime: PASS run `33932725592`.
+- Firebase Test Lab Android 11 ARM64: PASS run `33933089444`, matrix `4946808111994836277`.
+- Rancangan: **135/135**; engine: **5/5**; bahasa: **Bahasa Indonesia**.
+- Tahap 11 menjadi historical superseded baseline.
+- Baseline berikutnya tidak boleh berubah tanpa instruksi eksplisit pengguna.
+- Asset final canonical berada di private `RMTampu/ToolBox/baseline/toolbox-v12/assets/`.
+- Salinan asset yang masih ada di Public hanya development/history dan bukan sumber kebenaran final.

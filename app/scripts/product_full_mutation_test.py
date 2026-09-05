@@ -18,9 +18,23 @@ mutations=[
  {
   "name":"multi_heavy_tool_escape",
   "path":APP/"src/main/java/com/toolbox/tools/product/ToolLifecycleManager.java",
-  "old":"entry.setValue(State.COLD);",
-  "new":"entry.setValue(State.ACTIVE);",
+  "old":"performRelease(active);",
+  "new":"states.put(active, State.ACTIVE);",
   "test":"com.toolbox.tools.product.FullProductArchitectureTest.limaToolMemakaiLifecycleSatuFungsiBeratAktif"
+ },
+ {
+  "name":"incremental_validation_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/core/ProjectManager.java",
+  "old":"if (!lastIncrementalValidation.isPass()) {",
+  "new":"if (false) {",
+  "test":"com.toolbox.tools.product.ProductProductionContractsTest.projectManagerRejectsInvalidIncrementalMutation"
+ },
+ {
+  "name":"managed_protocol_version_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/protocol/ManagedAppProtocol.java",
+  "old":"if (protocolVersion < 1\n                    || protocolVersion > CURRENT_VERSION) {",
+  "new":"if (false) {",
+  "test":"com.toolbox.tools.protocol.ManagedAppProtocolTest.rejectsUnsupportedProtocolAndEmptyNegotiation"
  },
  {
   "name":"full_product_verifier_bypass",

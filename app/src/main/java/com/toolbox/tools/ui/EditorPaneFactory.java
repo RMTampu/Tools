@@ -5,6 +5,7 @@ import android.graphics.Typeface;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.GridLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
@@ -22,6 +23,8 @@ import com.toolbox.tools.runtime.DataSourceDefinition;
 import com.toolbox.tools.runtime.FlowGraph;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -70,59 +73,96 @@ public final class EditorPaneFactory {
         scroll.addView(root);
 
         root.addView(UiKit.judul(c, "Properti Terstruktur", 18f));
+        if (section == AuthoringSection.UI) {
+            buildUiProperties(c, kernel, root);
+            return scroll;
+        }
         TextView info = UiKit.teks(
                 c,
-                "Properti membaca model yang sama dengan Visual dan Kode. "
-                        + "Perubahan representabel tetap tersinkron dua arah.",
+                "Representasi Properti mengedit Project Store yang sama dengan Visual dan Kode. "
+                        + "Perubahan langsung menjadi working state dan tetap menunggu Simpan manual.",
                 11.5f,
                 UiKit.TEKS_REDUP
         );
-        info.setPadding(0, UiKit.dp(c, 4), 0, UiKit.dp(c, 14));
+        info.setPadding(0, UiKit.dp(c, 4), 0, UiKit.dp(c, 12));
         root.addView(info);
 
-        switch (section) {
-            case UI:
-                propertyRow(root, c, "Objek dipilih", "Tombol Utama");
-                propertyRow(root, c, "Lebar", "148 dp");
-                propertyRow(root, c, "Tinggi", "46 dp");
-                propertyRow(root, c, "Teks", "Buka Detail");
-                propertyRow(root, c, "Warna", "Token Neon");
-                propertyRow(root, c, "Radius", "14 dp");
-                propertyRow(root, c, "Posisi", "Terikat Layout");
-                propertyRow(root, c, "Aksesibilitas", "Tombol • berlabel");
-                break;
-            case LOGIC:
-                propertyRow(root, c, "Alur aktif", "Saat Tombol Ditekan");
-                propertyRow(root, c, "Node", "4");
-                propertyRow(root, c, "Koneksi", "3");
-                propertyRow(root, c, "Watchdog", "Aktif");
-                propertyRow(root, c, "Batas loop", "Aman");
-                break;
-            case DATA:
-                propertyRow(root, c, "Sumber", "data.items");
-                propertyRow(root, c, "Kunci item", "field.id");
-                propertyRow(root, c, "Paging", "20 item");
-                propertyRow(root, c, "Data Contoh", "Aktif untuk pratinjau");
-                break;
-            case BINDING:
-                propertyRow(root, c, "Profil", "Profil Pengikatan Bawaan");
-                propertyRow(root, c, "Mode", "Satu arah");
-                propertyRow(root, c, "Target ambigu", "Tidak ditebak");
-                propertyRow(root, c, "Siklus", "Dicegah otomatis");
-                break;
-            case ASSET:
-                propertyRow(root, c, "Tema", "Gelap Neon");
-                propertyRow(root, c, "Aset bawaan", String.valueOf(
-                        kernel.libraryManager().assets().allReady().size()
-                ));
-                propertyRow(root, c, "Komponen siap", String.valueOf(
-                        kernel.libraryManager().components().allReady().size()
-                ));
-                propertyRow(root, c, "Template siap", String.valueOf(
-                        kernel.libraryManager().templates().allReady().size()
-                ));
-                break;
-        }
+        final String key = editableResourceKey(section);
+        final String fallback = editableFallback(section);
+        String current = kernel.projectManager().current().resources().getOrDefault(
+                key,
+                fallback
+        );
+
+        propertyRow(root, c, "Kunci Properti", key);
+
+        EditText value = new EditText(c);
+        value.setSingleLine(false);
+        value.setText(current);
+        value.setTextColor(UiKit.TEKS);
+        value.setHintTextColor(UiKit.TEKS_REDUP);
+        value.setHint("Nilai properti");
+        value.setPadding(
+                UiKit.dp(c, 12),
+                UiKit.dp(c, 10),
+                UiKit.dp(c, 12),
+                UiKit.dp(c, 10)
+        );
+        value.setBackground(UiKit.kartuPx(
+                c,
+                UiKit.PERMUKAAN,
+                UiKit.NEON_BIRU,
+                12,
+                1
+        ));
+        root.addView(value, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                UiKit.dp(c, 86)
+        ));
+
+        UiKit.ruang(root, c, 8);
+        TextView status = UiKit.teks(
+                c,
+                "Status: sinkron dengan working state",
+                11f,
+                UiKit.TEKS_REDUP
+        );
+        root.addView(status);
+
+        TextView apply = UiKit.tombol(c, "Terapkan Properti", true);
+        apply.setOnClickListener(v -> {
+            String next = value.getText().toString();
+            if (next.trim().isEmpty()) {
+                status.setText("Ditolak: nilai tidak boleh kosong");
+                return;
+            }
+            try {
+                LinkedHashMap<String, String> upserts = new LinkedHashMap<>();
+                upserts.put(key, next);
+                kernel.projectManager().applyResourceTransaction(
+                        upserts,
+                        Collections.emptySet()
+                );
+                status.setText("Diterapkan • belum disimpan");
+            } catch (RuntimeException error) {
+                status.setText("Ditolak aman • " + error.getClass().getSimpleName());
+            }
+        });
+        root.addView(apply);
+
+        UiKit.ruang(root, c, 12);
+        propertyRow(
+                root,
+                c,
+                "Revisi Tersimpan",
+                String.valueOf(kernel.projectManager().savedRevision())
+        );
+        propertyRow(
+                root,
+                c,
+                "Perubahan Tertunda",
+                kernel.projectManager().hasUnsavedChanges() ? "YA" : "TIDAK"
+        );
         return scroll;
     }
 
@@ -144,22 +184,49 @@ public final class EditorPaneFactory {
         root.addView(UiKit.judul(c, "Representasi Deklaratif", 18f));
         TextView note = UiKit.teks(
                 c,
-                "Kode adalah jalur cadangan lanjutan. ToolBox tidak mengeksekusi "
-                        + "kode sembarang yang diunduh di host.",
+                "Kode ini deklaratif, bukan arbitrary executable code. Format: satu resourceId=value per baris. "
+                        + "Hanya namespace fungsi aktif yang diterima.",
                 11.5f,
                 UiKit.TEKS_REDUP
         );
         note.setPadding(0, UiKit.dp(c, 4), 0, UiKit.dp(c, 12));
         root.addView(note);
 
-        TextView code = UiKit.teks(
-                c,
-                codeText(kernel, section),
-                11.5f,
-                UiKit.TEKS
+        final String key = editableResourceKey(section);
+        final String fallback = editableFallback(section);
+        final String prefix = section == AuthoringSection.UI
+                ? selectedUiResourcePrefix(kernel)
+                : editablePrefix(section);
+        String current = kernel.projectManager().current().resources().getOrDefault(
+                key,
+                fallback
         );
+
+        EditText code = new EditText(c);
+        if (section == AuthoringSection.UI) {
+            StringBuilder source = new StringBuilder();
+            for (Map.Entry<String, String> entry
+                    : kernel.projectManager().current().resources().entrySet()) {
+                if (entry.getKey().startsWith(prefix + ".")) {
+                    source.append(entry.getKey())
+                            .append("=")
+                            .append(entry.getValue())
+                            .append("\n");
+                }
+            }
+            if (source.length() == 0) {
+                source.append(prefix)
+                        .append(".text=")
+                        .append(current);
+            }
+            code.setText(source.toString());
+        } else {
+            code.setText(key + "=" + current);
+        }
         code.setTypeface(Typeface.MONOSPACE);
-        code.setTextIsSelectable(true);
+        code.setTextColor(UiKit.TEKS);
+        code.setHintTextColor(UiKit.TEKS_REDUP);
+        code.setGravity(Gravity.TOP | Gravity.START);
         code.setPadding(
                 UiKit.dp(c, 14),
                 UiKit.dp(c, 14),
@@ -175,8 +242,51 @@ public final class EditorPaneFactory {
         ));
         root.addView(code, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
+                UiKit.dp(c, 220)
         ));
+
+        TextView status = UiKit.teks(
+                c,
+                "Status: belum ada perubahan kode",
+                11f,
+                UiKit.TEKS_REDUP
+        );
+        root.addView(status);
+
+        TextView apply = UiKit.tombol(c, "Terapkan Kode Deklaratif", true);
+        apply.setOnClickListener(v -> {
+            try {
+                LinkedHashMap<String, String> upserts = new LinkedHashMap<>();
+                String[] lines = code.getText().toString().split("\\n");
+                for (String raw : lines) {
+                    String line = raw.trim();
+                    if (line.isEmpty()) continue;
+                    int split = line.indexOf('=');
+                    if (split <= 0 || split == line.length() - 1) {
+                        throw new IllegalArgumentException("format baris tidak valid");
+                    }
+                    String resourceId = line.substring(0, split).trim();
+                    String value = line.substring(split + 1);
+                    if (!resourceId.startsWith(prefix)) {
+                        throw new IllegalArgumentException(
+                                "namespace tidak sesuai fungsi aktif"
+                        );
+                    }
+                    upserts.put(resourceId, value);
+                }
+                if (upserts.isEmpty()) {
+                    throw new IllegalArgumentException("tidak ada perubahan");
+                }
+                kernel.projectManager().applyResourceTransaction(
+                        upserts,
+                        Collections.emptySet()
+                );
+                status.setText("Diterapkan • Visual/Properti membaca working state yang sama");
+            } catch (RuntimeException error) {
+                status.setText("Ditolak aman • " + error.getMessage());
+            }
+        });
+        root.addView(apply);
         return scroll;
     }
 
@@ -239,7 +349,7 @@ public final class EditorPaneFactory {
         desc.setPadding(0, UiKit.dp(c, 4), 0, UiKit.dp(c, 10));
         root.addView(desc);
 
-        LogicGraphView graph = new LogicGraphView(c);
+        LogicGraphView graph = new LogicGraphView(c, kernel);
         root.addView(graph, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 UiKit.dp(c, 280)
@@ -292,16 +402,19 @@ public final class EditorPaneFactory {
                         entry.getValue().type().name(),
                         false
                 );
+                type.setClickable(false);
+                type.setFocusable(false);
                 row.addView(type);
                 card.addView(row);
             }
             UiKit.ruang(card, c, 8);
-            LinearLayout actions = UiKit.baris(c);
-            actions.addView(UiKit.tombol(c, "+ Tambah Field", false),
-                    new LinearLayout.LayoutParams(0, UiKit.dp(c, 42), 1));
-            actions.addView(UiKit.tombol(c, "Data Contoh", false),
-                    new LinearLayout.LayoutParams(0, UiKit.dp(c, 42), 1));
-            card.addView(actions);
+            TextView panelHint = UiKit.teks(
+                    c,
+                    "Tambah kolom, kueri, relasi, dan data contoh dikelola dari Edge Panel.",
+                    10.5f,
+                    UiKit.TEKS_REDUP
+            );
+            card.addView(panelHint);
             root.addView(card);
             UiKit.ruang(root, c, 10);
         }
@@ -321,9 +434,10 @@ public final class EditorPaneFactory {
 
         LinearLayout header = UiKit.baris(c);
         TextView title = UiKit.judul(c, "Pusat Pengikatan", 18f);
-        header.addView(title, new LinearLayout.LayoutParams(0, UiKit.dp(c, 44), 1));
-        TextView auto = UiKit.tombol(c, "Hubungkan Semua Otomatis", true);
-        header.addView(auto);
+        header.addView(title, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                UiKit.dp(c, 44)
+        ));
         root.addView(header);
 
         TextView desc = UiKit.teks(
@@ -344,7 +458,10 @@ public final class EditorPaneFactory {
             row.addView(name, new LinearLayout.LayoutParams(
                     0, UiKit.dp(c, 36), 1
             ));
-            row.addView(UiKit.chip(c, "TERHUBUNG", true));
+            TextView connected = UiKit.chip(c, "TERHUBUNG", true);
+            connected.setClickable(false);
+            connected.setFocusable(false);
+            row.addView(connected);
             card.addView(row);
 
             TextView detail = UiKit.teks(
@@ -434,7 +551,10 @@ public final class EditorPaneFactory {
             row.addView(label, new LinearLayout.LayoutParams(
                     0, UiKit.dp(c, 38), 1
             ));
-            row.addView(UiKit.chip(c, "SIAP", true));
+            TextView ready = UiKit.chip(c, "SIAP", true);
+            ready.setClickable(false);
+            ready.setFocusable(false);
+            row.addView(ready);
             root.addView(row);
         }
 
@@ -485,6 +605,234 @@ public final class EditorPaneFactory {
                         + "\n}";
             default:
                 return "{}";
+        }
+    }
+
+    private static void buildUiProperties(
+            Context c,
+            AppKernel kernel,
+            LinearLayout root
+    ) {
+        String prefix = selectedUiResourcePrefix(kernel);
+        Map<String, String> resources =
+                kernel.projectManager().current().resources();
+
+        TextView selected = UiKit.teks(
+                c,
+                "Objek aktif: " + prefix,
+                11.5f,
+                UiKit.NEON_BIRU
+        );
+        selected.setPadding(0, UiKit.dp(c, 4), 0, UiKit.dp(c, 10));
+        root.addView(selected);
+
+        LinkedHashMap<String, EditText> fields = new LinkedHashMap<>();
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".text",
+                "Teks",
+                resources.getOrDefault(prefix + ".text", "Buka Detail")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".width.dp",
+                "Lebar (dp)",
+                resources.getOrDefault(prefix + ".width.dp", "148")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".height.dp",
+                "Tinggi (dp)",
+                resources.getOrDefault(prefix + ".height.dp", "46")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".position.x.dp",
+                "Posisi X (dp)",
+                resources.getOrDefault(prefix + ".position.x.dp", "18")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".position.y.dp",
+                "Posisi Y (dp)",
+                resources.getOrDefault(prefix + ".position.y.dp", "50")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".opacity",
+                "Opasitas 0..1",
+                resources.getOrDefault(prefix + ".opacity", "1.0")
+        );
+        addEditableProperty(
+                root, c, fields,
+                prefix + ".enabled",
+                "Aktif true/false",
+                resources.getOrDefault(prefix + ".enabled", "true")
+        );
+
+        TextView status = UiKit.teks(
+                c,
+                "Status: sinkron dengan Visual dan Kode",
+                11f,
+                UiKit.TEKS_REDUP
+        );
+        root.addView(status);
+
+        TextView apply = UiKit.tombol(
+                c,
+                "Terapkan Properti Objek",
+                true
+        );
+        apply.setOnClickListener(v -> {
+            try {
+                LinkedHashMap<String, String> updates =
+                        new LinkedHashMap<>();
+                for (Map.Entry<String, EditText> entry
+                        : fields.entrySet()) {
+                    String value = entry.getValue()
+                            .getText()
+                            .toString()
+                            .trim();
+                    validateUiProperty(entry.getKey(), value);
+                    updates.put(entry.getKey(), value);
+                }
+                kernel.projectManager().applyResourceTransaction(
+                        updates,
+                        Collections.emptySet()
+                );
+                status.setText(
+                        "Diterapkan • working state belum disimpan"
+                );
+            } catch (RuntimeException error) {
+                status.setText(
+                        "Ditolak aman • " + error.getMessage()
+                );
+            }
+        });
+        root.addView(apply);
+    }
+
+    private static void addEditableProperty(
+            LinearLayout root,
+            Context c,
+            Map<String, EditText> fields,
+            String key,
+            String label,
+            String value
+    ) {
+        TextView title = UiKit.teks(
+                c,
+                label + "  •  " + key,
+                10.5f,
+                UiKit.TEKS_REDUP
+        );
+        root.addView(title);
+        EditText input = new EditText(c);
+        input.setSingleLine(true);
+        input.setText(value);
+        input.setTextColor(UiKit.TEKS);
+        input.setHintTextColor(UiKit.TEKS_REDUP);
+        input.setBackground(UiKit.kartuPx(
+                c,
+                UiKit.PERMUKAAN,
+                UiKit.GARIS,
+                10,
+                1
+        ));
+        input.setPadding(
+                UiKit.dp(c, 10),
+                UiKit.dp(c, 7),
+                UiKit.dp(c, 10),
+                UiKit.dp(c, 7)
+        );
+        root.addView(input, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                UiKit.dp(c, 44)
+        ));
+        fields.put(key, input);
+        UiKit.ruang(root, c, 6);
+    }
+
+    private static void validateUiProperty(
+            String key,
+            String value
+    ) {
+        if (value == null || value.trim().isEmpty()) {
+            throw new IllegalArgumentException(
+                    "nilai tidak boleh kosong"
+            );
+        }
+        if (key.endsWith(".enabled")
+                && !"true".equalsIgnoreCase(value)
+                && !"false".equalsIgnoreCase(value)) {
+            throw new IllegalArgumentException(
+                    "enabled harus true/false"
+            );
+        }
+        if (key.endsWith(".opacity")) {
+            float opacity = Float.parseFloat(value);
+            if (opacity < 0f || opacity > 1f) {
+                throw new IllegalArgumentException(
+                        "opasitas harus 0..1"
+                );
+            }
+        }
+        if (key.endsWith(".dp")) {
+            int number = Integer.parseInt(value);
+            if (number < 0 || number > 4096) {
+                throw new IllegalArgumentException(
+                        "nilai dp di luar batas"
+                );
+            }
+        }
+    }
+
+    private static String selectedUiResourcePrefix(
+            AppKernel kernel
+    ) {
+        String selected = kernel.editorEnvironment()
+                .shell()
+                .selectedObjectId();
+        if (selected == null
+                || "object.home.primary".equals(selected)) {
+            return "ui.object.home.primary";
+        }
+        if (selected.startsWith("ui.object.")) {
+            return selected;
+        }
+        return "ui.object.home.primary";
+    }
+
+    private static String editableResourceKey(AuthoringSection section) {
+        switch (section) {
+            case UI: return "ui.object.home.primary.text";
+            case LOGIC: return "logic.ui.home.primary.action";
+            case DATA: return "data.editor.query";
+            case BINDING: return "binding.ui.home.primary.mode";
+            case ASSET: return "asset.editor.active";
+            default: return "config.editor.value";
+        }
+    }
+
+    private static String editableFallback(AuthoringSection section) {
+        switch (section) {
+            case UI: return "Buka Detail";
+            case LOGIC: return "open.detail";
+            case DATA: return "all";
+            case BINDING: return "auto";
+            case ASSET: return "asset.theme.dark.neon";
+            default: return "default";
+        }
+    }
+
+    private static String editablePrefix(AuthoringSection section) {
+        switch (section) {
+            case UI: return "ui.";
+            case LOGIC: return "logic.";
+            case DATA: return "data.";
+            case BINDING: return "binding.";
+            case ASSET: return "asset.";
+            default: return "config.";
         }
     }
 

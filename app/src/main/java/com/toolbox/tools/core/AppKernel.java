@@ -203,6 +203,34 @@ public final class AppKernel {
         );
     }
 
+    public static AppKernel createPersistent(
+            ProjectStore projectStore,
+            File privateProjectRoot,
+            File assetLibraryRoot
+    ) {
+        Objects.requireNonNull(projectStore, "projectStore");
+        Objects.requireNonNull(privateProjectRoot, "privateProjectRoot");
+        Objects.requireNonNull(assetLibraryRoot, "assetLibraryRoot");
+
+        RecoveryManager recovery = new RecoveryManager();
+        ProjectManager projectManager = new ProjectManager(
+                projectStore,
+                new DraftRecoveryStore(privateProjectRoot),
+                new RecoverySnapshotStore(privateProjectRoot),
+                recovery,
+                new ProjectMigrationRegistry()
+        );
+        LibraryManager library = DefaultLibraryFactory.create();
+        return create(
+                recovery,
+                projectManager,
+                library,
+                new FileAssetStore(assetLibraryRoot),
+                DefaultRuntimeFactory.create(library.components()),
+                DefaultEditorFactory.create()
+        );
+    }
+
     private static AppKernel create(
             RecoveryManager recovery,
             ProjectManager projectManager,

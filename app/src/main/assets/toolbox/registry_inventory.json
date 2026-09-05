@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "authoritative": true,
+  "types": ["COMPONENT","CAPABILITY","ACTION","ASSET","PERMISSION","ENGINE","IMPLEMENTATION"],
+  "source": "com.toolbox.tools.product.RepositoryInventory",
+  "invariants": {
+    "stableIds": true,
+    "implementationRequired": true,
+    "ownerRequired": true,
+    "unknownAllowed": false
+  }
+}

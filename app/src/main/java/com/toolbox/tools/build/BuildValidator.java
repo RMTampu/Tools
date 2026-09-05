@@ -10,6 +10,7 @@ import com.toolbox.tools.live.LiveSessionState;
 import com.toolbox.tools.repair.HealthState;
 import com.toolbox.tools.repair.RepairPhase;
 import com.toolbox.tools.product.FullProductVerifier;
+import com.toolbox.tools.product.ProductAcceptanceMatrix;
 import com.toolbox.tools.runtime.RuntimeModelValidator;
 
 import java.util.ArrayList;
@@ -146,6 +147,18 @@ public final class BuildValidator {
                     "Produk belum lengkap: "
                             + product.available().size()
                             + "/" + product.requiredCount()
+            ));
+        }
+
+        ProductAcceptanceMatrix.Result acceptance =
+                new ProductAcceptanceMatrix().evaluate(kernel);
+        if (!acceptance.isPass()) {
+            diagnostics.add(new BuildDiagnostic(
+                    "build.design.behavior.incomplete",
+                    "Rancangan behavior belum lengkap: "
+                            + acceptance.passedCount()
+                            + "/" + acceptance.requiredCount()
+                            + " gagal=" + acceptance.failedSections()
             ));
         }
 

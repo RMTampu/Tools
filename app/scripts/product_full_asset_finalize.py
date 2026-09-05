@@ -15,6 +15,7 @@ with zipfile.ZipFile(apk) as archive:
     names=set(archive.namelist())
 assert "AndroidManifest.xml" in names
 assert "resources.arsc" in names
+assert "assets/toolbox/registry_inventory.json" in names
 
 sdk=Path(os.environ["ANDROID_SDK_ROOT"])
 aapt=sdk/"build-tools/34.0.0/aapt"
@@ -60,6 +61,9 @@ evidence={
  "runtimeAssetRoute":"PASS",
  "languageRuntime":"PASS",
  "darkNeonRuntime":"PASS",
+ "registryInventoryPackaged":"PASS",
+ "externalUserAssetRoute":pre["externalUserAssetRoute"],
+ "externalUserAssetKinds":pre["externalUserAssetKinds"],
  "runtimeWitnessAbi":"x86_64",
  "finalArm64SignedRuntimeClaimed":False,
  "firebaseUsed":False,

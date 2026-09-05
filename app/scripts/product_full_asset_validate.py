@@ -25,7 +25,18 @@ for rel,item in sorted(expected.items()):
     assert digest==item["sha256"],(rel,digest,item["sha256"])
     assert item["required"] is True
     assert item["consumer"] and item["loader"] and item["semantic"]
-    ET.parse(path)
+    if item["type"] == "ANDROID_VALUES_XML":
+        ET.parse(path)
+    elif item["type"] == "REGISTRY_JSON":
+        data=json.loads(path.read_text())
+        assert data["schemaVersion"]==1
+        assert data["authoritative"] is True
+        assert data["invariants"]["stableIds"] is True
+        assert data["invariants"]["implementationRequired"] is True
+        assert data["invariants"]["ownerRequired"] is True
+        assert data["invariants"]["unknownAllowed"] is False
+    else:
+        raise AssertionError(("unsupported physical asset type",item["type"]))
     resolved.append({
         "assetId":item["assetId"],
         "path":rel,
@@ -52,6 +63,11 @@ catalog=(APP/"src/main/java/com/toolbox/tools/library/BuiltinAssetCatalog.java")
 for asset_id in plan["managedBuiltinAssets"]:
     assert asset_id in catalog,asset_id
 
+gateway=(APP/"src/main/java/com/toolbox/tools/android/ExternalAssetGateway.java").read_text()
+for token in ["image/","audio/","video/","font/","MAX_BYTES","SHA-256"]:
+    assert token in gateway,token
+assert set(plan["externalUserAssetReadyKinds"])=={"IMAGE","ICON","FONT","AUDIO","VIDEO"}
+
 evidence={
  "schemaVersion":12,
  "status":"ASSET_SAFE_100_DEVELOPMENT_PREBUILD_PASS",
@@ -65,6 +81,9 @@ evidence={
  "routeProof":"PASS",
  "languageAsset":"PASS",
  "darkNeonAsset":"PASS",
+ "registryInventory":"PASS",
+ "externalUserAssetKinds":sorted(plan["externalUserAssetReadyKinds"]),
+ "externalUserAssetRoute":"PASS",
  "firebaseUsed":False,
  "assets":resolved,
 }

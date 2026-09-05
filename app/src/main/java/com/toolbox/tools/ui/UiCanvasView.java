@@ -2,6 +2,7 @@ package com.toolbox.tools.ui;
 
 import android.content.Context;
 import android.graphics.Color;
+import android.view.DragEvent;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -10,14 +11,20 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.toolbox.tools.core.AppKernel;
 import com.toolbox.tools.editor.VisualCapability;
 import com.toolbox.tools.editor.VisualCapabilitySet;
 import com.toolbox.tools.editor.VisualEditOperation;
 import com.toolbox.tools.editor.VisualEditTransaction;
+import com.toolbox.tools.product.InputRouter;
+import com.toolbox.tools.product.VisualLayoutEngine;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public final class UiCanvasView extends FrameLayout {
     public interface SelectionListener {
@@ -53,6 +60,12 @@ public final class UiCanvasView extends FrameLayout {
     }
 
     private void build() {
+        if ("screen.detail".equals(
+                kernel.runtimeEnvironment().navigation().current().screenId()
+        )) {
+            buildDetail();
+            return;
+        }
         Context c = getContext();
 
         LinearLayout status = UiKit.baris(c);
@@ -80,12 +93,12 @@ public final class UiCanvasView extends FrameLayout {
                 UiKit.dp(c, 18),
                 UiKit.dp(c, 18)
         );
-        FrameLayout.LayoutParams sp = new FrameLayout.LayoutParams(
+        FrameLayout.LayoutParams screenParams = new FrameLayout.LayoutParams(
                 LayoutParams.MATCH_PARENT,
                 LayoutParams.MATCH_PARENT
         );
-        sp.topMargin = UiKit.dp(c, 42);
-        addView(screen, sp);
+        screenParams.topMargin = UiKit.dp(c, 42);
+        addView(screen, screenParams);
 
         TextView eyebrow = UiKit.teks(
                 c,
@@ -97,10 +110,7 @@ public final class UiCanvasView extends FrameLayout {
 
         TextView title = UiKit.judul(
                 c,
-                resource(
-                        "ui.screen.home.title",
-                        "Bangun aplikasi secara visual"
-                ),
+                resource("ui.screen.home.title", "Bangun aplikasi secara visual"),
                 22f
         );
         title.setPadding(0, UiKit.dp(c, 8), 0, UiKit.dp(c, 4));
@@ -139,7 +149,7 @@ public final class UiCanvasView extends FrameLayout {
 
         TextView cardSub = UiKit.teks(
                 c,
-                "Pilih objek lalu ubah properti dari panel kontekstual.",
+                "Pilih objek saat Edit aktif. Saat Edit nonaktif, objek menjalankan aksi aplikasi.",
                 11.5f,
                 UiKit.TEKS_REDUP
         );
@@ -182,77 +192,142 @@ public final class UiCanvasView extends FrameLayout {
         ));
         card.addView(freeArea, new LinearLayout.LayoutParams(
                 LayoutParams.MATCH_PARENT,
-                UiKit.dp(c, 112)
+                UiKit.dp(c, 122)
         ));
+        configureDropTarget(freeArea);
 
         TextView guide = UiKit.teks(
                 c,
-                "Area tata letak responsif • seret tombol saat Edit aktif",
+                "Area tata letak responsif • seret objek saat Edit aktif",
                 10f,
                 UiKit.TEKS_REDUP
         );
-        FrameLayout.LayoutParams gp = new FrameLayout.LayoutParams(
+        FrameLayout.LayoutParams guideParams = new FrameLayout.LayoutParams(
                 LayoutParams.WRAP_CONTENT,
                 UiKit.dp(c, 28),
                 Gravity.TOP | Gravity.CENTER_HORIZONTAL
         );
-        gp.topMargin = UiKit.dp(c, 8);
-        freeArea.addView(guide, gp);
+        guideParams.topMargin = UiKit.dp(c, 8);
+        freeArea.addView(guide, guideParams);
 
         primaryButton = UiKit.judul(
                 c,
                 resource("ui.object.home.primary.text", "Buka Detail"),
-                13f
+                floatResource("ui.object.home.primary.text.size.sp", 13f)
         );
         primaryButton.setGravity(Gravity.CENTER);
-        primaryButton.setTextColor(UiKit.LATAR);
+        primaryButton.setTextColor(buttonTextColor());
+        int radius = intResource("ui.object.home.primary.radius.dp", 14);
+        int border = intResource("ui.object.home.primary.border.dp", 1);
+        int fill = buttonColor();
         primaryButton.setBackground(UiKit.kartuPx(
                 c,
-                UiKit.NEON,
-                UiKit.NEON,
-                14,
-                1
+                fill,
+                fill == UiKit.NEON ? UiKit.NEON_BIRU : UiKit.NEON,
+                radius,
+                border
         ));
-        int buttonWidth = integerResource(
+
+        int padding = intResource("ui.object.home.primary.padding.dp", 12);
+        primaryButton.setPadding(
+                UiKit.dp(c, padding),
+                UiKit.dp(c, 6),
+                UiKit.dp(c, padding),
+                UiKit.dp(c, 6)
+        );
+        primaryButton.setAlpha(clamp(floatResource(
+                "ui.object.home.primary.opacity",
+                1f
+        ), 0f, 1f));
+        primaryButton.setRotation(floatResource(
+                "ui.object.home.primary.rotation",
+                0f
+        ));
+        float scale = clamp(floatResource(
+                "ui.object.home.primary.scale",
+                1f
+        ), 0.2f, 3f);
+        primaryButton.setScaleX(scale);
+        primaryButton.setScaleY(scale);
+        primaryButton.setElevation(UiKit.dp(
+                c,
+                intResource("ui.object.home.primary.elevation.dp", 4)
+        ));
+        Map<String, String> conditionContext = new LinkedHashMap<>();
+        conditionContext.put(
+                "data.valid",
+                resource("data.valid", "true")
+        );
+        conditionContext.put(
+                "user.role",
+                resource("user.role", "admin")
+        );
+        boolean conditionVisible = kernel.productServices()
+                .conditionalProperties()
+                .evaluate(
+                        resource(
+                                "ui.object.home.primary.visible.if",
+                                "true"
+                        ),
+                        conditionContext
+                );
+        boolean conditionEnabled = kernel.productServices()
+                .conditionalProperties()
+                .evaluate(
+                        resource(
+                                "ui.object.home.primary.enabled.if",
+                                "true"
+                        ),
+                        conditionContext
+                );
+        primaryButton.setVisibility(
+                conditionVisible ? View.VISIBLE : View.GONE
+        );
+        primaryButton.setEnabled(
+                boolResource(
+                        "ui.object.home.primary.enabled",
+                        true
+                ) && conditionEnabled
+        );
+        primaryButton.setContentDescription(resource(
+                "ui.object.home.primary.accessibility.label",
+                resource("ui.object.home.primary.text", "Buka Detail")
+        ));
+
+        int buttonWidth = intResource(
                 "ui.object.home.primary.width.dp",
                 148
         );
-        int buttonHeight = integerResource(
+        int buttonHeight = intResource(
                 "ui.object.home.primary.height.dp",
                 46
         );
-        FrameLayout.LayoutParams bp = new FrameLayout.LayoutParams(
+        FrameLayout.LayoutParams buttonParams = new FrameLayout.LayoutParams(
                 UiKit.dp(c, buttonWidth),
                 UiKit.dp(c, buttonHeight)
         );
-        bp.leftMargin = UiKit.dp(
+        buttonParams.leftMargin = UiKit.dp(
                 c,
-                integerResource(
-                        "ui.object.home.primary.position.x.dp",
-                        18
-                )
+                intResource("ui.object.home.primary.position.x.dp", 18)
         );
-        bp.topMargin = UiKit.dp(
+        buttonParams.topMargin = UiKit.dp(
                 c,
-                integerResource(
-                        "ui.object.home.primary.position.y.dp",
-                        50
-                )
+                intResource("ui.object.home.primary.position.y.dp", 50)
         );
-        freeArea.addView(primaryButton, bp);
+        freeArea.addView(primaryButton, buttonParams);
+        renderDroppedObjects(freeArea);
+
         primaryButton.setOnTouchListener(this::handlePrimaryTouch);
         primaryButton.setOnClickListener(v -> {
             if (dragging) return;
             if (kernel.editorEnvironment().shell().selectionAvailable()) {
                 selectPrimary();
             } else {
-                android.widget.Toast.makeText(
-                        getContext(),
-                        "Aksi aplikasi dijalankan: membuka layar Detail.",
-                        android.widget.Toast.LENGTH_SHORT
-                ).show();
+                runPrimaryAction();
             }
         });
+
+        playConfiguredAnimation();
 
         UiKit.ruang(card, c, 12);
 
@@ -296,15 +371,332 @@ public final class UiCanvasView extends FrameLayout {
                 LayoutParams.WRAP_CONTENT
         ));
 
-        UiKit.ruang(screen, c, 16);
-
-        TextView hint = UiKit.teks(
+        UiKit.ruang(screen, c, 14);
+        TextView mode = UiKit.teks(
                 c,
-                "Edit OFF: objek menjalankan aksi • Edit ON: objek dipilih dan diedit.",
+                kernel.editorEnvironment().shell().selectionAvailable()
+                        ? "Edit aktif • sentuh atau seret objek untuk mengubah."
+                        : "Interaksi aplikasi aktif • tombol menjalankan aksi.",
                 11f,
                 UiKit.TEKS_REDUP
         );
-        screen.addView(hint);
+        screen.addView(mode);
+    }
+
+    private void configureDropTarget(FrameLayout freeArea) {
+        freeArea.setOnDragListener((view, event) -> {
+            if (!kernel.editorEnvironment().shell().selectionAvailable()) {
+                return false;
+            }
+            switch (event.getAction()) {
+                case DragEvent.ACTION_DRAG_STARTED:
+                    return event.getClipDescription() != null;
+                case DragEvent.ACTION_DRAG_ENTERED:
+                    freeArea.setAlpha(0.88f);
+                    return true;
+                case DragEvent.ACTION_DRAG_EXITED:
+                    freeArea.setAlpha(1f);
+                    return true;
+                case DragEvent.ACTION_DROP:
+                    freeArea.setAlpha(1f);
+                    if (event.getClipData() == null
+                            || event.getClipData().getItemCount() == 0) {
+                        return false;
+                    }
+                    CharSequence text = event.getClipData()
+                            .getItemAt(0)
+                            .coerceToText(getContext());
+                    if (text == null) return false;
+                    createDroppedObject(
+                            freeArea,
+                            text.toString(),
+                            event.getX(),
+                            event.getY()
+                    );
+                    return true;
+                case DragEvent.ACTION_DRAG_ENDED:
+                    freeArea.setAlpha(1f);
+                    return true;
+                default:
+                    return true;
+            }
+        });
+    }
+
+    private void createDroppedObject(
+            FrameLayout freeArea,
+            String payload,
+            float x,
+            float y
+    ) {
+        String kind;
+        String label;
+        if (payload.startsWith("component.")) {
+            kind = payload;
+            label = "Komponen Baru";
+        } else if (payload.startsWith("asset.")) {
+            kind = payload;
+            label = "Aset Baru";
+        } else {
+            Toast.makeText(
+                    getContext(),
+                    "Payload drag tidak dikenali.",
+                    Toast.LENGTH_SHORT
+            ).show();
+            return;
+        }
+
+        String objectId = "ui.object.drop."
+                + Long.toHexString(System.nanoTime());
+        LinkedHashMap<String, String> updates = new LinkedHashMap<>();
+        updates.put(objectId + ".kind", kind);
+        updates.put(objectId + ".text", label);
+        updates.put(
+                objectId + ".position.x.dp",
+                String.valueOf(Math.max(
+                        0,
+                        Math.round(
+                                x / getResources().getDisplayMetrics().density
+                        )
+                ))
+        );
+        updates.put(
+                objectId + ".position.y.dp",
+                String.valueOf(Math.max(
+                        28,
+                        Math.round(
+                                y / getResources().getDisplayMetrics().density
+                        )
+                ))
+        );
+        updates.put(objectId + ".width.dp", "112");
+        updates.put(objectId + ".height.dp", "40");
+        try {
+            kernel.projectManager().applyResourceTransaction(
+                    updates,
+                    Collections.emptySet()
+            );
+            if (!kernel.productServices()
+                    .visualLayout()
+                    .snapshot()
+                    .containsKey(objectId)) {
+                kernel.productServices().visualLayout().add(
+                        new VisualLayoutEngine.Node(
+                                objectId,
+                                "layout.root",
+                                Math.max(0, x),
+                                Math.max(0, y),
+                                UiKit.dp(getContext(), 112),
+                                UiKit.dp(getContext(), 40),
+                                2,
+                                false,
+                                VisualLayoutEngine.PointerBehavior.AUTO
+                        )
+                );
+                kernel.productServices().inputRouter().register(
+                        objectId,
+                        "container.home.main"
+                );
+            }
+            renderDroppedObject(freeArea, objectId);
+            Toast.makeText(
+                    getContext(),
+                    "Objek ditambahkan • " + objectId,
+                    Toast.LENGTH_SHORT
+            ).show();
+        } catch (RuntimeException error) {
+            Toast.makeText(
+                    getContext(),
+                    "Objek ditolak secara aman.",
+                    Toast.LENGTH_SHORT
+            ).show();
+        }
+    }
+
+    private void renderDroppedObjects(FrameLayout freeArea) {
+        for (Map.Entry<String, String> entry
+                : kernel.projectManager().current().resources().entrySet()) {
+            String key = entry.getKey();
+            if (!key.startsWith("ui.object.drop.")
+                    || !key.endsWith(".text")) {
+                continue;
+            }
+            String objectId = key.substring(
+                    0,
+                    key.length() - ".text".length()
+            );
+            renderDroppedObject(freeArea, objectId);
+        }
+    }
+
+    private void renderDroppedObject(
+            FrameLayout freeArea,
+            String objectId
+    ) {
+        if (freeArea.findViewWithTag(objectId) != null) {
+            return;
+        }
+        if (!kernel.productServices().visualLayout().snapshot().containsKey(objectId)) {
+            kernel.productServices().visualLayout().add(
+                    new VisualLayoutEngine.Node(
+                            objectId,
+                            "layout.root",
+                            UiKit.dp(
+                                    getContext(),
+                                    intResource(objectId + ".position.x.dp", 22)
+                            ),
+                            UiKit.dp(
+                                    getContext(),
+                                    intResource(objectId + ".position.y.dp", 70)
+                            ),
+                            UiKit.dp(
+                                    getContext(),
+                                    intResource(objectId + ".width.dp", 112)
+                            ),
+                            UiKit.dp(
+                                    getContext(),
+                                    intResource(objectId + ".height.dp", 40)
+                            ),
+                            2,
+                            false,
+                            VisualLayoutEngine.PointerBehavior.AUTO
+                    )
+            );
+            try {
+                kernel.productServices().inputRouter().register(
+                        objectId,
+                        "container.home.main"
+                );
+            } catch (RuntimeException ignored) {
+                // Sudah terdaftar.
+            }
+        }
+        TextView object = UiKit.judul(
+                getContext(),
+                resource(objectId + ".text", "Objek"),
+                11f
+        );
+        object.setTag(objectId);
+        object.setGravity(Gravity.CENTER);
+        object.setTextColor(UiKit.TEKS);
+        object.setBackground(UiKit.kartuPx(
+                getContext(),
+                UiKit.PERMUKAAN_2,
+                UiKit.NEON_BIRU,
+                12,
+                1
+        ));
+        int width = intResource(objectId + ".width.dp", 112);
+        int height = intResource(objectId + ".height.dp", 40);
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                UiKit.dp(getContext(), width),
+                UiKit.dp(getContext(), height)
+        );
+        params.leftMargin = UiKit.dp(
+                getContext(),
+                intResource(objectId + ".position.x.dp", 22)
+        );
+        params.topMargin = UiKit.dp(
+                getContext(),
+                intResource(objectId + ".position.y.dp", 70)
+        );
+        freeArea.addView(object, params);
+        object.setOnTouchListener(
+                (view, event) -> handleDroppedTouch(
+                        view,
+                        event,
+                        objectId
+                )
+        );
+    }
+
+    private boolean handleDroppedTouch(
+            View view,
+            MotionEvent event,
+            String objectId
+    ) {
+        if (!kernel.editorEnvironment().shell().selectionAvailable()) {
+            return false;
+        }
+        switch (event.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN:
+                try {
+                    kernel.productServices().inputRouter().dispatch(
+                            objectId,
+                            InputRouter.Event.TAP,
+                            InputRouter.Propagation.CONTINUE
+                    );
+                } catch (RuntimeException ignored) {
+                    // Objek lama akan diregistrasi pada render berikutnya.
+                }
+                downX = event.getRawX();
+                downY = event.getRawY();
+                startX = view.getX();
+                startY = view.getY();
+                dragging = false;
+                return true;
+            case MotionEvent.ACTION_MOVE:
+                float dx = event.getRawX() - downX;
+                float dy = event.getRawY() - downY;
+                if (Math.abs(dx) > UiKit.dp(getContext(), 4)
+                        || Math.abs(dy) > UiKit.dp(getContext(), 4)) {
+                    dragging = true;
+                }
+                view.setX(Math.max(0, startX + dx));
+                view.setY(Math.max(0, startY + dy));
+                return true;
+            case MotionEvent.ACTION_UP:
+                if (dragging) {
+                    LinkedHashMap<String, String> updates =
+                            new LinkedHashMap<>();
+                    updates.put(
+                            objectId + ".position.x.dp",
+                            String.valueOf(Math.round(
+                                    view.getX()
+                                            / getResources()
+                                            .getDisplayMetrics().density
+                            ))
+                    );
+                    updates.put(
+                            objectId + ".position.y.dp",
+                            String.valueOf(Math.round(
+                                    view.getY()
+                                            / getResources()
+                                            .getDisplayMetrics().density
+                            ))
+                    );
+                    try {
+                        kernel.projectManager().applyResourceTransaction(
+                                updates,
+                                Collections.emptySet()
+                        );
+                    } catch (RuntimeException error) {
+                        Toast.makeText(
+                                getContext(),
+                                "Posisi objek gagal disimpan.",
+                                Toast.LENGTH_SHORT
+                        ).show();
+                    }
+                } else {
+                    try {
+                        kernel.editorEnvironment().shell().selectObject(
+                                objectId
+                        );
+                        if (listener != null) {
+                            listener.onSelected(objectId);
+                        }
+                    } catch (RuntimeException error) {
+                        Toast.makeText(
+                                getContext(),
+                                "Objek tidak tersedia untuk dipilih.",
+                                Toast.LENGTH_SHORT
+                        ).show();
+                    }
+                }
+                return true;
+            default:
+                return false;
+        }
     }
 
     private boolean handlePrimaryTouch(View view, MotionEvent event) {
@@ -313,6 +705,11 @@ public final class UiCanvasView extends FrameLayout {
         }
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
+                kernel.productServices().inputRouter().dispatch(
+                        "object.home.primary",
+                        InputRouter.Event.TAP,
+                        InputRouter.Propagation.CONTINUE
+                );
                 downX = event.getRawX();
                 downY = event.getRawY();
                 startX = view.getX();
@@ -351,29 +748,18 @@ public final class UiCanvasView extends FrameLayout {
             );
             primaryButton.setBackground(UiKit.kartuPx(
                     getContext(),
-                    UiKit.NEON,
+                    buttonColor(),
                     UiKit.NEON_BIRU,
-                    14,
-                    2
+                    intResource("ui.object.home.primary.radius.dp", 14),
+                    Math.max(2, intResource("ui.object.home.primary.border.dp", 1))
             ));
             if (listener != null) listener.onSelected("object.home.primary");
-        } catch (RuntimeException ignored) {
-        }
-    }
-
-    private String resource(String id, String fallback) {
-        String value = kernel.projectManager()
-                .current()
-                .resources()
-                .get(id);
-        return value == null ? fallback : value;
-    }
-
-    private int integerResource(String id, int fallback) {
-        try {
-            return Integer.parseInt(resource(id, String.valueOf(fallback)));
-        } catch (NumberFormatException error) {
-            return fallback;
+        } catch (RuntimeException error) {
+            Toast.makeText(
+                    getContext(),
+                    "Objek tidak tersedia untuk diedit.",
+                    Toast.LENGTH_SHORT
+            ).show();
         }
     }
 
@@ -400,24 +786,197 @@ public final class UiCanvasView extends FrameLayout {
                     tx,
                     VisualCapabilitySet.defaultEditable()
             );
-            java.util.LinkedHashMap<String, String> updates =
-                    new java.util.LinkedHashMap<>();
+
+            LinkedHashMap<String, String> updates = new LinkedHashMap<>();
             updates.put(
                     "ui.object.home.primary.position.x.dp",
-                    String.valueOf(Math.round(view.getX()
-                            / getResources().getDisplayMetrics().density))
+                    String.valueOf(Math.round(
+                            view.getX() / getResources().getDisplayMetrics().density
+                    ))
             );
             updates.put(
                     "ui.object.home.primary.position.y.dp",
-                    String.valueOf(Math.round(view.getY()
-                            / getResources().getDisplayMetrics().density))
+                    String.valueOf(Math.round(
+                            view.getY() / getResources().getDisplayMetrics().density
+                    ))
             );
             kernel.projectManager().applyResourceTransaction(
                     updates,
-                    java.util.Collections.emptySet()
+                    Collections.emptySet()
+            );
+            kernel.productServices().visualLayout().move(
+                    "object.home.primary",
+                    view.getX(),
+                    view.getY(),
+                    UiKit.dp(getContext(), 8)
             );
             selectPrimary();
-        } catch (RuntimeException ignored) {
+        } catch (RuntimeException error) {
+            Toast.makeText(
+                    getContext(),
+                    "Posisi tidak dapat diubah karena objek terkunci.",
+                    Toast.LENGTH_SHORT
+            ).show();
         }
+    }
+
+    private void runPrimaryAction() {
+        kernel.productServices().inputRouter().dispatch(
+                "object.home.primary",
+                InputRouter.Event.TAP,
+                InputRouter.Propagation.CONTINUE
+        );
+        String action = resource(
+                "logic.ui.home.primary.action",
+                "open.detail"
+        );
+        if ("none".equals(action)) {
+            Toast.makeText(
+                    getContext(),
+                    "Tidak ada aksi yang terhubung.",
+                    Toast.LENGTH_SHORT
+            ).show();
+        } else if ("show.message".equals(action)) {
+            Toast.makeText(
+                    getContext(),
+                    "Aksi aplikasi dijalankan.",
+                    Toast.LENGTH_SHORT
+            ).show();
+        } else {
+            LinkedHashMap<String, String> parameters =
+                    new LinkedHashMap<>();
+            parameters.put("parameter.item", "item.default");
+            kernel.runtimeEnvironment()
+                    .navigation()
+                    .navigate("route.detail", parameters);
+            removeAllViews();
+            build();
+        }
+    }
+
+    private void buildDetail() {
+        Context c = getContext();
+        LinearLayout root = UiKit.kolom(c);
+        root.setPadding(
+                UiKit.dp(c, 24),
+                UiKit.dp(c, 48),
+                UiKit.dp(c, 24),
+                UiKit.dp(c, 24)
+        );
+        root.addView(UiKit.teks(
+                c,
+                "DETAIL • RUNTIME NAVIGATION",
+                10f,
+                UiKit.NEON
+        ));
+        root.addView(UiKit.judul(
+                c,
+                "Layar Detail",
+                24f
+        ));
+        TextView detail = UiKit.teks(
+                c,
+                "Navigasi ini dijalankan oleh NavigationManager dan Back Stack produksi.",
+                12f,
+                UiKit.TEKS_REDUP
+        );
+        detail.setPadding(
+                0,
+                UiKit.dp(c, 8),
+                0,
+                UiKit.dp(c, 18)
+        );
+        root.addView(detail);
+
+        TextView back = UiKit.tombol(
+                c,
+                "Kembali ke Beranda",
+                true
+        );
+        back.setOnClickListener(v -> {
+            kernel.runtimeEnvironment().navigation().back();
+            removeAllViews();
+            build();
+        });
+        root.addView(back);
+        addView(root, new FrameLayout.LayoutParams(
+                LayoutParams.MATCH_PARENT,
+                LayoutParams.MATCH_PARENT
+        ));
+    }
+
+    private void playConfiguredAnimation() {
+        String animation = resource(
+                "ui.object.home.primary.animation",
+                "none"
+        );
+        float targetAlpha = primaryButton.getAlpha();
+        float targetScaleX = primaryButton.getScaleX();
+        float targetScaleY = primaryButton.getScaleY();
+
+        if ("fade".equals(animation)) {
+            primaryButton.setAlpha(0.2f);
+            primaryButton.animate()
+                    .alpha(targetAlpha)
+                    .setDuration(260)
+                    .start();
+        } else if ("scale".equals(animation)) {
+            primaryButton.setScaleX(targetScaleX * 0.82f);
+            primaryButton.setScaleY(targetScaleY * 0.82f);
+            primaryButton.animate()
+                    .scaleX(targetScaleX)
+                    .scaleY(targetScaleY)
+                    .setDuration(260)
+                    .start();
+        }
+    }
+
+    private int buttonColor() {
+        String value = resource(
+                "ui.object.home.primary.color",
+                "neon"
+        );
+        if ("blue".equals(value)) return UiKit.NEON_BIRU;
+        if ("surface".equals(value)) return UiKit.PERMUKAAN_2;
+        return UiKit.NEON;
+    }
+
+    private int buttonTextColor() {
+        return "surface".equals(resource(
+                "ui.object.home.primary.color",
+                "neon"
+        )) ? UiKit.TEKS : UiKit.LATAR;
+    }
+
+    private String resource(String id, String fallback) {
+        String value = kernel.projectManager().current().resources().get(id);
+        return value == null ? fallback : value;
+    }
+
+    private int intResource(String id, int fallback) {
+        try {
+            return Integer.parseInt(resource(id, String.valueOf(fallback)));
+        } catch (NumberFormatException error) {
+            return fallback;
+        }
+    }
+
+    private float floatResource(String id, float fallback) {
+        try {
+            return Float.parseFloat(resource(id, String.valueOf(fallback)));
+        } catch (NumberFormatException error) {
+            return fallback;
+        }
+    }
+
+    private boolean boolResource(String id, boolean fallback) {
+        String value = resource(id, String.valueOf(fallback));
+        if ("true".equalsIgnoreCase(value)) return true;
+        if ("false".equalsIgnoreCase(value)) return false;
+        return fallback;
+    }
+
+    private static float clamp(float value, float min, float max) {
+        return Math.max(min, Math.min(max, value));
     }
 }
