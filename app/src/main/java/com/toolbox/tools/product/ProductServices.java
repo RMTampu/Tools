@@ -90,6 +90,42 @@ public final class ProductServices {
         localization = new LocalizationManager();
         themes = new ThemeTokenManager();
         permissions = new PermissionManager();
+        permissions.register(
+                new PermissionManager.PermissionSpec(
+                        "permission.storage.tree",
+                        "capability.storage.user",
+                        PermissionManager.Phase.SPECIAL_ACCESS,
+                        true,
+                        "failure.permission.storage.tree"
+                )
+        );
+        permissions.register(
+                new PermissionManager.PermissionSpec(
+                        "permission.network.internet",
+                        "capability.network",
+                        PermissionManager.Phase.INSTALL_TIME,
+                        true,
+                        "failure.permission.network"
+                )
+        );
+        permissions.register(
+                new PermissionManager.PermissionSpec(
+                        "permission.runtime.notification",
+                        "capability.notification",
+                        PermissionManager.Phase.RUNTIME,
+                        true,
+                        "failure.permission.notification"
+                )
+        );
+        permissions.register(
+                new PermissionManager.PermissionSpec(
+                        "permission.optional.camera",
+                        "capability.camera.optional",
+                        PermissionManager.Phase.OPTIONAL,
+                        false,
+                        "failure.permission.camera"
+                )
+        );
         resources = new ResourceGuard();
         cache = new CacheManager();
         visibleArtifacts = new VisibleArtifactManager(
