@@ -1963,22 +1963,35 @@ public final class WorkspaceShellView extends FrameLayout {
         showActionOverlay(
                 "Freeze & Mode Simpan",
                 Arrays.asList(
-                        "Mode Normal",
-                        "Mode Simpan • Titik Pemeriksaan",
-                        "Mode Simpan • Pemulihan",
+                        mark(
+                                "Mode Normal",
+                                freeze.saveMode()
+                                        == FreezeEngine.SaveMode.NORMAL
+                        ),
+                        mark(
+                                "Mode Simpan • Titik Pemeriksaan",
+                                freeze.saveMode()
+                                        == FreezeEngine.SaveMode.CHECKPOINT
+                        ),
+                        mark(
+                                "Mode Simpan • Pemulihan",
+                                freeze.saveMode()
+                                        == FreezeEngine.SaveMode.RECOVERY
+                        ),
                         "Commit Baseline Kerja",
                         "Thaw / Kembali Normal"
                 ),
                 value -> {
+                    String clean = stripMark(value);
                     try {
-                        if ("Mode Simpan • Titik Pemeriksaan".equals(value)) {
+                        if ("Mode Simpan • Titik Pemeriksaan".equals(clean)) {
                             if (freeze.state() == FreezeEngine.State.NORMAL) freeze.freeze();
                             else if (freeze.state() == FreezeEngine.State.FROZEN) freeze.commit();
                             toast("Titik pemeriksaan aktif.");
-                        } else if ("Mode Simpan • Pemulihan".equals(value)) {
+                        } else if ("Mode Simpan • Pemulihan".equals(clean)) {
                             if (freeze.state() == FreezeEngine.State.FROZEN) freeze.recover();
                             toast("Pemulihan selesai.");
-                        } else if ("Commit Baseline Kerja".equals(value)) {
+                        } else if ("Commit Baseline Kerja".equals(clean)) {
                             if (freeze.state() == FreezeEngine.State.FROZEN) freeze.commit();
                             toast("Baseline kerja diperbarui.");
                         } else {
@@ -2239,7 +2252,13 @@ public final class WorkspaceShellView extends FrameLayout {
         makeHeaderDraggable(titleView, scroll);
 
         for (String row : rows) {
-            TextView item = UiKit.tombol(getContext(), row, false);
+            boolean activeRow = row != null
+                    && row.startsWith("✓ ");
+            TextView item = UiKit.tombol(
+                    getContext(),
+                    row,
+                    activeRow
+            );
             item.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
             item.setTextSize(12f);
             item.setOnClickListener(v -> handler.onCommand(row));
