@@ -13,6 +13,9 @@ import android.view.ViewGroup;
 import com.toolbox.tools.core.AppKernel;
 import com.toolbox.tools.core.AppState;
 import com.toolbox.tools.core.VisibleWorkspaceStore;
+import com.toolbox.tools.android.ManagedAppProjectStore;
+import com.toolbox.tools.android.ToolboxAwareTargetDiscovery;
+import com.toolbox.tools.product.ProductCompletionServices;
 import com.toolbox.tools.delivery.PatchManifest;
 import com.toolbox.tools.delivery.PatchPayload;
 import com.toolbox.tools.delivery.PatchTransactionJournal;
@@ -523,6 +526,112 @@ public final class ProductRuntimeInstrumentedTest {
                             recovered.safePatchManager()
                                     .journal()
                                     .phase()
+                    );
+                } catch (Exception error) {
+                    throw new AssertionError(error);
+                }
+            });
+        }
+    }
+
+    @Test
+    public void managedExternalEditingDoorUsesRealProviderBackedEditor()
+            throws Exception {
+        try (ActivityScenario<MainActivity> scenario =
+                     ActivityScenario.launch(MainActivity.class)) {
+            scenario.onActivity(activity -> {
+                try {
+                    AppKernel local = activity.kernelForTest();
+                    Map<String,String> localBefore =
+                            new LinkedHashMap<>(
+                                    local.projectManager()
+                                            .current()
+                                            .resources()
+                            );
+
+                    ProductCompletionServices.InstalledTargetBridge bridge =
+                            local.productServices()
+                                    .completion()
+                                    .installedTargets;
+                    int found = ToolboxAwareTargetDiscovery.discover(
+                            activity,
+                            bridge
+                    );
+                    assertTrue("fixture target not found", found >= 1);
+
+                    ProductCompletionServices
+                            .InstalledTargetBridge.Target target =
+                            bridge.lookup("com.toolbox.fixture");
+                    assertNotNull(target);
+                    assertTrue(target.hasEditingDoor());
+                    assertTrue(target.supportsInternalEditor());
+                    assertEquals(
+                            "com.toolbox.fixture.toolbox",
+                            target.providerAuthority()
+                    );
+                    assertEquals(
+                            "project.fixture",
+                            target.projectId()
+                    );
+
+                    boolean opened = activity.openManagedTargetEditor(
+                            target.packageName(),
+                            target.providerAuthority(),
+                            target.projectId()
+                    );
+                    assertTrue(opened);
+                    assertTrue(activity.externalTargetActiveForTest());
+                    AppKernel external = activity.kernelForTest();
+                    assertEquals(
+                            "project.fixture",
+                            external.projectManager()
+                                    .current()
+                                    .projectId()
+                    );
+                    assertEquals(
+                            "Fixture Original",
+                            external.projectManager()
+                                    .current()
+                                    .resources()
+                                    .get("ui.screen.home.title")
+                    );
+
+                    Map<String,String> edit = new LinkedHashMap<>();
+                    edit.put(
+                            "ui.screen.home.title",
+                            "Fixture Edited by ToolBox"
+                    );
+                    external.projectManager()
+                            .applyResourceTransaction(
+                                    edit,
+                                    Collections.emptySet()
+                            );
+                    external.projectManager().save();
+
+                    ManagedAppProjectStore fresh =
+                            new ManagedAppProjectStore(
+                                    activity.getContentResolver(),
+                                    activity.getPackageManager(),
+                                    target.packageName(),
+                                    target.providerAuthority(),
+                                    target.projectId()
+                            );
+                    assertEquals(
+                            "Fixture Edited by ToolBox",
+                            fresh.load("project.fixture")
+                                    .state()
+                                    .resources()
+                                    .get("ui.screen.home.title")
+                    );
+
+                    assertTrue(activity.returnToToolBoxProject());
+                    assertFalse(activity.externalTargetActiveForTest());
+                    assertEquals(
+                            localBefore,
+                            activity.kernelForTest()
+                                    .projectManager()
+                                    .current()
+                                    .resources()
                     );
                 } catch (Exception error) {
                     throw new AssertionError(error);
