@@ -8,6 +8,11 @@ import android.graphics.Path;
 import android.view.MotionEvent;
 import android.view.View;
 
+import com.toolbox.tools.core.AppKernel;
+
+import java.util.Collections;
+import java.util.LinkedHashMap;
+
 public final class LogicGraphView extends View {
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -24,12 +29,18 @@ public final class LogicGraphView extends View {
             "Buka Layar Detail",
             "Tampilkan Pesan"
     };
+    private final AppKernel kernel;
     private int selected = -1;
     private float lastX;
     private float lastY;
 
     public LogicGraphView(Context context) {
+        this(context, null);
+    }
+
+    public LogicGraphView(Context context, AppKernel kernel) {
         super(context);
+        this.kernel = kernel;
         fill.setStyle(Paint.Style.FILL);
         stroke.setStyle(Paint.Style.STROKE);
         stroke.setStrokeWidth(UiKit.dp(context, 2));
@@ -44,6 +55,7 @@ public final class LogicGraphView extends View {
                 1
         ));
         setMinimumHeight(UiKit.dp(context, 270));
+        restorePositions();
     }
 
     @Override
@@ -156,10 +168,58 @@ public final class LogicGraphView extends View {
                 }
                 return true;
             case MotionEvent.ACTION_UP:
+                persistSelectedPosition();
                 return true;
             default:
                 return super.onTouchEvent(event);
         }
+    }
+
+    private void restorePositions() {
+        if (kernel == null) return;
+        for (int i = 0; i < nodes.length; i++) {
+            String prefix = "logic.flow.home.node." + i;
+            try {
+                String sx = kernel.projectManager()
+                        .current()
+                        .resources()
+                        .get(prefix + ".x.dp");
+                String sy = kernel.projectManager()
+                        .current()
+                        .resources()
+                        .get(prefix + ".y.dp");
+                if (sx == null || sy == null) continue;
+                float x = Float.parseFloat(sx);
+                float y = Float.parseFloat(sy);
+                float width = nodes[i][2] - nodes[i][0];
+                float height = nodes[i][3] - nodes[i][1];
+                nodes[i][0] = x;
+                nodes[i][1] = y;
+                nodes[i][2] = x + width;
+                nodes[i][3] = y + height;
+            } catch (RuntimeException ignored) {
+                // Posisi invalid kembali ke layout bawaan.
+            }
+        }
+    }
+
+    private void persistSelectedPosition() {
+        if (kernel == null || selected < 0) return;
+        LinkedHashMap<String, String> update =
+                new LinkedHashMap<>();
+        String prefix = "logic.flow.home.node." + selected;
+        update.put(
+                prefix + ".x.dp",
+                Float.toString(nodes[selected][0])
+        );
+        update.put(
+                prefix + ".y.dp",
+                Float.toString(nodes[selected][1])
+        );
+        kernel.projectManager().applyResourceTransaction(
+                update,
+                Collections.emptySet()
+        );
     }
 
     private int hit(float x, float y) {
