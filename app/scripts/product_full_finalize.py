@@ -66,6 +66,11 @@ required_runtime=[
  "API_LEVEL=30",
  "EMULATOR_ABI=x86_64",
  "API30_APP_LAUNCH=PASS",
+ "ANDROID_INSTRUMENTATION=PASS",
+ "SOAK_100_RUNTIME=PASS",
+ "PROCESS_DEATH_RESTART=PASS",
+ "GFXINFO_RUNTIME=PASS",
+ "PSS_BUDGET_RUNTIME=PASS",
  "BAHASA_INDONESIA_RUNTIME=PASS",
  "DARK_NEON_RUNTIME=PASS",
  "FIVE_TOOL_NAVIGATION=PASS",
@@ -102,6 +107,28 @@ for marker in required_runtime:
 
 screenshot=OUT/"product-full-api30.png"
 assert screenshot.is_file() and screenshot.stat().st_size>0
+restart_screenshot=OUT/"product-full-api30-after-restart.png"
+assert restart_screenshot.is_file() and restart_screenshot.stat().st_size>0
+gfx=OUT/"product-full-gfxinfo.txt"
+assert gfx.is_file() and gfx.stat().st_size>0
+
+android_xml=sorted(
+    (APP/"build/outputs/androidTest-results/connected").rglob("*.xml")
+)
+assert android_xml,"Android instrumentation evidence missing"
+android_tests=android_failures=android_errors=android_skipped=0
+for file in android_xml:
+    root=ET.parse(file).getroot()
+    if root.tag!="testsuite":
+        continue
+    android_tests+=int(root.attrib.get("tests","0"))
+    android_failures+=int(root.attrib.get("failures","0"))
+    android_errors+=int(root.attrib.get("errors","0"))
+    android_skipped+=int(root.attrib.get("skipped","0"))
+assert android_tests>=3
+assert android_failures==0
+assert android_errors==0
+assert android_skipped==0
 
 evidence={
  "schemaVersion":12,
@@ -143,6 +170,11 @@ evidence={
   "editPreviewTestLive":"PASS",
   "patchWithoutRebuild":"PASS",
   "freezeRecoverySafeMode":"PASS",
+  "androidInstrumentation":"PASS",
+  "soak100":"PASS",
+  "processDeathRestart":"PASS",
+  "gfxInfo":"PASS",
+  "pssBudget":"PASS",
  },
  "r1ToR9":{
   domain:{
@@ -153,7 +185,15 @@ evidence={
  },
  "assetSafe":"PASS",
  "tests":{
-  "tests":tests,"failures":failures,"errors":errors,"skipped":skipped
+  "unit":{
+   "tests":tests,"failures":failures,"errors":errors,"skipped":skipped
+  },
+  "androidInstrumentation":{
+   "tests":android_tests,
+   "failures":android_failures,
+   "errors":android_errors,
+   "skipped":android_skipped
+  }
  },
  "artifact":{
   "fileName":apk.name,
