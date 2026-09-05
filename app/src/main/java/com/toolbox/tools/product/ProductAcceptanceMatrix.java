@@ -327,10 +327,16 @@ public final class ProductAcceptanceMatrix {
         context.put("data.valid", "true");
         context.put("user.role", "admin");
         return services.conditionalProperties().evaluate(
-                "data.valid && user.role == admin",
+                "data.valid && user.role == admin && true",
                 context
         ) && !services.conditionalProperties().evaluate(
-                "user.role == guest",
+                "user.role == guest || false",
+                context
+        ) && services.conditionalProperties().evaluate(
+                "true",
+                context
+        ) && !services.conditionalProperties().evaluate(
+                "false",
                 context
         );
     }
