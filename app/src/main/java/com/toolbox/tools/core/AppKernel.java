@@ -187,7 +187,8 @@ public final class AppKernel {
                 this.projectManager,
                 this.runtimeStateStore,
                 this.recoveryManager,
-                this.visibleWorkspaceStore
+                this.visibleWorkspaceStore,
+                this.runtimeEnvironment
         );
         this.evolutionManager = new EvolutionManager(
                 this.safePatchManager,
