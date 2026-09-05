@@ -1,0 +1,104 @@
+package com.toolbox.tools.product;
+
+import org.junit.Test;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+import static org.junit.Assert.*;
+
+public final class ProductProductionContractsTest {
+    @Test public void repositoryInventoryIsClosedAndAuthoritative() {
+        RepositoryInventory inventory=new RepositoryInventory();
+        assertTrue(inventory.complete());
+        assertEquals(RepositoryInventory.Type.PERMISSION,inventory.require("permission.storage.tree").type());
+        assertEquals("SafProjectStore",inventory.require("implementation.project.store").implementation());
+    }
+
+    @Test public void inputRouterHasCaptureTargetBubbleAndFocus() {
+        InputRouter r=new InputRouter();
+        r.register("screen.home",null);r.register("container.home","screen.home");r.register("object.button","container.home");
+        r.setFocusOrder(Arrays.asList("object.button"));
+        InputRouter.Dispatch d=r.dispatch("object.button",InputRouter.Event.TAP,InputRouter.Propagation.CONTINUE);
+        assertEquals(Arrays.asList("screen.home","container.home"),d.capture());
+        assertEquals("object.button",d.target());
+        assertEquals(Arrays.asList("container.home","screen.home"),d.bubble());
+        assertEquals("object.button",r.nextFocus("object.button"));
+    }
+
+    @Test public void conditionalPropertiesArePureAndDeterministic() {
+        ConditionalPropertyEngine e=new ConditionalPropertyEngine();
+        Map<String,String> c=new LinkedHashMap<>();c.put("data.valid","true");c.put("user.role","admin");
+        assertTrue(e.evaluate("data.valid && user.role == admin",c));
+        assertFalse(e.evaluate("data.valid && user.role == guest",c));
+        assertTrue(e.evaluate("user.role == guest || data.valid",c));
+    }
+
+    @Test public void visualLayoutSupportsGuidesLocksLayersInsetsResponsiveAndGroups() {
+        VisualLayoutEngine e=new VisualLayoutEngine();
+        e.add(new VisualLayoutEngine.Node("root",null,0,0,360,640,0,false,VisualLayoutEngine.PointerBehavior.AUTO));
+        e.add(new VisualLayoutEngine.Node("a","root",17,19,40,20,1,false,VisualLayoutEngine.PointerBehavior.AUTO));
+        e.add(new VisualLayoutEngine.Node("b","root",101,30,60,30,2,false,VisualLayoutEngine.PointerBehavior.AUTO));
+        e.add(new VisualLayoutEngine.Node("c","root",220,40,50,25,3,false,VisualLayoutEngine.PointerBehavior.AUTO));
+        e.addGuide(new VisualLayoutEngine.Guide("guide.x",VisualLayoutEngine.GuideAxis.X,24));
+        e.move("a",22,22,8);
+        assertEquals(24f,e.snapshot().get("a").x(),0.01f);
+        e.alignLeft(Arrays.asList("a","b","c"));
+        e.equalSize(Arrays.asList("a","b","c"));
+        assertEquals(e.snapshot().get("a").width(),e.snapshot().get("c").width(),0.01f);
+        e.setLayer("c",VisualLayoutEngine.Layer.OVERLAY);
+        assertEquals("c",e.hitTest(24,40).id());
+        e.setSafeInsets(new VisualLayoutEngine.Insets(8,24,8,16));
+        e.clampToSafeArea("a",0,0,360,640);
+        assertTrue(e.snapshot().get("a").x()>=8);
+        e.setResponsiveOverride("screen.home",VisualLayoutEngine.Orientation.LANDSCAPE,"property.width",196);
+        assertEquals(Float.valueOf(196),e.responsiveOverride("screen.home",VisualLayoutEngine.Orientation.LANDSCAPE).get("property.width"));
+        e.setLocks("a",EnumSet.of(VisualLayoutEngine.LockAspect.POSITION));
+        try { e.move("a",100,100,8); fail(); } catch (IllegalStateException expected) {}
+        e.setViewport(1.5f,12,18);
+        assertEquals(1.5f,e.zoom(),0.01f);
+        assertEquals(Arrays.asList("root","c"),e.pathToRoot("c"));
+    }
+
+    @Test public void stateLayersHaveDeterministicPrecedence() {
+        StateVariantEngine e=new StateVariantEngine();
+        e.setNormal("object.a","property.color","base");
+        e.setLayerOverride("object.a",StateVariantEngine.Layer.ORIENTATION,"orientation.landscape","property.color","orientation");
+        e.setLayerOverride("object.a",StateVariantEngine.Layer.THEME,"theme.dark","property.color","theme");
+        e.setLayerOverride("object.a",StateVariantEngine.Layer.DATA,"data.error","property.color","data");
+        e.setStateOverride("object.a","state.pressed","property.color","state");
+        assertEquals("state",e.resolve("object.a","state.pressed","orientation.landscape","theme.dark","data.error").get("property.color"));
+    }
+
+    @Test public void animationTimelineSupportsSequenceAndParallelContracts() {
+        AnimationEngine e=new AnimationEngine();
+        e.register(new AnimationEngine.Animation("a",AnimationEngine.Kind.FADE,"event.a",100,0,AnimationEngine.Easing.LINEAR));
+        e.register(new AnimationEngine.Animation("b",AnimationEngine.Kind.SCALE,"event.b",200,10,AnimationEngine.Easing.EASE_OUT));
+        e.registerGroup(new AnimationEngine.Group("g.seq",AnimationEngine.GroupMode.SEQUENCE,Arrays.asList("a","b")));
+        e.registerGroup(new AnimationEngine.Group("g.par",AnimationEngine.GroupMode.PARALLEL,Arrays.asList("a","b")));
+        assertEquals(310,e.groupDuration("g.seq"));
+        assertEquals(210,e.groupDuration("g.par"));
+    }
+
+    @Test public void localizationCoversPluralCurrencyDateAndRtl() {
+        LocalizationManager l=new LocalizationManager();
+        l.putPlural("items","id","item","item");
+        assertEquals("2 item",l.resolvePlural("items","id",2));
+        assertNotNull(l.formatCurrency(12500,"IDR","id-ID"));
+        assertNotNull(l.formatDate(0,"id-ID"));
+        assertTrue(l.isRtl("ar"));
+        assertFalse(l.isRtl("id"));
+    }
+
+    @Test public void resourceGuardHasRealPerScreenBudgetsAndLeakTrend() {
+        ResourceGuard r=new ResourceGuard();
+        r.enterScreen("screen.home");
+        assertEquals(ResourceGuard.Pressure.NORMAL,r.sample("screen.home",20L*1024*1024,40,1));
+        for(int i=0;i<5;i++)r.sample("screen.home",(20L+i*3L)*1024*1024,40,1);
+        assertTrue(r.leakTrend("screen.home"));
+        assertTrue(r.invariantPass());
+    }
+}

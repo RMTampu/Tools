@@ -29,6 +29,9 @@ public final class ProductServices {
     private final ToolLifecycleManager toolLifecycle;
     private final ProductCompletionServices completion;
     private final ProductDeepContracts deep;
+    private final RepositoryInventory inventory;
+    private final InputRouter inputRouter;
+    private final ConditionalPropertyEngine conditionalProperties;
 
     public ProductServices(ProjectManager projects) {
         Objects.requireNonNull(projects, "projects");
@@ -57,11 +60,19 @@ public final class ProductServices {
         toolLifecycle = new ToolLifecycleManager();
         completion = new ProductCompletionServices();
         deep = new ProductDeepContracts();
+        inventory = new RepositoryInventory();
+        inputRouter = new InputRouter();
+        conditionalProperties = new ConditionalPropertyEngine();
 
         projectGraph.registerEntity("screen.home");
         projectGraph.registerEntity("screen.detail");
         projectGraph.registerEntity("object.home.primary");
         projectGraph.link("object.home.primary", "screen.detail");
+
+        inputRouter.register("screen.home", null);
+        inputRouter.register("container.home.main", "screen.home");
+        inputRouter.register("object.home.primary", "container.home.main");
+        inputRouter.setFocusOrder(java.util.Arrays.asList("object.home.primary"));
 
         visualLayout.add(new VisualLayoutEngine.Node(
                 "layout.root",
@@ -87,6 +98,20 @@ public final class ProductServices {
                 "property.color",
                 "#4CC9FF"
         );
+        stateVariants.setLayerOverride(
+                "object.home.primary",
+                StateVariantEngine.Layer.ORIENTATION,
+                "orientation.landscape",
+                "property.width",
+                "196"
+        );
+        stateVariants.setLayerOverride(
+                "object.home.primary",
+                StateVariantEngine.Layer.THEME,
+                "theme.dark.neon",
+                "property.color",
+                "#00F0B5"
+        );
 
         animations.register(new AnimationEngine.Animation(
                 "animation.button.press",
@@ -96,6 +121,38 @@ public final class ProductServices {
                 0,
                 AnimationEngine.Easing.EASE_OUT
         ));
+        animations.register(new AnimationEngine.Animation(
+                "animation.button.fade",
+                AnimationEngine.Kind.FADE,
+                "event.enter",
+                120,
+                0,
+                AnimationEngine.Easing.EASE_IN_OUT
+        ));
+        animations.registerGroup(new AnimationEngine.Group(
+                "animation.group.home",
+                AnimationEngine.GroupMode.SEQUENCE,
+                java.util.Arrays.asList(
+                        "animation.button.fade",
+                        "animation.button.press"
+                )
+        ));
+        visualLayout.addGuide(new VisualLayoutEngine.Guide(
+                "guide.home.left",
+                VisualLayoutEngine.GuideAxis.X,
+                24
+        ));
+        visualLayout.addGuide(new VisualLayoutEngine.Guide(
+                "guide.home.top",
+                VisualLayoutEngine.GuideAxis.Y,
+                180
+        ));
+        visualLayout.setResponsiveOverride(
+                "screen.home",
+                VisualLayoutEngine.Orientation.LANDSCAPE,
+                "property.width",
+                196
+        );
         previewSandbox.putMock("mock.user.name", "Pengguna");
         lifecycle.emit(AppLifecycleManager.Event.APP_START, null);
 
@@ -132,6 +189,9 @@ public final class ProductServices {
     public ToolLifecycleManager toolLifecycle() { return toolLifecycle; }
     public ProductCompletionServices completion() { return completion; }
     public ProductDeepContracts deep() { return deep; }
+    public RepositoryInventory inventory() { return inventory; }
+    public InputRouter inputRouter() { return inputRouter; }
+    public ConditionalPropertyEngine conditionalProperties() { return conditionalProperties; }
 
     public boolean isReady() {
         return screens.startScreenId() != null
@@ -145,6 +205,8 @@ public final class ProductServices {
                 && lifecycle.history().size() >= 1
                 && toolLifecycle.activeCount() == 1
                 && completion.isReady()
-                && deep.isReady();
+                && deep.isReady()
+                && inventory.complete()
+                && inputRouter.complete();
     }
 }
