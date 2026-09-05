@@ -43,6 +43,7 @@ public final class ProductServices {
     private final RenderDiagnostics renderDiagnostics;
     private final ManagedAppProtocol managedAppProtocol;
     private final VisibleArtifactManager visibleArtifacts;
+    private final AssetIntegrityVerifier assetIntegrity;
 
     public ProductServices(ProjectManager projects) {
         this(
@@ -73,6 +74,7 @@ public final class ProductServices {
                 projects,
                 visibleWorkspace
         );
+        assetIntegrity = new AssetIntegrityVerifier();
         backups = new BackupManager(projects, visibleWorkspace);
         freeze = new FreezeEngine(
                 projects,
@@ -334,6 +336,7 @@ public final class ProductServices {
     public RenderDiagnostics renderDiagnostics() { return renderDiagnostics; }
     public ManagedAppProtocol managedAppProtocol() { return managedAppProtocol; }
     public VisibleArtifactManager visibleArtifacts() { return visibleArtifacts; }
+    public AssetIntegrityVerifier assetIntegrity() { return assetIntegrity; }
 
     public boolean isReady() {
         return screens.startScreenId() != null
@@ -352,6 +355,7 @@ public final class ProductServices {
                 && inputRouter.complete()
                 && dataProviders.complete()
                 && assetLoads.audit().isPass()
-                && visibleArtifacts != null;
+                && visibleArtifacts != null
+                && assetIntegrity != null;
     }
 }
