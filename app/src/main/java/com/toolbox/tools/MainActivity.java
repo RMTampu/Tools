@@ -7,13 +7,17 @@ import android.os.Bundle;
 import android.view.Window;
 
 import com.toolbox.tools.android.SafProjectAccessGateway;
+import com.toolbox.tools.android.SafProjectStore;
 import com.toolbox.tools.android.ToolboxAwareTargetDiscovery;
 import com.toolbox.tools.core.AppKernel;
+import com.toolbox.tools.core.ProjectAccessStatus;
+import com.toolbox.tools.core.ProjectLoadResult;
 import com.toolbox.tools.ui.StoragePickerHost;
 import com.toolbox.tools.ui.UiKit;
 import com.toolbox.tools.ui.WorkspaceShellView;
 
 import java.io.File;
+import java.io.IOException;
 
 public final class MainActivity extends Activity implements StoragePickerHost {
     private static final int REQUEST_TOOLBOX_TREE = 4301;
@@ -32,31 +36,9 @@ public final class MainActivity extends Activity implements StoragePickerHost {
         window.setStatusBarColor(UiKit.LATAR);
         window.setNavigationBarColor(UiKit.LATAR);
 
-        File projectRoot = new File(
-                getFilesDir(),
-                "projects/project.default"
-        );
-        File assetLibraryRoot = new File(
-                getFilesDir(),
-                "library/assets"
-        );
-
-        kernel = AppKernel.createPersistent(
-                projectRoot,
-                assetLibraryRoot
-        );
-
-        restorePersistedTree();
-        ToolboxAwareTargetDiscovery.discover(
-                this,
-                kernel.productServices().completion().installedTargets
-        );
-
-        shell = new WorkspaceShellView(
-                this,
-                kernel
-        );
-        setContentView(shell);
+        kernel = createKernelFromRememberedStorage();
+        discoverAwareTargets();
+        renderShell();
     }
 
     @Override
@@ -75,9 +57,16 @@ public final class MainActivity extends Activity implements StoragePickerHost {
     public String storageTreeStatus() {
         String value = getSharedPreferences(PREFS, MODE_PRIVATE)
                 .getString(KEY_TREE_URI, null);
-        return value == null
-                ? "Belum dipilih"
-                : "Terhubung";
+        if (value == null) return "Belum dipilih";
+        try {
+            return safGateway.hasPersistedReadWriteAccess(
+                    getContentResolver(),
+                    Uri.parse(value)
+            ) ? "Terhubung • source of truth aktif"
+                    : "Akses hilang • relink diperlukan";
+        } catch (RuntimeException error) {
+            return "Akses hilang • relink diperlukan";
+        }
     }
 
     @Override
@@ -100,39 +89,110 @@ public final class MainActivity extends Activity implements StoragePickerHost {
                     treeUri,
                     data.getFlags()
             );
+
+            SafProjectStore selected = new SafProjectStore(
+                    getContentResolver(),
+                    treeUri
+            );
+            ProjectLoadResult existing = selected.load(
+                    "project.default"
+            );
+            if (existing.status() == ProjectAccessStatus.FOLDER_MISSING
+                    && kernel != null) {
+                selected.commit(
+                        kernel.projectManager().current(),
+                        0
+                );
+            }
+
             getSharedPreferences(PREFS, MODE_PRIVATE)
                     .edit()
                     .putString(KEY_TREE_URI, treeUri.toString())
                     .apply();
+
+            kernel = AppKernel.createPersistent(
+                    selected,
+                    privateProjectRoot(),
+                    assetLibraryRoot()
+            );
             kernel.productServices().completion().storage.relink(
                     treeUri.toString(),
                     true,
                     true
             );
-        } catch (RuntimeException ignored) {
-            // Akses yang tidak lengkap tidak dipromosikan sebagai storage aktif.
+            discoverAwareTargets();
+            renderShell();
+        } catch (IOException | RuntimeException ignored) {
+            // Grant/project lama tetap utuh bila pemindahan gagal.
         }
     }
 
-    private void restorePersistedTree() {
+    private AppKernel createKernelFromRememberedStorage() {
         String value = getSharedPreferences(PREFS, MODE_PRIVATE)
                 .getString(KEY_TREE_URI, null);
-        if (value == null) return;
-        try {
-            Uri uri = Uri.parse(value);
-            if (safGateway.hasPersistedReadWriteAccess(
-                    getContentResolver(),
-                    uri
-            )) {
-                kernel.productServices().completion().storage.relink(
-                        value,
-                        true,
-                        true
-                );
+        if (value != null) {
+            try {
+                Uri treeUri = Uri.parse(value);
+                if (safGateway.hasPersistedReadWriteAccess(
+                        getContentResolver(),
+                        treeUri
+                )) {
+                    AppKernel result = AppKernel.createPersistent(
+                            new SafProjectStore(
+                                    getContentResolver(),
+                                    treeUri
+                            ),
+                            privateProjectRoot(),
+                            assetLibraryRoot()
+                    );
+                    result.productServices().completion().storage.relink(
+                            value,
+                            true,
+                            true
+                    );
+                    return result;
+                }
+            } catch (RuntimeException ignored) {
+                // Fallback app-private dipakai sampai user melakukan relink.
             }
-        } catch (RuntimeException ignored) {
-            // Relink tetap tersedia dari Pengaturan bila grant hilang.
         }
+        return AppKernel.createPersistent(
+                fallbackProjectRoot(),
+                assetLibraryRoot()
+        );
+    }
+
+    private void discoverAwareTargets() {
+        ToolboxAwareTargetDiscovery.discover(
+                this,
+                kernel.productServices().completion().installedTargets
+        );
+    }
+
+    private void renderShell() {
+        shell = new WorkspaceShellView(this, kernel);
+        setContentView(shell);
+    }
+
+    private File fallbackProjectRoot() {
+        return new File(
+                getFilesDir(),
+                "projects/project.default"
+        );
+    }
+
+    private File privateProjectRoot() {
+        return new File(
+                getFilesDir(),
+                "projects/private.project.default"
+        );
+    }
+
+    private File assetLibraryRoot() {
+        return new File(
+                getFilesDir(),
+                "library/assets"
+        );
     }
 
     @Override
