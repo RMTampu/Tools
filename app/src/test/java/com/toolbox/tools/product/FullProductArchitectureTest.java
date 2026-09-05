@@ -100,6 +100,24 @@ public final class FullProductArchitectureTest {
                 "object.home.primary",
                 "screen.detail"
         );
+        com.toolbox.tools.core.ProjectState graphProject =
+                com.toolbox.tools.core.ProjectState.create(
+                        "project.graph.test"
+                ).withResource(
+                        "screen.detail",
+                        "type=screen"
+                ).withResource(
+                        "object.home.primary",
+                        "type=button"
+                ).withReference(
+                        "object.home.primary",
+                        "screen.detail"
+                );
+        services.projectGraph().synchronize(
+                graphProject,
+                false,
+                java.util.Collections.emptySet()
+        );
         assertTrue(
                 services.projectGraph()
                         .impactOf("screen.detail")
