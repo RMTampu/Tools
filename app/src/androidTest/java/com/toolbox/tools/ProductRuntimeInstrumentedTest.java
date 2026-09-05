@@ -195,9 +195,14 @@ public final class ProductRuntimeInstrumentedTest {
                             TestDocumentsProvider.AUTHORITY,
                             TestDocumentsProvider.ROOT_ID
                     );
+                    android.content.ContentResolver testResolver =
+                            InstrumentationRegistry
+                                    .getInstrumentation()
+                                    .getContext()
+                                    .getContentResolver();
                     SafVisibleWorkspaceStore visible =
                             new SafVisibleWorkspaceStore(
-                                    activity.getContentResolver(),
+                                    testResolver,
                                     tree
                             );
                     visible.ensureLayout();
@@ -237,7 +242,7 @@ public final class ProductRuntimeInstrumentedTest {
                     );
                     SafProjectStore projectStore =
                             new SafProjectStore(
-                                    activity.getContentResolver(),
+                                    testResolver,
                                     tree,
                                     projectsDirectory
                             );
