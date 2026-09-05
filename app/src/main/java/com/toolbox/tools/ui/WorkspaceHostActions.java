@@ -13,4 +13,14 @@ public interface WorkspaceHostActions {
             String projectId,
             long revision
     );
+
+    boolean openManagedTargetEditor(
+            String packageName,
+            String providerAuthority,
+            String projectId
+    );
+
+    boolean returnToToolBoxProject();
+
+    boolean externalTargetActive();
 }
