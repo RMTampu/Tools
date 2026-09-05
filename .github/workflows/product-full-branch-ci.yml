@@ -150,6 +150,7 @@ jobs:
 
           gradle --no-daemon :app:connectedDebugAndroidTest --rerun-tasks
           test -d app/build/outputs/androidTest-results/connected
+          grep -R 'realSafDocumentsProviderBacksAllVisibleAreasAndProjectStore' app/build/outputs/androidTest-results/connected
           grep -R 'launcherTbResourceIsBoundAndDecodable' app/build/outputs/androidTest-results/connected
           grep -R 'externalAssetRendererUsesRealAndroidImageConsumer' app/build/outputs/androidTest-results/connected
           grep -R 'advancedUiPropertiesMaterializeOnRealAndroidView' app/build/outputs/androidTest-results/connected
@@ -325,9 +326,12 @@ jobs:
           # restart host, lalu buktikan journal bersih dan current revision tidak mixed.
           for PHASE in PREPARED SNAPSHOT_READY MUTATING VERIFYING HEALTH_CHECK COMMITTING; do
             adb shell am force-stop com.toolbox.tools
+            adb shell run-as com.toolbox.tools rm -f files/crash-harness-last.txt || true
             adb shell am start -n com.toolbox.tools/.debug.CrashHarnessActivity \
               --es mode patch --es phase "$PHASE" >/dev/null 2>&1 || true
             sleep 1
+            HARNESS_MARKER="$(adb shell run-as com.toolbox.tools cat files/crash-harness-last.txt 2>/dev/null | tr -d '\r\n')"
+            test "$HARNESS_MARKER" = "patch:$PHASE"
             RESTART_PATCH="$(adb shell am start -W -n com.toolbox.tools/.MainActivity)"
             grep -F 'Status: ok' <<< "$RESTART_PATCH"
             sleep 1
@@ -344,9 +348,12 @@ jobs:
 
           for FREEZE_PHASE in COMMITTING RECOVERY_RUNNING; do
             adb shell am force-stop com.toolbox.tools
+            adb shell run-as com.toolbox.tools rm -f files/crash-harness-last.txt || true
             adb shell am start -n com.toolbox.tools/.debug.CrashHarnessActivity \
               --es mode freeze --es phase "$FREEZE_PHASE" >/dev/null 2>&1 || true
             sleep 1
+            HARNESS_MARKER="$(adb shell run-as com.toolbox.tools cat files/crash-harness-last.txt 2>/dev/null | tr -d '\r\n')"
+            test "$HARNESS_MARKER" = "freeze:$FREEZE_PHASE"
             RESTART_FREEZE="$(adb shell am start -W -n com.toolbox.tools/.MainActivity)"
             grep -F 'Status: ok' <<< "$RESTART_FREEZE"
             sleep 1
@@ -620,6 +627,7 @@ jobs:
             echo "EMULATOR_ABI=$ABI"
             echo "API30_APP_LAUNCH=PASS"
             echo "ANDROID_INSTRUMENTATION=PASS"
+            echo "SAF_DOCUMENTS_PROVIDER_RUNTIME=PASS"
             echo "SOAK_100_RUNTIME=PASS"
             echo "PROCESS_DEATH_RESTART=PASS"
             echo "GFXINFO_RUNTIME=PASS"
