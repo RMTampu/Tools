@@ -349,7 +349,7 @@ public final class EditorPaneFactory {
         desc.setPadding(0, UiKit.dp(c, 4), 0, UiKit.dp(c, 10));
         root.addView(desc);
 
-        LogicGraphView graph = new LogicGraphView(c);
+        LogicGraphView graph = new LogicGraphView(c, kernel);
         root.addView(graph, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 UiKit.dp(c, 280)
