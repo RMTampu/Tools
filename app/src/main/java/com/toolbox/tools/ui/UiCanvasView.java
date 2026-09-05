@@ -2,6 +2,7 @@ package com.toolbox.tools.ui;
 
 import android.content.Context;
 import android.graphics.Color;
+import android.view.DragEvent;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -21,6 +22,7 @@ import com.toolbox.tools.editor.VisualEditTransaction;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.Map;
 
 public final class UiCanvasView extends FrameLayout {
     public interface SelectionListener {
@@ -184,6 +186,7 @@ public final class UiCanvasView extends FrameLayout {
                 LayoutParams.MATCH_PARENT,
                 UiKit.dp(c, 122)
         ));
+        configureDropTarget(freeArea);
 
         TextView guide = UiKit.teks(
                 c,
@@ -272,6 +275,7 @@ public final class UiCanvasView extends FrameLayout {
                 intResource("ui.object.home.primary.position.y.dp", 50)
         );
         freeArea.addView(primaryButton, buttonParams);
+        renderDroppedObjects(freeArea);
 
         primaryButton.setOnTouchListener(this::handlePrimaryTouch);
         primaryButton.setOnClickListener(v -> {
@@ -337,6 +341,243 @@ public final class UiCanvasView extends FrameLayout {
                 UiKit.TEKS_REDUP
         );
         screen.addView(mode);
+    }
+
+    private void configureDropTarget(FrameLayout freeArea) {
+        freeArea.setOnDragListener((view, event) -> {
+            if (!kernel.editorEnvironment().shell().selectionAvailable()) {
+                return false;
+            }
+            switch (event.getAction()) {
+                case DragEvent.ACTION_DRAG_STARTED:
+                    return event.getClipDescription() != null;
+                case DragEvent.ACTION_DRAG_ENTERED:
+                    freeArea.setAlpha(0.88f);
+                    return true;
+                case DragEvent.ACTION_DRAG_EXITED:
+                    freeArea.setAlpha(1f);
+                    return true;
+                case DragEvent.ACTION_DROP:
+                    freeArea.setAlpha(1f);
+                    if (event.getClipData() == null
+                            || event.getClipData().getItemCount() == 0) {
+                        return false;
+                    }
+                    CharSequence text = event.getClipData()
+                            .getItemAt(0)
+                            .coerceToText(getContext());
+                    if (text == null) return false;
+                    createDroppedObject(
+                            freeArea,
+                            text.toString(),
+                            event.getX(),
+                            event.getY()
+                    );
+                    return true;
+                case DragEvent.ACTION_DRAG_ENDED:
+                    freeArea.setAlpha(1f);
+                    return true;
+                default:
+                    return true;
+            }
+        });
+    }
+
+    private void createDroppedObject(
+            FrameLayout freeArea,
+            String payload,
+            float x,
+            float y
+    ) {
+        String kind;
+        String label;
+        if (payload.startsWith("component.")) {
+            kind = payload;
+            label = "Komponen Baru";
+        } else if (payload.startsWith("asset.")) {
+            kind = payload;
+            label = "Aset Baru";
+        } else {
+            Toast.makeText(
+                    getContext(),
+                    "Payload drag tidak dikenali.",
+                    Toast.LENGTH_SHORT
+            ).show();
+            return;
+        }
+
+        String objectId = "ui.object.drop."
+                + Long.toHexString(System.nanoTime());
+        LinkedHashMap<String, String> updates = new LinkedHashMap<>();
+        updates.put(objectId + ".kind", kind);
+        updates.put(objectId + ".text", label);
+        updates.put(
+                objectId + ".position.x.dp",
+                String.valueOf(Math.max(
+                        0,
+                        Math.round(
+                                x / getResources().getDisplayMetrics().density
+                        )
+                ))
+        );
+        updates.put(
+                objectId + ".position.y.dp",
+                String.valueOf(Math.max(
+                        28,
+                        Math.round(
+                                y / getResources().getDisplayMetrics().density
+                        )
+                ))
+        );
+        updates.put(objectId + ".width.dp", "112");
+        updates.put(objectId + ".height.dp", "40");
+        try {
+            kernel.projectManager().applyResourceTransaction(
+                    updates,
+                    Collections.emptySet()
+            );
+            renderDroppedObject(freeArea, objectId);
+            Toast.makeText(
+                    getContext(),
+                    "Objek ditambahkan • " + objectId,
+                    Toast.LENGTH_SHORT
+            ).show();
+        } catch (RuntimeException error) {
+            Toast.makeText(
+                    getContext(),
+                    "Objek ditolak secara aman.",
+                    Toast.LENGTH_SHORT
+            ).show();
+        }
+    }
+
+    private void renderDroppedObjects(FrameLayout freeArea) {
+        for (Map.Entry<String, String> entry
+                : kernel.projectManager().current().resources().entrySet()) {
+            String key = entry.getKey();
+            if (!key.startsWith("ui.object.drop.")
+                    || !key.endsWith(".text")) {
+                continue;
+            }
+            String objectId = key.substring(
+                    0,
+                    key.length() - ".text".length()
+            );
+            renderDroppedObject(freeArea, objectId);
+        }
+    }
+
+    private void renderDroppedObject(
+            FrameLayout freeArea,
+            String objectId
+    ) {
+        if (freeArea.findViewWithTag(objectId) != null) {
+            return;
+        }
+        TextView object = UiKit.judul(
+                getContext(),
+                resource(objectId + ".text", "Objek"),
+                11f
+        );
+        object.setTag(objectId);
+        object.setGravity(Gravity.CENTER);
+        object.setTextColor(UiKit.TEKS);
+        object.setBackground(UiKit.kartuPx(
+                getContext(),
+                UiKit.PERMUKAAN_2,
+                UiKit.NEON_BIRU,
+                12,
+                1
+        ));
+        int width = intResource(objectId + ".width.dp", 112);
+        int height = intResource(objectId + ".height.dp", 40);
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                UiKit.dp(getContext(), width),
+                UiKit.dp(getContext(), height)
+        );
+        params.leftMargin = UiKit.dp(
+                getContext(),
+                intResource(objectId + ".position.x.dp", 22)
+        );
+        params.topMargin = UiKit.dp(
+                getContext(),
+                intResource(objectId + ".position.y.dp", 70)
+        );
+        freeArea.addView(object, params);
+        object.setOnTouchListener(
+                (view, event) -> handleDroppedTouch(
+                        view,
+                        event,
+                        objectId
+                )
+        );
+    }
+
+    private boolean handleDroppedTouch(
+            View view,
+            MotionEvent event,
+            String objectId
+    ) {
+        if (!kernel.editorEnvironment().shell().selectionAvailable()) {
+            return false;
+        }
+        switch (event.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN:
+                downX = event.getRawX();
+                downY = event.getRawY();
+                startX = view.getX();
+                startY = view.getY();
+                dragging = false;
+                return true;
+            case MotionEvent.ACTION_MOVE:
+                float dx = event.getRawX() - downX;
+                float dy = event.getRawY() - downY;
+                if (Math.abs(dx) > UiKit.dp(getContext(), 4)
+                        || Math.abs(dy) > UiKit.dp(getContext(), 4)) {
+                    dragging = true;
+                }
+                view.setX(Math.max(0, startX + dx));
+                view.setY(Math.max(0, startY + dy));
+                return true;
+            case MotionEvent.ACTION_UP:
+                if (dragging) {
+                    LinkedHashMap<String, String> updates =
+                            new LinkedHashMap<>();
+                    updates.put(
+                            objectId + ".position.x.dp",
+                            String.valueOf(Math.round(
+                                    view.getX()
+                                            / getResources()
+                                            .getDisplayMetrics().density
+                            ))
+                    );
+                    updates.put(
+                            objectId + ".position.y.dp",
+                            String.valueOf(Math.round(
+                                    view.getY()
+                                            / getResources()
+                                            .getDisplayMetrics().density
+                            ))
+                    );
+                    try {
+                        kernel.projectManager().applyResourceTransaction(
+                                updates,
+                                Collections.emptySet()
+                        );
+                    } catch (RuntimeException error) {
+                        Toast.makeText(
+                                getContext(),
+                                "Posisi objek gagal disimpan.",
+                                Toast.LENGTH_SHORT
+                        ).show();
+                    }
+                } else if (listener != null) {
+                    listener.onSelected(objectId);
+                }
+                return true;
+            default:
+                return false;
+        }
     }
 
     private boolean handlePrimaryTouch(View view, MotionEvent event) {
