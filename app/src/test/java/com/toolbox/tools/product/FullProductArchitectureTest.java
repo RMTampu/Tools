@@ -226,14 +226,19 @@ public final class FullProductArchitectureTest {
 
     @Test
     public void autoRepairTidakMenebakBusinessLogicAtauMenghapusData() {
-        AutoRepairEngine repair = new AutoRepairEngine();
+        com.toolbox.tools.core.AppKernel kernel =
+                com.toolbox.tools.core.AppKernel.createDefault();
+        AutoRepairEngine repair =
+                kernel.productServices().autoRepair();
         assertFalse(repair.mayGuessBusinessLogic());
         assertFalse(repair.mayDeleteUserData());
         assertTrue(
                 repair.applyDeterministic(Arrays.asList(
                         AutoRepairEngine.RepairType.REBUILD_DERIVED_INDEX,
-                        AutoRepairEngine.RepairType.CLEAR_DISPOSABLE_CACHE
+                        AutoRepairEngine.RepairType.CLEAR_DISPOSABLE_CACHE,
+                        AutoRepairEngine.RepairType.REGENERATE_DERIVED_MANIFEST
                 )).isPass()
         );
+        assertNotNull(repair.lastDerivedManifestSha256());
     }
 }
