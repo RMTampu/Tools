@@ -481,7 +481,7 @@ public final class UiCanvasView extends FrameLayout {
         );
         primaryButton.setLetterSpacing(clamp(
                 floatResource(
-                        "ui.object.home.primary.text.letterSpacing",
+                        "ui.object.home.primary.text.letterspacing",
                         0f
                 ),
                 -0.05f,
@@ -492,7 +492,7 @@ public final class UiCanvasView extends FrameLayout {
                 Math.min(
                         8,
                         intResource(
-                                "ui.object.home.primary.text.maxLines",
+                                "ui.object.home.primary.text.maxlines",
                                 1
                         )
                 )
@@ -1366,19 +1366,19 @@ public final class UiCanvasView extends FrameLayout {
                 14
         );
         float tl = intResource(
-                "ui.object.home.primary.radius.topLeft.dp",
+                "ui.object.home.primary.radius.topleft.dp",
                 baseRadius
         ) * density;
         float tr = intResource(
-                "ui.object.home.primary.radius.topRight.dp",
+                "ui.object.home.primary.radius.topright.dp",
                 baseRadius
         ) * density;
         float br = intResource(
-                "ui.object.home.primary.radius.bottomRight.dp",
+                "ui.object.home.primary.radius.bottomright.dp",
                 baseRadius
         ) * density;
         float bl = intResource(
-                "ui.object.home.primary.radius.bottomLeft.dp",
+                "ui.object.home.primary.radius.bottomleft.dp",
                 baseRadius
         ) * density;
         background.setCornerRadii(new float[] {
