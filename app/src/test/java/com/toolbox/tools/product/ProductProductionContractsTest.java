@@ -204,6 +204,25 @@ public final class ProductProductionContractsTest {
         assertEquals(1, lifecycle.activeCount());
     }
 
+    @Test public void projectManagerRejectsInvalidIncrementalMutation() {
+        AppKernel kernel = AppKernel.createDefault();
+        Map<String,String> bad = new LinkedHashMap<>();
+        bad.put("ui.object.home.primary.opacity", "4.0");
+        try {
+            kernel.projectManager().applyResourceTransaction(
+                    bad,
+                    Collections.emptySet()
+            );
+            fail();
+        } catch (IllegalArgumentException expected) {
+            assertTrue(
+                    expected.getMessage().contains(
+                            "RESOURCE_OPACITY_RANGE"
+                    )
+            );
+        }
+    }
+
     @Test public void freezeMaintainsFrozenBaseAndRecoverySlots() throws Exception {
         AppKernel kernel = AppKernel.createDefault();
         FreezeEngine freeze = kernel.productServices().freeze();
