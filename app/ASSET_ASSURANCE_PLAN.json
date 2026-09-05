@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "projectId": "ToolBox",
-  "stage": "Produk Penuh v12",
+  "stage": "Produk Penuh v13 Maksimal",
   "stageMap": "FULL_PRODUCT",
   "statusPolicy": {
     "readyRequiresValidation": true,
@@ -26,7 +26,7 @@
     {
       "assetId": "android.values.colors.dark.neon",
       "path": "app/src/main/res/values/colors.xml",
-      "sha256": "4373929a66d70b77a92279efd98ebdfcc035353ea2a72306e9ebfcc740f94a9a",
+      "sha256": "6339250a02f8a9bb43c1b87802a1cde99a6300b1f54507050c66c1b5a36906ab",
       "type": "ANDROID_VALUES_XML",
       "required": true,
       "owner": "application.ui",
@@ -55,6 +55,28 @@
       "consumer": "RepositoryInventory / ProductServices / CI zero-gap gate",
       "loader": "Android AssetManager / JSON",
       "semantic": "Inventory authoritative component+capability+action+asset+permission+engine+implementation"
+    },
+    {
+      "assetId": "android.launcher.tb",
+      "path": "app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp",
+      "sha256": "521d3944ee2e662e5d80ba9bcdae84a370295638b892affa9c13d58f7009450f",
+      "type": "ANDROID_WEBP",
+      "required": true,
+      "owner": "application.host",
+      "consumer": "Android launcher / AndroidManifest android:icon",
+      "loader": "Android Resources / BitmapDrawable",
+      "semantic": "Launcher icon TB dark-neon pilihan pengguna, exact visual source"
+    },
+    {
+      "assetId": "android.launcher.tb.round",
+      "path": "app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.webp",
+      "sha256": "521d3944ee2e662e5d80ba9bcdae84a370295638b892affa9c13d58f7009450f",
+      "type": "ANDROID_WEBP",
+      "required": true,
+      "owner": "application.host",
+      "consumer": "Android launcher / AndroidManifest android:roundIcon",
+      "loader": "Android Resources / BitmapDrawable",
+      "semantic": "Round launcher icon TB dark-neon pilihan pengguna, exact visual source"
     }
   ],
   "managedAssetReadyKinds": {
@@ -76,11 +98,12 @@
     "AssetDescriptor",
     "AssetPayloadValidator",
     "AssetRegistry.publishReady",
-    "AssetStore.importOriginal",
-    "AssetStore.readOriginal",
-    "LibraryManager",
-    "ExternalAssetGateway.inspectAndPersist",
-    "ACTION_OPEN_DOCUMENT persisted content URI"
+    "VisibleWorkspaceStore.Area.ASSETS",
+    "ExternalAssetGateway.importToWorkspace",
+    "SHA-256 verified streaming copy",
+    "AndroidAssetRenderer.verify",
+    "UiCanvasView asset object renderer",
+    "Android Resources launcher mipmap"
   ],
   "requiredInvariants": [
     "closed physical Android asset universe",
@@ -103,7 +126,10 @@
     "recovery snapshot before mutation",
     "Firebase absent from public maturation",
     "authoritative registry inventory packaged in assets",
-    "external image/icon/font/audio/video route is content-URI bounded and SHA-256 identified"
+    "external image/icon/font/audio/video route is content-URI bounded and SHA-256 identified",
+    "launcher TB exact source is physically packaged and AndroidManifest-bound",
+    "external asset original is copied to user-visible Assets before use",
+    "external asset hash is revalidated at runtime materialization"
   ],
   "managedBuiltinAssets": [
     "asset.theme.dark.neon",
