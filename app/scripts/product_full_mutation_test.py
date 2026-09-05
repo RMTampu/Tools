@@ -65,6 +65,20 @@ mutations=[
   "test":"com.toolbox.tools.product.MaximalProductionClosureTest.runtimeStateSurvivesFreshStoreInstance"
  },
  {
+  "name":"patch_runtime_apk_identity_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/delivery/SafePatchManager.java",
+  "old":"if (!runtimeParentApkSha256.equals(\n                    manifest.parentSignedApkSha256()\n            )) {",
+  "new":"if (false) {",
+  "test":"com.toolbox.tools.delivery.SafePatchManagerTest.v2PatchRejectsRuntimeApkLineageMismatch"
+ },
+ {
+  "name":"post_activation_health_rollback_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/delivery/SafePatchManager.java",
+  "old":"if (!healthGate.isHealthy(committed)) {",
+  "new":"if (false) {",
+  "test":"com.toolbox.tools.delivery.SafePatchManagerTest.postActivationHealthFailureRollsBackAutomatically"
+ },
+ {
   "name":"full_product_verifier_bypass",
   "path":APP/"src/main/java/com/toolbox/tools/product/FullProductVerifier.java",
   "old":"&& available.size() == ProductCapability.values().length;",
