@@ -87,6 +87,7 @@ for marker in [
     "MEMORY_PRESSURE_POLICY=PASS",
     "PATCH_JOURNAL_RUNTIME=PASS",
     "SAFE_RECOVERY_RUNTIME=PASS",
+ "EXTERNAL_MANAGED_EDITOR=PASS",
     "RANCANGAN_BEHAVIOR_135=PASS",
 ]:
     assert marker in runtime,marker
@@ -127,6 +128,7 @@ for file in android_xml:
 assert "advancedUiPropertiesMaterializeOnRealAndroidView" in android_case_names
 assert "externalAssetRendererUsesRealAndroidImageConsumer" in android_case_names
 assert "safeRecoveryUiPersistsAcrossActivityRecreation" in android_case_names
+assert "managedExternalEditingDoorUsesRealProviderBackedEditor" in android_case_names
 
 maximal_xml=(
     APP/"build/test-results/testDebugUnitTest"
@@ -184,6 +186,7 @@ evidence={
         "memoryPressurePolicy":"PASS",
         "patchJournalRuntime":"PASS",
         "safeRecoveryRuntime":"PASS",
+        "externalManagedEditor":"PASS",
     },
     "boundary":{
         "unconditionalAcceptancePass":0,
