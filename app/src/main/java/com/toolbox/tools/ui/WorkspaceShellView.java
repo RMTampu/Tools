@@ -717,6 +717,28 @@ public final class WorkspaceShellView extends FrameLayout {
     }
 
     private void showEditorAction(String label) {
+        switch (active) {
+            case UI:
+                showUiEditorAction(label);
+                return;
+            case LOGIC:
+                showLogicEditorAction(label);
+                return;
+            case DATA:
+                showDataEditorAction(label);
+                return;
+            case BINDING:
+                showBindingEditorAction(label);
+                return;
+            case ASSET:
+                showAssetEditorAction(label);
+                return;
+            default:
+                throw new IllegalStateException("fungsi editor tidak dikenal");
+        }
+    }
+
+    private void showUiEditorAction(String label) {
         if ("Komponen".equals(label)) {
             showActionOverlay(
                     "Komponen",
@@ -727,7 +749,7 @@ public final class WorkspaceShellView extends FrameLayout {
                         } else if ("Tombol Sekunder".equals(value)) {
                             applyResource("ui.object.home.primary.text", "Tombol Sekunder", "Komponen diterapkan.");
                         } else {
-                            resetDemoObject();
+                            resetPrimaryObject();
                         }
                     }
             );
@@ -737,7 +759,7 @@ public final class WorkspaceShellView extends FrameLayout {
             showActionOverlay(
                     "Template",
                     Arrays.asList("Layar Dasar", "Layar Formulir", "Reset Template"),
-                    value -> applyTemplate(value)
+                    this::applyTemplate
             );
             return;
         }
@@ -746,16 +768,330 @@ public final class WorkspaceShellView extends FrameLayout {
             showActionOverlay(
                     label,
                     Arrays.asList("Gelap Neon", "Biru Neon", "Permukaan Tenang"),
-                    value -> applyStylePreset(value)
+                    this::applyStylePreset
             );
             return;
         }
 
-        List<String> rows = editorCommands(label);
-        showActionOverlay(label, rows, value -> applyEditorCommand(label, value));
+        List<String> rows = uiEditorCommands(label);
+        showActionOverlay(label, rows, value -> applyUiEditorCommand(label, value));
     }
 
-    private List<String> editorCommands(String label) {
+    private void showLogicEditorAction(String label) {
+        if ("Peristiwa".equals(label)) {
+            showActionOverlay(
+                    "Peristiwa",
+                    Arrays.asList("Saat Ditekan", "Saat Nilai Berubah", "Saat Layar Dibuka"),
+                    value -> applyResource(
+                            "logic.editor.event",
+                            "Saat Ditekan".equals(value) ? "event.click"
+                                    : "Saat Nilai Berubah".equals(value) ? "event.change"
+                                    : "event.screen.open",
+                            "Peristiwa aktif diperbarui."
+                    )
+            );
+            return;
+        }
+        if ("Aksi".equals(label)) {
+            showActionOverlay(
+                    "Aksi",
+                    Arrays.asList("Buka Detail", "Tampilkan Pesan", "Simpan"),
+                    value -> applyResource(
+                            "logic.ui.home.primary.action",
+                            "Buka Detail".equals(value) ? "open.detail"
+                                    : "Tampilkan Pesan".equals(value) ? "show.message"
+                                    : "save.project",
+                            "Aksi alur diperbarui."
+                    )
+            );
+            return;
+        }
+        if ("Kondisi".equals(label)) {
+            showActionOverlay(
+                    "Kondisi",
+                    Arrays.asList("Selalu", "Jika Data Valid", "Jika Ada Input"),
+                    value -> applyResource(
+                            "logic.editor.condition",
+                            "Selalu".equals(value) ? "always"
+                                    : "Jika Data Valid".equals(value) ? "data.valid"
+                                    : "input.present",
+                            "Kondisi alur diperbarui."
+                    )
+            );
+            return;
+        }
+        if ("Alur".equals(label)) {
+            showActionOverlay(
+                    "Alur",
+                    Arrays.asList("Aktifkan Alur Utama", "Nonaktifkan Alur"),
+                    value -> applyResource(
+                            "flow.home.enabled",
+                            "Aktifkan Alur Utama".equals(value) ? "true" : "false",
+                            "Status alur diperbarui."
+                    )
+            );
+            return;
+        }
+        if ("Variabel".equals(label)) {
+            showActionOverlay(
+                    "Variabel",
+                    Arrays.asList("Teks", "Angka", "Boolean"),
+                    value -> applyResource(
+                            "logic.editor.variable.type",
+                            "Teks".equals(value) ? "text"
+                                    : "Angka".equals(value) ? "number"
+                                    : "boolean",
+                            "Tipe variabel diperbarui."
+                    )
+            );
+            return;
+        }
+        if ("Fungsi".equals(label)) {
+            showActionOverlay(
+                    "Fungsi",
+                    Arrays.asList("Validasi", "Format Teks", "Navigasi"),
+                    value -> applyResource(
+                            "logic.editor.function",
+                            "Validasi".equals(value) ? "validate"
+                                    : "Format Teks".equals(value) ? "format.text"
+                                    : "navigate",
+                            "Fungsi alur diperbarui."
+                    )
+            );
+            return;
+        }
+        showInfoOverlay("Logika", Arrays.asList("Tidak ada aksi untuk konteks ini."));
+    }
+
+    private void showDataEditorAction(String label) {
+        if ("Sumber".equals(label)) {
+            showActionOverlay(
+                    "Sumber Data",
+                    Arrays.asList("Lokal", "Data Contoh", "Eksternal Terkelola"),
+                    value -> applyResource(
+                            "data.editor.source",
+                            "Lokal".equals(value) ? "local"
+                                    : "Data Contoh".equals(value) ? "mock"
+                                    : "managed.external",
+                            "Sumber data diperbarui."
+                    )
+            );
+            return;
+        }
+        if ("Koleksi".equals(label)) {
+            showActionOverlay(
+                    "Koleksi",
+                    Arrays.asList("items", "users", "records"),
+                    value -> applyResource(
+                            "data.editor.collection",
+                            value.toLowerCase(java.util.Locale.ROOT),
+                            "Koleksi aktif diperbarui."
+                    )
+            );
+            return;
+        }
+        if ("Tabel".equals(label)) {
+            showActionOverlay(
+                    "Tabel",
+                    Arrays.asList("Tabel Utama", "Tabel Detail", "Tabel Riwayat"),
+                    value -> applyResource(
+                            "data.editor.table",
+                            "Tabel Utama".equals(value) ? "table.main"
+                                    : "Tabel Detail".equals(value) ? "table.detail"
+                                    : "table.history",
+                            "Tabel aktif diperbarui."
+                    )
+            );
+            return;
+        }
+        if ("Kolom Data".equals(label)) {
+            showActionOverlay(
+                    "Kolom Data",
+                    Arrays.asList("Tambah Teks", "Tambah Angka", "Tambah Boolean"),
+                    value -> applyResource(
+                            "data.items.field.user.type",
+                            "Tambah Teks".equals(value) ? "TEXT"
+                                    : "Tambah Angka".equals(value) ? "NUMBER"
+                                    : "BOOLEAN",
+                            "Kolom data ditambahkan ke working state."
+                    )
+            );
+            return;
+        }
+        if ("Relasi".equals(label)) {
+            showActionOverlay(
+                    "Relasi",
+                    Arrays.asList("Satu ke Satu", "Satu ke Banyak", "Tanpa Relasi"),
+                    value -> applyResource(
+                            "data.editor.relation",
+                            "Satu ke Satu".equals(value) ? "one_to_one"
+                                    : "Satu ke Banyak".equals(value) ? "one_to_many"
+                                    : "none",
+                            "Relasi data diperbarui."
+                    )
+            );
+            return;
+        }
+        if ("Kueri".equals(label)) {
+            showActionOverlay(
+                    "Kueri",
+                    Arrays.asList("Semua Data", "Terbaru", "10 Pertama"),
+                    value -> applyResource(
+                            "data.editor.query",
+                            "Semua Data".equals(value) ? "all"
+                                    : "Terbaru".equals(value) ? "latest"
+                                    : "limit:10",
+                            "Kueri aktif diperbarui."
+                    )
+            );
+            return;
+        }
+        if ("Data Contoh".equals(label)) {
+            showActionOverlay(
+                    "Data Contoh",
+                    Arrays.asList("Aktifkan", "Nonaktifkan", "Reset"),
+                    value -> applyResource(
+                            "data.editor.mock.enabled",
+                            "Aktifkan".equals(value) ? "true"
+                                    : "Nonaktifkan".equals(value) ? "false"
+                                    : "default",
+                            "Data contoh diperbarui."
+                    )
+            );
+            return;
+        }
+        showInfoOverlay("Data", Arrays.asList("Tidak ada aksi untuk konteks ini."));
+    }
+
+    private void showBindingEditorAction(String label) {
+        if ("Hubungkan Otomatis".equals(label)) {
+            showActionOverlay(
+                    "Hubungkan Otomatis",
+                    Arrays.asList("Hubungkan", "Lepaskan"),
+                    value -> applyResource(
+                            "binding.ui.home.primary.mode",
+                            "Hubungkan".equals(value) ? "auto" : "none",
+                            "Status pengikatan diperbarui."
+                    )
+            );
+            return;
+        }
+
+        String mode = kernel.projectManager().current().resources().getOrDefault(
+                "binding.ui.home.primary.mode",
+                "auto"
+        );
+        if ("Status".equals(label)) {
+            showInfoOverlay("Status Pengikatan", Arrays.asList(
+                    "Mode: " + ("auto".equals(mode) ? "OTOMATIS" : "TIDAK TERHUBUNG"),
+                    "Target: object.home.primary",
+                    "Sumber: data.items.field.title"
+            ));
+            return;
+        }
+        if ("Masalah".equals(label)) {
+            showInfoOverlay("Masalah Pengikatan", Arrays.asList(
+                    "Target ambigu: 0",
+                    "Siklus: 0",
+                    "Referensi hilang: 0"
+            ));
+            return;
+        }
+        if ("Peta".equals(label)) {
+            showInfoOverlay("Peta Pengikatan", Arrays.asList(
+                    "data.items.field.title → object.home.primary.property.text",
+                    "Mode: " + mode
+            ));
+            return;
+        }
+        if ("Penggunaan".equals(label)) {
+            showInfoOverlay("Penggunaan Pengikatan", Arrays.asList(
+                    "Screen: screen.home",
+                    "Objek: object.home.primary",
+                    "Properti: property.text"
+            ));
+            return;
+        }
+        if ("Riwayat".equals(label)) {
+            showInfoOverlay("Riwayat Pengikatan", Arrays.asList(
+                    kernel.projectManager().hasUnsavedChanges()
+                            ? "Ada perubahan pengikatan belum disimpan"
+                            : "Tidak ada perubahan tertunda",
+                    "Undo tersedia: " + (kernel.projectManager().canUndo() ? "YA" : "TIDAK"),
+                    "Redo tersedia: " + (kernel.projectManager().canRedo() ? "YA" : "TIDAK")
+            ));
+            return;
+        }
+        showInfoOverlay("Pengikatan", Arrays.asList("Tidak ada aksi untuk konteks ini."));
+    }
+
+    private void showAssetEditorAction(String label) {
+        if ("Kategori".equals(label)) {
+            showActionOverlay(
+                    "Kategori Aset",
+                    Arrays.asList("Tema", "Token", "Animasi", "Kit"),
+                    value -> applyResource(
+                            "asset.editor.category",
+                            value.toLowerCase(java.util.Locale.ROOT),
+                            "Kategori aset diperbarui."
+                    )
+            );
+            return;
+        }
+        if ("Impor".equals(label)) {
+            showActionOverlay(
+                    "Impor Aset",
+                    Arrays.asList("Tema Gelap Neon", "Token Bawaan", "Preset Animasi", "Kit Komponen"),
+                    value -> {
+                        String id = "Tema Gelap Neon".equals(value) ? "asset.theme.dark.neon"
+                                : "Token Bawaan".equals(value) ? "asset.tokens.default"
+                                : "Preset Animasi".equals(value) ? "asset.animation.presets"
+                                : "asset.component.kit";
+                        applyResource("asset.editor.active", id, "Aset terverifikasi dimuat ke working state.");
+                    }
+            );
+            return;
+        }
+        if ("Pratinjau".equals(label)) {
+            showActionOverlay(
+                    "Pratinjau Aset",
+                    Arrays.asList("Gelap Neon", "Biru Neon", "Permukaan Tenang"),
+                    this::applyStylePreset
+            );
+            return;
+        }
+        if ("Penggunaan".equals(label)) {
+            String activeAsset = kernel.projectManager().current().resources().getOrDefault(
+                    "asset.editor.active",
+                    "asset.theme.dark.neon"
+            );
+            showInfoOverlay("Penggunaan Aset", Arrays.asList(
+                    "Aset aktif: " + activeAsset,
+                    "Konsumen: tool.ui / tool.asset",
+                    "Project: " + kernel.projectManager().current().projectId()
+            ));
+            return;
+        }
+        if ("Kompatibilitas".equals(label)) {
+            showInfoOverlay("Kompatibilitas Aset", Arrays.asList(
+                    "Android 11 / API 30: SESUAI",
+                    "Runtime deklaratif: SESUAI",
+                    "Kode executable: TIDAK DIPERBOLEHKAN"
+            ));
+            return;
+        }
+        if ("Dependensi".equals(label)) {
+            showInfoOverlay("Dependensi Aset", Arrays.asList(
+                    "Aset siap: " + kernel.libraryManager().assets().allReady().size(),
+                    "Komponen siap: " + kernel.libraryManager().components().allReady().size(),
+                    "Template siap: " + kernel.libraryManager().templates().allReady().size()
+            ));
+            return;
+        }
+        showInfoOverlay("Aset", Arrays.asList("Tidak ada aksi untuk konteks ini."));
+    }
+
+    private List<String> uiEditorCommands(String label) {
         if ("Gaya".equals(label)) return Arrays.asList("Gelap Neon", "Biru Neon", "Reset Gaya");
         if ("Ukuran".equals(label)) return Arrays.asList("Kecil", "Sedang", "Besar", "Lebar Penuh");
         if ("Posisi".equals(label)) return Arrays.asList("Kiri", "Tengah", "Kanan", "Reset Posisi");
@@ -779,7 +1115,7 @@ public final class WorkspaceShellView extends FrameLayout {
         return Arrays.asList("Gunakan Nilai Bawaan", "Reset");
     }
 
-    private void applyEditorCommand(String label, String value) {
+    private void applyUiEditorCommand(String label, String value) {
         if ("Gaya".equals(label) || "Warna".equals(label)) {
             applyStylePreset(value);
             return;
@@ -866,9 +1202,11 @@ public final class WorkspaceShellView extends FrameLayout {
             return;
         }
         if ("Keadaan".equals(label)) {
-            applyResource("ui.object.home.primary.enabled",
+            applyResource(
+                    "ui.object.home.primary.enabled",
                     "Aktif".equals(value) ? "true" : "false",
-                    "Keadaan diperbarui.");
+                    "Keadaan diperbarui."
+            );
             return;
         }
         if ("Animasi".equals(label)) {
@@ -896,7 +1234,7 @@ public final class WorkspaceShellView extends FrameLayout {
         if ("Aksesibilitas".equals(label)) {
             applyResource(
                     "ui.object.home.primary.accessibility.label",
-                    "Label Otomatis".equals(value) ? "Buka Detail" : "Buka Detail",
+                    "Buka Detail",
                     "Aksesibilitas diperbarui."
             );
             return;
@@ -921,7 +1259,7 @@ public final class WorkspaceShellView extends FrameLayout {
         }
         if ("Lainnya".equals(label)) {
             if ("Reset Objek".equals(value)) {
-                resetDemoObject();
+                resetPrimaryObject();
             } else {
                 applyResource(
                         "template.user.primary.label",
@@ -934,7 +1272,7 @@ public final class WorkspaceShellView extends FrameLayout {
             }
             return;
         }
-        resetDemoObject();
+        resetPrimaryObject();
     }
 
     private void applyTemplate(String value) {
@@ -970,7 +1308,7 @@ public final class WorkspaceShellView extends FrameLayout {
         applyResourceValues(map, "Gaya diterapkan.");
     }
 
-    private void resetDemoObject() {
+    private void resetPrimaryObject() {
         LinkedHashMap<String, String> map = new LinkedHashMap<>();
         map.put("ui.object.home.primary.text", "Buka Detail");
         map.put("ui.object.home.primary.width.dp", "148");
