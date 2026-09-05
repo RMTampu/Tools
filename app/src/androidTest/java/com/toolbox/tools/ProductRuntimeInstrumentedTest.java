@@ -108,9 +108,54 @@ public final class ProductRuntimeInstrumentedTest {
                 long drift =
                         activity.shellForTest()
                                 .lastSoakPssDriftBytesForTest();
+                long startPss =
+                        activity.shellForTest()
+                                .lastSoakStartPssBytesForTest();
+                long endPss =
+                        activity.shellForTest()
+                                .lastSoakEndPssBytesForTest();
+                long peakPss =
+                        activity.shellForTest()
+                                .lastSoakPeakPssBytesForTest();
+                int startThreads =
+                        activity.shellForTest()
+                                .lastSoakStartThreadsForTest();
+                int endThreads =
+                        activity.shellForTest()
+                                .lastSoakEndThreadsForTest();
+                int peakThreads =
+                        activity.shellForTest()
+                                .lastSoakPeakThreadsForTest();
+                long durationMs =
+                        activity.shellForTest()
+                                .lastSoakDurationMsForTest();
+                long maxCycleMs =
+                        activity.shellForTest()
+                                .lastSoakMaxCycleMsForTest();
+
+                assertTrue("startPss=" + startPss, startPss > 0);
+                assertTrue("endPss=" + endPss, endPss > 0);
+                assertTrue(
+                        "peakPss=" + peakPss,
+                        peakPss >= startPss && peakPss >= endPss
+                );
                 assertTrue(
                         "PSS drift=" + drift,
                         drift <= 96L * 1024L * 1024L
+                );
+                assertTrue(
+                        "thread drift="
+                                + startThreads + "->" + endThreads,
+                        endThreads <= startThreads + 8
+                );
+                assertTrue(
+                        "peakThreads=" + peakThreads,
+                        peakThreads <= startThreads + 16
+                );
+                assertTrue("durationMs=" + durationMs, durationMs > 0);
+                assertTrue(
+                        "maxCycleMs=" + maxCycleMs,
+                        maxCycleMs < 2500
                 );
                 assertTrue(
                         activity.kernelForTest()
