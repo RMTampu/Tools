@@ -8,6 +8,8 @@ import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Insets;
 import android.os.Debug;
+import android.os.Handler;
+import android.os.Looper;
 import android.graphics.drawable.GradientDrawable;
 import android.view.GestureDetector;
 import android.view.Gravity;
@@ -43,6 +45,8 @@ import com.toolbox.tools.repair.HealthReport;
 import com.toolbox.tools.protocol.ManagedAppProtocol;
 
 import java.io.IOException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -3854,6 +3858,22 @@ public final class WorkspaceShellView extends FrameLayout {
         if (cycles < 1 || cycles > 200) {
             throw new IllegalArgumentException("cycles out of range");
         }
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            throw new IllegalStateException(
+                    "soak test harus dijalankan dari instrumentation thread"
+            );
+        }
+
+        final Handler main = new Handler(Looper.getMainLooper());
+        final Screen[] previousScreen = new Screen[1];
+        final AuthoringSection[] previousSection =
+                new AuthoringSection[1];
+
+        runUiForSoak(main, () -> {
+            previousScreen[0] = screen;
+            previousSection[0] = active;
+            screen = Screen.EDITOR_WORKSPACE;
+        });
 
         long startNs = System.nanoTime();
         lastSoakStartPssBytes = Debug.getPss() * 1024L;
@@ -3862,16 +3882,20 @@ public final class WorkspaceShellView extends FrameLayout {
         lastSoakPeakThreads = lastSoakStartThreads;
         lastSoakMaxCycleMs = 0;
 
-        Screen previousScreen = screen;
-        AuthoringSection previous = active;
-        screen = Screen.EDITOR_WORKSPACE;
         AuthoringSection[] sections = AuthoringSection.values();
-
         for (int i = 0; i < cycles; i++) {
+            final AuthoringSection section =
+                    sections[i % sections.length];
             long cycleStart = System.nanoTime();
-            active = sections[i % sections.length];
-            activateToolSection(active);
-            renderWorkspace();
+
+            // One UI mutation per main-loop turn. This deliberately yields
+            // between cycles so a real Android device can continue input,
+            // lifecycle and watchdog dispatch while the 100-cycle soak runs.
+            runUiForSoak(main, () -> {
+                active = section;
+                activateToolSection(active);
+                renderWorkspace();
+            });
 
             long pss = Debug.getPss() * 1024L;
             int threads = Thread.activeCount();
@@ -3889,12 +3913,14 @@ public final class WorkspaceShellView extends FrameLayout {
             );
         }
 
-        active = previous;
-        screen = previousScreen;
-        activateToolSection(active);
-        renderAll();
-        System.gc();
+        runUiForSoak(main, () -> {
+            active = previousSection[0];
+            screen = previousScreen[0];
+            activateToolSection(active);
+            renderAll();
+        });
 
+        System.gc();
         lastSoakEndPssBytes = Debug.getPss() * 1024L;
         lastSoakEndThreads = Thread.activeCount();
         lastSoakPeakPssBytes = Math.max(
@@ -3911,6 +3937,39 @@ public final class WorkspaceShellView extends FrameLayout {
         );
         lastSoakDurationMs =
                 (System.nanoTime() - startNs) / 1_000_000L;
+    }
+
+    private static void runUiForSoak(
+            Handler main,
+            Runnable action
+    ) {
+        CountDownLatch latch = new CountDownLatch(1);
+        final RuntimeException[] failure = new RuntimeException[1];
+        main.post(() -> {
+            try {
+                action.run();
+            } catch (RuntimeException error) {
+                failure[0] = error;
+            } finally {
+                latch.countDown();
+            }
+        });
+        try {
+            if (!latch.await(10, TimeUnit.SECONDS)) {
+                throw new IllegalStateException(
+                        "soak UI cycle timeout"
+                );
+            }
+        } catch (InterruptedException error) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(
+                    "soak interrupted",
+                    error
+            );
+        }
+        if (failure[0] != null) {
+            throw failure[0];
+        }
     }
 
     public long lastSoakPssDriftBytesForTest() {
