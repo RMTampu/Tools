@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
+import android.view.GestureDetector;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -55,12 +56,20 @@ public final class WorkspaceShellView extends FrameLayout {
         CONTEXT
     }
 
+    private enum EdgeAnchor {
+        LEFT,
+        RIGHT,
+        TOP,
+        BOTTOM
+    }
+
     private final AppKernel kernel;
     private final FrameLayout workspace;
     private final FrameLayout edgeContainer;
     private final LinearLayout edgeContent;
     private final TextView edgeHandle;
     private final FrameLayout overlayLayer;
+    private final FrameLayout bubbleQuickLayer;
     private final TextView bubble;
 
     private Screen screen = Screen.HOME;
@@ -69,6 +78,7 @@ public final class WorkspaceShellView extends FrameLayout {
     private AuthoringSection active = AuthoringSection.UI;
     private String editorEntry = "Proyek Tersimpan";
     private boolean edgeOpen = true;
+    private EdgeAnchor edgeAnchor;
 
     private boolean bubbleDragging;
     private float bubbleDownX;
@@ -81,6 +91,9 @@ public final class WorkspaceShellView extends FrameLayout {
         this.kernel = kernel;
         setBackgroundColor(UiKit.LATAR);
         setClipChildren(false);
+        setClipToPadding(false);
+
+        edgeAnchor = restoreEdgeAnchor();
 
         workspace = new FrameLayout(context);
         workspace.setBackgroundColor(UiKit.LATAR);
@@ -97,18 +110,11 @@ public final class WorkspaceShellView extends FrameLayout {
                 18,
                 1
         ));
-        FrameLayout.LayoutParams edgeParams = new FrameLayout.LayoutParams(
-                UiKit.dp(context, 238),
-                LayoutParams.MATCH_PARENT,
-                Gravity.END
-        );
-        edgeParams.topMargin = UiKit.dp(context, 14);
-        edgeParams.bottomMargin = UiKit.dp(context, 14);
-        edgeParams.rightMargin = UiKit.dp(context, 4);
-        addView(edgeContainer, edgeParams);
+        addView(edgeContainer);
 
         ScrollView edgeScroll = new ScrollView(context);
         edgeScroll.setFillViewport(true);
+        edgeScroll.setVerticalScrollBarEnabled(false);
         edgeContent = UiKit.kolom(context);
         edgeContent.setPadding(
                 UiKit.dp(context, 12),
@@ -122,25 +128,69 @@ public final class WorkspaceShellView extends FrameLayout {
                 LayoutParams.MATCH_PARENT
         ));
 
-        edgeHandle = UiKit.judul(context, "‹", 22f);
-        edgeHandle.setContentDescription("Tutup panel");
+        edgeHandle = UiKit.judul(context, "", 22f);
         edgeHandle.setGravity(Gravity.CENTER);
         edgeHandle.setTextColor(UiKit.NEON);
         edgeHandle.setBackground(UiKit.kartuPx(
                 context,
                 UiKit.PERMUKAAN_2,
                 UiKit.NEON,
-                12,
+                14,
                 1
         ));
-        edgeHandle.setOnClickListener(v -> toggleEdge());
-        FrameLayout.LayoutParams handleParams = new FrameLayout.LayoutParams(
-                UiKit.dp(context, 36),
-                UiKit.dp(context, 56),
-                Gravity.CENTER_VERTICAL | Gravity.START
+        edgeHandle.setElevation(UiKit.dp(context, 16));
+        edgeHandle.setClickable(true);
+        edgeHandle.setFocusable(true);
+        addView(edgeHandle);
+
+        GestureDetector edgeGesture = new GestureDetector(
+                context,
+                new GestureDetector.SimpleOnGestureListener() {
+                    @Override
+                    public boolean onDown(MotionEvent e) {
+                        return true;
+                    }
+
+                    @Override
+                    public boolean onSingleTapUp(MotionEvent e) {
+                        toggleEdge();
+                        return true;
+                    }
+
+                    @Override
+                    public void onLongPress(MotionEvent e) {
+                        repositionEdge();
+                    }
+
+                    @Override
+                    public boolean onFling(
+                            MotionEvent e1,
+                            MotionEvent e2,
+                            float velocityX,
+                            float velocityY
+                    ) {
+                        if (isLandscape()) {
+                            if (Math.abs(velocityY) > Math.abs(velocityX)) {
+                                setEdgeOpen(velocityY < 0
+                                        ? edgeAnchor == EdgeAnchor.BOTTOM
+                                        : edgeAnchor == EdgeAnchor.TOP);
+                                if (edgeAnchor == EdgeAnchor.BOTTOM && velocityY > 0) setEdgeOpen(false);
+                                if (edgeAnchor == EdgeAnchor.TOP && velocityY < 0) setEdgeOpen(false);
+                                return true;
+                            }
+                        } else if (Math.abs(velocityX) > Math.abs(velocityY)) {
+                            if (edgeAnchor == EdgeAnchor.RIGHT) {
+                                setEdgeOpen(velocityX < 0);
+                            } else {
+                                setEdgeOpen(velocityX > 0);
+                            }
+                            return true;
+                        }
+                        return false;
+                    }
+                }
         );
-        handleParams.leftMargin = -UiKit.dp(context, 30);
-        edgeContainer.addView(edgeHandle, handleParams);
+        edgeHandle.setOnTouchListener((v, event) -> edgeGesture.onTouchEvent(event));
 
         overlayLayer = new FrameLayout(context);
         overlayLayer.setVisibility(GONE);
@@ -149,12 +199,21 @@ public final class WorkspaceShellView extends FrameLayout {
                 LayoutParams.MATCH_PARENT
         ));
 
+        bubbleQuickLayer = new FrameLayout(context);
+        bubbleQuickLayer.setVisibility(GONE);
+        bubbleQuickLayer.setBackgroundColor(Color.TRANSPARENT);
+        bubbleQuickLayer.setOnClickListener(v -> hideBubbleShortcuts());
+        addView(bubbleQuickLayer, new FrameLayout.LayoutParams(
+                LayoutParams.MATCH_PARENT,
+                LayoutParams.MATCH_PARENT
+        ));
+
         bubble = UiKit.judul(context, "TB", 14f);
-        bubble.setContentDescription("Akses cepat ToolBox");
+        bubble.setContentDescription("Bubble ToolBox");
         bubble.setGravity(Gravity.CENTER);
         bubble.setTextColor(UiKit.LATAR);
         bubble.setBackground(circle(UiKit.NEON));
-        bubble.setElevation(UiKit.dp(context, 12));
+        bubble.setElevation(UiKit.dp(context, 20));
         bubble.setOnTouchListener(this::handleBubbleTouch);
         FrameLayout.LayoutParams bubbleParams = new FrameLayout.LayoutParams(
                 UiKit.dp(context, 56),
@@ -166,11 +225,19 @@ public final class WorkspaceShellView extends FrameLayout {
         addView(bubble, bubbleParams);
 
         kernel.editorEnvironment().shell().setLiveCapability(true);
+        applyEdgeLayout(false);
         renderAll();
-        post(this::restoreBubblePosition);
+        post(() -> {
+            restoreBubblePosition();
+            applyEdgeLayout(false);
+        });
     }
 
     public boolean handleBack() {
+        if (bubbleQuickLayer.getVisibility() == VISIBLE) {
+            hideBubbleShortcuts();
+            return true;
+        }
         if (overlayLayer.getVisibility() == VISIBLE) {
             closeOverlay();
             return true;
@@ -219,7 +286,7 @@ public final class WorkspaceShellView extends FrameLayout {
         root.setPadding(
                 UiKit.dp(getContext(), 24),
                 UiKit.dp(getContext(), 28),
-                UiKit.dp(getContext(), 270),
+                UiKit.dp(getContext(), 24),
                 UiKit.dp(getContext(), 28)
         );
         scroll.addView(root);
@@ -230,53 +297,65 @@ public final class WorkspaceShellView extends FrameLayout {
 
         TextView subtitle = UiKit.teks(
                 getContext(),
-                "Antarmuka ToolBox • Android 11 • Visual-first",
+                "Beranda ToolBox • ruang kerja aplikasi",
                 13f,
                 UiKit.TEKS_REDUP
         );
         subtitle.setPadding(0, UiKit.dp(getContext(), 4), 0, UiKit.dp(getContext(), 20));
         root.addView(subtitle);
 
-        LinearLayout hero = card();
-        hero.addView(UiKit.labelBagian(getContext(), "EDITOR TERPADU"));
-        hero.addView(UiKit.judul(getContext(), "Satu Editor • lima fungsi di dalamnya", 19f));
-        TextView heroBody = UiKit.teks(
+        LinearLayout project = card();
+        project.addView(UiKit.labelBagian(getContext(), "PROYEK AKTIF"));
+        project.addView(UiKit.judul(
                 getContext(),
-                "Masuk ke Editor dari panel. ToolBox tidak langsung membuka layar edit. "
-                        + "Di dalam Editor tersedia UI, Logika, Data, Pengikatan, dan Aset sebagai satu ruang kerja.",
-                12.5f,
-                UiKit.TEKS_REDUP
+                kernel.projectManager().current().projectId(),
+                18f
+        ));
+        addInfo(
+                project,
+                "Status kerja",
+                kernel.projectManager().hasUnsavedChanges()
+                        ? "Ada perubahan yang belum disimpan"
+                        : "Semua perubahan tersimpan"
         );
-        heroBody.setPadding(0, UiKit.dp(getContext(), 8), 0, UiKit.dp(getContext(), 8));
-        hero.addView(heroBody);
-        root.addView(hero);
+        addInfo(
+                project,
+                "Revisi",
+                String.valueOf(kernel.projectManager().savedRevision())
+        );
+        root.addView(project);
 
         UiKit.ruang(root, getContext(), 14);
 
-        LinearLayout routes = card();
-        routes.addView(UiKit.labelBagian(getContext(), "4 PILIHAN EDITOR"));
-        addInfo(routes, "1. Proyek Tersimpan", "Buka dan lanjutkan project yang sudah ada.");
-        addInfo(routes, "2. Aplikasi Terinstal", "Masuk melalui pemindaian kapabilitas yang tersedia.");
-        addInfo(routes, "3. Edit ToolBox", "Edit permukaan deklaratif ToolBox dengan core keselamatan tetap terlindungi.");
-        addInfo(routes, "4. Buat / Edit Komponen", "Kelola komponen, varian, template, dan kit.");
-        root.addView(routes);
+        LinearLayout activity = card();
+        activity.addView(UiKit.labelBagian(getContext(), "AKTIVITAS TOOLBOX"));
+        addInfo(activity, "Editor", "Masuk melalui menu Editor di Edge Panel.");
+        addInfo(activity, "Pemulihan", "Backup, recovery, dan Safe Mode tersedia dari panel.");
+        addInfo(activity, "Evolusi", "Paket perubahan dikelola melalui jalur staging dan verifikasi.");
+        root.addView(activity);
 
         UiKit.ruang(root, getContext(), 14);
 
         FullProductVerifier.Result result = new FullProductVerifier().verify(kernel);
         LinearLayout health = card();
-        health.addView(UiKit.labelBagian(getContext(), "STATUS PRODUK"));
+        health.addView(UiKit.labelBagian(getContext(), "KESEHATAN SISTEM"));
         addInfo(
                 health,
-                "Kelengkapan",
+                "Core",
                 result.isPass()
-                        ? "LULUS • " + result.available().size() + "/" + result.requiredCount()
-                        : "PERLU PERHATIAN • " + result.errors().size() + " masalah"
+                        ? "Siap digunakan"
+                        : "Perlu pemeriksaan • " + result.errors().size() + " masalah"
         );
-        addInfo(health, "Penyimpanan", kernel.projectManager().hasUnsavedChanges()
-                ? "Ada perubahan belum disimpan"
-                : "Tidak ada perubahan tertunda");
-        addInfo(health, "Panel", "Selalu tersedia dan dapat dibuka/tutup pada semua mode.");
+        addInfo(
+                health,
+                "Mode Simpan",
+                kernel.productServices().freeze().state().name()
+        );
+        addInfo(
+                health,
+                "Shell",
+                "Bubble + satu Edge Panel kontekstual"
+        );
         root.addView(health);
 
         workspace.addView(scroll, new FrameLayout.LayoutParams(
@@ -594,19 +673,139 @@ public final class WorkspaceShellView extends FrameLayout {
     }
 
     private void toggleEdge() {
-        edgeOpen = !edgeOpen;
-        float closedX = UiKit.dp(getContext(), 208);
-        edgeContainer.animate()
-                .translationX(edgeOpen ? 0 : closedX)
-                .setDuration(160)
-                .start();
-        edgeHandle.setText(edgeOpen ? "‹" : "›");
-        edgeHandle.setContentDescription(edgeOpen ? "Tutup panel" : "Buka panel");
+        setEdgeOpen(!edgeOpen);
+    }
+
+    private void setEdgeOpen(boolean open) {
+        edgeOpen = open;
+        applyEdgeLayout(false);
+    }
+
+    private void repositionEdge() {
+        if (isLandscape()) {
+            edgeAnchor = edgeAnchor == EdgeAnchor.TOP
+                    ? EdgeAnchor.BOTTOM
+                    : EdgeAnchor.TOP;
+        } else {
+            edgeAnchor = edgeAnchor == EdgeAnchor.LEFT
+                    ? EdgeAnchor.RIGHT
+                    : EdgeAnchor.LEFT;
+        }
+        persistEdgeAnchor();
+        applyEdgeLayout(false);
+        toast("Panel dipindahkan ke " + edgeAnchorLabel().toLowerCase(java.util.Locale.ROOT) + ".");
+    }
+
+    private void applyEdgeLayout(boolean animate) {
+        boolean landscape = isLandscape();
+        int panelThickness = UiKit.dp(getContext(), landscape ? 210 : 238);
+        int handleLong = UiKit.dp(getContext(), 72);
+        int handleShort = UiKit.dp(getContext(), 56);
+        int margin = UiKit.dp(getContext(), 4);
+
+        if (landscape && edgeAnchor != EdgeAnchor.TOP && edgeAnchor != EdgeAnchor.BOTTOM) {
+            edgeAnchor = EdgeAnchor.BOTTOM;
+        } else if (!landscape && edgeAnchor != EdgeAnchor.LEFT && edgeAnchor != EdgeAnchor.RIGHT) {
+            edgeAnchor = EdgeAnchor.RIGHT;
+        }
+
+        FrameLayout.LayoutParams panelParams;
+        FrameLayout.LayoutParams handleParams;
+        float tx = 0f;
+        float ty = 0f;
+
+        if (!landscape) {
+            boolean right = edgeAnchor == EdgeAnchor.RIGHT;
+            panelParams = new FrameLayout.LayoutParams(
+                    panelThickness,
+                    LayoutParams.MATCH_PARENT,
+                    (right ? Gravity.END : Gravity.START)
+            );
+            panelParams.topMargin = UiKit.dp(getContext(), 10);
+            panelParams.bottomMargin = UiKit.dp(getContext(), 10);
+            if (right) panelParams.rightMargin = margin;
+            else panelParams.leftMargin = margin;
+
+            handleParams = new FrameLayout.LayoutParams(
+                    handleShort,
+                    handleLong,
+                    Gravity.CENTER_VERTICAL | (right ? Gravity.END : Gravity.START)
+            );
+            int openOffset = Math.max(0, panelThickness - handleShort / 2);
+            if (right) {
+                handleParams.rightMargin = edgeOpen ? openOffset : 0;
+                tx = edgeOpen ? 0f : panelThickness - UiKit.dp(getContext(), 8);
+            } else {
+                handleParams.leftMargin = edgeOpen ? openOffset : 0;
+                tx = edgeOpen ? 0f : -(panelThickness - UiKit.dp(getContext(), 8));
+            }
+        } else {
+            boolean bottom = edgeAnchor == EdgeAnchor.BOTTOM;
+            panelParams = new FrameLayout.LayoutParams(
+                    LayoutParams.MATCH_PARENT,
+                    panelThickness,
+                    (bottom ? Gravity.BOTTOM : Gravity.TOP)
+            );
+            panelParams.leftMargin = UiKit.dp(getContext(), 10);
+            panelParams.rightMargin = UiKit.dp(getContext(), 10);
+            if (bottom) panelParams.bottomMargin = margin;
+            else panelParams.topMargin = margin;
+
+            handleParams = new FrameLayout.LayoutParams(
+                    handleLong,
+                    handleShort,
+                    Gravity.CENTER_HORIZONTAL | (bottom ? Gravity.BOTTOM : Gravity.TOP)
+            );
+            int openOffset = Math.max(0, panelThickness - handleShort / 2);
+            if (bottom) {
+                handleParams.bottomMargin = edgeOpen ? openOffset : 0;
+                ty = edgeOpen ? 0f : panelThickness - UiKit.dp(getContext(), 8);
+            } else {
+                handleParams.topMargin = edgeOpen ? openOffset : 0;
+                ty = edgeOpen ? 0f : -(panelThickness - UiKit.dp(getContext(), 8));
+            }
+        }
+
+        edgeContainer.setLayoutParams(panelParams);
+        edgeHandle.setLayoutParams(handleParams);
+        edgeContainer.animate().cancel();
+        if (animate) {
+            edgeContainer.animate().translationX(tx).translationY(ty).setDuration(120).start();
+        } else {
+            edgeContainer.setTranslationX(tx);
+            edgeContainer.setTranslationY(ty);
+        }
+        updateEdgeHandleVisual();
+        edgeContainer.bringToFront();
+        edgeHandle.bringToFront();
+        overlayLayer.bringToFront();
+        bubbleQuickLayer.bringToFront();
+        bubble.bringToFront();
+    }
+
+    private void updateEdgeHandleVisual() {
+        String symbol;
+        if (edgeAnchor == EdgeAnchor.RIGHT) {
+            symbol = edgeOpen ? "›" : "‹";
+        } else if (edgeAnchor == EdgeAnchor.LEFT) {
+            symbol = edgeOpen ? "‹" : "›";
+        } else if (edgeAnchor == EdgeAnchor.BOTTOM) {
+            symbol = edgeOpen ? "▼" : "▲";
+        } else {
+            symbol = edgeOpen ? "▲" : "▼";
+        }
+        edgeHandle.setText(symbol);
+        edgeHandle.setContentDescription(
+                "Handle panel " + edgeAnchorLabel().toLowerCase(java.util.Locale.ROOT)
+                        + " • " + (edgeOpen ? "terbuka" : "tertutup")
+                        + " • ketuk buka tutup • tekan lama pindah"
+        );
     }
 
     private boolean handleBubbleTouch(View view, MotionEvent event) {
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
+                hideBubbleShortcuts();
                 bubbleDownX = event.getRawX();
                 bubbleDownY = event.getRawY();
                 bubbleStartX = view.getX();
@@ -629,7 +828,7 @@ public final class WorkspaceShellView extends FrameLayout {
                 if (bubbleDragging) {
                     persistBubblePosition(view);
                 } else {
-                    showBubbleMenu();
+                    showBubbleShortcuts();
                 }
                 return true;
             default:
@@ -637,45 +836,85 @@ public final class WorkspaceShellView extends FrameLayout {
         }
     }
 
-    private void showBubbleMenu() {
-        List<String> rows = new ArrayList<>();
-        rows.add(kernel.editorEnvironment().shell().editEnabled()
-                ? "Edit: AKTIF"
-                : "Edit: NONAKTIF");
-        rows.add("Editor");
-        rows.add("Alat");
-        rows.add("Pengaturan");
-        rows.add("Jendela Mengambang");
-        showActionOverlay("Akses Cepat", rows, value -> {
-            if (value.startsWith("Edit:")) {
-                kernel.editorEnvironment().shell().setEditEnabled(
-                        !kernel.editorEnvironment().shell().editEnabled()
-                );
-                closeOverlay();
-                renderAll();
-            } else if ("Editor".equals(value)) {
-                openEditorChooser();
-            } else if ("Alat".equals(value)) {
-                closeOverlay();
-                showTools();
-            } else if ("Pengaturan".equals(value)) {
-                closeOverlay();
-                showSettings();
-            } else if ("Jendela Mengambang".equals(value)) {
-                closeOverlay();
-                showInfoOverlay(
-                        "Konteks Aktif",
-                        Arrays.asList(
-                                "Layar: " + labelScreen(),
-                                "Editor: " + editorEntry,
-                                "Fungsi: " + labelSection(active),
-                                "Representasi: " + labelRepresentation(),
-                                "Mode: " + labelEditorMode(),
-                                "Panel: " + (edgeOpen ? "TERBUKA" : "TERTUTUP")
-                        )
-                );
-            }
+    private void showBubbleShortcuts() {
+        bubbleQuickLayer.removeAllViews();
+        bubbleQuickLayer.setVisibility(VISIBLE);
+        bubbleQuickLayer.bringToFront();
+        bubble.bringToFront();
+
+        addBubbleShortcut(
+                kernel.editorEnvironment().shell().editEnabled()
+                        ? "Edit AKTIF"
+                        : "Edit NONAKTIF",
+                0,
+                -86,
+                () -> {
+                    kernel.editorEnvironment().shell().setEditEnabled(
+                            !kernel.editorEnvironment().shell().editEnabled()
+                    );
+                    hideBubbleShortcuts();
+                    renderAll();
+                }
+        );
+        addBubbleShortcut("Tool", 86, 0, () -> {
+            hideBubbleShortcuts();
+            showTools();
         });
+        addBubbleShortcut("Pengaturan", 0, 86, () -> {
+            hideBubbleShortcuts();
+            showSettings();
+        });
+        addBubbleShortcut("Floating Window", -86, 0, () -> {
+            hideBubbleShortcuts();
+            showFloatingContextWindow();
+        });
+    }
+
+    private void addBubbleShortcut(
+            String label,
+            int offsetXDp,
+            int offsetYDp,
+            Runnable action
+    ) {
+        TextView item = UiKit.chip(getContext(), label, false);
+        item.setGravity(Gravity.CENTER);
+        item.setTextSize(10.5f);
+        item.setElevation(UiKit.dp(getContext(), 18));
+        item.setOnClickListener(v -> action.run());
+
+        int width = UiKit.dp(getContext(), 104);
+        int height = UiKit.dp(getContext(), 42);
+        FrameLayout.LayoutParams p = new FrameLayout.LayoutParams(width, height);
+
+        float centerX = bubble.getX() + bubble.getWidth() / 2f;
+        float centerY = bubble.getY() + bubble.getHeight() / 2f;
+        float x = centerX + UiKit.dp(getContext(), offsetXDp) - width / 2f;
+        float y = centerY + UiKit.dp(getContext(), offsetYDp) - height / 2f;
+
+        float maxX = Math.max(0, getWidth() - width);
+        float maxY = Math.max(0, getHeight() - height);
+        p.leftMargin = Math.round(Math.max(0, Math.min(maxX, x)));
+        p.topMargin = Math.round(Math.max(0, Math.min(maxY, y)));
+        bubbleQuickLayer.addView(item, p);
+    }
+
+    private void hideBubbleShortcuts() {
+        bubbleQuickLayer.removeAllViews();
+        bubbleQuickLayer.setVisibility(GONE);
+    }
+
+    private void showFloatingContextWindow() {
+        showInfoOverlay(
+                "Jendela Mengambang",
+                Arrays.asList(
+                        "Layar: " + labelScreen(),
+                        "Editor: " + editorEntry,
+                        "Fungsi: " + labelSection(active),
+                        "Representasi: " + labelRepresentation(),
+                        "Mode: " + labelEditorMode(),
+                        "Panel: " + edgeAnchorLabel() + " / " + (edgeOpen ? "TERBUKA" : "TERTUTUP")
+                )
+        );
     }
 
     private void showTools() {
@@ -1870,6 +2109,46 @@ public final class WorkspaceShellView extends FrameLayout {
                 "toolbox.shell",
                 Context.MODE_PRIVATE
         );
+    }
+
+    private boolean isLandscape() {
+        return getResources().getConfiguration().orientation
+                == Configuration.ORIENTATION_LANDSCAPE;
+    }
+
+    private EdgeAnchor restoreEdgeAnchor() {
+        String key = "edge.anchor." + orientationSuffix();
+        String fallback = isLandscape() ? "BOTTOM" : "RIGHT";
+        String saved = preferences().getString(key, fallback);
+        try {
+            EdgeAnchor result = EdgeAnchor.valueOf(saved);
+            if (isLandscape()) {
+                return result == EdgeAnchor.TOP || result == EdgeAnchor.BOTTOM
+                        ? result
+                        : EdgeAnchor.BOTTOM;
+            }
+            return result == EdgeAnchor.LEFT || result == EdgeAnchor.RIGHT
+                    ? result
+                    : EdgeAnchor.RIGHT;
+        } catch (IllegalArgumentException error) {
+            return isLandscape() ? EdgeAnchor.BOTTOM : EdgeAnchor.RIGHT;
+        }
+    }
+
+    private void persistEdgeAnchor() {
+        preferences().edit()
+                .putString("edge.anchor." + orientationSuffix(), edgeAnchor.name())
+                .apply();
+    }
+
+    private String edgeAnchorLabel() {
+        switch (edgeAnchor) {
+            case LEFT: return "KIRI";
+            case RIGHT: return "KANAN";
+            case TOP: return "ATAS";
+            case BOTTOM:
+            default: return "BAWAH";
+        }
     }
 
     private String orientationSuffix() {
