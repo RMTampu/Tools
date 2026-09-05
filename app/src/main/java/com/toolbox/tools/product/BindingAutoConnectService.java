@@ -239,6 +239,7 @@ public final class BindingAutoConnectService {
                 + "."
                 + normalize(selected.targetPropertyId());
         update.put(prefix+".mode","one_way");
+        update.put("binding.ui.home.primary.mode","auto");
         update.put(prefix+".source",selected.sourceId());
         update.put(prefix+".field",selected.sourceFieldId());
         update.put(prefix+".target",selected.targetInstanceId());
@@ -287,12 +288,13 @@ public final class BindingAutoConnectService {
                 deletes.add(key);
             }
         }
-        if(!deletes.isEmpty()){
-            projects.applyResourceTransaction(
-                    Collections.emptyMap(),
-                    deletes
-            );
-        }
+        LinkedHashMap<String,String> update =
+                new LinkedHashMap<>();
+        update.put("binding.ui.home.primary.mode","none");
+        projects.applyResourceTransaction(
+                update,
+                deletes
+        );
     }
 
     public synchronized Result inspect(
