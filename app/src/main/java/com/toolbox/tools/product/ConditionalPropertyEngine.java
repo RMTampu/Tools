@@ -38,6 +38,18 @@ public final class ConditionalPropertyEngine {
     }
 
     private boolean evaluateAtom(String atom, Map<String, String> context) {
+        if ("true".equalsIgnoreCase(atom)
+                || "1".equals(atom)
+                || "yes".equalsIgnoreCase(atom)
+                || "aktif".equalsIgnoreCase(atom)) {
+            return true;
+        }
+        if ("false".equalsIgnoreCase(atom)
+                || "0".equals(atom)
+                || "no".equalsIgnoreCase(atom)
+                || "nonaktif".equalsIgnoreCase(atom)) {
+            return false;
+        }
         if (atom.startsWith("!")) {
             return !truthy(context.get(atom.substring(1).trim()));
         }
