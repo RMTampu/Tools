@@ -33,6 +33,7 @@ import com.toolbox.tools.product.FullProductVerifier;
 import com.toolbox.tools.product.ProductAcceptanceMatrix;
 import com.toolbox.tools.product.ProductCompletionServices;
 import com.toolbox.tools.repair.HealthReport;
+import com.toolbox.tools.protocol.ManagedAppProtocol;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -89,6 +90,7 @@ public final class WorkspaceShellView extends FrameLayout {
     private Insets systemInsets = Insets.NONE;
     private boolean edgeDragActive;
     private String activeTargetPackage;
+    private String activeTargetSession;
     private long lastSoakPssDriftBytes;
 
     private boolean bubbleDragging;
@@ -2391,24 +2393,71 @@ public final class WorkspaceShellView extends FrameLayout {
             for (ProductCompletionServices.InstalledTargetBridge.Target target : targets) {
                 String row = target.label() + " • " + target.packageName();
                 if (!row.equals(value)) continue;
-                activeTargetPackage = target.packageName();
-                LinkedHashMap<String, String> metadata = new LinkedHashMap<>();
-                metadata.put("target.active.package", target.packageName());
-                metadata.put(
-                        "target.active.capabilities",
-                        android.text.TextUtils.join(",", target.capabilities())
-                );
                 try {
+                    ManagedAppProtocol.Descriptor descriptor =
+                            new ManagedAppProtocol.Descriptor(
+                                    target.packageName(),
+                                    target.protocolVersion(),
+                                    kernel.productServices()
+                                            .managedAppProtocol()
+                                            .parseCapabilities(
+                                                    target.capabilities()
+                                            ),
+                                    target.projectId(),
+                                    target.revision()
+                            );
+                    ManagedAppProtocol.Session session =
+                            kernel.productServices()
+                                    .managedAppProtocol()
+                                    .negotiate(
+                                            descriptor,
+                                            descriptor.capabilities()
+                                    );
+                    activeTargetPackage = target.packageName();
+                    activeTargetSession = session.sessionId();
+                    LinkedHashMap<String, String> metadata =
+                            new LinkedHashMap<>();
+                    metadata.put(
+                            "target.active.package",
+                            target.packageName()
+                    );
+                    metadata.put(
+                            "target.active.session",
+                            session.sessionId()
+                    );
+                    metadata.put(
+                            "target.active.protocol",
+                            Integer.toString(
+                                    target.protocolVersion()
+                            )
+                    );
+                    metadata.put(
+                            "target.active.project",
+                            target.projectId()
+                    );
+                    metadata.put(
+                            "target.active.revision",
+                            Long.toString(target.revision())
+                    );
+                    metadata.put(
+                            "target.active.capabilities",
+                            android.text.TextUtils.join(
+                                    ",",
+                                    target.capabilities()
+                            )
+                    );
                     kernel.projectManager().applyResourceTransaction(
                             metadata,
                             Collections.emptySet()
                     );
                 } catch (RuntimeException error) {
-                    toast("Target gagal dipilih secara aman.");
+                    toast("Target gagal dinegosiasikan secara aman.");
                     return;
                 }
                 closeOverlay();
-                openEditor("Aplikasi Terinstal • " + target.label());
+                openEditor(
+                        "Aplikasi Terinstal • " + target.label()
+                );
                 return;
             }
         });
