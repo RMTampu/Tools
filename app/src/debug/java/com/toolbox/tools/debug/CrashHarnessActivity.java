@@ -66,6 +66,11 @@ public final class CrashHarnessActivity extends Activity {
                     )
                     .commit();
         } finally {
+            // Hapus activity/task debug dari ActivityTaskManager sebelum
+            // process dibunuh. Tanpa ini Android 11 dapat merestorasi harness
+            // sebagai top activity setelah process death dan membuat transaksi
+            // crash baru, sehingga witness recovery menjadi palsu/berulang.
+            finishAndRemoveTask();
             Process.killProcess(Process.myPid());
             System.exit(23);
         }
