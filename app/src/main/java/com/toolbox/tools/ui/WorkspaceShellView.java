@@ -33,6 +33,7 @@ import com.toolbox.tools.editor.VisualCapability;
 import com.toolbox.tools.editor.VisualCapabilitySet;
 import com.toolbox.tools.product.BackupManager;
 import com.toolbox.tools.product.FreezeEngine;
+import com.toolbox.tools.product.EditorContextStore;
 import com.toolbox.tools.product.FullProductVerifier;
 import com.toolbox.tools.product.ProductAcceptanceMatrix;
 import com.toolbox.tools.product.ProductCompletionServices;
@@ -136,6 +137,7 @@ public final class WorkspaceShellView extends FrameLayout {
         });
 
         edgeAnchor = restoreEdgeAnchor();
+        restoreEditorContext();
 
         workspace = new FrameLayout(context);
         workspace.setBackgroundColor(UiKit.LATAR);
@@ -291,6 +293,8 @@ public final class WorkspaceShellView extends FrameLayout {
         addView(bubble, bubbleParams);
 
         kernel.editorEnvironment().shell().setLiveCapability(true);
+        activateToolSection(active);
+        persistEditorContext();
         applyEdgeLayout(false);
         renderAll();
         post(() -> {
@@ -485,7 +489,11 @@ public final class WorkspaceShellView extends FrameLayout {
         View pane;
         if (kernel.editorEnvironment().shell().mode() != EditorMode.EDIT) {
             pane = new UiCanvasView(getContext(), kernel, objectId -> {
+                kernel.productServices()
+                        .editorContext()
+                        .select(objectId);
                 panelPage = PanelPage.CONTEXT;
+                persistEditorContext();
                 renderEdge();
             });
         } else {
@@ -806,6 +814,7 @@ public final class WorkspaceShellView extends FrameLayout {
     private void setRepresentation(Representation next) {
         representation = next;
         panelPage = PanelPage.ROOT;
+        persistEditorContext();
         renderAll();
     }
 
@@ -823,6 +832,7 @@ public final class WorkspaceShellView extends FrameLayout {
             }
             kernel.editorEnvironment().shell().setMode(mode);
             panelPage = PanelPage.ROOT;
+            persistEditorContext();
             renderAll();
         } catch (RuntimeException error) {
             toast("Mode Langsung belum tersedia untuk target ini.");
@@ -842,6 +852,7 @@ public final class WorkspaceShellView extends FrameLayout {
 
     private void setEdgeOpen(boolean open) {
         edgeOpen = open;
+        persistEditorContext();
         applyEdgeLayout(false);
     }
 
@@ -1082,6 +1093,9 @@ public final class WorkspaceShellView extends FrameLayout {
     }
 
     private void showFloatingContextWindow() {
+        kernel.productServices()
+                .editorContext()
+                .setFloating(true, "CENTER");
         overlayLayer.removeAllViews();
         overlayLayer.setVisibility(VISIBLE);
         overlayLayer.bringToFront();
@@ -3008,10 +3022,103 @@ public final class WorkspaceShellView extends FrameLayout {
         });
     }
 
+    private void restoreEditorContext() {
+        EditorContextStore context =
+                kernel.productServices().editorContext();
+        try {
+            String function = context.activeFunction();
+            active = AuthoringSection.valueOf(function);
+        } catch (RuntimeException ignored) {
+            active = AuthoringSection.UI;
+        }
+
+        String storedRepresentation = context.representation();
+        representation = "PROPERTIES".equals(storedRepresentation)
+                ? Representation.PROPERTI
+                : "CODE".equals(storedRepresentation)
+                ? Representation.KODE
+                : Representation.VISUAL;
+
+        try {
+            panelPage = PanelPage.valueOf(context.panelState());
+        } catch (RuntimeException ignored) {
+            panelPage = PanelPage.ROOT;
+        }
+
+        String storedScreen = context.screenId();
+        screen = "screen.editor.workspace".equals(storedScreen)
+                ? Screen.EDITOR_WORKSPACE
+                : "screen.editor.chooser".equals(storedScreen)
+                ? Screen.EDITOR_CHOOSER
+                : Screen.HOME;
+
+        edgeOpen = context.edgeOpen();
+        kernel.editorEnvironment().shell().setLiveCapability(true);
+        try {
+            kernel.editorEnvironment().shell().setMode(
+                    EditorMode.valueOf(context.mode())
+            );
+        } catch (RuntimeException ignored) {
+            kernel.editorEnvironment().shell().setMode(EditorMode.EDIT);
+        }
+
+        String selected = context.selectedObjectId();
+        if (selected != null
+                && kernel.editorEnvironment()
+                        .shell()
+                        .selectionAvailable()) {
+            try {
+                kernel.editorEnvironment()
+                        .shell()
+                        .selectObject(selected);
+            } catch (RuntimeException ignored) {
+                context.select(null);
+            }
+        }
+        context.clamp(
+                Math.max(1, getResources()
+                        .getDisplayMetrics().widthPixels),
+                Math.max(1, getResources()
+                        .getDisplayMetrics().heightPixels)
+        );
+    }
+
+    private void persistEditorContext() {
+        EditorContextStore context =
+                kernel.productServices().editorContext();
+        context.updateScreen(
+                screen == Screen.EDITOR_WORKSPACE
+                        ? "screen.editor.workspace"
+                        : screen == Screen.EDITOR_CHOOSER
+                        ? "screen.editor.chooser"
+                        : "screen.home"
+        );
+        context.setActiveFunction(active.name());
+        context.setRepresentation(
+                representation == Representation.PROPERTI
+                        ? "PROPERTIES"
+                        : representation == Representation.KODE
+                        ? "CODE"
+                        : "VISUAL"
+        );
+        context.setMode(
+                kernel.editorEnvironment().shell().mode().name()
+        );
+        context.setShell(true, edgeOpen);
+        context.setPanelState(panelPage.name());
+
+        String selected =
+                kernel.editorEnvironment().shell().selectedObjectId();
+        context.select(selected);
+    }
+
     private void closeOverlay() {
         overlayLayer.removeAllViews();
         overlayLayer.setVisibility(GONE);
         overlayLayer.setBackgroundColor(Color.TRANSPARENT);
+        kernel.productServices()
+                .editorContext()
+                .setFloating(false, "CENTER");
     }
 
     private void activateToolSection(
@@ -3030,6 +3137,10 @@ public final class WorkspaceShellView extends FrameLayout {
                         ? "tool.binding"
                         : "tool.asset"
         );
+        kernel.productServices()
+                .editorContext()
+                .setActiveFunction(section.name());
+        persistEditorContext();
     }
 
     private void showInstalledTargets() {
