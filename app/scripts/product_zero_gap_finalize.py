@@ -87,7 +87,9 @@ for marker in [
     "MEMORY_PRESSURE_POLICY=PASS",
     "PATCH_JOURNAL_RUNTIME=PASS",
     "SAFE_RECOVERY_RUNTIME=PASS",
- "EXTERNAL_MANAGED_EDITOR=PASS",
+    "PATCH_DESTRUCTIVE_MATRIX=PASS",
+    "FREEZE_DESTRUCTIVE_MATRIX=PASS",
+    "EXTERNAL_MANAGED_EDITOR=PASS",
     "RANCANGAN_BEHAVIOR_135=PASS",
 ]:
     assert marker in runtime,marker
@@ -143,6 +145,7 @@ maximal_cases={
 assert "scaleClassesMaterializeRealProjectGraphs" in maximal_cases
 assert "interruptedPatchJournalRollsBackOnBootstrap" in maximal_cases
 assert "safeModeAndFreezeSurviveKernelRecreation" in maximal_cases
+assert "realRecoverySnapshotsLiveInVisibleSnapshotsArea" in maximal_cases
 
 evidence={
     "schemaVersion":2,
@@ -186,6 +189,9 @@ evidence={
         "memoryPressurePolicy":"PASS",
         "patchJournalRuntime":"PASS",
         "safeRecoveryRuntime":"PASS",
+        "patchDestructiveMatrix":"PASS",
+        "freezeDestructiveMatrix":"PASS",
+        "visibleRecoverySnapshots":"PASS",
         "externalManagedEditor":"PASS",
     },
     "boundary":{
