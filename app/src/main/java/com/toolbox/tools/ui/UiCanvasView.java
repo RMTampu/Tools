@@ -18,6 +18,8 @@ import com.toolbox.tools.editor.VisualCapability;
 import com.toolbox.tools.editor.VisualCapabilitySet;
 import com.toolbox.tools.editor.VisualEditOperation;
 import com.toolbox.tools.editor.VisualEditTransaction;
+import com.toolbox.tools.product.InputRouter;
+import com.toolbox.tools.product.VisualLayoutEngine;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -58,6 +60,12 @@ public final class UiCanvasView extends FrameLayout {
     }
 
     private void build() {
+        if ("screen.detail".equals(
+                kernel.runtimeEnvironment().navigation().current().screenId()
+        )) {
+            buildDetail();
+            return;
+        }
         Context c = getContext();
 
         LinearLayout status = UiKit.baris(c);
@@ -245,10 +253,42 @@ public final class UiCanvasView extends FrameLayout {
                 c,
                 intResource("ui.object.home.primary.elevation.dp", 4)
         ));
-        primaryButton.setEnabled(boolResource(
-                "ui.object.home.primary.enabled",
-                true
-        ));
+        Map<String, String> conditionContext = new LinkedHashMap<>();
+        conditionContext.put(
+                "data.valid",
+                resource("data.valid", "true")
+        );
+        conditionContext.put(
+                "user.role",
+                resource("user.role", "admin")
+        );
+        boolean conditionVisible = kernel.productServices()
+                .conditionalProperties()
+                .evaluate(
+                        resource(
+                                "ui.object.home.primary.visible.if",
+                                "true"
+                        ),
+                        conditionContext
+                );
+        boolean conditionEnabled = kernel.productServices()
+                .conditionalProperties()
+                .evaluate(
+                        resource(
+                                "ui.object.home.primary.enabled.if",
+                                "true"
+                        ),
+                        conditionContext
+                );
+        primaryButton.setVisibility(
+                conditionVisible ? View.VISIBLE : View.GONE
+        );
+        primaryButton.setEnabled(
+                boolResource(
+                        "ui.object.home.primary.enabled",
+                        true
+                ) && conditionEnabled
+        );
         primaryButton.setContentDescription(resource(
                 "ui.object.home.primary.accessibility.label",
                 resource("ui.object.home.primary.text", "Buka Detail")
@@ -436,6 +476,28 @@ public final class UiCanvasView extends FrameLayout {
                     updates,
                     Collections.emptySet()
             );
+            if (!kernel.productServices()
+                    .visualLayout()
+                    .snapshot()
+                    .containsKey(objectId)) {
+                kernel.productServices().visualLayout().add(
+                        new VisualLayoutEngine.Node(
+                                objectId,
+                                "layout.root",
+                                Math.max(0, x),
+                                Math.max(0, y),
+                                UiKit.dp(getContext(), 112),
+                                UiKit.dp(getContext(), 40),
+                                2,
+                                false,
+                                VisualLayoutEngine.PointerBehavior.AUTO
+                        )
+                );
+                kernel.productServices().inputRouter().register(
+                        objectId,
+                        "container.home.main"
+                );
+            }
             renderDroppedObject(freeArea, objectId);
             Toast.makeText(
                     getContext(),
@@ -523,6 +585,11 @@ public final class UiCanvasView extends FrameLayout {
         }
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
+                kernel.productServices().inputRouter().dispatch(
+                        "object.home.primary",
+                        InputRouter.Event.TAP,
+                        InputRouter.Propagation.CONTINUE
+                );
                 downX = event.getRawX();
                 downY = event.getRawY();
                 startX = view.getX();
@@ -571,8 +638,21 @@ public final class UiCanvasView extends FrameLayout {
                                 Toast.LENGTH_SHORT
                         ).show();
                     }
-                } else if (listener != null) {
-                    listener.onSelected(objectId);
+                } else {
+                    try {
+                        kernel.editorEnvironment().shell().selectObject(
+                                objectId
+                        );
+                        if (listener != null) {
+                            listener.onSelected(objectId);
+                        }
+                    } catch (RuntimeException error) {
+                        Toast.makeText(
+                                getContext(),
+                                "Objek tidak tersedia untuk dipilih.",
+                                Toast.LENGTH_SHORT
+                        ).show();
+                    }
                 }
                 return true;
             default:
@@ -680,6 +760,12 @@ public final class UiCanvasView extends FrameLayout {
                     updates,
                     Collections.emptySet()
             );
+            kernel.productServices().visualLayout().move(
+                    "object.home.primary",
+                    view.getX(),
+                    view.getY(),
+                    UiKit.dp(getContext(), 8)
+            );
             selectPrimary();
         } catch (RuntimeException error) {
             Toast.makeText(
@@ -691,6 +777,11 @@ public final class UiCanvasView extends FrameLayout {
     }
 
     private void runPrimaryAction() {
+        kernel.productServices().inputRouter().dispatch(
+                "object.home.primary",
+                InputRouter.Event.TAP,
+                InputRouter.Propagation.CONTINUE
+        );
         String action = resource(
                 "logic.ui.home.primary.action",
                 "open.detail"
@@ -708,12 +799,66 @@ public final class UiCanvasView extends FrameLayout {
                     Toast.LENGTH_SHORT
             ).show();
         } else {
-            Toast.makeText(
-                    getContext(),
-                    "Aksi aplikasi dijalankan: membuka layar Detail.",
-                    Toast.LENGTH_SHORT
-            ).show();
+            LinkedHashMap<String, String> parameters =
+                    new LinkedHashMap<>();
+            parameters.put("parameter.item", "item.default");
+            kernel.runtimeEnvironment()
+                    .navigation()
+                    .navigate("route.detail", parameters);
+            removeAllViews();
+            build();
         }
+    }
+
+    private void buildDetail() {
+        Context c = getContext();
+        LinearLayout root = UiKit.kolom(c);
+        root.setPadding(
+                UiKit.dp(c, 24),
+                UiKit.dp(c, 48),
+                UiKit.dp(c, 24),
+                UiKit.dp(c, 24)
+        );
+        root.addView(UiKit.teks(
+                c,
+                "DETAIL • RUNTIME NAVIGATION",
+                10f,
+                UiKit.NEON
+        ));
+        root.addView(UiKit.judul(
+                c,
+                "Layar Detail",
+                24f
+        ));
+        TextView detail = UiKit.teks(
+                c,
+                "Navigasi ini dijalankan oleh NavigationManager dan Back Stack produksi.",
+                12f,
+                UiKit.TEKS_REDUP
+        );
+        detail.setPadding(
+                0,
+                UiKit.dp(c, 8),
+                0,
+                UiKit.dp(c, 18)
+        );
+        root.addView(detail);
+
+        TextView back = UiKit.tombol(
+                c,
+                "Kembali ke Beranda",
+                true
+        );
+        back.setOnClickListener(v -> {
+            kernel.runtimeEnvironment().navigation().back();
+            removeAllViews();
+            build();
+        });
+        root.addView(back);
+        addView(root, new FrameLayout.LayoutParams(
+                LayoutParams.MATCH_PARENT,
+                LayoutParams.MATCH_PARENT
+        ));
     }
 
     private void playConfiguredAnimation() {
