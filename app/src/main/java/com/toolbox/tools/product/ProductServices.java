@@ -28,6 +28,7 @@ public final class ProductServices {
     private final ScaleBenchmarkHarness benchmark;
     private final ToolLifecycleManager toolLifecycle;
     private final ProductCompletionServices completion;
+    private final ProductDeepContracts deep;
 
     public ProductServices(ProjectManager projects) {
         Objects.requireNonNull(projects, "projects");
@@ -55,6 +56,7 @@ public final class ProductServices {
         benchmark = new ScaleBenchmarkHarness();
         toolLifecycle = new ToolLifecycleManager();
         completion = new ProductCompletionServices();
+        deep = new ProductDeepContracts();
 
         projectGraph.registerEntity("screen.home");
         projectGraph.registerEntity("screen.detail");
@@ -129,6 +131,7 @@ public final class ProductServices {
     public ScaleBenchmarkHarness benchmark() { return benchmark; }
     public ToolLifecycleManager toolLifecycle() { return toolLifecycle; }
     public ProductCompletionServices completion() { return completion; }
+    public ProductDeepContracts deep() { return deep; }
 
     public boolean isReady() {
         return screens.startScreenId() != null
@@ -141,6 +144,7 @@ public final class ProductServices {
                 && !previewSandbox.snapshot().isEmpty()
                 && lifecycle.history().size() >= 1
                 && toolLifecycle.activeCount() == 1
-                && completion.isReady();
+                && completion.isReady()
+                && deep.isReady();
     }
 }
