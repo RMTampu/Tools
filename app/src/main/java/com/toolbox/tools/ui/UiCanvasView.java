@@ -536,6 +536,41 @@ public final class UiCanvasView extends FrameLayout {
         if (freeArea.findViewWithTag(objectId) != null) {
             return;
         }
+        if (!kernel.productServices().visualLayout().snapshot().containsKey(objectId)) {
+            kernel.productServices().visualLayout().add(
+                    new VisualLayoutEngine.Node(
+                            objectId,
+                            "layout.root",
+                            UiKit.dp(
+                                    getContext(),
+                                    intResource(objectId + ".position.x.dp", 22)
+                            ),
+                            UiKit.dp(
+                                    getContext(),
+                                    intResource(objectId + ".position.y.dp", 70)
+                            ),
+                            UiKit.dp(
+                                    getContext(),
+                                    intResource(objectId + ".width.dp", 112)
+                            ),
+                            UiKit.dp(
+                                    getContext(),
+                                    intResource(objectId + ".height.dp", 40)
+                            ),
+                            2,
+                            false,
+                            VisualLayoutEngine.PointerBehavior.AUTO
+                    )
+            );
+            try {
+                kernel.productServices().inputRouter().register(
+                        objectId,
+                        "container.home.main"
+                );
+            } catch (RuntimeException ignored) {
+                // Sudah terdaftar.
+            }
+        }
         TextView object = UiKit.judul(
                 getContext(),
                 resource(objectId + ".text", "Objek"),
@@ -585,11 +620,15 @@ public final class UiCanvasView extends FrameLayout {
         }
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
-                kernel.productServices().inputRouter().dispatch(
-                        "object.home.primary",
-                        InputRouter.Event.TAP,
-                        InputRouter.Propagation.CONTINUE
-                );
+                try {
+                    kernel.productServices().inputRouter().dispatch(
+                            objectId,
+                            InputRouter.Event.TAP,
+                            InputRouter.Propagation.CONTINUE
+                    );
+                } catch (RuntimeException ignored) {
+                    // Objek lama akan diregistrasi pada render berikutnya.
+                }
                 downX = event.getRawX();
                 downY = event.getRawY();
                 startX = view.getX();
@@ -666,6 +705,11 @@ public final class UiCanvasView extends FrameLayout {
         }
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
+                kernel.productServices().inputRouter().dispatch(
+                        "object.home.primary",
+                        InputRouter.Event.TAP,
+                        InputRouter.Propagation.CONTINUE
+                );
                 downX = event.getRawX();
                 downY = event.getRawY();
                 startX = view.getX();
