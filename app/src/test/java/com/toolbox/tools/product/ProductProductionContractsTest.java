@@ -261,6 +261,57 @@ public final class ProductProductionContractsTest {
         assertEquals(nonEmpty, restored);
     }
 
+    @Test public void cacheManagerSeparatesCategoryTierAndDisposesFiles() {
+        CacheManager cache = new CacheManager();
+        final int[] disposed = new int[] {0};
+
+        cache.put(
+                "preview.asset.a",
+                1024,
+                CacheManager.Priority.COLD,
+                CacheManager.Category.PREVIEW,
+                CacheManager.Tier.DISK,
+                () -> disposed[0]++
+        );
+        cache.put(
+                "thumb.asset.a",
+                512,
+                CacheManager.Priority.WARM,
+                CacheManager.Category.THUMBNAIL,
+                CacheManager.Tier.MEMORY
+        );
+
+        assertEquals(
+                1024,
+                cache.bytesByCategory(
+                        CacheManager.Category.PREVIEW
+                )
+        );
+        assertEquals(
+                512,
+                cache.totalBytes(CacheManager.Tier.MEMORY)
+        );
+        assertEquals(
+                1024,
+                cache.totalBytes(CacheManager.Tier.DISK)
+        );
+
+        assertEquals(
+                1,
+                cache.clearCategory(
+                        CacheManager.Category.PREVIEW
+                )
+        );
+        assertEquals(1, disposed[0]);
+        assertEquals(
+                0,
+                cache.bytesByCategory(
+                        CacheManager.Category.PREVIEW
+                )
+        );
+        assertEquals(512, cache.totalBytes());
+    }
+
     @Test public void freezeMaintainsFrozenBaseAndRecoverySlots() throws Exception {
         AppKernel kernel = AppKernel.createDefault();
         FreezeEngine freeze = kernel.productServices().freeze();
