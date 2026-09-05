@@ -229,6 +229,37 @@ public final class SafProjectStore implements ProjectStore {
         return out;
     }
 
+    @Override
+    public synchronized boolean deleteRecoveryRevision(long revision)
+            throws IOException {
+        if (revision <= 0) return false;
+        long current = valueOr(
+                readRefRecoverable("current.ref"),
+                -1
+        );
+        long previous = valueOr(
+                readRefRecoverable("previous.ref"),
+                -1
+        );
+        if (revision == current || revision == previous) {
+            return false;
+        }
+
+        Uri target = findChild(revisionName(revision));
+        if (target == null) return false;
+        try {
+            return DocumentsContract.deleteDocument(
+                    resolver,
+                    target
+            );
+        } catch (RuntimeException error) {
+            throw new IOException(
+                    "SAF recovery delete failed",
+                    error
+            );
+        }
+    }
+
     public synchronized Uri treeUri() {
         return treeUri;
     }
