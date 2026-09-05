@@ -2224,22 +2224,80 @@ public final class WorkspaceShellView extends FrameLayout {
     }
 
     private void showBuild() {
-        FullProductVerifier.Result product = new FullProductVerifier().verify(kernel);
+        FullProductVerifier.Result product =
+                new FullProductVerifier().verify(kernel);
         ProductAcceptanceMatrix.Result acceptance =
                 new ProductAcceptanceMatrix().evaluate(kernel);
-        boolean buildReady = kernel.readyCoordinator().preview().isPass();
-        showInfoOverlay(
+        boolean buildReady =
+                kernel.readyCoordinator().preview().isPass();
+        showActionOverlay(
                 "Bangun & SIAP",
                 Arrays.asList(
-                        "Kelengkapan Produk: " + (product.isPass() ? "LULUS" : "BELUM LULUS"),
-                        "Rancangan Behavior: " + acceptance.passedCount()
-                                + "/" + acceptance.requiredCount(),
-                        "Komponen Wajib: " + product.available().size() + "/" + product.requiredCount(),
-                        "Validator Build: " + (buildReady ? "LULUS" : "BLOKIR"),
+                        "Kelengkapan Produk: "
+                                + (product.isPass()
+                                    ? "LULUS"
+                                    : "BELUM LULUS"),
+                        "Rancangan Behavior: "
+                                + acceptance.passedCount()
+                                + "/"
+                                + acceptance.requiredCount(),
+                        "Komponen Wajib: "
+                                + product.available().size()
+                                + "/"
+                                + product.requiredCount(),
+                        "Validator Build: "
+                                + (buildReady
+                                    ? "LULUS"
+                                    : "BLOKIR"),
                         "IR Kanonik: tersedia",
+                        "Buat Build Handoff Terverifikasi",
                         "Signing: hanya jalur Private",
                         "Firebase: hanya setelah izin pengguna"
-                )
+                ),
+                value -> {
+                    if (!"Buat Build Handoff Terverifikasi"
+                            .equals(value)) {
+                        return;
+                    }
+                    if (!buildReady) {
+                        toast(
+                                "Build handoff diblokir oleh validator."
+                        );
+                        return;
+                    }
+                    if (!kernel.productServices()
+                            .completion()
+                            .storage
+                            .hasPersistentReadWriteGrant()) {
+                        toast(
+                                "Pilih folder ToolBox agar build handoff berada di Exports user-owned."
+                        );
+                        return;
+                    }
+                    try {
+                        BuildHandoffPackage handoff =
+                                kernel.buildHandoffManager()
+                                    .prepare(
+                                            AndroidBuildProvenance
+                                                .current()
+                                    );
+                        closeOverlay();
+                        toast(
+                                "Build handoff siap • Exports/"
+                                        + handoff.manifestFile()
+                                        + " • Build ID "
+                                        + handoff.buildId()
+                                            .substring(0, 16)
+                        );
+                    } catch (Exception error) {
+                        toast(
+                                "Build handoff gagal aman: "
+                                        + (error.getMessage() == null
+                                            ? "UNKNOWN"
+                                            : error.getMessage())
+                        );
+                    }
+                }
         );
     }
 

@@ -1,3 +1,11 @@
+def gitEnv = { String key, String fallback ->
+    def value = System.getenv(key)
+    return (value == null || value.trim().isEmpty()) ? fallback : value.trim()
+}
+def buildString = { String value ->
+    return '"' + value.replace('\\', '\\\\').replace('"', '\\"') + '"'
+}
+
 plugins {
     id 'com.android.application'
 }
@@ -13,6 +21,44 @@ android {
         versionCode 13
         versionName '13.0-produk-penuh-maksimal'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+        buildConfigField 'String', 'SOURCE_REPOSITORY',
+                buildString(gitEnv('GITHUB_REPOSITORY', 'RMTampu/Tools'))
+        buildConfigField 'String', 'SOURCE_COMMIT_SHA',
+                buildString(gitEnv(
+                        'GITHUB_SHA',
+                        '0000000000000000000000000000000000000000'
+                ))
+        buildConfigField 'String', 'SOURCE_REF',
+                buildString(gitEnv(
+                        'GITHUB_REF_NAME',
+                        'baseline-v12-maximal-work'
+                ))
+        buildConfigField 'String', 'CI_REPOSITORY',
+                buildString(gitEnv('GITHUB_REPOSITORY', 'RMTampu/Tools'))
+        buildConfigField 'String', 'CI_WORKFLOW_REF',
+                buildString(gitEnv(
+                        'GITHUB_WORKFLOW_REF',
+                        'RMTampu/Tools/.github/workflows/'
+                                + 'product-full-branch-ci.yml@'
+                                + 'refs/heads/baseline-v12-maximal-work'
+                ))
+        buildConfigField 'String', 'TOOLCHAIN_LOCK',
+                buildString(
+                        'gradle=8.2.1;agp=8.2.2;jdk=17;'
+                                + 'compileSdk=30;targetSdk=30'
+                )
+        buildConfigField 'String', 'EXPECTED_SIGNER_SHA256',
+                buildString(
+                        '290fb37d527935766e327781833493400dd647cfc8bdbe433254a2df52e4b8e4'
+                )
+        buildConfigField 'String', 'BASELINE_APK_SHA256',
+                buildString(
+                        '4f4579d87d867524e1b308de1a9a39ac2be0a18894d9317eea60a67dc4d91c05'
+                )
+    }
+
+    buildFeatures {
+        buildConfig true
     }
 
     lint {

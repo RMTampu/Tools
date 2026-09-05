@@ -4,6 +4,7 @@ import com.toolbox.tools.authoring.DefaultAuthoringFactory;
 import com.toolbox.tools.authoring.UnifiedAuthoringWorkspace;
 import com.toolbox.tools.build.ApplicationIrBuilder;
 import com.toolbox.tools.build.BuildValidator;
+import com.toolbox.tools.build.BuildHandoffManager;
 import com.toolbox.tools.build.CandidateIdentityFactory;
 import com.toolbox.tools.build.ReadyCoordinator;
 import com.toolbox.tools.delivery.RemotePatchVerifier;
@@ -63,6 +64,7 @@ public final class AppKernel {
     private final ApplicationIrBuilder applicationIrBuilder;
     private final CandidateIdentityFactory candidateIdentityFactory;
     private final ReadyCoordinator readyCoordinator;
+    private final BuildHandoffManager buildHandoffManager;
     private final RemotePatchVerifier remotePatchVerifier;
     private final DeclarativeProjectRuntime declarativeRuntime;
     private final SafePatchManager safePatchManager;
@@ -164,6 +166,12 @@ public final class AppKernel {
                 this,
                 this.buildValidator,
                 this.applicationIrBuilder
+        );
+        this.buildHandoffManager = new BuildHandoffManager(
+                this.projectManager,
+                this.readyCoordinator,
+                this.visibleWorkspaceStore,
+                this.configStore
         );
         this.remotePatchVerifier = RemoteTrustAnchor.createVerifier();
         this.declarativeRuntime = new DeclarativeProjectRuntime(
@@ -418,6 +426,9 @@ public final class AppKernel {
     public ApplicationIrBuilder applicationIrBuilder() { return applicationIrBuilder; }
     public CandidateIdentityFactory candidateIdentityFactory() { return candidateIdentityFactory; }
     public ReadyCoordinator readyCoordinator() { return readyCoordinator; }
+    public BuildHandoffManager buildHandoffManager() {
+        return buildHandoffManager;
+    }
     public RemotePatchVerifier remotePatchVerifier() { return remotePatchVerifier; }
     public SafePatchManager safePatchManager() { return safePatchManager; }
     public DeclarativeProjectRuntime declarativeRuntime() { return declarativeRuntime; }

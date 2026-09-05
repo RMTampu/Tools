@@ -224,10 +224,24 @@ public final class ProductAcceptanceMatrix {
                 "INCREMENTAL_VALIDATION", failures);
         pass(91, buildReady && completionReady, "BUILD_VALIDATOR", failures);
         pass(92, buildReady, "CANONICAL_IR", failures);
-        pass(93, completion.contains("immutable_build_package"), "BUILD_PACKAGE", failures);
-        pass(94, kernelReady, "BUILD_HANDOFF_OVERRIDE", failures);
-        pass(95, "30".equals(kernel.configStore().get("targetApi", "")), "SIGNING_BOUNDARY", failures);
-        pass(96, completion.contains("immutable_build_package"), "ARTIFACT_TRACEABILITY", failures);
+        pass(93, buildReady
+                && kernel.buildHandoffManager() != null
+                && completion.contains("immutable_build_package"),
+                "BUILD_PACKAGE", failures);
+        pass(94, buildReady
+                && kernel.buildHandoffManager() != null,
+                "BUILD_HANDOFF_OVERRIDE", failures);
+        pass(95, "30".equals(
+                        kernel.configStore().get("targetApi", "")
+                )
+                && "arm64".equals(
+                        kernel.configStore().get("targetAbi", "")
+                ),
+                "SIGNING_BOUNDARY", failures);
+        pass(96, buildReady
+                && kernel.buildHandoffManager() != null
+                && completion.contains("immutable_build_package"),
+                "ARTIFACT_TRACEABILITY", failures);
         pass(97, completion.contains("engine_extension"), "ENGINE_EXTENSION", failures);
         pass(98, completion.contains("engine_isolation") && deep.contains("static_tool_dependency_gate"), "NO_INTER_TOOL_DEP", failures);
         pass(99, completion.contains("engine_isolation") && deep.contains("lifecycle_release_probe"), "LIFECYCLE_COMPLIANCE", failures);
