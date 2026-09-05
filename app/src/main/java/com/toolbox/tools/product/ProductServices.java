@@ -81,6 +81,20 @@ public final class ProductServices {
                 visibleArtifacts
         );
         backgroundTasks = new BackgroundTaskManager();
+        backgroundTasks.register(
+                new BackgroundTaskManager.TaskSpec(
+                        "task.project.index.refresh",
+                        BackgroundTaskManager.DataType.NONE,
+                        BackgroundTaskManager.DataType.BOOLEAN,
+                        2,
+                        30_000,
+                        true,
+                        java.util.EnumSet.of(
+                                BackgroundTaskManager.Constraint.STORAGE_NOT_LOW
+                        ),
+                        BackgroundTaskManager.ExecutionClass.IO
+                )
+        );
         importSecurity = new ImportSecurityValidator();
         diagnostics = new DiagnosticCenter();
         clipboard = new ClipboardService();
@@ -91,6 +105,27 @@ public final class ProductServices {
         previewSandbox = new PreviewSandbox();
         editorContext = new EditorContextStore();
         lifecycle = new AppLifecycleManager();
+        lifecycle.registerAction(
+                "lifecycle.home.every",
+                "screen.home",
+                AppLifecycleManager.Event.SCREEN_ENTER,
+                AppLifecycleManager.Policy.EVERY_ENTER,
+                0
+        );
+        lifecycle.registerAction(
+                "lifecycle.home.first",
+                "screen.home",
+                AppLifecycleManager.Event.SCREEN_ENTER,
+                AppLifecycleManager.Policy.FIRST_ENTER,
+                0
+        );
+        lifecycle.registerAction(
+                "lifecycle.home.stale",
+                "screen.home",
+                AppLifecycleManager.Event.SCREEN_RETURN,
+                AppLifecycleManager.Policy.WHEN_DATA_STALE,
+                60_000
+        );
         importMerge = new ImportMergeManager();
         autoRepair = new AutoRepairEngine(
                 projects,
