@@ -204,8 +204,20 @@ jobs:
           sleep 2
 
           dump_ui(){
-            timeout 20s adb shell uiautomator dump --compressed /sdcard/window.xml >/dev/null
-            adb_cmd pull /sdcard/window.xml "$RUNNER_TEMP/window.xml" >/dev/null
+            local attempt
+            for attempt in $(seq 1 20); do
+              timeout 8s adb shell rm -f /sdcard/window.xml >/dev/null 2>&1 || true
+              if timeout 8s adb shell uiautomator dump --compressed /sdcard/window.xml >/dev/null 2>&1 \
+                && timeout 8s adb pull /sdcard/window.xml "$RUNNER_TEMP/window.xml" >/dev/null 2>&1 \
+                && test -s "$RUNNER_TEMP/window.xml"; then
+                echo "UI_DUMP_READY_ATTEMPT=$attempt"
+                return 0
+              fi
+              sleep 1
+            done
+            echo 'UI_DUMP_NOT_READY_AFTER_RETRY' >&2
+            timeout 8s adb shell dumpsys window windows >&2 || true
+            return 1
           }
 
           assert_text(){
