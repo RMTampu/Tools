@@ -135,6 +135,20 @@ public final class FileVisibleWorkspaceStore implements VisibleWorkspaceStore {
     }
 
     @Override
+    public synchronized boolean delete(Area area, String name)
+            throws IOException {
+        File target = new File(
+                directory(area),
+                safeName(name)
+        );
+        if (!target.exists()) return false;
+        if (!target.isFile()) {
+            throw new IOException("visible item is not a file");
+        }
+        return target.delete();
+    }
+
+    @Override
     public synchronized List<String> list(Area area) throws IOException {
         ensureLayout();
         String[] names = directory(area).list();
