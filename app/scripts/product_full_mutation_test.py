@@ -72,6 +72,27 @@ mutations=[
   "test":"com.toolbox.tools.delivery.SafePatchManagerTest.v2PatchRejectsRuntimeApkLineageMismatch"
  },
  {
+  "name":"legacy_patch_schema_downgrade",
+  "path":APP/"src/main/java/com/toolbox/tools/delivery/SafePatchManager.java",
+  "old":"if (runtimeApkIdentityBound()\n                && manifest.schemaVersion() < 2) {",
+  "new":"if (false) {",
+  "test":"com.toolbox.tools.delivery.SafePatchManagerTest.boundRuntimeRejectsLegacyV1Patch"
+ },
+ {
+  "name":"managed_target_host_rebind_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/delivery/SafePatchManager.java",
+  "old":"this.hostPackageName = packageName;",
+  "new":"this.hostPackageName = com.toolbox.tools.BuildConfig.APPLICATION_ID;",
+  "test":"com.toolbox.tools.delivery.SafePatchManagerTest.managedTargetHostContextRejectsWrongTargetPackage"
+ },
+ {
+  "name":"production_patch_schema_policy_bypass",
+  "path":APP/"src/main/java/com/toolbox/tools/delivery/EvolutionPackagePolicy.java",
+  "old":"if (schemaVersion != PatchManifest.CURRENT_SCHEMA_VERSION) {",
+  "new":"if (false) {",
+  "test":"com.toolbox.tools.product.MaximalProductionClosureTest.productionEvolutionPackagePolicyRejectsLegacySchema"
+ },
+ {
   "name":"post_activation_health_rollback_bypass",
   "path":APP/"src/main/java/com/toolbox/tools/delivery/SafePatchManager.java",
   "old":"if (!healthGate.isHealthy(committed)) {",

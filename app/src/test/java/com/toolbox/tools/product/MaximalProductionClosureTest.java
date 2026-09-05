@@ -10,6 +10,7 @@ import com.toolbox.tools.core.VisibleWorkspaceStore;
 import com.toolbox.tools.core.RecoveryManager;
 import com.toolbox.tools.android.ExternalAssetGateway;
 import com.toolbox.tools.delivery.PatchManifest;
+import com.toolbox.tools.delivery.EvolutionPackagePolicy;
 import com.toolbox.tools.delivery.PatchPayload;
 import com.toolbox.tools.delivery.PatchTransactionJournal;
 
@@ -438,6 +439,29 @@ public final class MaximalProductionClosureTest {
         );
         assertFalse(
                 new File(privateRoot, "recovery").exists()
+        );
+    }
+
+    @Test
+    public void productionEvolutionPackagePolicyRejectsLegacySchema() {
+        EvolutionPackagePolicy.requireProductionSchema(
+                PatchManifest.CURRENT_SCHEMA_VERSION
+        );
+        try {
+            EvolutionPackagePolicy.requireProductionSchema(1);
+            fail("legacy app.patch must be rejected");
+        } catch (IllegalArgumentException expected) {
+            assertTrue(
+                    expected.getMessage().contains("schema V2")
+            );
+        }
+        assertFalse(
+                EvolutionPackagePolicy.isProductionSchema(1)
+        );
+        assertTrue(
+                EvolutionPackagePolicy.isProductionSchema(
+                        PatchManifest.CURRENT_SCHEMA_VERSION
+                )
         );
     }
 

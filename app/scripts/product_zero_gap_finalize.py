@@ -160,6 +160,8 @@ safe_patch_cases={
     for case in safe_patch_root.findall("testcase")
 }
 assert "v2PatchRejectsRuntimeApkLineageMismatch" in safe_patch_cases
+assert "boundRuntimeRejectsLegacyV1Patch" in safe_patch_cases
+assert "managedTargetHostContextRejectsWrongTargetPackage" in safe_patch_cases
 assert "postActivationHealthFailureRollsBackAutomatically" in safe_patch_cases
 
 maximal_xml=(
@@ -177,6 +179,7 @@ assert "interruptedPatchJournalRollsBackOnBootstrap" in maximal_cases
 assert "safeModeAndFreezeSurviveKernelRecreation" in maximal_cases
 assert "realRecoverySnapshotsLiveInVisibleSnapshotsArea" in maximal_cases
 assert "productionRequiresUserOwnedSafBeforeEditing" in maximal_cases
+assert "productionEvolutionPackagePolicyRejectsLegacySchema" in maximal_cases
 
 evidence={
     "schemaVersion":2,

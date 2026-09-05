@@ -287,7 +287,10 @@ public final class ProductAcceptanceMatrix {
 
         // 102-118: live target, update/freeze, safety, health, performance and integrity.
         pass(102, installedTargetBridgeContractPass(), "INSTALLED_TARGET_BRIDGE", failures);
-        pass(103, deliveryReady && patchManifestV2ContractPass(), "DECLARATIVE_UPDATE", failures);
+        pass(103, deliveryReady
+                && patchManifestV2ContractPass()
+                && productionPatchSchemaPolicyPass(),
+                "DECLARATIVE_UPDATE", failures);
         pass(104, deliveryReady && patchJournalContractPass(), "UPDATE_PIPELINE", failures);
         pass(105, s.freeze() != null
                 && kernel.runtimeStateStore() != null, "FREEZE_ENGINE", failures);
@@ -342,7 +345,9 @@ public final class ProductAcceptanceMatrix {
         pass(127, runtimeReady && completion.contains("incremental_validation"), "BINDING_FLOW", failures);
         pass(128, completion.contains("flow_execution"), "LOGIC_FLOW", failures);
         pass(129, repairReady && deliveryReady
-                && kernel.safePatchManager().journal() != null, "REPAIR_EVOLUTION_FLOW", failures);
+                && kernel.safePatchManager().journal() != null
+                && targetEvolutionBindingContractPass(kernel),
+                "REPAIR_EVOLUTION_FLOW", failures);
         pass(130, s.freeze() != null
                 && kernel.runtimeStateStore() != null, "FREEZE_FLOW", failures);
         pass(131, resourcePressureContractPass()
@@ -839,6 +844,106 @@ public final class ProductAcceptanceMatrix {
                             "com.toolbox.tools",
                             12,
                             capabilities
+                    );
+        } catch (RuntimeException error) {
+            return false;
+        }
+    }
+
+    private static boolean productionPatchSchemaPolicyPass() {
+        try {
+            com.toolbox.tools.delivery.EvolutionPackagePolicy
+                    .requireProductionSchema(
+                            com.toolbox.tools.delivery.PatchManifest
+                                    .CURRENT_SCHEMA_VERSION
+                    );
+            try {
+                com.toolbox.tools.delivery.EvolutionPackagePolicy
+                        .requireProductionSchema(1);
+                return false;
+            } catch (IllegalArgumentException expected) {
+                return !com.toolbox.tools.delivery
+                        .EvolutionPackagePolicy
+                        .isProductionSchema(1);
+            }
+        } catch (RuntimeException error) {
+            return false;
+        }
+    }
+
+    private static boolean targetEvolutionBindingContractPass(
+            AppKernel kernel
+    ) {
+        try {
+            com.toolbox.tools.delivery.SafePatchManager proof =
+                    new com.toolbox.tools.delivery.SafePatchManager(
+                            kernel.projectManager(),
+                            kernel.recoveryManager(),
+                            kernel.remotePatchVerifier(),
+                            com.toolbox.tools.delivery
+                                    .PatchActivationHook.NO_OP,
+                            new com.toolbox.tools.core
+                                    .MemoryRuntimeStateStore()
+                    );
+            java.util.Set<String> capabilities =
+                    new java.util.LinkedHashSet<>(
+                            java.util.Arrays.asList("ui", "asset")
+                    );
+            proof.bindHostContext(
+                    "com.example.target",
+                    7,
+                    capabilities
+            );
+            proof.bindRuntimeApkIdentity(
+                    repeatHex('a'),
+                    repeatHex('b')
+            );
+
+            com.toolbox.tools.delivery.PatchPayload payload =
+                    new com.toolbox.tools.delivery.PatchPayload(
+                            Collections.singletonMap(
+                                    "ui.acceptance.target",
+                                    "ok"
+                            ),
+                            Collections.emptySet()
+                    );
+            LinkedHashMap<String, String> hashes =
+                    new LinkedHashMap<>();
+            hashes.put("payload", payload.sha256());
+            com.toolbox.tools.delivery.PatchManifest manifest =
+                    new com.toolbox.tools.delivery.PatchManifest(
+                            "patch.acceptance.target",
+                            "project.default",
+                            1,
+                            2,
+                            repeatHex('a'),
+                            repeatHex('c'),
+                            repeatHex('b'),
+                            payload.sha256(),
+                            "DECLARATIVE_PATCH",
+                            "com.example.target",
+                            "7",
+                            7,
+                            7,
+                            Collections.emptySet(),
+                            capabilities,
+                            hashes,
+                            "EVOLUTION"
+                    );
+            return "com.example.target".equals(
+                            proof.hostPackageName()
+                    )
+                    && proof.hostVersionCode() == 7
+                    && proof.runtimeApkIdentityBound()
+                    && manifest.supportsHost(
+                            proof.hostPackageName(),
+                            proof.hostVersionCode(),
+                            proof.hostCapabilities()
+                    )
+                    && !manifest.supportsHost(
+                            "com.toolbox.tools",
+                            7,
+                            proof.hostCapabilities()
                     );
         } catch (RuntimeException error) {
             return false;

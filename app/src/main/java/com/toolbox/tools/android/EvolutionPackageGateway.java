@@ -4,6 +4,7 @@ import android.content.ContentResolver;
 import android.net.Uri;
 
 import com.toolbox.tools.delivery.PatchManifest;
+import com.toolbox.tools.delivery.EvolutionPackagePolicy;
 import com.toolbox.tools.delivery.PatchPayload;
 import com.toolbox.tools.delivery.RemoteVerificationProof;
 
@@ -60,12 +61,9 @@ public final class EvolutionPackageGateway {
         );
 
         int schemaVersion = root.optInt("schemaVersion", -1);
-        if (schemaVersion
-                != PatchManifest.CURRENT_SCHEMA_VERSION) {
-            throw new IllegalArgumentException(
-                    "app.patch produksi wajib schema V2"
-            );
-        }
+        EvolutionPackagePolicy.requireProductionSchema(
+                schemaVersion
+        );
 
         JSONObject payloadJson = root.getJSONObject("payload");
         Map<String, String> upserts = new LinkedHashMap<>();
