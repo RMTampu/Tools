@@ -947,6 +947,588 @@ public final class MaximalProductionClosureTest {
         }
     }
 
+    @Test
+    public void visualStateHoldPreservesSurfaceTabPanelDropdownAndScroll() {
+        ProductCompletionServices.UiStateHoldManager hold =
+                new ProductCompletionServices.UiStateHoldManager();
+        hold.open(
+                "screen.home",
+                ProductCompletionServices.UiStateHoldManager.Surface.DRAWER
+        );
+        hold.open(
+                "screen.home",
+                ProductCompletionServices.UiStateHoldManager.Surface.DIALOG
+        );
+        hold.selectTab("screen.home", "tab.detail");
+        hold.setPanelExpanded(
+                "screen.home",
+                "panel.inspector",
+                true
+        );
+        hold.setDropdownSelection(
+                "screen.home",
+                "dropdown.filter",
+                "filter.active"
+        );
+        hold.setScroll(
+                "screen.home",
+                "scroll.content",
+                12,
+                345
+        );
+
+        ProductCompletionServices.UiStateHoldManager.Snapshot before =
+                hold.enterEdit("screen.home");
+        ProductCompletionServices.UiStateHoldManager.Snapshot after =
+                hold.exitEdit("screen.home");
+
+        assertEquals(before, after);
+        assertTrue(
+                after.surfaces().contains(
+                        ProductCompletionServices
+                                .UiStateHoldManager
+                                .Surface.DRAWER
+                )
+        );
+        assertTrue(
+                after.surfaces().contains(
+                        ProductCompletionServices
+                                .UiStateHoldManager
+                                .Surface.DIALOG
+                )
+        );
+        assertEquals("tab.detail", after.selectedTabId());
+        assertTrue(
+                after.expandedPanels().contains(
+                        "panel.inspector"
+                )
+        );
+        assertEquals(
+                "filter.active",
+                after.dropdownSelection()
+                        .get("dropdown.filter")
+        );
+        assertEquals(
+                345,
+                after.scrollPositions()
+                        .get("scroll.content")
+                        .y()
+        );
+    }
+
+    @Test
+    public void richPropertyContractsExposeRangeUnitStateConverterAndTypedRefs() {
+        AppKernel kernel = AppKernel.createDefault();
+
+        com.toolbox.tools.library.ComponentDefinition button =
+                kernel.libraryManager()
+                        .components()
+                        .latestReady("component.button");
+        assertNotNull(button);
+        com.toolbox.tools.library.PropertyContract radius =
+                button.properties().get("property.radius");
+        assertNotNull(radius);
+        assertEquals(
+                com.toolbox.tools.library.PropertyType.DIMENSION,
+                radius.type()
+        );
+        assertEquals("dp", radius.unit());
+        assertEquals(
+                Double.valueOf(0d),
+                radius.minValue()
+        );
+        assertEquals(
+                Double.valueOf(4096d),
+                radius.maxValue()
+        );
+        assertEquals(
+                "converter.dimension.dp",
+                radius.converterId()
+        );
+        assertTrue(radius.accepts("24"));
+        assertFalse(radius.accepts("-1"));
+
+        com.toolbox.tools.library.ComponentDefinition image =
+                kernel.libraryManager()
+                        .components()
+                        .latestReady("component.image");
+        assertNotNull(image);
+        assertEquals(
+                com.toolbox.tools.library.PropertyType.ASSET,
+                image.properties()
+                        .get("property.asset")
+                        .type()
+        );
+
+        com.toolbox.tools.library.ComponentDefinition list =
+                kernel.libraryManager()
+                        .components()
+                        .latestReady("component.list");
+        assertNotNull(list);
+        assertEquals(
+                com.toolbox.tools.library.PropertyType.REFERENCE,
+                list.properties()
+                        .get("property.source")
+                        .type()
+        );
+
+        com.toolbox.tools.library.PropertyContract stateSpecific =
+                new com.toolbox.tools.library.PropertyContract(
+                        "property.state.opacity",
+                        com.toolbox.tools.library.PropertyType.NUMBER,
+                        false,
+                        true,
+                        "1",
+                        Collections.emptySet(),
+                        0d,
+                        1d,
+                        null,
+                        Collections.singleton("state.disabled"),
+                        "converter.number.safe"
+                );
+        assertTrue(
+                stateSpecific.appliesToState(
+                        "state.disabled"
+                )
+        );
+        assertFalse(
+                stateSpecific.appliesToState(
+                        "state.normal"
+                )
+        );
+        assertFalse(stateSpecific.accepts("2"));
+    }
+
+    @Test
+    public void safeConverterRequiresExplicitRegisteredConversion() {
+        AppKernel kernel = AppKernel.createDefault();
+        com.toolbox.tools.runtime.ValueConverterRegistry converters =
+                kernel.runtimeEnvironment().converters();
+
+        assertTrue(
+                converters.canConvert(
+                        com.toolbox.tools.runtime.ValueType.NUMBER,
+                        com.toolbox.tools.runtime.ValueType.TEXT
+                )
+        );
+        assertFalse(
+                converters.canConvert(
+                        com.toolbox.tools.runtime.ValueType.LIST,
+                        com.toolbox.tools.runtime.ValueType.TEXT
+                )
+        );
+        assertEquals(
+                "12.5",
+                converters.convert(
+                        com.toolbox.tools.runtime.ValueType.NUMBER,
+                        com.toolbox.tools.runtime.ValueType.TEXT,
+                        12.5d
+                )
+        );
+
+        Map<String, com.toolbox.tools.runtime.ValueType> payload =
+                new LinkedHashMap<>();
+        payload.put(
+                "parameter.value",
+                com.toolbox.tools.runtime.ValueType.NUMBER
+        );
+        com.toolbox.tools.runtime.EventDefinition event =
+                new com.toolbox.tools.runtime.EventDefinition(
+                        "event.converter.proof",
+                        payload
+                );
+
+        Map<String, com.toolbox.tools.runtime.ValueType> textInput =
+                new LinkedHashMap<>();
+        textInput.put(
+                "parameter.value",
+                com.toolbox.tools.runtime.ValueType.TEXT
+        );
+        com.toolbox.tools.runtime.ActionContract textAction =
+                new com.toolbox.tools.runtime.ActionContract(
+                        "action.converter.text",
+                        textInput,
+                        Collections.emptyMap(),
+                        null,
+                        com.toolbox.tools.runtime.ExecutionMode.SYNC,
+                        0,
+                        false,
+                        true
+                );
+        com.toolbox.tools.runtime.EventActionCompatibility.Result matched =
+                new com.toolbox.tools.runtime.EventActionCompatibility(
+                        converters
+                ).match(event, textAction);
+        assertTrue(matched.compatible());
+        assertEquals(
+                "converter.number.text",
+                matched.converterIds()
+                        .get("parameter.value")
+        );
+
+        Map<String, com.toolbox.tools.runtime.ValueType> listInput =
+                new LinkedHashMap<>();
+        listInput.put(
+                "parameter.value",
+                com.toolbox.tools.runtime.ValueType.LIST
+        );
+        com.toolbox.tools.runtime.ActionContract unsafe =
+                new com.toolbox.tools.runtime.ActionContract(
+                        "action.converter.list",
+                        listInput,
+                        Collections.emptyMap(),
+                        null,
+                        com.toolbox.tools.runtime.ExecutionMode.SYNC,
+                        0,
+                        false,
+                        true
+                );
+        assertFalse(
+                new com.toolbox.tools.runtime.EventActionCompatibility(
+                        converters
+                ).match(event, unsafe).compatible()
+        );
+    }
+
+    @Test
+    public void compositeActionExecutorSupportsRetryFallbackCompensationAndCancellation() {
+        com.toolbox.tools.runtime.ActionRegistry actions =
+                new com.toolbox.tools.runtime.ActionRegistry();
+
+        actions.register(new com.toolbox.tools.runtime.ActionContract(
+                "action.step.one",
+                "execution.step.one",
+                Collections.emptyMap(),
+                Collections.emptyMap(),
+                null,
+                com.toolbox.tools.runtime.ExecutionMode.SYNC,
+                0,
+                false,
+                true,
+                0,
+                com.toolbox.tools.runtime.ActionFailurePolicy.STOP
+        ));
+        actions.register(new com.toolbox.tools.runtime.ActionContract(
+                "action.step.retry",
+                "execution.step.retry",
+                Collections.emptyMap(),
+                Collections.emptyMap(),
+                null,
+                com.toolbox.tools.runtime.ExecutionMode.SYNC,
+                0,
+                false,
+                true,
+                1,
+                com.toolbox.tools.runtime.ActionFailurePolicy.STOP
+        ));
+        actions.register(new com.toolbox.tools.runtime.ActionContract(
+                "action.step.fail",
+                "execution.step.fail",
+                Collections.emptyMap(),
+                Collections.emptyMap(),
+                null,
+                com.toolbox.tools.runtime.ExecutionMode.SYNC,
+                0,
+                false,
+                true,
+                0,
+                com.toolbox.tools.runtime.ActionFailurePolicy.COMPENSATE
+        ));
+        actions.register(new com.toolbox.tools.runtime.ActionContract(
+                "action.compensate",
+                "execution.compensate",
+                Collections.emptyMap(),
+                Collections.emptyMap(),
+                null,
+                com.toolbox.tools.runtime.ExecutionMode.SYNC,
+                0,
+                false,
+                true,
+                0,
+                com.toolbox.tools.runtime.ActionFailurePolicy.STOP
+        ));
+
+        final int[] retryCalls = new int[] {0};
+        com.toolbox.tools.runtime.CompositeActionExecutor executor =
+                new com.toolbox.tools.runtime.CompositeActionExecutor(
+                        actions,
+                        (contract, executionId, token) -> {
+                            if ("action.step.retry".equals(
+                                    contract.actionId()
+                            )) {
+                                retryCalls[0]++;
+                                return retryCalls[0] == 1
+                                        ? com.toolbox.tools.runtime
+                                            .CompositeActionExecutor
+                                            .Outcome
+                                            .failed("TRANSIENT")
+                                        : com.toolbox.tools.runtime
+                                            .CompositeActionExecutor
+                                            .Outcome
+                                            .success();
+                            }
+                            if ("action.step.fail".equals(
+                                    contract.actionId()
+                            )) {
+                                return com.toolbox.tools.runtime
+                                        .CompositeActionExecutor
+                                        .Outcome
+                                        .failed("EXPECTED");
+                            }
+                            return com.toolbox.tools.runtime
+                                    .CompositeActionExecutor
+                                    .Outcome
+                                    .success();
+                        },
+                        conditionId -> true
+                );
+
+        com.toolbox.tools.runtime.CompositeAction retryComposite =
+                new com.toolbox.tools.runtime.CompositeAction(
+                        "composite.retry",
+                        Collections.singletonList(
+                                "action.step.retry"
+                        ),
+                        null,
+                        null,
+                        null,
+                        null
+                );
+        com.toolbox.tools.runtime.CompositeActionExecutor.Result retry =
+                executor.execute(
+                        retryComposite,
+                        "run.retry",
+                        5_000,
+                        null
+                );
+        assertTrue(retry.success());
+        assertEquals(2, retryCalls[0]);
+
+        com.toolbox.tools.runtime.CompositeAction compensateComposite =
+                new com.toolbox.tools.runtime.CompositeAction(
+                        "composite.compensate",
+                        Arrays.asList(
+                                "action.step.one",
+                                "action.step.fail"
+                        ),
+                        null,
+                        null,
+                        null,
+                        "action.compensate"
+                );
+        com.toolbox.tools.runtime.CompositeActionExecutor.Result failed =
+                executor.execute(
+                        compensateComposite,
+                        "run.compensate",
+                        5_000,
+                        null
+                );
+        assertFalse(failed.success());
+        assertFalse(failed.compensated().isEmpty());
+        assertTrue(
+                failed.compensated().contains(
+                        "action.step.one"
+                )
+        );
+
+        com.toolbox.tools.runtime.CompositeActionExecutor.CancellationToken
+                cancelled =
+                new com.toolbox.tools.runtime.CompositeActionExecutor
+                        .CancellationToken();
+        cancelled.cancel();
+        com.toolbox.tools.runtime.CompositeActionExecutor.Result cancelledResult =
+                executor.execute(
+                        retryComposite,
+                        "run.cancelled",
+                        5_000,
+                        cancelled
+                );
+        assertTrue(cancelledResult.cancelled());
+    }
+
+    @Test
+    public void flowValidatorRequiresBranchAsyncLoopContractsAndMaterializerIsListFirst() {
+        Map<String, com.toolbox.tools.runtime.FlowPort> branchOutputs =
+                new LinkedHashMap<>();
+        branchOutputs.put(
+                "branch.true",
+                new com.toolbox.tools.runtime.FlowPort(
+                        "branch.true",
+                        com.toolbox.tools.runtime.ValueType.VOID
+                )
+        );
+        branchOutputs.put(
+                "branch.false",
+                new com.toolbox.tools.runtime.FlowPort(
+                        "branch.false",
+                        com.toolbox.tools.runtime.ValueType.VOID
+                )
+        );
+        com.toolbox.tools.runtime.FlowNode branch =
+                new com.toolbox.tools.runtime.FlowNode(
+                        "node.branch",
+                        com.toolbox.tools.runtime.FlowNodeType.BRANCH,
+                        Collections.emptyMap(),
+                        branchOutputs,
+                        0,
+                        0,
+                        0,
+                        0
+                );
+
+        Map<String, com.toolbox.tools.runtime.FlowPort> asyncOutputs =
+                new LinkedHashMap<>();
+        for (String id : Arrays.asList(
+                "async.start",
+                "async.success",
+                "async.failure",
+                "async.cancelled",
+                "async.timeout"
+        )) {
+            asyncOutputs.put(
+                    id,
+                    new com.toolbox.tools.runtime.FlowPort(
+                            id,
+                            com.toolbox.tools.runtime.ValueType.VOID
+                    )
+            );
+        }
+        com.toolbox.tools.runtime.FlowNode async =
+                new com.toolbox.tools.runtime.FlowNode(
+                        "node.async",
+                        com.toolbox.tools.runtime.FlowNodeType.ASYNC,
+                        Collections.emptyMap(),
+                        asyncOutputs,
+                        0,
+                        0,
+                        0,
+                        2_000
+                );
+
+        Map<String, com.toolbox.tools.runtime.FlowPort> loopOutputs =
+                new LinkedHashMap<>();
+        loopOutputs.put(
+                "loop.body",
+                new com.toolbox.tools.runtime.FlowPort(
+                        "loop.body",
+                        com.toolbox.tools.runtime.ValueType.VOID
+                )
+        );
+        loopOutputs.put(
+                "loop.exit",
+                new com.toolbox.tools.runtime.FlowPort(
+                        "loop.exit",
+                        com.toolbox.tools.runtime.ValueType.VOID
+                )
+        );
+        com.toolbox.tools.runtime.FlowNode loop =
+                new com.toolbox.tools.runtime.FlowNode(
+                        "node.loop",
+                        com.toolbox.tools.runtime.FlowNodeType.LOOP,
+                        Collections.emptyMap(),
+                        loopOutputs,
+                        0,
+                        0,
+                        100,
+                        5_000
+                );
+
+        com.toolbox.tools.runtime.FlowGraph graph =
+                new com.toolbox.tools.runtime.FlowGraph(
+                        "flow.contract",
+                        branch.nodeId(),
+                        Arrays.asList(branch, async, loop),
+                        Collections.emptyList()
+                );
+        assertTrue(
+                new com.toolbox.tools.runtime.FlowValidator()
+                        .validate(graph)
+                        .isPass()
+        );
+
+        com.toolbox.tools.runtime.ActiveFlowMaterializer materializer =
+                new com.toolbox.tools.runtime.ActiveFlowMaterializer();
+        materializer.register(graph);
+        assertEquals(
+                Collections.singletonMap(
+                        "flow.contract",
+                        "node.branch"
+                ),
+                materializer.lightweightIndex()
+        );
+        assertSame(
+                graph,
+                materializer.materialize(
+                        "flow.contract"
+                )
+        );
+
+        Map<String, com.toolbox.tools.runtime.FlowPort> badLoopOutputs =
+                new LinkedHashMap<>();
+        badLoopOutputs.put(
+                "loop.body",
+                new com.toolbox.tools.runtime.FlowPort(
+                        "loop.body",
+                        com.toolbox.tools.runtime.ValueType.VOID
+                )
+        );
+        com.toolbox.tools.runtime.FlowNode badLoop =
+                new com.toolbox.tools.runtime.FlowNode(
+                        "node.loop.bad",
+                        com.toolbox.tools.runtime.FlowNodeType.LOOP,
+                        Collections.emptyMap(),
+                        badLoopOutputs,
+                        0,
+                        0,
+                        10,
+                        1_000
+                );
+        com.toolbox.tools.runtime.FlowGraph badGraph =
+                new com.toolbox.tools.runtime.FlowGraph(
+                        "flow.contract.bad",
+                        badLoop.nodeId(),
+                        Collections.singletonList(badLoop),
+                        Collections.emptyList()
+                );
+        assertFalse(
+                new com.toolbox.tools.runtime.FlowValidator()
+                        .validate(badGraph)
+                        .isPass()
+        );
+    }
+
+    @Test
+    public void tombstoneCompactionNeverAllowsStableIdReuse() {
+        ProjectGraphManager graph = new ProjectGraphManager();
+        graph.registerEntity("object.retired");
+        graph.delete("object.retired");
+        assertTrue(
+                graph.tombstones().contains(
+                        "object.retired"
+                )
+        );
+
+        graph.compactTombstones(Collections.emptySet());
+        assertFalse(
+                graph.tombstones().contains(
+                        "object.retired"
+                )
+        );
+        assertTrue(graph.wasEverUsed("object.retired"));
+        assertFalse(graph.canAllocate("object.retired"));
+        assertFalse(graph.undoDelete());
+
+        try {
+            graph.registerEntity("object.retired");
+            fail("Stable ID lama tidak boleh didaur ulang");
+        } catch (IllegalArgumentException expected) {
+            assertTrue(
+                    expected.getMessage()
+                            .contains("tidak boleh didaur ulang")
+            );
+        }
+    }
+
     private static String sha256(byte[] bytes)
             throws Exception {
         MessageDigest digest =
