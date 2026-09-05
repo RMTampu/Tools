@@ -487,6 +487,52 @@ public final class ProductRuntimeInstrumentedTest {
                                 .isSafeMode()
                 );
                 assertNull(activity.shellForTest());
+
+                View root = activity.getWindow()
+                        .getDecorView();
+                assertNotNull(
+                        findTextViewByText(
+                                root,
+                                "ToolBox • Mode Aman Independen"
+                        )
+                );
+                assertNotNull(
+                        findTextViewByText(
+                                root,
+                                "Pulihkan Snapshot Known-Good"
+                        )
+                );
+                TextView quarantine = findTextViewByText(
+                        root,
+                        "Karantina Project Aktif"
+                );
+                assertNotNull(quarantine);
+                quarantine.performClick();
+                assertTrue(
+                        activity.kernelForTest()
+                                .safeModeController()
+                                .quarantined()
+                                .contains("project.default")
+                );
+                TextView release = findTextViewByText(
+                        root,
+                        "Lepas Karantina Project"
+                );
+                assertNotNull(release);
+                release.performClick();
+                assertFalse(
+                        activity.kernelForTest()
+                                .safeModeController()
+                                .quarantined()
+                                .contains("project.default")
+                );
+                assertNotNull(
+                        findTextViewByText(
+                                root,
+                                "Ekspor Diagnostik"
+                        )
+                );
+
                 activity.kernelForTest()
                         .safeModeController()
                         .exitIfHealthy();
@@ -748,6 +794,29 @@ public final class ProductRuntimeInstrumentedTest {
                 }
             });
         }
+    }
+
+    private static TextView findTextViewByText(
+            View view,
+            String text
+    ) {
+        if (view instanceof TextView
+                && text.contentEquals(
+                        ((TextView) view).getText()
+                )) {
+            return (TextView) view;
+        }
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                TextView found = findTextViewByText(
+                        group.getChildAt(i),
+                        text
+                );
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
 
     private static TextView findTextViewByDescription(
