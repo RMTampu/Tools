@@ -109,6 +109,13 @@ public final class MemoryVisibleWorkspaceStore implements VisibleWorkspaceStore 
     }
 
     @Override
+    public synchronized boolean delete(Area area, String name) {
+        return data.get(area).remove(
+                FileVisibleWorkspaceStore.safeName(name)
+        ) != null;
+    }
+
+    @Override
     public synchronized List<String> list(Area area) {
         List<String> out = new ArrayList<>(data.get(area).keySet());
         Collections.sort(out);
