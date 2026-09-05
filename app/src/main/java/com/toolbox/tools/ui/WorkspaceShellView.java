@@ -3566,11 +3566,23 @@ public final class WorkspaceShellView extends FrameLayout {
         }
         List<String> rows = new ArrayList<>();
         for (ProductCompletionServices.InstalledTargetBridge.Target target : targets) {
-            rows.add(target.label() + " • " + target.packageName());
+            rows.add(
+                    target.label()
+                            + " • "
+                            + target.packageName()
+                            + (target.supportsInternalEditor()
+                                ? " • Editor Internal"
+                                : " • Handoff")
+            );
         }
         showActionOverlay("Pilih Target Berdasarkan Capability", rows, value -> {
             for (ProductCompletionServices.InstalledTargetBridge.Target target : targets) {
-                String row = target.label() + " • " + target.packageName();
+                String row = target.label()
+                        + " • "
+                        + target.packageName()
+                        + (target.supportsInternalEditor()
+                            ? " • Editor Internal"
+                            : " • Handoff");
                 if (!row.equals(value)) continue;
                 try {
                     String sessionId;
@@ -3607,62 +3619,39 @@ public final class WorkspaceShellView extends FrameLayout {
 
                     activeTargetPackage = target.packageName();
                     activeTargetSession = sessionId;
-                    LinkedHashMap<String, String> metadata =
-                            new LinkedHashMap<>();
-                    metadata.put(
-                            "target.active.package",
-                            target.packageName()
-                    );
-                    metadata.put(
-                            "target.active.session",
-                            sessionId
-                    );
-                    metadata.put(
-                            "target.active.protocol",
-                            Integer.toString(target.protocolVersion())
-                    );
-                    metadata.put(
-                            "target.active.project",
-                            target.projectId()
-                    );
-                    metadata.put(
-                            "target.active.revision",
-                            Long.toString(target.revision())
-                    );
-                    metadata.put(
-                            "target.active.editDoor",
-                            target.editDoor()
-                    );
-                    metadata.put(
-                            "target.active.writable",
-                            Boolean.toString(target.writable())
-                    );
-                    metadata.put(
-                            "target.active.capabilities",
-                            android.text.TextUtils.join(
-                                    ",",
-                                    target.capabilities()
-                            )
-                    );
-                    kernel.projectManager().applyResourceTransaction(
-                            metadata,
-                            Collections.emptySet()
-                    );
 
                     if (!(getContext()
                             instanceof WorkspaceHostActions)) {
                         toast("Host editing door tidak tersedia.");
                         return;
                     }
+                    WorkspaceHostActions host =
+                            (WorkspaceHostActions) getContext();
+
+                    if (target.supportsInternalEditor()) {
+                        boolean opened = host.openManagedTargetEditor(
+                                target.packageName(),
+                                target.providerAuthority(),
+                                target.projectId()
+                        );
+                        if (!opened) {
+                            toast(
+                                    "Provider target menolak editor internal."
+                            );
+                            return;
+                        }
+                        closeOverlay();
+                        return;
+                    }
+
                     boolean launched =
-                            ((WorkspaceHostActions) getContext())
-                                    .launchInstalledTarget(
-                                            target.packageName(),
-                                            target.editDoor(),
-                                            sessionId,
-                                            target.projectId(),
-                                            target.revision()
-                                    );
+                            host.launchInstalledTarget(
+                                    target.packageName(),
+                                    target.editDoor(),
+                                    sessionId,
+                                    target.projectId(),
+                                    target.revision()
+                            );
                     if (!launched) {
                         toast("Editing door target tidak dapat dibuka.");
                         return;
@@ -3681,11 +3670,9 @@ public final class WorkspaceShellView extends FrameLayout {
                                                     ", ",
                                                     target.capabilities()
                                             ),
-                                    target.writable()
-                                            ? "Mode: target mengizinkan write"
-                                            : "Mode: read-only / handoff",
+                                    "Mode: handoff aman; editor internal tidak tersedia.",
                                     "Sandbox dan signature Android tetap dihormati.",
-                                    "ToolBox tidak menyalin UI target ke project internal."
+                                    "Project ToolBox lokal tidak dimutasi."
                             )
                     );
                 } catch (RuntimeException error) {
