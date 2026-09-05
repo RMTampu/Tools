@@ -3,14 +3,30 @@ package com.toolbox.tools;
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
+import android.graphics.Bitmap;
+import android.graphics.drawable.Drawable;
+import android.widget.ImageView;
+
+import com.toolbox.tools.core.AppKernel;
 import com.toolbox.tools.core.AppState;
+import com.toolbox.tools.core.VisibleWorkspaceStore;
+import com.toolbox.tools.delivery.PatchManifest;
+import com.toolbox.tools.delivery.PatchPayload;
+import com.toolbox.tools.delivery.PatchTransactionJournal;
 import com.toolbox.tools.product.FreezeEngine;
+import com.toolbox.tools.product.ResourceGuard;
+import com.toolbox.tools.ui.AndroidAssetRenderer;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.security.MessageDigest;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 
 import static org.junit.Assert.*;
@@ -105,4 +121,257 @@ public final class ProductRuntimeInstrumentedTest {
             });
         }
     }
+
+    @Test
+    public void launcherTbResourceIsBoundAndDecodable() {
+        try (ActivityScenario<MainActivity> scenario =
+                     ActivityScenario.launch(MainActivity.class)) {
+            scenario.onActivity(activity -> {
+                int iconRes = activity.getApplicationInfo().icon;
+                assertNotEquals(0, iconRes);
+                Drawable drawable = activity.getDrawable(iconRes);
+                assertNotNull(drawable);
+                assertTrue(drawable.getIntrinsicWidth() > 0);
+                assertTrue(drawable.getIntrinsicHeight() > 0);
+            });
+        }
+    }
+
+    @Test
+    public void externalAssetRendererUsesRealAndroidImageConsumer()
+            throws Exception {
+        try (ActivityScenario<MainActivity> scenario =
+                     ActivityScenario.launch(MainActivity.class)) {
+            scenario.onActivity(activity -> {
+                try {
+                    AppKernel kernel = activity.kernelForTest();
+                    Bitmap bitmap = Bitmap.createBitmap(
+                            16,
+                            16,
+                            Bitmap.Config.ARGB_8888
+                    );
+                    bitmap.eraseColor(0xff00f0b5);
+                    ByteArrayOutputStream out =
+                            new ByteArrayOutputStream();
+                    assertTrue(
+                            bitmap.compress(
+                                    Bitmap.CompressFormat.PNG,
+                                    100,
+                                    out
+                            )
+                    );
+                    bitmap.recycle();
+
+                    byte[] bytes = out.toByteArray();
+                    String sha = sha256(bytes);
+                    String name = "instrumented-image.png";
+                    kernel.visibleWorkspaceStore().write(
+                            VisibleWorkspaceStore.Area.ASSETS,
+                            name,
+                            bytes
+                    );
+
+                    String id = "asset.external.instrumented";
+                    Map<String, String> update = new LinkedHashMap<>();
+                    update.put(id + ".storage.area", "Assets");
+                    update.put(id + ".storage.name", name);
+                    update.put(id + ".sha256", sha);
+                    update.put(id + ".kind", "IMAGE");
+                    update.put(id + ".mime", "image/png");
+                    update.put(id + ".name", "Instrumented Image");
+                    kernel.projectManager().applyResourceTransaction(
+                            update,
+                            Collections.emptySet()
+                    );
+
+                    android.view.View rendered =
+                            AndroidAssetRenderer.render(
+                                    activity,
+                                    kernel,
+                                    id,
+                                    64,
+                                    64
+                            );
+                    assertTrue(rendered instanceof ImageView);
+                    assertNotNull(
+                            ((ImageView) rendered).getDrawable()
+                    );
+                } catch (Exception error) {
+                    throw new AssertionError(error);
+                }
+            });
+        }
+    }
+
+    @Test
+    public void memoryPressurePolicyDegradesAndRecoversOnDevice() {
+        try (ActivityScenario<MainActivity> scenario =
+                     ActivityScenario.launch(MainActivity.class)) {
+            scenario.onActivity(activity -> {
+                ResourceGuard guard = activity.kernelForTest()
+                        .productServices()
+                        .resources();
+                guard.applyPressure(ResourceGuard.Pressure.CRITICAL);
+                assertEquals(
+                        0.5f,
+                        guard.previewQuality(),
+                        0.001f
+                );
+                assertFalse(guard.preloadEnabled());
+                guard.applyPressure(ResourceGuard.Pressure.NORMAL);
+                assertEquals(
+                        1.0f,
+                        guard.previewQuality(),
+                        0.001f
+                );
+                assertTrue(guard.preloadEnabled());
+            });
+        }
+    }
+
+    @Test
+    public void safeRecoveryUiPersistsAcrossActivityRecreation() {
+        try (ActivityScenario<MainActivity> scenario =
+                     ActivityScenario.launch(MainActivity.class)) {
+            scenario.onActivity(activity -> {
+                activity.kernelForTest()
+                        .safeModeController()
+                        .enter();
+            });
+            scenario.recreate();
+            scenario.onActivity(activity -> {
+                assertTrue(
+                        activity.kernelForTest()
+                                .safeModeController()
+                                .isSafeMode()
+                );
+                assertNull(activity.shellForTest());
+                activity.kernelForTest()
+                        .safeModeController()
+                        .exitIfHealthy();
+            });
+            scenario.recreate();
+            scenario.onActivity(activity -> {
+                assertNotNull(activity.shellForTest());
+                assertFalse(
+                        activity.kernelForTest()
+                                .safeModeController()
+                                .isSafeMode()
+                );
+            });
+        }
+    }
+
+    @Test
+    public void patchJournalInterruptedStateRollsBackOnDevice()
+            throws Exception {
+        try (ActivityScenario<MainActivity> scenario =
+                     ActivityScenario.launch(MainActivity.class)) {
+            scenario.onActivity(activity -> {
+                try {
+                    AppKernel kernel = activity.kernelForTest();
+                    if (kernel.productServices()
+                            .freeze()
+                            .state() == FreezeEngine.State.FROZEN) {
+                        kernel.productServices().freeze().thaw();
+                    }
+                    if (kernel.projectManager().hasUnsavedChanges()
+                            || kernel.projectManager()
+                                .savedRevision() <= 0) {
+                        kernel.projectManager().save();
+                    }
+                    long base =
+                            kernel.projectManager().savedRevision();
+                    PatchPayload payload = new PatchPayload(
+                            Collections.singletonMap(
+                                    "ui.instrument.patch.crash",
+                                    "transient"
+                            ),
+                            Collections.emptySet()
+                    );
+                    PatchManifest manifest = new PatchManifest(
+                            "patch.instrument." + base,
+                            "project.default",
+                            base,
+                            base + 1,
+                            repeat('1'),
+                            repeat('2'),
+                            repeat('3'),
+                            payload.sha256()
+                    );
+                    kernel.safePatchManager()
+                            .journal()
+                            .begin(manifest, payload);
+                    kernel.safePatchManager()
+                            .journal()
+                            .phase(
+                                    PatchTransactionJournal
+                                            .Phase.MUTATING
+                            );
+                    kernel.projectManager()
+                            .applyResourceTransaction(
+                                    payload.upserts(),
+                                    payload.deletes()
+                            );
+                    kernel.projectManager().save();
+
+                    File root = new File(
+                            activity.getFilesDir(),
+                            "projects/project.default"
+                    );
+                    File assets = new File(
+                            activity.getFilesDir(),
+                            "library/assets"
+                    );
+                    AppKernel recovered =
+                            AppKernel.createPersistent(
+                                    root,
+                                    assets
+                            );
+                    assertEquals(
+                            base,
+                            recovered.projectManager()
+                                    .savedRevision()
+                    );
+                    assertFalse(
+                            recovered.projectManager()
+                                    .current()
+                                    .resources()
+                                    .containsKey(
+                                            "ui.instrument.patch.crash"
+                                    )
+                    );
+                    assertEquals(
+                            PatchTransactionJournal.Phase.IDLE,
+                            recovered.safePatchManager()
+                                    .journal()
+                                    .phase()
+                    );
+                } catch (Exception error) {
+                    throw new AssertionError(error);
+                }
+            });
+        }
+    }
+
+    private static String sha256(byte[] bytes) throws Exception {
+        byte[] digest = MessageDigest.getInstance("SHA-256")
+                .digest(bytes);
+        StringBuilder out = new StringBuilder();
+        for (byte value : digest) {
+            out.append(String.format(
+                    Locale.ROOT,
+                    "%02x",
+                    value
+            ));
+        }
+        return out.toString();
+    }
+
+    private static String repeat(char value) {
+        char[] out = new char[64];
+        Arrays.fill(out, value);
+        return new String(out);
+    }
+
 }
