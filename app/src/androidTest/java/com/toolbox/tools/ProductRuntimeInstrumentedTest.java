@@ -823,9 +823,12 @@ public final class ProductRuntimeInstrumentedTest {
             View view,
             String description
     ) {
+        CharSequence contentDescription =
+                view.getContentDescription();
         if (view instanceof TextView
+                && contentDescription != null
                 && description.contentEquals(
-                        view.getContentDescription()
+                        contentDescription
                 )) {
             return (TextView) view;
         }
