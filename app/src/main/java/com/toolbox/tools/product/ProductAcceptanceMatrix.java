@@ -213,7 +213,13 @@ public final class ProductAcceptanceMatrix {
         pass(77, s.importSecurity() != null && deep.contains("import_security_deep"), "IMPORT_SECURITY", failures);
         pass(78, s.importMerge() != null, "IMPORT_MERGE", failures);
         pass(79, kernel.externalIntegrationManager() != null && deep.contains("full_project_export"), "EXPORT_CONTRACT", failures);
-        pass(80, completion.contains("permission_derivation"), "PERMISSION_CONTRACT", failures);
+        pass(
+                80,
+                completion.contains("permission_derivation")
+                        && permissionContractPass(s),
+                "PERMISSION_CONTRACT",
+                failures
+        );
 
         // 81-101: lifecycle, background work, diagnostics, build and engine contract.
         pass(81, completion.contains("lifecycle_policy")
@@ -479,6 +485,79 @@ public final class ProductAcceptanceMatrix {
                             "data.profile.name"
                     )
                     && broken.hasBrokenReferences();
+        } catch (RuntimeException error) {
+            return false;
+        }
+    }
+
+    private static boolean permissionContractPass(
+            ProductServices services
+    ) {
+        try {
+            PermissionManager permissions =
+                    services.permissions();
+            permissions.activateCapability(
+                    "capability.network",
+                    true
+            );
+            permissions.activateCapability(
+                    "capability.notification",
+                    true
+            );
+            permissions.activateCapability(
+                    "capability.storage.user",
+                    true
+            );
+
+            permissions.setGranted(
+                    "permission.network.internet",
+                    true
+            );
+            permissions.setGranted(
+                    "permission.runtime.notification",
+                    false
+            );
+            permissions.setGranted(
+                    "permission.storage.tree",
+                    false
+            );
+
+            if (!permissions.completeContract()) return false;
+            if (!permissions.byPhase(
+                    PermissionManager.Phase.INSTALL_TIME
+            ).stream().anyMatch(
+                    item -> "permission.network.internet"
+                            .equals(item.permissionId())
+            )) return false;
+            if (!permissions.byPhase(
+                    PermissionManager.Phase.RUNTIME
+            ).stream().anyMatch(
+                    item -> "permission.runtime.notification"
+                            .equals(item.permissionId())
+            )) return false;
+            if (!permissions.byPhase(
+                    PermissionManager.Phase.SPECIAL_ACCESS
+            ).stream().anyMatch(
+                    item -> "permission.storage.tree"
+                            .equals(item.permissionId())
+            )) return false;
+            if (permissions.missing().contains(
+                    "permission.network.internet"
+            )) return false;
+            if (!permissions.missing().contains(
+                    "permission.runtime.notification"
+            )) return false;
+            if (!permissions.missing().contains(
+                    "permission.storage.tree"
+            )) return false;
+            for (PermissionManager.Failure failure
+                    : permissions.failures()) {
+                if (failure.failurePathId() == null
+                        || failure.failurePathId().isEmpty()) {
+                    return false;
+                }
+            }
+            return true;
         } catch (RuntimeException error) {
             return false;
         }
