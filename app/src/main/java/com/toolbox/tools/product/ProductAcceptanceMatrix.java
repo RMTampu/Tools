@@ -274,7 +274,12 @@ public final class ProductAcceptanceMatrix {
         pass(130, completion.contains("freeze_ab_overlay"), "FREEZE_FLOW", failures);
         pass(131, completion.contains("screen_memory_budget") && completion.contains("leak_discipline"), "RAM_ARCHITECTURE", failures);
         pass(132, completion.contains("saf_user_storage") && s.backups() != null, "STORAGE_ARCHITECTURE", failures);
-        pass(133, true, "SPEC_BOUNDARY", failures);
+        pass(
+                133,
+                specBoundaryPass(kernel),
+                "SPEC_BOUNDARY",
+                failures
+        );
         pass(134, completionReady && kernelReady && editorReady && runtimeReady && libraryReady, "MATURE_TECHNICAL_FORM", failures);
         pass(135, completionReady && failures.isEmpty(), "ARCHITECTURE_CONCLUSION", failures);
 
@@ -455,6 +460,31 @@ public final class ProductAcceptanceMatrix {
         );
         return !guard.leakTrend("screen.home")
                 && guard.invariantPass();
+    }
+
+    private static boolean specBoundaryPass(
+            AppKernel kernel
+    ) {
+        DeclarativeProjectRuntime runtime =
+                kernel.declarativeRuntime();
+        return runtime.supportsWithoutRebuild(
+                        "ui.object.home.primary.text"
+                )
+                && runtime.supportsWithoutRebuild(
+                        "logic.ui.home.primary.action"
+                )
+                && runtime.supportsWithoutRebuild(
+                        "asset.theme.dark.neon"
+                )
+                && !runtime.supportsWithoutRebuild(
+                        "kernel.executable.class"
+                )
+                && !runtime.supportsWithoutRebuild(
+                        "security.trust.anchor"
+                )
+                && !runtime.supportsWithoutRebuild(
+                        "native.library.payload"
+                );
     }
 
     private static void pass(int id, boolean condition, String code, Map<Integer,String> failures) {
