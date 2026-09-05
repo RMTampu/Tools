@@ -11,6 +11,8 @@ import com.toolbox.tools.delivery.PatchTransactionJournal;
 import com.toolbox.tools.product.FreezeEngine;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -50,6 +52,7 @@ public final class CrashHarnessActivity extends Activity {
             } else {
                 preparePatchCrash(kernel, phase);
             }
+            writeSuccessMarker(mode, phase);
         } catch (Exception error) {
             getSharedPreferences(
                     "toolbox.crash.harness",
@@ -169,6 +172,39 @@ public final class CrashHarnessActivity extends Activity {
                 "freeze.journal.phase",
                 phase
         );
+    }
+
+    private void writeSuccessMarker(
+            String mode,
+            String phase
+    ) throws Exception {
+        File target = new File(
+                getFilesDir(),
+                "crash-harness-last.txt"
+        );
+        File pending = new File(
+                getFilesDir(),
+                "crash-harness-last.txt.pending"
+        );
+        byte[] value = (
+                mode + ":" + phase + "\n"
+        ).getBytes(StandardCharsets.UTF_8);
+        try (FileOutputStream output =
+                     new FileOutputStream(pending)) {
+            output.write(value);
+            output.flush();
+            output.getFD().sync();
+        }
+        if (target.exists() && !target.delete()) {
+            throw new IllegalStateException(
+                    "crash harness marker replace failed"
+            );
+        }
+        if (!pending.renameTo(target)) {
+            throw new IllegalStateException(
+                    "crash harness marker publish failed"
+            );
+        }
     }
 
     private static String hex(char value) {
