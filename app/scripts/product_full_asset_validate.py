@@ -8,7 +8,7 @@ OUT=APP/"build"/"assurance"
 OUT.mkdir(parents=True,exist_ok=True)
 plan=json.loads((APP/"ASSET_ASSURANCE_PLAN.json").read_text())
 
-assert plan["stage"]=="Produk Penuh v12"
+assert plan["stage"]=="Produk Penuh v13 Maksimal"
 expected={item["path"]:item for item in plan["shippedAndroidAssets"]}
 actual={}
 for base in [APP/"src/main/res",APP/"src/main/assets"]:
@@ -35,6 +35,12 @@ for rel,item in sorted(expected.items()):
         assert data["invariants"]["implementationRequired"] is True
         assert data["invariants"]["ownerRequired"] is True
         assert data["invariants"]["unknownAllowed"] is False
+    elif item["type"] == "ANDROID_WEBP":
+        raw=path.read_bytes()
+        assert len(raw)>=16
+        assert raw[:4]==b"RIFF"
+        assert raw[8:12]==b"WEBP"
+        assert len(raw)<=4*1024*1024
     else:
         raise AssertionError(("unsupported physical asset type",item["type"]))
     resolved.append({
@@ -64,12 +70,20 @@ for asset_id in plan["managedBuiltinAssets"]:
     assert asset_id in catalog,asset_id
 
 gateway=(APP/"src/main/java/com/toolbox/tools/android/ExternalAssetGateway.java").read_text()
+renderer=(APP/"src/main/java/com/toolbox/tools/ui/AndroidAssetRenderer.java").read_text()
+visible=(APP/"src/main/java/com/toolbox/tools/core/VisibleWorkspaceStore.java").read_text()
 for token in ["image/","audio/","video/","font/","MAX_BYTES","SHA-256"]:
     assert token in gateway,token
 assert set(plan["externalUserAssetReadyKinds"])=={"IMAGE","ICON","FONT","AUDIO","VIDEO"}
+for token in ["importToWorkspace","writeStream","VisibleWorkspaceStore.Area.ASSETS"]:
+    assert token in gateway,token
+for token in ["BitmapFactory","Typeface","MediaPlayer","VideoView","verify"]:
+    assert token in renderer,token
+for token in ["ASSETS","BACKUPS","SNAPSHOTS","EXPORTS","TEMPLATES","PROJECTS"]:
+    assert token in visible,token
 
 evidence={
- "schemaVersion":12,
+ "schemaVersion":13,
  "status":"ASSET_SAFE_100_DEVELOPMENT_PREBUILD_PASS",
  "physicalExpected":len(expected),
  "physicalResolved":len(resolved),
@@ -84,6 +98,8 @@ evidence={
  "registryInventory":"PASS",
  "externalUserAssetKinds":sorted(plan["externalUserAssetReadyKinds"]),
  "externalUserAssetRoute":"PASS",
+ "launcherIconPhysical":"PASS",
+ "launcherIconSha256":"521d3944ee2e662e5d80ba9bcdae84a370295638b892affa9c13d58f7009450f",
  "firebaseUsed":False,
  "assets":resolved,
 }
