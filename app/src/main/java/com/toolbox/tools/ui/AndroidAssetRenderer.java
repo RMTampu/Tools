@@ -14,6 +14,7 @@ import android.widget.VideoView;
 
 import com.toolbox.tools.core.AppKernel;
 import com.toolbox.tools.core.VisibleWorkspaceStore;
+import com.toolbox.tools.product.CacheManager;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -63,6 +64,7 @@ public final class AndroidAssetRenderer {
             throw new IOException("asset storage area invalid");
         }
         VisibleWorkspaceStore visible = kernel.visibleWorkspaceStore();
+        CacheManager cache = kernel.productServices().cache();
 
         float quality = kernel.productServices()
                 .resources()
@@ -90,6 +92,7 @@ public final class AndroidAssetRenderer {
             case "FONT":
                 return font(
                         context,
+                        cache,
                         visible,
                         storageName,
                         sha256
@@ -97,6 +100,7 @@ public final class AndroidAssetRenderer {
             case "AUDIO":
                 return audio(
                         context,
+                        cache,
                         visible,
                         storageName,
                         sha256
@@ -104,6 +108,7 @@ public final class AndroidAssetRenderer {
             case "VIDEO":
                 return video(
                         context,
+                        cache,
                         visible,
                         storageName,
                         sha256
@@ -203,12 +208,14 @@ public final class AndroidAssetRenderer {
 
     private static View font(
             Context context,
+            CacheManager cache,
             VisibleWorkspaceStore visible,
             String storageName,
             String sha256
     ) throws IOException {
         File file = verifiedCacheFile(
                 context,
+                cache,
                 visible,
                 storageName,
                 sha256,
@@ -233,12 +240,14 @@ public final class AndroidAssetRenderer {
 
     private static View audio(
             Context context,
+            CacheManager cache,
             VisibleWorkspaceStore visible,
             String storageName,
             String sha256
     ) throws IOException {
         File file = verifiedCacheFile(
                 context,
+                cache,
                 visible,
                 storageName,
                 sha256,
@@ -262,12 +271,14 @@ public final class AndroidAssetRenderer {
 
     private static View video(
             Context context,
+            CacheManager cache,
             VisibleWorkspaceStore visible,
             String storageName,
             String sha256
     ) throws IOException {
         File file = verifiedCacheFile(
                 context,
+                cache,
                 visible,
                 storageName,
                 sha256,
@@ -358,6 +369,7 @@ public final class AndroidAssetRenderer {
 
     private static File verifiedCacheFile(
             Context context,
+            CacheManager cache,
             VisibleWorkspaceStore visible,
             String storageName,
             String sha256,
@@ -376,6 +388,7 @@ public final class AndroidAssetRenderer {
         );
         if (target.isFile()
                 && constantEquals(sha256, fileSha256(target))) {
+            registerPreviewCache(cache, target, sha256);
             return target;
         }
 
@@ -415,7 +428,26 @@ public final class AndroidAssetRenderer {
             pending.delete();
             throw new IOException("asset preview cache publish failed");
         }
+        registerPreviewCache(cache, target, sha256);
         return target;
+    }
+
+    private static void registerPreviewCache(
+            CacheManager cache,
+            File file,
+            String sha256
+    ) {
+        if (cache == null || file == null || !file.isFile()) return;
+        cache.put(
+                "preview." + sha256.substring(0, 24),
+                file.length(),
+                CacheManager.Priority.COLD,
+                CacheManager.Category.PREVIEW,
+                CacheManager.Tier.DISK,
+                () -> {
+                    if (file.isFile()) file.delete();
+                }
+        );
     }
 
     private static String fileSha256(File file) throws IOException {
