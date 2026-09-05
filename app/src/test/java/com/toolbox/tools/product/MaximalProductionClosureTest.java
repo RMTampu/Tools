@@ -22,6 +22,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -501,6 +502,204 @@ public final class MaximalProductionClosureTest {
     }
 
     @Test
+    public void permissionContractDerivesPhaseAndFailurePathFromCapability() {
+        PermissionManager manager = new PermissionManager();
+        manager.register(new PermissionManager.PermissionSpec(
+                "permission.test.install",
+                "capability.test.install",
+                PermissionManager.Phase.INSTALL_TIME,
+                true,
+                "failure.permission.test.install"
+        ));
+        manager.register(new PermissionManager.PermissionSpec(
+                "permission.test.runtime",
+                "capability.test.runtime",
+                PermissionManager.Phase.RUNTIME,
+                true,
+                "failure.permission.test.runtime"
+        ));
+        manager.register(new PermissionManager.PermissionSpec(
+                "permission.test.special",
+                "capability.test.special",
+                PermissionManager.Phase.SPECIAL_ACCESS,
+                true,
+                "failure.permission.test.special"
+        ));
+        manager.register(new PermissionManager.PermissionSpec(
+                "permission.test.optional",
+                "capability.test.optional",
+                PermissionManager.Phase.OPTIONAL,
+                false,
+                "failure.permission.test.optional"
+        ));
+
+        manager.activateCapability("capability.test.install", true);
+        manager.activateCapability("capability.test.runtime", true);
+        manager.activateCapability("capability.test.special", true);
+        manager.activateCapability("capability.test.optional", true);
+
+        manager.setGranted("permission.test.install", true);
+        assertFalse(
+                manager.missing().contains(
+                        "permission.test.install"
+                )
+        );
+        assertTrue(
+                manager.missing().contains(
+                        "permission.test.runtime"
+                )
+        );
+        assertTrue(
+                manager.missing().contains(
+                        "permission.test.special"
+                )
+        );
+        assertFalse(
+                manager.missing().contains(
+                        "permission.test.optional"
+                )
+        );
+        assertEquals(2, manager.failures().size());
+        for (PermissionManager.Failure failure
+                : manager.failures()) {
+            assertTrue(
+                    failure.failurePathId()
+                            .startsWith("failure.permission.")
+            );
+        }
+        assertEquals(
+                1,
+                manager.byPhase(
+                        PermissionManager.Phase.INSTALL_TIME
+                ).size()
+        );
+        assertEquals(
+                1,
+                manager.byPhase(
+                        PermissionManager.Phase.RUNTIME
+                ).size()
+        );
+        assertEquals(
+                1,
+                manager.byPhase(
+                        PermissionManager.Phase.SPECIAL_ACCESS
+                ).size()
+        );
+        assertEquals(
+                1,
+                manager.byPhase(
+                        PermissionManager.Phase.OPTIONAL
+                ).size()
+        );
+        assertTrue(manager.completeContract());
+    }
+
+    @Test
+    public void projectExportCarriesRequiredAssetsAndExcludesTransientState()
+            throws Exception {
+        File storeRoot = temp.newFolder("export-project-store");
+        File privateRoot = temp.newFolder("export-private");
+        File assetRoot = temp.newFolder("export-asset-cache");
+        File visibleRoot = temp.newFolder("export-visible");
+        FileVisibleWorkspaceStore visible =
+                new FileVisibleWorkspaceStore(visibleRoot);
+
+        AppKernel kernel = AppKernel.createPersistent(
+                new FileProjectStore(storeRoot),
+                "project.default",
+                privateRoot,
+                assetRoot,
+                visible
+        );
+        if (kernel.projectManager().savedRevision() <= 0) {
+            kernel.projectManager().save();
+        }
+
+        byte[] assetBytes =
+                "real-export-asset".getBytes(StandardCharsets.UTF_8);
+        String assetSha = sha256(assetBytes);
+        visible.write(
+                VisibleWorkspaceStore.Area.ASSETS,
+                "asset-export.bin",
+                assetBytes
+        );
+
+        Map<String, String> updates = new LinkedHashMap<>();
+        String assetId = "asset.external.export_test";
+        updates.put(
+                assetId + ".storage.area",
+                VisibleWorkspaceStore.Area.ASSETS.folder()
+        );
+        updates.put(
+                assetId + ".storage.name",
+                "asset-export.bin"
+        );
+        updates.put(assetId + ".sha256", assetSha);
+        updates.put(assetId + ".kind", "RAW");
+        updates.put(
+                assetId + ".mime",
+                "application/octet-stream"
+        );
+        updates.put(assetId + ".name", "Export Test");
+        kernel.projectManager().applyResourceTransaction(
+                updates,
+                Collections.emptySet()
+        );
+        kernel.projectManager().save();
+
+        VisibleArtifactManager.Record record =
+                kernel.productServices()
+                        .visibleArtifacts()
+                        .exportCurrent();
+        assertEquals(
+                VisibleWorkspaceStore.Area.EXPORTS,
+                record.area()
+        );
+        assertTrue(record.fileName().endsWith(".manifest"));
+
+        String manifest = new String(
+                visible.read(
+                        VisibleWorkspaceStore.Area.EXPORTS,
+                        record.fileName()
+                ),
+                StandardCharsets.UTF_8
+        );
+        assertTrue(manifest.startsWith("TBX_PROJECT_EXPORT_V2"));
+        assertTrue(manifest.contains("PROJECT_ID=project.default"));
+        assertTrue(manifest.contains("ASSET=" + assetId + "|"));
+        assertTrue(manifest.contains("|" + assetSha + "\n"));
+        assertTrue(manifest.contains("CACHE_INCLUDED=NO"));
+        assertTrue(manifest.contains("UNDO_HISTORY_INCLUDED=NO"));
+        assertTrue(manifest.contains("PREVIEW_INCLUDED=NO"));
+        assertTrue(manifest.contains("RECOVERY_JOURNAL_INCLUDED=NO"));
+        assertTrue(manifest.contains("SECRET_INCLUDED=NO"));
+
+        java.util.List<String> exported = visible.list(
+                VisibleWorkspaceStore.Area.EXPORTS
+        );
+        assertTrue(
+                exported.stream()
+                        .anyMatch(name ->
+                                name.endsWith(".project.tbx"))
+        );
+        String exportedAsset = exported.stream()
+                .filter(name -> name.contains("-asset-"))
+                .findFirst()
+                .orElseThrow(
+                        () -> new AssertionError(
+                                "required export asset missing"
+                        )
+                );
+        assertArrayEquals(
+                assetBytes,
+                visible.read(
+                        VisibleWorkspaceStore.Area.EXPORTS,
+                        exportedAsset
+                )
+        );
+    }
+
+    @Test
     public void memoryPressureActuallyReducesWorkingSetPolicy() {
         ResourceGuard guard = new ResourceGuard();
         guard.applyPressure(ResourceGuard.Pressure.NORMAL);
@@ -554,6 +753,21 @@ public final class MaximalProductionClosureTest {
             previousResources = result.resourceCount();
             previousReferences = result.referenceCount();
         }
+    }
+
+    private static String sha256(byte[] bytes)
+            throws Exception {
+        MessageDigest digest =
+                MessageDigest.getInstance("SHA-256");
+        StringBuilder out = new StringBuilder();
+        for (byte value : digest.digest(bytes)) {
+            out.append(String.format(
+                    java.util.Locale.ROOT,
+                    "%02x",
+                    value
+            ));
+        }
+        return out.toString();
     }
 
     private static void copy(File from, File to)
