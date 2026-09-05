@@ -253,20 +253,20 @@ public final class EditorContextStore {
                 4f
         );
         panX = parseFloat(
-                state.get(PREFIX + "panX"),
+                state.get(PREFIX + "pan.x"),
                 0f,
                 -100000f,
                 100000f
         );
         panY = parseFloat(
-                state.get(PREFIX + "panY"),
+                state.get(PREFIX + "pan.y"),
                 0f,
                 -100000f,
                 100000f
         );
         scrollY = Math.max(
                 0,
-                parseInt(state.get(PREFIX + "scrollY"), 0)
+                parseInt(state.get(PREFIX + "scroll.y"), 0)
         );
         bubbleVisible = parseBoolean(
                 state.get(PREFIX + "bubble"),
@@ -303,9 +303,9 @@ public final class EditorContextStore {
         state.put(PREFIX + "representation", representation);
         state.put(PREFIX + "mode", mode);
         state.put(PREFIX + "zoom", Float.toString(zoom));
-        state.put(PREFIX + "panX", Float.toString(panX));
-        state.put(PREFIX + "panY", Float.toString(panY));
-        state.put(PREFIX + "scrollY", Integer.toString(scrollY));
+        state.put(PREFIX + "pan.x", Float.toString(panX));
+        state.put(PREFIX + "pan.y", Float.toString(panY));
+        state.put(PREFIX + "scroll.y", Integer.toString(scrollY));
         state.put(
                 PREFIX + "bubble",
                 Boolean.toString(bubbleVisible)
