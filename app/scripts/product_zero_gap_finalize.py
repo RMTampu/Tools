@@ -163,6 +163,7 @@ assert "scaleClassesMaterializeRealProjectGraphs" in maximal_cases
 assert "interruptedPatchJournalRollsBackOnBootstrap" in maximal_cases
 assert "safeModeAndFreezeSurviveKernelRecreation" in maximal_cases
 assert "realRecoverySnapshotsLiveInVisibleSnapshotsArea" in maximal_cases
+assert "productionRequiresUserOwnedSafBeforeEditing" in maximal_cases
 
 evidence={
     "schemaVersion":2,
@@ -209,6 +210,7 @@ evidence={
         "patchDestructiveMatrix":"PASS",
         "freezeDestructiveMatrix":"PASS",
         "visibleRecoverySnapshots":"PASS",
+        "productionUserOwnedSaf":"PASS",
         "externalManagedEditor":"PASS",
         "runtimeApkIdentity":"PASS",
         "externalAssetTamperRejected":"PASS",
