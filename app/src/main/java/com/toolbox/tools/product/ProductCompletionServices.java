@@ -62,11 +62,6 @@ public final class ProductCompletionServices {
         assets.reference("asset.icon.primary");
 
         storage.rememberTree("content://toolbox/Documents/ToolBox", true, true);
-        installedTargets.registerAwareTarget(
-                "com.toolbox.sample",
-                "Sample ToolBox-aware",
-                Arrays.asList("ui", "logic", "data", "binding", "asset")
-        );
 
         flow.addNode("flow.start", FlowRuntime.NodeType.EVENT);
         flow.addNode("flow.branch", FlowRuntime.NodeType.BRANCH);
@@ -195,8 +190,17 @@ public final class ProductCompletionServices {
             pass.add("freeze_ab_overlay");
         }
 
-        InstalledTargetBridge.Target target = installedTargets.lookup("com.toolbox.sample");
-        if (target != null && target.toolboxAware() && target.capabilities().contains("ui")) {
+        InstalledTargetBridge proofTargets = new InstalledTargetBridge();
+        proofTargets.registerAwareTarget(
+                "com.toolbox.contract.proof",
+                "Target kontrak",
+                Arrays.asList("ui", "logic", "data", "binding", "asset")
+        );
+        InstalledTargetBridge.Target target =
+                proofTargets.lookup("com.toolbox.contract.proof");
+        if (target != null
+                && target.toolboxAware()
+                && target.capabilities().contains("ui")) {
             pass.add("installed_target_bridge");
         }
 
