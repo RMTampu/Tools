@@ -880,6 +880,118 @@ public final class ProductAcceptanceMatrix {
         }
     }
 
+    private static boolean importSecurityContractPass(
+            ProductServices services
+    ) {
+        try {
+            ImportSecurityValidator validator =
+                    services.importSecurity();
+            String hash = repeatHex('a');
+            ImportSecurityValidator.Entry valid =
+                    new ImportSecurityValidator.Entry(
+                            "project/project.tbx",
+                            1024,
+                            4096,
+                            1,
+                            "application/vnd.toolbox.project+json",
+                            hash,
+                            hash,
+                            "project.import"
+                    );
+            boolean pass = "PASS".equals(
+                    validator.validate(
+                            new ImportSecurityValidator.Request(
+                                    Collections.singletonList(valid),
+                                    com.toolbox.tools.core.ProjectState
+                                            .CURRENT_SCHEMA_VERSION,
+                                    com.toolbox.tools.core.ProjectState
+                                            .CURRENT_BUILD_MODEL_VERSION,
+                                    true,
+                                    true,
+                                    hash,
+                                    hash
+                            )
+                    )
+            );
+            ImportSecurityValidator.Entry bomb =
+                    new ImportSecurityValidator.Entry(
+                            "assets/bomb.bin",
+                            1,
+                            1000,
+                            1,
+                            "application/octet-stream",
+                            null,
+                            null,
+                            null
+                    );
+            return pass && "IMPORT_DECOMPRESSION_RATIO".equals(
+                    validator.validate(
+                            Collections.singletonList(bomb)
+                    )
+            );
+        } catch (RuntimeException error) {
+            return false;
+        }
+    }
+
+    private static boolean importMergeContractPass(
+            ProductServices services
+    ) {
+        try {
+            com.toolbox.tools.core.ProjectState target =
+                    com.toolbox.tools.core.ProjectState.create(
+                            "project.target"
+                    ).withResource(
+                            "ui.object.shared",
+                            "existing"
+                    ).withResource(
+                            "ui.object.target",
+                            "target"
+                    ).withReference(
+                            "ui.object.target",
+                            "ui.object.shared"
+                    );
+            com.toolbox.tools.core.ProjectState incoming =
+                    com.toolbox.tools.core.ProjectState.create(
+                            "project.incoming"
+                    ).withResource(
+                            "ui.object.shared",
+                            "incoming"
+                    ).withResource(
+                            "logic.flow.source",
+                            "flow"
+                    ).withReference(
+                            "logic.flow.source",
+                            "ui.object.shared"
+                    );
+            ImportMergeManager.Result result =
+                    services.importMerge().mergeInto(
+                            target,
+                            incoming
+                    );
+            String remapped = result.idMap().get(
+                    "ui.object.shared"
+            );
+            return remapped != null
+                    && !remapped.equals("ui.object.shared")
+                    && "incoming".equals(
+                            result.projectState()
+                                    .resources()
+                                    .get(remapped)
+                    )
+                    && result.projectState()
+                            .references()
+                            .get("logic.flow.source")
+                            .contains(remapped)
+                    && result.projectState()
+                            .references()
+                            .get("ui.object.target")
+                            .contains("ui.object.shared");
+        } catch (RuntimeException error) {
+            return false;
+        }
+    }
+
     private static boolean autoRepairContractPass(
             ProductServices services
     ) {
