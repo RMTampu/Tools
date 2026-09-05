@@ -327,6 +327,12 @@ public final class ProductRuntimeInstrumentedTest {
                     }
                     long base =
                             kernel.projectManager().savedRevision();
+                    Map<String, String> baseResources =
+                            new LinkedHashMap<>(
+                                    kernel.projectManager()
+                                            .current()
+                                            .resources()
+                            );
                     PatchPayload payload = new PatchPayload(
                             Collections.singletonMap(
                                     "ui.instrument.patch.crash",
@@ -373,10 +379,16 @@ public final class ProductRuntimeInstrumentedTest {
                                     root,
                                     assets
                             );
-                    assertEquals(
-                            base,
+                    assertTrue(
+                            "recovery must publish a new valid revision",
                             recovered.projectManager()
-                                    .savedRevision()
+                                    .savedRevision() > base
+                    );
+                    assertEquals(
+                            baseResources,
+                            recovered.projectManager()
+                                    .current()
+                                    .resources()
                     );
                     assertFalse(
                             recovered.projectManager()
