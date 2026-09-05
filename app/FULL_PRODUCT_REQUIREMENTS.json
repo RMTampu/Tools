@@ -13,8 +13,8 @@
     "certificateSha256": "290fb37d527935766e327781833493400dd647cfc8bdbe433254a2df52e4b8e4"
   },
   "candidate": {
-    "versionCode": 12,
-    "versionName": "12.0-produk-penuh"
+    "versionCode": 13,
+    "versionName": "13.0-produk-penuh-maksimal"
   },
   "firebasePolicy": "REQUIRES_EXPLICIT_USER_PERMISSION",
   "signingPolicy": "PRIVATE_ONLY",
@@ -1497,7 +1497,11 @@
         "app/src/main/java/com/toolbox/tools/delivery/SafePatchManager.java",
         "app/src/main/java/com/toolbox/tools/product/FreezeEngine.java",
         "app/src/main/java/com/toolbox/tools/product/SafeModeController.java",
-        "app/src/main/java/com/toolbox/tools/repair/HealthMonitor.java"
+        "app/src/main/java/com/toolbox/tools/repair/HealthMonitor.java",
+        "app/src/main/java/com/toolbox/tools/android/ToolboxAwareTargetDiscovery.java",
+        "app/src/main/java/com/toolbox/tools/android/ManagedAppIntentContract.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceHostActions.java",
+        "app/src/main/java/com/toolbox/tools/MainActivity.java"
       ]
     },
     {
@@ -1513,7 +1517,10 @@
         "app/src/main/java/com/toolbox/tools/delivery/SafePatchManager.java",
         "app/src/main/java/com/toolbox/tools/product/FreezeEngine.java",
         "app/src/main/java/com/toolbox/tools/product/SafeModeController.java",
-        "app/src/main/java/com/toolbox/tools/repair/HealthMonitor.java"
+        "app/src/main/java/com/toolbox/tools/repair/HealthMonitor.java",
+        "app/src/main/java/com/toolbox/tools/delivery/PatchManifest.java",
+        "app/src/main/java/com/toolbox/tools/android/EvolutionPackageGateway.java",
+        "app/src/main/java/com/toolbox/tools/delivery/RemotePatchVerifier.java"
       ]
     },
     {
@@ -1529,7 +1536,9 @@
         "app/src/main/java/com/toolbox/tools/delivery/SafePatchManager.java",
         "app/src/main/java/com/toolbox/tools/product/FreezeEngine.java",
         "app/src/main/java/com/toolbox/tools/product/SafeModeController.java",
-        "app/src/main/java/com/toolbox/tools/repair/HealthMonitor.java"
+        "app/src/main/java/com/toolbox/tools/repair/HealthMonitor.java",
+        "app/src/main/java/com/toolbox/tools/delivery/PatchTransactionJournal.java",
+        "app/src/main/java/com/toolbox/tools/delivery/PatchDryRunResult.java"
       ]
     },
     {
@@ -1545,7 +1554,8 @@
         "app/src/main/java/com/toolbox/tools/delivery/SafePatchManager.java",
         "app/src/main/java/com/toolbox/tools/product/FreezeEngine.java",
         "app/src/main/java/com/toolbox/tools/product/SafeModeController.java",
-        "app/src/main/java/com/toolbox/tools/repair/HealthMonitor.java"
+        "app/src/main/java/com/toolbox/tools/repair/HealthMonitor.java",
+        "app/src/main/java/com/toolbox/tools/core/RuntimeStateStore.java"
       ]
     },
     {
@@ -1561,7 +1571,8 @@
         "app/src/main/java/com/toolbox/tools/delivery/SafePatchManager.java",
         "app/src/main/java/com/toolbox/tools/product/FreezeEngine.java",
         "app/src/main/java/com/toolbox/tools/product/SafeModeController.java",
-        "app/src/main/java/com/toolbox/tools/repair/HealthMonitor.java"
+        "app/src/main/java/com/toolbox/tools/repair/HealthMonitor.java",
+        "app/src/main/java/com/toolbox/tools/core/FileRuntimeStateStore.java"
       ]
     },
     {
@@ -1577,7 +1588,8 @@
         "app/src/main/java/com/toolbox/tools/delivery/SafePatchManager.java",
         "app/src/main/java/com/toolbox/tools/product/FreezeEngine.java",
         "app/src/main/java/com/toolbox/tools/product/SafeModeController.java",
-        "app/src/main/java/com/toolbox/tools/repair/HealthMonitor.java"
+        "app/src/main/java/com/toolbox/tools/repair/HealthMonitor.java",
+        "app/src/main/java/com/toolbox/tools/ui/SafeRecoveryView.java"
       ]
     },
     {
@@ -1593,7 +1605,8 @@
         "app/src/main/java/com/toolbox/tools/delivery/SafePatchManager.java",
         "app/src/main/java/com/toolbox/tools/product/FreezeEngine.java",
         "app/src/main/java/com/toolbox/tools/product/SafeModeController.java",
-        "app/src/main/java/com/toolbox/tools/repair/HealthMonitor.java"
+        "app/src/main/java/com/toolbox/tools/repair/HealthMonitor.java",
+        "app/src/main/java/com/toolbox/tools/delivery/PatchHealthGate.java"
       ]
     },
     {
@@ -1607,7 +1620,8 @@
         "app/src/main/java/com/toolbox/tools/product/ScaleBenchmarkHarness.java",
         "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
         "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java",
-        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md"
+        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md",
+        "app/src/main/java/com/toolbox/tools/android/RuntimeResourceController.java"
       ]
     },
     {
@@ -1621,7 +1635,8 @@
         "app/src/main/java/com/toolbox/tools/product/ScaleBenchmarkHarness.java",
         "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
         "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java",
-        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md"
+        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md",
+        "app/src/main/java/com/toolbox/tools/android/RuntimeResourceController.java"
       ]
     },
     {
@@ -1635,7 +1650,9 @@
         "app/src/main/java/com/toolbox/tools/product/ScaleBenchmarkHarness.java",
         "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
         "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java",
-        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md"
+        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md",
+        "app/src/main/java/com/toolbox/tools/product/RenderDiagnostics.java",
+        "app/src/main/java/com/toolbox/tools/android/RuntimeResourceController.java"
       ]
     },
     {
@@ -1649,7 +1666,8 @@
         "app/src/main/java/com/toolbox/tools/product/ScaleBenchmarkHarness.java",
         "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
         "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java",
-        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md"
+        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md",
+        "app/src/androidTest/java/com/toolbox/tools/ProductRuntimeInstrumentedTest.java"
       ]
     },
     {
@@ -1663,7 +1681,9 @@
         "app/src/main/java/com/toolbox/tools/product/ScaleBenchmarkHarness.java",
         "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
         "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java",
-        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md"
+        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md",
+        "app/src/androidTest/java/com/toolbox/tools/ProductRuntimeInstrumentedTest.java",
+        "app/src/test/java/com/toolbox/tools/product/ProductProductionContractsTest.java"
       ]
     },
     {
@@ -1677,7 +1697,9 @@
         "app/src/main/java/com/toolbox/tools/product/ScaleBenchmarkHarness.java",
         "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
         "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java",
-        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md"
+        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md",
+        "app/src/androidTest/java/com/toolbox/tools/ProductRuntimeInstrumentedTest.java",
+        "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java"
       ]
     },
     {
@@ -1691,7 +1713,9 @@
         "app/src/main/java/com/toolbox/tools/product/ScaleBenchmarkHarness.java",
         "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
         "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java",
-        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md"
+        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md",
+        "app/src/test/java/com/toolbox/tools/delivery/SafePatchManagerTest.java",
+        "app/src/test/java/com/toolbox/tools/product/ProductProductionContractsTest.java"
       ]
     },
     {
@@ -1705,7 +1729,8 @@
         "app/src/main/java/com/toolbox/tools/product/ScaleBenchmarkHarness.java",
         "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
         "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java",
-        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md"
+        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md",
+        "app/src/test/java/com/toolbox/tools/product/ProductProductionContractsTest.java"
       ]
     },
     {
@@ -1719,7 +1744,10 @@
         "app/src/main/java/com/toolbox/tools/product/ScaleBenchmarkHarness.java",
         "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
         "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java",
-        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md"
+        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md",
+        "app/src/main/java/com/toolbox/tools/android/ExternalAssetGateway.java",
+        "app/src/main/java/com/toolbox/tools/ui/AndroidAssetRenderer.java",
+        "app/src/main/java/com/toolbox/tools/core/VisibleWorkspaceStore.java"
       ]
     },
     {
@@ -1733,7 +1761,9 @@
         "app/src/main/java/com/toolbox/tools/product/ScaleBenchmarkHarness.java",
         "app/src/main/java/com/toolbox/tools/product/DiagnosticCenter.java",
         "app/src/main/java/com/toolbox/tools/product/AutoRepairEngine.java",
-        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md"
+        "APP_SAFE_R9_VERIFICATION_COMPLETENESS.md",
+        "app/build.gradle",
+        ".github/workflows/product-full-branch-ci.yml"
       ]
     },
     {
@@ -1788,7 +1818,10 @@
         "app/src/main/java/com/toolbox/tools/product/FullProductVerifier.java",
         "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
         "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
-        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java"
+        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java",
+        "app/src/main/java/com/toolbox/tools/android/SafVisibleWorkspaceStore.java",
+        "app/src/main/java/com/toolbox/tools/android/SafProjectStore.java",
+        "app/src/main/java/com/toolbox/tools/core/VisibleWorkspaceStore.java"
       ]
     },
     {
@@ -1840,7 +1873,10 @@
         "app/src/main/java/com/toolbox/tools/product/FullProductVerifier.java",
         "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
         "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
-        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java"
+        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java",
+        "app/src/main/java/com/toolbox/tools/ui/UiCanvasView.java",
+        "app/src/main/java/com/toolbox/tools/ui/AndroidAssetRenderer.java",
+        "app/src/main/java/com/toolbox/tools/android/ExternalAssetGateway.java"
       ]
     },
     {
@@ -1879,7 +1915,10 @@
         "app/src/main/java/com/toolbox/tools/product/FullProductVerifier.java",
         "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
         "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
-        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java"
+        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java",
+        "app/src/main/java/com/toolbox/tools/delivery/SafePatchManager.java",
+        "app/src/main/java/com/toolbox/tools/product/EvolutionManager.java",
+        "app/src/main/java/com/toolbox/tools/repair/HealthMonitor.java"
       ]
     },
     {
@@ -1892,7 +1931,9 @@
         "app/src/main/java/com/toolbox/tools/product/FullProductVerifier.java",
         "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
         "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
-        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java"
+        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java",
+        "app/src/main/java/com/toolbox/tools/product/FreezeEngine.java",
+        "app/src/main/java/com/toolbox/tools/core/FileRuntimeStateStore.java"
       ]
     },
     {
@@ -1905,7 +1946,10 @@
         "app/src/main/java/com/toolbox/tools/product/FullProductVerifier.java",
         "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
         "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
-        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java"
+        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java",
+        "app/src/main/java/com/toolbox/tools/product/ResourceGuard.java",
+        "app/src/main/java/com/toolbox/tools/android/RuntimeResourceController.java",
+        "app/src/androidTest/java/com/toolbox/tools/ProductRuntimeInstrumentedTest.java"
       ]
     },
     {
@@ -1918,7 +1962,10 @@
         "app/src/main/java/com/toolbox/tools/product/FullProductVerifier.java",
         "app/src/main/java/com/toolbox/tools/core/AppKernel.java",
         "app/src/main/java/com/toolbox/tools/ui/WorkspaceShellView.java",
-        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java"
+        "app/src/main/java/com/toolbox/tools/product/DeclarativeProjectRuntime.java",
+        "app/src/main/java/com/toolbox/tools/core/VisibleWorkspaceStore.java",
+        "app/src/main/java/com/toolbox/tools/android/SafVisibleWorkspaceStore.java",
+        "app/src/main/java/com/toolbox/tools/product/BackupManager.java"
       ]
     },
     {
