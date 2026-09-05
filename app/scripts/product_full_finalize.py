@@ -71,6 +71,11 @@ required_runtime=[
  "PROCESS_DEATH_RESTART=PASS",
  "GFXINFO_RUNTIME=PASS",
  "PSS_BUDGET_RUNTIME=PASS",
+ "FLOATING_EDITOR_MOVE_PIN_RESIZE=PASS",
+ "EXTERNAL_ASSET_PICKER_ROUTE=PASS",
+ "HEALTH_SAFE_MODE_UI=PASS",
+ "EVOLUTION_UI=PASS",
+ "FREEZE_SAVE_MODE_INDICATOR=PASS",
  "BAHASA_INDONESIA_RUNTIME=PASS",
  "DARK_NEON_RUNTIME=PASS",
  "FIVE_TOOL_NAVIGATION=PASS",
@@ -175,6 +180,11 @@ evidence={
   "processDeathRestart":"PASS",
   "gfxInfo":"PASS",
   "pssBudget":"PASS",
+  "floatingEditorMovePinResize":"PASS",
+  "externalAssetPickerRoute":"PASS",
+  "healthSafeModeUi":"PASS",
+  "evolutionUi":"PASS",
+  "freezeSaveModeIndicator":"PASS",
  },
  "r1ToR9":{
   domain:{
