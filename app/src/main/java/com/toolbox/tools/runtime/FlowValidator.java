@@ -42,9 +42,34 @@ public final class FlowValidator {
                 };
                 for (String port : expected) {
                     if (!node.outputs().containsKey(port)) {
-                        issues.add("ASYNC_OUTPUT_INCOMPLETE:" + node.nodeId());
+                        issues.add(
+                                "ASYNC_OUTPUT_INCOMPLETE:"
+                                        + node.nodeId()
+                        );
                         break;
                     }
+                }
+                if (node.timeoutMillis() <= 0) {
+                    issues.add(
+                            "ASYNC_TIMEOUT_MISSING:"
+                                    + node.nodeId()
+                    );
+                }
+            }
+            if (node.type() == FlowNodeType.LOOP) {
+                if (!node.outputs().containsKey("loop.body")
+                        || !node.outputs().containsKey("loop.exit")) {
+                    issues.add(
+                            "LOOP_EXIT_INCOMPLETE:"
+                                    + node.nodeId()
+                    );
+                }
+                if (node.maxIterations() <= 0
+                        || node.timeoutMillis() <= 0) {
+                    issues.add(
+                            "LOOP_WATCHDOG_INCOMPLETE:"
+                                    + node.nodeId()
+                    );
                 }
             }
         }
