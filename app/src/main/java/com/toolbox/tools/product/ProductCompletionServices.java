@@ -344,7 +344,12 @@ public final class ProductCompletionServices {
             String id = StableId.require(screenId, "screenId");
             Snapshot snapshot = held.remove(id);
             if (snapshot == null) snapshot = new Snapshot(id, EnumSet.noneOf(Surface.class));
-            live.put(id, EnumSet.copyOf(snapshot.surfaces()));
+            live.put(
+                    id,
+                    snapshot.surfaces().isEmpty()
+                            ? EnumSet.noneOf(Surface.class)
+                            : EnumSet.copyOf(snapshot.surfaces())
+            );
             return snapshot;
         }
 
