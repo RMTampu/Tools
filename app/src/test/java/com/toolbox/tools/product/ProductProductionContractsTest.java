@@ -1,6 +1,7 @@
 package com.toolbox.tools.product;
 
 import com.toolbox.tools.core.AppKernel;
+import com.toolbox.tools.core.ProjectState;
 import com.toolbox.tools.core.IncrementalResourceValidator;
 import org.junit.Test;
 
