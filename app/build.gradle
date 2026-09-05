@@ -10,8 +10,8 @@ android {
         applicationId 'com.toolbox.tools'
         minSdk 30
         targetSdk 30
-        versionCode 12
-        versionName '12.0-produk-penuh'
+        versionCode 13
+        versionName '13.0-produk-penuh-maksimal'
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
 
