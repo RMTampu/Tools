@@ -170,6 +170,9 @@ jobs:
           grep -R 'runtimePatchIdentityMatchesInstalledApk' "$RUNNER_TEMP/android-test-regular"
           grep -R 'externalAssetTamperIsRejectedAtUse' "$RUNNER_TEMP/android-test-regular"
           grep -R 'externalAudioVideoAssetsUseStreamingBackends' "$RUNNER_TEMP/android-test-regular"
+          grep -R 'installedApplicationCatalogListsUnmanagedAppsBeforeCapabilityFiltering' "$RUNNER_TEMP/android-test-regular"
+          grep -R 'blankVisualCanvasStartsWithoutDemoSurface' "$RUNNER_TEMP/android-test-regular"
+          grep -R 'androidBackgroundTaskUsesJobScheduler' "$RUNNER_TEMP/android-test-regular"
 
           # Jalankan soak sendirian dengan batas keras. Jika macet, CI fail
           # pada test yang tepat, bukan menunggu job timeout global.
@@ -523,13 +526,49 @@ jobs:
           assert_text 'Tutup'
           tap_text 'Tutup'
 
-          # Entry Editor menampilkan empat pilihan edit sebelum workspace.
+          # Entry Editor adalah pintu kerja visual.
           tap_text 'Editor'
-          assert_text 'Pilih Jalur Editor'
+          assert_text 'Editor Visual'
           assert_text 'Proyek Tersimpan'
           assert_text 'Aplikasi Terinstal'
           assert_text 'Edit ToolBox'
+          assert_text 'Buat UI Baru'
           assert_text 'Buat / Edit Komponen'
+          assert_desc 'Menu visual • Buat UI Baru'
+          assert_desc 'Menu visual • Aplikasi Terinstal'
+          VISUAL_FIRST_MENU_PASS=1
+
+          # Semua aplikasi terpasang ditampilkan sebelum capability filter.
+          tap_text 'Aplikasi Terinstal'
+          assert_text 'Pilih Aplikasi Terpasang'
+          assert_text 'com.toolbox.fixture'
+          INSTALLED_APP_PICKER_OPEN_PASS=1
+          tap_text 'Tutup'
+
+          # Jalur komponen memisahkan Buat Baru dan Edit yang Ada.
+          tap_text 'Buat / Edit Komponen'
+          assert_text 'Buat Komponen Baru'
+          assert_text 'Edit Komponen yang Ada'
+          tap_text 'Buat Komponen Baru'
+          assert_desc 'Kanvas UI kosong'
+          tap_text '‹ Pilih Jalur Editor'
+          assert_text 'Editor Visual'
+
+          tap_text 'Buat / Edit Komponen'
+          tap_text 'Edit Komponen yang Ada'
+          assert_text 'Pilih Komponen untuk Diedit'
+          tap_text 'Tutup'
+
+          # Buat UI Baru dimulai dari kanvas kosong, bukan demo screen.
+          tap_text 'Buat UI Baru'
+          assert_desc 'Kanvas UI kosong'
+          dump_ui
+          assert_not_contains 'text="Bangun aplikasi secara visual"' "$RUNNER_TEMP/window.xml"
+          BLANK_UI_CANVAS_PASS=1
+          tap_text '‹ Pilih Jalur Editor'
+          assert_text 'Perubahan Belum Disimpan'
+          tap_text 'Buang perubahan lalu keluar'
+          assert_text 'Editor Visual'
 
           tap_text 'Proyek Tersimpan'
           assert_text 'Bangun aplikasi secara visual'
@@ -652,8 +691,27 @@ jobs:
           tap_text 'Tutup'
           tap_text '‹ Kembali'
 
-          # Tool dari pintasan Bubble tetap membuka jalur alat yang berbeda dari Floating Window.
+          # Pintasan Bubble benar-benar tersebar mengelilingi Bubble.
           tap_text 'TB'
+          dump_ui
+          python3 - "$RUNNER_TEMP/window.xml" <<'PY'
+          import re,sys,xml.etree.ElementTree as ET
+          root=ET.parse(sys.argv[1]).getroot()
+          pts=[]
+          for n in root.iter('node'):
+              if not n.attrib.get('content-desc','').startswith('Pintasan '):
+                  continue
+              m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',n.attrib.get('bounds',''))
+              if m:
+                  l,t,r,b=map(int,m.groups())
+                  pts.append(((l+r)//2,(t+b)//2))
+          if len(pts) < 4:
+              raise SystemExit('BUBBLE_SHORTCUT_COUNT='+str(len(pts)))
+          if len({x//16 for x,_ in pts}) < 2 or len({y//16 for _,y in pts}) < 2:
+              raise SystemExit('BUBBLE_SHORTCUTS_NOT_RADIAL='+repr(pts))
+          print('BUBBLE_RADIAL_POINTS='+repr(pts))
+          PY
+          BUBBLE_RADIAL_PASS=1
           tap_desc 'Pintasan Tool'
           assert_text 'Alat ToolBox'
           tap_text 'Bangun & SIAP'
@@ -713,6 +771,20 @@ jobs:
           test "$PSS_KB" -lt 196608
           PSS_BUDGET_RUNTIME_PASS=1
 
+          # R8 configuration matrix pada Android 11.
+          adb_cmd shell wm size 720x1280
+          adb_cmd shell wm density 320
+          adb_cmd shell settings put system font_scale 1.30
+          adb_cmd shell am force-stop com.toolbox.tools
+          CONFIG_START="$(adb_cmd shell am start -W -n com.toolbox.tools/.MainActivity)"
+          grep -F 'Status: ok' <<< "$CONFIG_START"
+          sleep 2
+          assert_text 'Beranda ToolBox • ruang kerja aplikasi'
+          adb_cmd shell wm size reset
+          adb_cmd shell wm density reset
+          adb_cmd shell settings put system font_scale 1.0
+          UI_CONFIG_MATRIX_PASS=1
+
           # Simulasikan process death biasa, bukan package force-stop:
           # pindahkan ke background lalu bunuh process yang safe-to-kill.
           adb_cmd shell input keyevent KEYCODE_HOME
@@ -737,6 +809,11 @@ jobs:
             echo "GFXINFO_RUNTIME=PASS"
             echo "PSS_BUDGET_RUNTIME=PASS"
             echo "PSS_KB=$PSS_KB"
+            echo "UI_CONFIG_MATRIX=PASS"
+            echo "INSTALLED_APP_PICKER_OPEN=PASS"
+            echo "BLANK_UI_CANVAS=PASS"
+            echo "VISUAL_FIRST_MENU=PASS"
+            echo "BUBBLE_RADIAL=PASS"
             echo "BAHASA_INDONESIA_RUNTIME=PASS"
             echo "DARK_NEON_RUNTIME=PASS"
             echo "FIVE_TOOL_NAVIGATION=PASS"
