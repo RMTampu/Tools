@@ -793,16 +793,27 @@ public final class WorkspaceShellView extends FrameLayout {
             return;
         }
         if ("Aksi".equals(label)) {
+            String current = kernel.projectManager().current().resources().getOrDefault(
+                    "logic.ui.home.primary.action",
+                    "open.detail"
+            );
             showActionOverlay(
                     "Aksi",
-                    Arrays.asList("Buka Detail", "Tampilkan Pesan", "Simpan"),
-                    value -> applyResource(
-                            "logic.ui.home.primary.action",
-                            "Buka Detail".equals(value) ? "open.detail"
-                                    : "Tampilkan Pesan".equals(value) ? "show.message"
-                                    : "save.project",
-                            "Aksi alur diperbarui."
-                    )
+                    Arrays.asList(
+                            mark("Buka Detail", "open.detail".equals(current)),
+                            mark("Tampilkan Pesan", "show.message".equals(current)),
+                            mark("Simpan", "save.project".equals(current))
+                    ),
+                    value -> {
+                        String clean = stripMark(value);
+                        applyResource(
+                                "logic.ui.home.primary.action",
+                                "Buka Detail".equals(clean) ? "open.detail"
+                                        : "Tampilkan Pesan".equals(clean) ? "show.message"
+                                        : "save.project",
+                                "Aksi alur diperbarui."
+                        );
+                    }
             );
             return;
         }
@@ -947,16 +958,27 @@ public final class WorkspaceShellView extends FrameLayout {
             return;
         }
         if ("Data Contoh".equals(label)) {
+            String current = kernel.projectManager().current().resources().getOrDefault(
+                    "data.editor.mock.enabled",
+                    "default"
+            );
             showActionOverlay(
                     "Data Contoh",
-                    Arrays.asList("Aktifkan", "Nonaktifkan", "Reset"),
-                    value -> applyResource(
-                            "data.editor.mock.enabled",
-                            "Aktifkan".equals(value) ? "true"
-                                    : "Nonaktifkan".equals(value) ? "false"
-                                    : "default",
-                            "Data contoh diperbarui."
-                    )
+                    Arrays.asList(
+                            mark("Aktifkan", "true".equals(current)),
+                            mark("Nonaktifkan", "false".equals(current)),
+                            mark("Reset", "default".equals(current))
+                    ),
+                    value -> {
+                        String clean = stripMark(value);
+                        applyResource(
+                                "data.editor.mock.enabled",
+                                "Aktifkan".equals(clean) ? "true"
+                                        : "Nonaktifkan".equals(clean) ? "false"
+                                        : "default",
+                                "Data contoh diperbarui."
+                        );
+                    }
             );
             return;
         }
@@ -965,12 +987,19 @@ public final class WorkspaceShellView extends FrameLayout {
 
     private void showBindingEditorAction(String label) {
         if ("Hubungkan Otomatis".equals(label)) {
+            String current = kernel.projectManager().current().resources().getOrDefault(
+                    "binding.ui.home.primary.mode",
+                    "auto"
+            );
             showActionOverlay(
                     "Hubungkan Otomatis",
-                    Arrays.asList("Hubungkan", "Lepaskan"),
+                    Arrays.asList(
+                            mark("Hubungkan", "auto".equals(current)),
+                            mark("Lepaskan", "none".equals(current))
+                    ),
                     value -> applyResource(
                             "binding.ui.home.primary.mode",
-                            "Hubungkan".equals(value) ? "auto" : "none",
+                            "Hubungkan".equals(stripMark(value)) ? "auto" : "none",
                             "Status pengikatan diperbarui."
                     )
             );
@@ -1039,13 +1068,23 @@ public final class WorkspaceShellView extends FrameLayout {
             return;
         }
         if ("Impor".equals(label)) {
+            String current = kernel.projectManager().current().resources().getOrDefault(
+                    "asset.editor.active",
+                    "asset.theme.dark.neon"
+            );
             showActionOverlay(
                     "Impor Aset",
-                    Arrays.asList("Tema Gelap Neon", "Token Bawaan", "Preset Animasi", "Kit Komponen"),
+                    Arrays.asList(
+                            mark("Tema Gelap Neon", "asset.theme.dark.neon".equals(current)),
+                            mark("Token Bawaan", "asset.tokens.default".equals(current)),
+                            mark("Preset Animasi", "asset.animation.presets".equals(current)),
+                            mark("Kit Komponen", "asset.component.kit".equals(current))
+                    ),
                     value -> {
-                        String id = "Tema Gelap Neon".equals(value) ? "asset.theme.dark.neon"
-                                : "Token Bawaan".equals(value) ? "asset.tokens.default"
-                                : "Preset Animasi".equals(value) ? "asset.animation.presets"
+                        String clean = stripMark(value);
+                        String id = "Tema Gelap Neon".equals(clean) ? "asset.theme.dark.neon"
+                                : "Token Bawaan".equals(clean) ? "asset.tokens.default"
+                                : "Preset Animasi".equals(clean) ? "asset.animation.presets"
                                 : "asset.component.kit";
                         applyResource("asset.editor.active", id, "Aset terverifikasi dimuat ke working state.");
                     }
@@ -1767,6 +1806,12 @@ public final class WorkspaceShellView extends FrameLayout {
 
     private static String mark(String label, boolean active) {
         return active ? "✓ " + label : label;
+    }
+
+    private static String stripMark(String value) {
+        return value != null && value.startsWith("✓ ")
+                ? value.substring(2)
+                : value;
     }
 
     private static String translate(String value) {
