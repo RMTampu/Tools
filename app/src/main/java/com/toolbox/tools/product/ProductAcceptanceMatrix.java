@@ -50,30 +50,43 @@ public final class ProductAcceptanceMatrix {
                 && kernel.remotePatchVerifier() != null
                 && kernel.evolutionManager() != null;
         boolean completionReady = s.completion().isReady()
-                && s.deep().isReady();
+                && s.deep().isReady()
+                && s.inventory().complete()
+                && s.inputRouter().complete();
 
         // 1-17: product identity, shell, editor, manual editing semantics.
         pass(1, kernelReady && editorReady && repairReady && deliveryReady, "PRODUCT_IDENTITY", failures);
         pass(2, kernelReady && completionReady, "PRINSIP_BESAR", failures);
         pass(3, kernelReady && editorReady && s.toolLifecycle().activeCount() == 1, "ARSITEKTUR_RUMAH", failures);
         pass(4, editorReady && s.toolLifecycle().activeCount() == 1, "HALAMAN_ENGINE", failures);
-        pass(5, s.toolLifecycle() != null && completion.contains("engine_isolation"), "TOOL_LIFECYCLE", failures);
+        pass(5, s.toolLifecycle() != null
+                && completion.contains("engine_isolation")
+                && deep.contains("lifecycle_release_probe"), "TOOL_LIFECYCLE", failures);
         pass(6, editorReady && kernel.editorEnvironment().shell() != null, "SHELL_UI", failures);
         pass(7, kernel.editorEnvironment().shell().bubbleController() != null, "BUBBLE", failures);
         pass(8, kernel.editorEnvironment().shell().edgePanel(null) != null, "EDGE_PANEL", failures);
-        pass(9, runtimeReady && editorReady, "LIVE_WORKSPACE", failures);
+        pass(9, runtimeReady && editorReady
+                && kernel.runtimeEnvironment().navigation() != null, "LIVE_WORKSPACE", failures);
         pass(10, editorReady && kernel.editorEnvironment().shell() != null, "EDIT_ON_OFF", failures);
         pass(11, completion.contains("ui_state_hold"), "NO_CLONING", failures);
         pass(12, completion.contains("ui_state_hold"), "VISUAL_STATE_HOLD", failures);
         pass(13, projectReady, "MANUAL_SAVE", failures);
         pass(14, projectReady, "UNDO_REDO", failures);
-        pass(15, completion.contains("screen_memory_budget"), "PER_SCREEN_WORKING_SECTOR", failures);
+        pass(15, !s.resources().budgets().isEmpty()
+                && s.resources().invariantPass(), "PER_SCREEN_WORKING_SECTOR", failures);
         pass(16, editorReady && projectReady, "ROUND_TRIP_EDITING", failures);
         pass(17, editorReady && s.completion().versions.compatible("contract", 2), "VISUAL_PROPERTIES_CODE", failures);
 
         // 18-27: project store, revisioning, identity, dependency graph.
-        pass(18, projectReady && completion.contains("saf_user_storage"), "PROJECT_STORE", failures);
-        pass(19, projectReady && completion.contains("screen_memory_budget"), "HYBRID_SCREEN_STORE", failures);
+        pass(18, projectReady
+                && completion.contains("saf_user_storage")
+                && "SafProjectStore".equals(
+                        s.inventory()
+                                .require("implementation.project.store")
+                                .implementation()
+                ), "PROJECT_STORE", failures);
+        pass(19, projectReady
+                && !s.resources().budgets().isEmpty(), "HYBRID_SCREEN_STORE", failures);
         pass(20, projectReady, "PROJECT_MANIFEST", failures);
         pass(21, projectReady, "TRANSACTIONAL_SAVE", failures);
         pass(22, projectReady, "REVISION_SINGLE_WRITER", failures);
@@ -85,9 +98,12 @@ public final class ProductAcceptanceMatrix {
 
         // 28-45: registries, contracts, data, binding, logic.
         pass(28, libraryReady, "COMPONENT_REGISTRY", failures);
-        pass(29, completion.contains("authoritative_inventory"), "REGISTRY_INVENTORY", failures);
+        pass(29, s.inventory().complete()
+                && s.inventory().machineReadable().size() >= 20,
+                "REGISTRY_INVENTORY", failures);
         pass(30, deep.contains("property_contract"), "PROPERTY_CONTRACT", failures);
-        pass(31, deep.contains("event_action_contract"), "EVENT_CONTRACT", failures);
+        pass(31, deep.contains("event_action_contract")
+                && inputDispatchPass(s), "EVENT_CONTRACT", failures);
         pass(32, kernel.runtimeEnvironment().actions() != null && deep.contains("event_action_contract"), "ACTION_REGISTRY", failures);
         pass(33, deep.contains("safe_converter"), "COMPATIBILITY_MATCHING", failures);
         pass(34, deep.contains("composite_executor"), "COMPOSITE_ACTION", failures);
@@ -98,29 +114,71 @@ public final class ProductAcceptanceMatrix {
         pass(39, runtimeReady && deep.contains("virtualized_paging"), "LAZY_PAGED_DATA", failures);
         pass(40, runtimeReady, "DYNAMIC_LIST_IDENTITY", failures);
         pass(41, runtimeReady && s.diagnostics() != null, "BROKEN_REFERENCE", failures);
-        pass(42, completion.contains("flow_execution"), "LOGIC_FLOW_EDITOR", failures);
+        pass(42, completion.contains("flow_execution")
+                && !kernel.runtimeEnvironment().model().flows().isEmpty(),
+                "LOGIC_FLOW_EDITOR", failures);
         pass(43, completion.contains("flow_execution"), "BRANCH_LOOP_ASYNC", failures);
         pass(44, completion.contains("flow_execution"), "LIST_FIRST_DIAGRAM", failures);
         pass(45, libraryReady, "COMPONENT_INSTANCE_TEMPLATE", failures);
 
         // 46-62: states, animation, layout, interaction, accessibility, localization.
-        pass(46, s.stateVariants() != null && deep.contains("state_layering"), "STATE_VARIANT", failures);
-        pass(47, s.animations() != null && !s.animations().all().isEmpty() && deep.contains("animation_timeline"), "ANIMATION_MODEL", failures);
+        pass(46, stateLayerPass(s)
+                && deep.contains("state_layering"), "STATE_VARIANT", failures);
+        pass(47, s.animations() != null
+                && !s.animations().all().isEmpty()
+                && !s.animations().groups().isEmpty()
+                && deep.contains("animation_timeline"), "ANIMATION_MODEL", failures);
         pass(48, s.themes() != null, "DESIGN_TOKEN_THEME", failures);
-        pass(49, s.visualLayout().snapshot().size() >= 2 && deep.contains("constraint_multi_select"), "RESPONSIVE_LAYOUT", failures);
-        pass(50, s.visualLayout().adaptiveClass(700) != null, "ADAPTIVE_ORIENTATION", failures);
-        pass(51, s.visualLayout() != null, "GRID_GUIDE_SNAPPING", failures);
-        pass(52, s.visualLayout() != null && deep.contains("constraint_multi_select"), "MULTI_SELECT_GROUP", failures);
-        pass(53, s.visualLayout() != null, "REPARENTING", failures);
+        pass(49, s.visualLayout().snapshot().size() >= 2
+                && !s.visualLayout().responsiveOverride(
+                        "screen.home",
+                        VisualLayoutEngine.Orientation.LANDSCAPE
+                ).isEmpty()
+                && deep.contains("constraint_multi_select"),
+                "RESPONSIVE_LAYOUT", failures);
+        pass(50, s.visualLayout().adaptiveClass(700)
+                        == VisualLayoutEngine.AdaptiveClass.MEDIUM
+                && !s.visualLayout().responsiveOverride(
+                        "screen.home",
+                        VisualLayoutEngine.Orientation.LANDSCAPE
+                ).isEmpty(), "ADAPTIVE_ORIENTATION", failures);
+        pass(51, !s.visualLayout().guides().isEmpty(),
+                "GRID_GUIDE_SNAPPING", failures);
+        pass(52, deep.contains("constraint_multi_select")
+                && s.visualLayout().snapshot().size() >= 2,
+                "MULTI_SELECT_GROUP", failures);
+        pass(53, s.visualLayout().pathToRoot(
+                        "object.home.primary"
+                ).contains("layout.root"), "REPARENTING", failures);
         pass(54, kernel.editorEnvironment().visualSession() != null, "OBJECT_LOCK", failures);
         pass(55, s.visualLayout().hitTest(25, 181) != null, "LAYER_HIT_TEST", failures);
-        pass(56, completion.contains("pointer_propagation"), "POINTER_PROPAGATION", failures);
-        pass(57, completion.contains("gesture_focus"), "INPUT_GESTURE_FOCUS", failures);
-        pass(58, s.visualLayout() != null, "SAFE_AREA_INSETS", failures);
-        pass(59, s.visualLayout() != null, "ZOOM_PAN", failures);
+        pass(56, completion.contains("pointer_propagation")
+                && inputDispatchPass(s), "POINTER_PROPAGATION", failures);
+        pass(57, completion.contains("gesture_focus")
+                && s.inputRouter().complete()
+                && "object.home.primary".equals(
+                        s.inputRouter().nextFocus(
+                                "object.home.primary"
+                        )
+                ), "INPUT_GESTURE_FOCUS", failures);
+        pass(58, s.visualLayout().safeInsets() != null,
+                "SAFE_AREA_INSETS", failures);
+        pass(59, s.visualLayout().zoom() >= 0.25f
+                && s.visualLayout().zoom() <= 4f
+                && !Float.isNaN(s.visualLayout().designX(20f)),
+                "ZOOM_PAN", failures);
         pass(60, libraryReady && deep.contains("accessibility_semantic"), "ACCESSIBILITY_SEMANTIC", failures);
-        pass(61, "id".equals(LocalizationManager.BAHASA_DEFAULT) && deep.contains("localization_formatting"), "LOCALIZATION", failures);
-        pass(62, completion.contains("conditional_expression"), "CONDITIONAL_PROPERTIES", failures);
+        pass(61, "id".equals(LocalizationManager.BAHASA_DEFAULT)
+                && s.localization().formatCurrency(
+                        12500,
+                        "IDR",
+                        "id-ID"
+                ) != null
+                && !s.localization().isRtl("id")
+                && deep.contains("localization_formatting"),
+                "LOCALIZATION", failures);
+        pass(62, completion.contains("conditional_expression")
+                && conditionalPass(s), "CONDITIONAL_PROPERTIES", failures);
 
         // 63-80: assets, cache, recovery, storage, import/export, permissions.
         pass(63, libraryReady, "ASSET_IDENTITY", failures);
@@ -169,12 +227,16 @@ public final class ProductAcceptanceMatrix {
         pass(102, completion.contains("installed_target_bridge"), "INSTALLED_TARGET_BRIDGE", failures);
         pass(103, deliveryReady && deep.contains("update_intent_pipeline"), "DECLARATIVE_UPDATE", failures);
         pass(104, deliveryReady && deep.contains("update_intent_pipeline"), "UPDATE_PIPELINE", failures);
-        pass(105, completion.contains("freeze_ab_overlay"), "FREEZE_ENGINE", failures);
-        pass(106, completion.contains("freeze_ab_overlay"), "FREEZE_STATE_MACHINE", failures);
+        pass(105, completion.contains("freeze_ab_overlay")
+                && s.freeze() != null, "FREEZE_ENGINE", failures);
+        pass(106, completion.contains("freeze_ab_overlay")
+                && s.freeze().state() != null, "FREEZE_STATE_MACHINE", failures);
         pass(107, repairReady && deep.contains("safe_ui"), "SAFE_MODE_UI", failures);
         pass(108, repairReady && deep.contains("comprehensive_health"), "HEALTH_CHECK", failures);
         pass(109, completion.contains("screen_memory_budget"), "MEMORY_ARCHITECTURE", failures);
-        pass(110, completion.contains("screen_memory_budget"), "PER_SCREEN_MEMORY", failures);
+        pass(110, !s.resources().budgets().isEmpty()
+                && completion.contains("screen_memory_budget"),
+                "PER_SCREEN_MEMORY", failures);
         pass(111, completion.contains("render_cost"), "OVERDRAW_RENDERING", failures);
         pass(112, completion.contains("leak_discipline"), "LEAK_DISCIPLINE", failures);
         pass(113, completion.contains("soak_test") && completion.contains("crash_matrix"), "TEST_BENCHMARK", failures);
@@ -204,6 +266,55 @@ public final class ProductAcceptanceMatrix {
         pass(135, completionReady && failures.isEmpty(), "ARCHITECTURE_CONCLUSION", failures);
 
         return new Result(failures);
+    }
+
+    private static boolean inputDispatchPass(
+            ProductServices services
+    ) {
+        try {
+            InputRouter.Dispatch route =
+                    services.inputRouter().dispatch(
+                            "object.home.primary",
+                            InputRouter.Event.TAP,
+                            InputRouter.Propagation.CONTINUE
+                    );
+            return "object.home.primary".equals(route.target())
+                    && route.capture().contains("screen.home")
+                    && route.bubble().contains("screen.home");
+        } catch (RuntimeException error) {
+            return false;
+        }
+    }
+
+    private static boolean stateLayerPass(
+            ProductServices services
+    ) {
+        Map<String, String> values =
+                services.stateVariants().resolve(
+                        "object.home.primary",
+                        "state.pressed",
+                        "orientation.landscape",
+                        "theme.dark.neon",
+                        null
+                );
+        return "#4CC9FF".equals(values.get("property.color"))
+                && "196".equals(values.get("property.width"));
+    }
+
+    private static boolean conditionalPass(
+            ProductServices services
+    ) {
+        LinkedHashMap<String, String> context =
+                new LinkedHashMap<>();
+        context.put("data.valid", "true");
+        context.put("user.role", "admin");
+        return services.conditionalProperties().evaluate(
+                "data.valid && user.role == admin",
+                context
+        ) && !services.conditionalProperties().evaluate(
+                "user.role == guest",
+                context
+        );
     }
 
     private static void pass(int id, boolean condition, String code, Map<Integer,String> failures) {
