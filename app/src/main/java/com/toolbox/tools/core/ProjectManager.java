@@ -478,6 +478,33 @@ public final class ProjectManager {
         }
     }
 
+    public synchronized boolean deleteRecoveryCandidate(
+            RecoveryCandidate candidate
+    ) throws IOException {
+        requireStarted();
+        if (candidate == null) throw new NullPointerException("candidate");
+        if (candidate.kind() != RecoveryCandidate.Kind.OLDER_REVISION) {
+            return false;
+        }
+        return store.deleteRecoveryRevision(candidate.revision());
+    }
+
+    public synchronized int deleteAllSafeRecoveryCandidates()
+            throws IOException {
+        requireStarted();
+        int deleted = 0;
+        for (RecoveryCandidate candidate : recoveryCandidates()) {
+            if (candidate.kind()
+                    == RecoveryCandidate.Kind.OLDER_REVISION
+                    && store.deleteRecoveryRevision(
+                            candidate.revision()
+                    )) {
+                deleted++;
+            }
+        }
+        return deleted;
+    }
+
     public synchronized IncrementalResourceValidator.Result
             lastIncrementalValidation() {
         return lastIncrementalValidation;
