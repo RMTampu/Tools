@@ -231,6 +231,10 @@ public final class ProductProductionContractsTest {
         assertTrue(initial > 0);
         assertEquals(initial, freeze.recoveryARevision());
         assertTrue(freeze.hasFrozenBase());
+        assertEquals(
+                FreezeEngine.SaveMode.CHECKPOINT,
+                freeze.saveMode()
+        );
 
         Map<String,String> change = new LinkedHashMap<>();
         change.put("ui.screen.home.title", "Working");
@@ -250,8 +254,16 @@ public final class ProductProductionContractsTest {
         );
         freeze.recover();
         assertEquals(FreezeEngine.State.FROZEN, freeze.state());
+        assertEquals(
+                FreezeEngine.SaveMode.RECOVERY,
+                freeze.saveMode()
+        );
         freeze.thaw();
         assertEquals(FreezeEngine.State.NORMAL, freeze.state());
+        assertEquals(
+                FreezeEngine.SaveMode.NORMAL,
+                freeze.saveMode()
+        );
     }
 
     @Test public void resourceGuardHasRealPerScreenBudgetsAndLeakTrend() {
