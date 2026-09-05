@@ -22,6 +22,7 @@ public final class ProductAcceptanceMatrix {
         if (kernel == null) throw new NullPointerException("kernel");
         ProductServices s = kernel.productServices();
         Set<String> completion = s.completion().selfTest();
+        Set<String> deep = s.deep().selfTest();
         LinkedHashMap<Integer, String> failures = new LinkedHashMap<>();
 
         boolean kernelReady = kernel.state() == AppState.READY
@@ -48,7 +49,8 @@ public final class ProductAcceptanceMatrix {
         boolean deliveryReady = kernel.safePatchManager() != null
                 && kernel.remotePatchVerifier() != null
                 && kernel.evolutionManager() != null;
-        boolean completionReady = s.completion().isReady();
+        boolean completionReady = s.completion().isReady()
+                && s.deep().isReady();
 
         // 1-17: product identity, shell, editor, manual editing semantics.
         pass(1, kernelReady && editorReady && repairReady && deliveryReady, "PRODUCT_IDENTITY", failures);
@@ -84,16 +86,16 @@ public final class ProductAcceptanceMatrix {
         // 28-45: registries, contracts, data, binding, logic.
         pass(28, libraryReady, "COMPONENT_REGISTRY", failures);
         pass(29, completion.contains("authoritative_inventory"), "REGISTRY_INVENTORY", failures);
-        pass(30, completion.contains("version_matrix"), "PROPERTY_CONTRACT", failures);
-        pass(31, completion.contains("pointer_propagation"), "EVENT_CONTRACT", failures);
-        pass(32, kernel.runtimeEnvironment().actions() != null, "ACTION_REGISTRY", failures);
-        pass(33, completion.contains("conditional_expression"), "COMPATIBILITY_MATCHING", failures);
-        pass(34, completion.contains("flow_execution"), "COMPOSITE_ACTION", failures);
+        pass(30, deep.contains("property_contract"), "PROPERTY_CONTRACT", failures);
+        pass(31, deep.contains("event_action_contract"), "EVENT_CONTRACT", failures);
+        pass(32, kernel.runtimeEnvironment().actions() != null && deep.contains("event_action_contract"), "ACTION_REGISTRY", failures);
+        pass(33, deep.contains("safe_converter"), "COMPATIBILITY_MATCHING", failures);
+        pass(34, deep.contains("composite_executor"), "COMPOSITE_ACTION", failures);
         pass(35, runtimeReady, "NAVIGATION_CONTRACT", failures);
         pass(36, runtimeReady, "BACK_STACK", failures);
-        pass(37, runtimeReady, "DATA_SOURCE_CONTRACT", failures);
+        pass(37, runtimeReady && deep.contains("data_provider_ecosystem"), "DATA_SOURCE_CONTRACT", failures);
         pass(38, runtimeReady, "DATA_BINDING", failures);
-        pass(39, runtimeReady && completion.contains("screen_memory_budget"), "LAZY_PAGED_DATA", failures);
+        pass(39, runtimeReady && deep.contains("virtualized_paging"), "LAZY_PAGED_DATA", failures);
         pass(40, runtimeReady, "DYNAMIC_LIST_IDENTITY", failures);
         pass(41, runtimeReady && s.diagnostics() != null, "BROKEN_REFERENCE", failures);
         pass(42, completion.contains("flow_execution"), "LOGIC_FLOW_EDITOR", failures);
@@ -102,13 +104,13 @@ public final class ProductAcceptanceMatrix {
         pass(45, libraryReady, "COMPONENT_INSTANCE_TEMPLATE", failures);
 
         // 46-62: states, animation, layout, interaction, accessibility, localization.
-        pass(46, s.stateVariants() != null, "STATE_VARIANT", failures);
-        pass(47, s.animations() != null && !s.animations().all().isEmpty(), "ANIMATION_MODEL", failures);
+        pass(46, s.stateVariants() != null && deep.contains("state_layering"), "STATE_VARIANT", failures);
+        pass(47, s.animations() != null && !s.animations().all().isEmpty() && deep.contains("animation_timeline"), "ANIMATION_MODEL", failures);
         pass(48, s.themes() != null, "DESIGN_TOKEN_THEME", failures);
-        pass(49, s.visualLayout().snapshot().size() >= 2, "RESPONSIVE_LAYOUT", failures);
+        pass(49, s.visualLayout().snapshot().size() >= 2 && deep.contains("constraint_multi_select"), "RESPONSIVE_LAYOUT", failures);
         pass(50, s.visualLayout().adaptiveClass(700) != null, "ADAPTIVE_ORIENTATION", failures);
         pass(51, s.visualLayout() != null, "GRID_GUIDE_SNAPPING", failures);
-        pass(52, s.visualLayout() != null, "MULTI_SELECT_GROUP", failures);
+        pass(52, s.visualLayout() != null && deep.contains("constraint_multi_select"), "MULTI_SELECT_GROUP", failures);
         pass(53, s.visualLayout() != null, "REPARENTING", failures);
         pass(54, kernel.editorEnvironment().visualSession() != null, "OBJECT_LOCK", failures);
         pass(55, s.visualLayout().hitTest(25, 181) != null, "LAYER_HIT_TEST", failures);
@@ -116,8 +118,8 @@ public final class ProductAcceptanceMatrix {
         pass(57, completion.contains("gesture_focus"), "INPUT_GESTURE_FOCUS", failures);
         pass(58, s.visualLayout() != null, "SAFE_AREA_INSETS", failures);
         pass(59, s.visualLayout() != null, "ZOOM_PAN", failures);
-        pass(60, libraryReady, "ACCESSIBILITY_SEMANTIC", failures);
-        pass(61, "id".equals(LocalizationManager.BAHASA_DEFAULT), "LOCALIZATION", failures);
+        pass(60, libraryReady && deep.contains("accessibility_semantic"), "ACCESSIBILITY_SEMANTIC", failures);
+        pass(61, "id".equals(LocalizationManager.BAHASA_DEFAULT) && deep.contains("localization_formatting"), "LOCALIZATION", failures);
         pass(62, completion.contains("conditional_expression"), "CONDITIONAL_PROPERTIES", failures);
 
         // 63-80: assets, cache, recovery, storage, import/export, permissions.
@@ -125,7 +127,7 @@ public final class ProductAcceptanceMatrix {
         pass(64, completion.contains("asset_loading"), "ORIGINAL_PREVIEW", failures);
         pass(65, completion.contains("asset_loading"), "ASSET_LOADING", failures);
         pass(66, completion.contains("asset_audit"), "ASSET_AUDIT", failures);
-        pass(67, s.cache() != null && completion.contains("screen_memory_budget"), "CACHE_MANAGER", failures);
+        pass(67, s.cache() != null && deep.contains("cache_category_budget"), "CACHE_MANAGER", failures);
         pass(68, s.cache() != null, "CACHE_CLEANUP", failures);
         pass(69, projectReady, "RECOVERY", failures);
         pass(70, projectReady && completion.contains("recovery_catalog"), "INCREMENTAL_SNAPSHOT", failures);
@@ -135,21 +137,21 @@ public final class ProductAcceptanceMatrix {
         pass(74, completion.contains("access_relink"), "ACCESS_RELINK", failures);
         pass(75, projectReady && completion.contains("external_integrity"), "PROJECT_SECURITY", failures);
         pass(76, kernel.remotePatchVerifier() != null, "SECRET_SEPARATION", failures);
-        pass(77, s.importSecurity() != null && completion.contains("external_integrity"), "IMPORT_SECURITY", failures);
+        pass(77, s.importSecurity() != null && deep.contains("import_security_deep"), "IMPORT_SECURITY", failures);
         pass(78, s.importMerge() != null, "IMPORT_MERGE", failures);
-        pass(79, kernel.externalIntegrationManager() != null, "EXPORT_CONTRACT", failures);
+        pass(79, kernel.externalIntegrationManager() != null && deep.contains("full_project_export"), "EXPORT_CONTRACT", failures);
         pass(80, completion.contains("permission_derivation"), "PERMISSION_CONTRACT", failures);
 
         // 81-101: lifecycle, background work, diagnostics, build and engine contract.
         pass(81, completion.contains("lifecycle_policy"), "APP_SCREEN_LIFECYCLE", failures);
-        pass(82, s.backgroundTasks() != null, "BACKGROUND_TASK", failures);
+        pass(82, s.backgroundTasks() != null && deep.contains("background_task_contract"), "BACKGROUND_TASK", failures);
         pass(83, s.previewSandbox() != null, "PREVIEW_SAFETY", failures);
         pass(84, s.previewSandbox() != null, "PREVIEW_DATA", failures);
-        pass(85, s.editorContext() != null, "EDITOR_CONTEXT", failures);
+        pass(85, s.editorContext() != null && deep.contains("editor_context_complete"), "EDITOR_CONTEXT", failures);
         pass(86, buildReady, "EDITOR_METADATA_RUNTIME", failures);
-        pass(87, s.clipboard() != null, "CLIPBOARD", failures);
-        pass(88, s.diagnostics() != null, "DIAGNOSTICS", failures);
-        pass(89, s.autoRepair() != null, "DETECT_SUGGEST_FIX", failures);
+        pass(87, s.clipboard() != null && deep.contains("clipboard_dependency_remap"), "CLIPBOARD", failures);
+        pass(88, s.diagnostics() != null && deep.contains("diagnostic_rich_record"), "DIAGNOSTICS", failures);
+        pass(89, s.autoRepair() != null && deep.contains("repair_detect_suggest_fix"), "DETECT_SUGGEST_FIX", failures);
         pass(90, completion.contains("incremental_validation"), "INCREMENTAL_VALIDATION", failures);
         pass(91, buildReady && completionReady, "BUILD_VALIDATOR", failures);
         pass(92, buildReady, "CANONICAL_IR", failures);
@@ -158,19 +160,19 @@ public final class ProductAcceptanceMatrix {
         pass(95, "30".equals(kernel.configStore().get("targetApi", "")), "SIGNING_BOUNDARY", failures);
         pass(96, completion.contains("immutable_build_package"), "ARTIFACT_TRACEABILITY", failures);
         pass(97, completion.contains("engine_extension"), "ENGINE_EXTENSION", failures);
-        pass(98, completion.contains("engine_isolation"), "NO_INTER_TOOL_DEP", failures);
-        pass(99, completion.contains("engine_isolation"), "LIFECYCLE_COMPLIANCE", failures);
-        pass(100, completion.contains("engine_isolation"), "FAILURE_ISOLATION", failures);
+        pass(98, completion.contains("engine_isolation") && deep.contains("static_tool_dependency_gate"), "NO_INTER_TOOL_DEP", failures);
+        pass(99, completion.contains("engine_isolation") && deep.contains("lifecycle_release_probe"), "LIFECYCLE_COMPLIANCE", failures);
+        pass(100, completion.contains("engine_isolation") && deep.contains("fault_isolation"), "FAILURE_ISOLATION", failures);
         pass(101, kernel.declarativeRuntime() != null, "EXECUTABLE_BOUNDARY", failures);
 
         // 102-118: live target, update/freeze, safety, health, performance and integrity.
         pass(102, completion.contains("installed_target_bridge"), "INSTALLED_TARGET_BRIDGE", failures);
-        pass(103, deliveryReady, "DECLARATIVE_UPDATE", failures);
-        pass(104, deliveryReady, "UPDATE_PIPELINE", failures);
+        pass(103, deliveryReady && deep.contains("update_intent_pipeline"), "DECLARATIVE_UPDATE", failures);
+        pass(104, deliveryReady && deep.contains("update_intent_pipeline"), "UPDATE_PIPELINE", failures);
         pass(105, completion.contains("freeze_ab_overlay"), "FREEZE_ENGINE", failures);
         pass(106, completion.contains("freeze_ab_overlay"), "FREEZE_STATE_MACHINE", failures);
-        pass(107, repairReady, "SAFE_MODE_UI", failures);
-        pass(108, repairReady, "HEALTH_CHECK", failures);
+        pass(107, repairReady && deep.contains("safe_ui"), "SAFE_MODE_UI", failures);
+        pass(108, repairReady && deep.contains("comprehensive_health"), "HEALTH_CHECK", failures);
         pass(109, completion.contains("screen_memory_budget"), "MEMORY_ARCHITECTURE", failures);
         pass(110, completion.contains("screen_memory_budget"), "PER_SCREEN_MEMORY", failures);
         pass(111, completion.contains("render_cost"), "OVERDRAW_RENDERING", failures);
@@ -186,7 +188,7 @@ public final class ProductAcceptanceMatrix {
         pass(119, completion.contains("audit_behavior_gate"), "AUDIT_AGENT", failures);
         pass(120, s.autoRepair() != null, "AUTO_REPAIR_POLICY", failures);
         pass(121, s.diagnostics() != null, "DIAGNOSTIC_CODES", failures);
-        pass(122, completion.contains("saf_user_storage") && projectReady, "SOURCE_OF_TRUTH", failures);
+        pass(122, completion.contains("saf_user_storage") && projectReady && deep.contains("source_of_truth_policy"), "SOURCE_OF_TRUTH", failures);
         pass(123, completionReady && kernelReady, "INVARIANTS", failures);
         pass(124, editorReady && buildReady && projectReady, "PROJECT_TO_APK_FLOW", failures);
         pass(125, editorReady && completion.contains("ui_state_hold"), "UI_EDITOR_FLOW", failures);
