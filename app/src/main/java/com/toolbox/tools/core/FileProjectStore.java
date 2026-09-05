@@ -191,23 +191,28 @@ public final class FileProjectStore implements ProjectStore {
         }
 
         Files.createDirectories(revisionDir);
-        Path resourcesDir = revisionDir.resolve("resources");
-        Files.createDirectories(resourcesDir);
 
         Path projectFile = revisionDir.resolve("project.json");
         Path manifestFile = revisionDir.resolve("project.manifest");
         Path indexFile = revisionDir.resolve("project.index");
 
-        writeAndSync(projectFile, encodedDefinition.getBytes(StandardCharsets.UTF_8));
+        writeAndSync(
+                projectFile,
+                encodedDefinition.getBytes(StandardCharsets.UTF_8)
+        );
 
-        for (Map.Entry<String, String> entry : committed.resources().entrySet()) {
-            Path resourceFile = resourcesDir.resolve(
-                    ProjectDefinitionCodec.resourceFileName(entry.getKey())
+        for (Map.Entry<String, String> entry
+                : committed.resources().entrySet()) {
+            Path resourceFile = revisionDir.resolve(
+                    ProjectResourceLayout.relativePath(
+                            entry.getKey()
+                    )
             );
-            ensureChild(resourcesDir, resourceFile);
+            ensureChild(revisionDir, resourceFile);
             writeAndSync(
                     resourceFile,
-                    entry.getValue().getBytes(StandardCharsets.UTF_8)
+                    entry.getValue()
+                            .getBytes(StandardCharsets.UTF_8)
             );
         }
 
@@ -319,12 +324,10 @@ public final class FileProjectStore implements ProjectStore {
         Path projectFile = revisionDir.resolve("project.json");
         Path manifestFile = revisionDir.resolve("project.manifest");
         Path indexFile = revisionDir.resolve("project.index");
-        Path resourcesDir = revisionDir.resolve("resources");
 
         if (!Files.isRegularFile(projectFile)
                 || !Files.isRegularFile(manifestFile)
-                || !Files.isRegularFile(indexFile)
-                || !Files.isDirectory(resourcesDir)) {
+                || !Files.isRegularFile(indexFile)) {
             throw new IOException("revision incomplete");
         }
 
@@ -340,7 +343,7 @@ public final class FileProjectStore implements ProjectStore {
         try {
             Map<String, String> resources = readIndexedResources(
                     indexFile,
-                    resourcesDir
+                    revisionDir
             );
             verifyDependencyLockFile(revisionDir, resources);
             ProjectState state = definitionCodec.decode(
@@ -396,59 +399,142 @@ public final class FileProjectStore implements ProjectStore {
 
     private Map<String, String> readIndexedResources(
             Path indexFile,
-            Path resourcesDir
+            Path revisionDir
     ) throws IOException {
         List<String> lines = Files.readAllLines(
                 indexFile,
                 StandardCharsets.UTF_8
         );
+        if (lines.isEmpty()) {
+            throw new IOException("project index empty");
+        }
+
+        boolean v2 = "TBX_PROJECT_INDEX_V2".equals(lines.get(0));
+        boolean v1 = "TBX_PROJECT_INDEX_V1".equals(lines.get(0));
+        if (!v1 && !v2) {
+            throw new IOException("project index header invalid");
+        }
+
         Map<String, String> resources = new LinkedHashMap<>();
         int declaredCount = -1;
+        Path legacyResources = revisionDir.resolve("resources");
 
         for (String line : lines) {
             if (line.startsWith("resourceCount=")) {
-                declaredCount = parseInt(line.substring("resourceCount=".length()));
+                declaredCount = parseInt(
+                        line.substring("resourceCount=".length())
+                );
             } else if (line.startsWith("resource=")) {
                 String value = line.substring("resource=".length());
                 int separator = value.indexOf('|');
-                if (separator <= 0 || separator == value.length() - 1) {
-                    throw new IOException("project index resource record invalid");
+                if (separator <= 0
+                        || separator == value.length() - 1) {
+                    throw new IOException(
+                            "project index resource record invalid"
+                    );
                 }
                 String id = value.substring(0, separator);
                 StableId.require(id, "resourceId");
-                String fileName = value.substring(separator + 1);
-                if (!fileName.equals(ProjectDefinitionCodec.resourceFileName(id))) {
-                    throw new IOException("project index filename mismatch");
+                String path = value.substring(separator + 1);
+
+                Path resourceFile;
+                if (v2) {
+                    if (!ProjectResourceLayout.validRelativePath(
+                            id,
+                            path
+                    )) {
+                        throw new IOException(
+                                "project index resource path mismatch"
+                        );
+                    }
+                    resourceFile = revisionDir.resolve(path);
+                    ensureChild(revisionDir, resourceFile);
+                } else {
+                    if (!path.equals(
+                            ProjectDefinitionCodec.resourceFileName(id)
+                    )) {
+                        throw new IOException(
+                                "legacy project index filename mismatch"
+                        );
+                    }
+                    resourceFile = legacyResources.resolve(path);
+                    ensureChild(legacyResources, resourceFile);
                 }
-                Path resourceFile = resourcesDir.resolve(fileName);
-                ensureChild(resourcesDir, resourceFile);
+
                 if (!Files.isRegularFile(resourceFile)) {
-                    throw new IOException("indexed resource missing");
+                    throw new IOException(
+                            "indexed resource missing"
+                    );
                 }
                 byte[] bytes = Files.readAllBytes(resourceFile);
                 if (bytes.length > ProjectState.MAX_RESOURCE_BYTES) {
-                    throw new IOException("resource exceeds size budget");
+                    throw new IOException(
+                            "resource exceeds size budget"
+                    );
                 }
                 if (resources.put(
                         id,
-                        new String(bytes, StandardCharsets.UTF_8)
+                        new String(
+                                bytes,
+                                StandardCharsets.UTF_8
+                        )
                 ) != null) {
-                    throw new IOException("duplicate indexed resource");
+                    throw new IOException(
+                            "duplicate indexed resource"
+                    );
                 }
             }
         }
 
-        if (declaredCount < 0 || declaredCount != resources.size()) {
-            throw new IOException("project index count mismatch");
+        if (declaredCount < 0
+                || declaredCount != resources.size()) {
+            throw new IOException(
+                    "project index count mismatch"
+            );
         }
 
-        try (java.util.stream.Stream<Path> stream = Files.list(resourcesDir)) {
-            long physicalCount = stream.filter(Files::isRegularFile).count();
-            if (physicalCount != resources.size()) {
-                throw new IOException("unexpected resource payload");
-            }
+        long physicalCount = v2
+                ? countV2ResourceFiles(revisionDir)
+                : countLegacyResourceFiles(legacyResources);
+        if (physicalCount != resources.size()) {
+            throw new IOException(
+                    "unexpected resource payload"
+            );
         }
         return resources;
+    }
+
+    private static long countLegacyResourceFiles(Path resourcesDir)
+            throws IOException {
+        if (!Files.isDirectory(resourcesDir)) return 0;
+        try (java.util.stream.Stream<Path> stream =
+                Files.list(resourcesDir)) {
+            return stream.filter(Files::isRegularFile).count();
+        }
+    }
+
+    private static long countV2ResourceFiles(Path revisionDir)
+            throws IOException {
+        long count = 0;
+        for (String domain
+                : ProjectResourceLayout.domainDirectories()) {
+            Path root = revisionDir.resolve(domain);
+            ensureChild(revisionDir, root);
+            if (!Files.exists(root)) continue;
+            if (!Files.isDirectory(root)) {
+                throw new IOException(
+                        "resource domain is not directory:"
+                                + domain
+                );
+            }
+            try (java.util.stream.Stream<Path> stream =
+                    Files.walk(root)) {
+                count += stream
+                        .filter(Files::isRegularFile)
+                        .count();
+            }
+        }
+        return count;
     }
 
     private void recoverInterruptedTransaction() throws IOException {
@@ -499,15 +585,23 @@ public final class FileProjectStore implements ProjectStore {
 
     private static String buildIndex(ProjectState state) {
         StringBuilder out = new StringBuilder();
-        out.append("TBX_PROJECT_INDEX_V1\n");
-        out.append("projectId=").append(state.projectId()).append('\n');
-        out.append("revision=").append(state.revision()).append('\n');
-        out.append("resourceCount=").append(state.resources().size()).append('\n');
+        out.append("TBX_PROJECT_INDEX_V2\n");
+        out.append("projectId=")
+                .append(state.projectId())
+                .append('\n');
+        out.append("revision=")
+                .append(state.revision())
+                .append('\n');
+        out.append("resourceCount=")
+                .append(state.resources().size())
+                .append('\n');
         for (String id : state.resources().keySet()) {
             out.append("resource=")
                     .append(id)
                     .append('|')
-                    .append(ProjectDefinitionCodec.resourceFileName(id))
+                    .append(
+                            ProjectResourceLayout.relativePath(id)
+                    )
                     .append('\n');
         }
         return out.toString();

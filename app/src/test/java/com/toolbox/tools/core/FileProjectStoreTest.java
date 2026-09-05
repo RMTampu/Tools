@@ -31,9 +31,28 @@ public final class FileProjectStoreTest {
         assertTrue(Files.isRegularFile(revision.resolve("project.manifest")));
         assertTrue(Files.isRegularFile(revision.resolve("project.index")));
         assertTrue(Files.isRegularFile(
-                revision.resolve("resources")
-                        .resolve(ProjectDefinitionCodec.resourceFileName("screen.main"))
+                revision.resolve(
+                        ProjectResourceLayout.relativePath(
+                                "screen.main"
+                        )
+                )
         ));
+        assertTrue(Files.isRegularFile(
+                revision.resolve(
+                        ProjectResourceLayout.relativePath(
+                                "asset.logo"
+                        )
+                )
+        ));
+        String index = new String(
+                Files.readAllBytes(
+                        revision.resolve("project.index")
+                ),
+                StandardCharsets.UTF_8
+        );
+        assertTrue(index.startsWith("TBX_PROJECT_INDEX_V2"));
+        assertTrue(index.contains("screens/main/"));
+        assertTrue(index.contains("assets/"));
         String definition = new String(
                 Files.readAllBytes(revision.resolve("project.json")),
                 StandardCharsets.UTF_8
@@ -58,8 +77,12 @@ public final class FileProjectStoreTest {
                 1
         );
 
-        Path currentResource = root.resolve("revisions/2/resources")
-                .resolve(ProjectDefinitionCodec.resourceFileName("screen.main"));
+        Path currentResource = root.resolve("revisions/2")
+                .resolve(
+                        ProjectResourceLayout.relativePath(
+                                "screen.main"
+                        )
+                );
         Files.write(
                 currentResource,
                 "corrupt".getBytes(StandardCharsets.UTF_8)
