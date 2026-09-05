@@ -730,6 +730,10 @@ public final class WorkspaceShellView extends FrameLayout {
     }
 
     private void openHome() {
+        navigateWithDirtyGuard(this::openHomeNow);
+    }
+
+    private void openHomeNow() {
         closeOverlay();
         screen = Screen.HOME;
         panelPage = PanelPage.ROOT;
@@ -738,11 +742,46 @@ public final class WorkspaceShellView extends FrameLayout {
     }
 
     private void openEditorChooser() {
+        navigateWithDirtyGuard(this::openEditorChooserNow);
+    }
+
+    private void openEditorChooserNow() {
         closeOverlay();
         screen = Screen.EDITOR_CHOOSER;
         panelPage = PanelPage.ROOT;
         kernel.editorEnvironment().shell().clearSelection();
         renderAll();
+    }
+
+    private void navigateWithDirtyGuard(Runnable target) {
+        if (screen != Screen.EDITOR_WORKSPACE
+                || !kernel.projectManager().hasUnsavedChanges()) {
+            target.run();
+            return;
+        }
+        showActionOverlay(
+                "Perubahan Belum Disimpan",
+                Arrays.asList(
+                        "Simpan lalu keluar",
+                        "Buang perubahan lalu keluar",
+                        "Batal • tetap di Editor"
+                ),
+                choice -> {
+                    try {
+                        if ("Simpan lalu keluar".equals(choice)) {
+                            kernel.projectManager().save();
+                            target.run();
+                        } else if ("Buang perubahan lalu keluar".equals(choice)) {
+                            kernel.projectManager().reloadSaved();
+                            target.run();
+                        } else {
+                            closeOverlay();
+                        }
+                    } catch (IOException | RuntimeException error) {
+                        toast("Perubahan gagal diselesaikan secara aman.");
+                    }
+                }
+        );
     }
 
     private void openEditor(String entry) {
