@@ -27,6 +27,7 @@ public final class ProductServices {
     private final AutoRepairEngine autoRepair;
     private final ScaleBenchmarkHarness benchmark;
     private final ToolLifecycleManager toolLifecycle;
+    private final ProductCompletionServices completion;
 
     public ProductServices(ProjectManager projects) {
         Objects.requireNonNull(projects, "projects");
@@ -53,6 +54,7 @@ public final class ProductServices {
         autoRepair = new AutoRepairEngine();
         benchmark = new ScaleBenchmarkHarness();
         toolLifecycle = new ToolLifecycleManager();
+        completion = new ProductCompletionServices();
 
         projectGraph.registerEntity("screen.home");
         projectGraph.registerEntity("screen.detail");
@@ -126,6 +128,7 @@ public final class ProductServices {
     public AutoRepairEngine autoRepair() { return autoRepair; }
     public ScaleBenchmarkHarness benchmark() { return benchmark; }
     public ToolLifecycleManager toolLifecycle() { return toolLifecycle; }
+    public ProductCompletionServices completion() { return completion; }
 
     public boolean isReady() {
         return screens.startScreenId() != null
@@ -137,6 +140,7 @@ public final class ProductServices {
                 && !animations.all().isEmpty()
                 && !previewSandbox.snapshot().isEmpty()
                 && lifecycle.history().size() >= 1
-                && toolLifecycle.activeCount() == 1;
+                && toolLifecycle.activeCount() == 1
+                && completion.isReady();
     }
 }
