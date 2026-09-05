@@ -5,6 +5,7 @@ import android.graphics.Typeface;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.GridLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
@@ -22,6 +23,8 @@ import com.toolbox.tools.runtime.DataSourceDefinition;
 import com.toolbox.tools.runtime.FlowGraph;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -72,57 +75,90 @@ public final class EditorPaneFactory {
         root.addView(UiKit.judul(c, "Properti Terstruktur", 18f));
         TextView info = UiKit.teks(
                 c,
-                "Properti membaca model yang sama dengan Visual dan Kode. "
-                        + "Perubahan representabel tetap tersinkron dua arah.",
+                "Representasi Properti mengedit Project Store yang sama dengan Visual dan Kode. "
+                        + "Perubahan langsung menjadi working state dan tetap menunggu Simpan manual.",
                 11.5f,
                 UiKit.TEKS_REDUP
         );
-        info.setPadding(0, UiKit.dp(c, 4), 0, UiKit.dp(c, 14));
+        info.setPadding(0, UiKit.dp(c, 4), 0, UiKit.dp(c, 12));
         root.addView(info);
 
-        switch (section) {
-            case UI:
-                propertyRow(root, c, "Objek dipilih", "Tombol Utama");
-                propertyRow(root, c, "Lebar", "148 dp");
-                propertyRow(root, c, "Tinggi", "46 dp");
-                propertyRow(root, c, "Teks", "Buka Detail");
-                propertyRow(root, c, "Warna", "Token Neon");
-                propertyRow(root, c, "Radius", "14 dp");
-                propertyRow(root, c, "Posisi", "Terikat Layout");
-                propertyRow(root, c, "Aksesibilitas", "Tombol • berlabel");
-                break;
-            case LOGIC:
-                propertyRow(root, c, "Alur aktif", "Saat Tombol Ditekan");
-                propertyRow(root, c, "Node", "4");
-                propertyRow(root, c, "Koneksi", "3");
-                propertyRow(root, c, "Watchdog", "Aktif");
-                propertyRow(root, c, "Batas loop", "Aman");
-                break;
-            case DATA:
-                propertyRow(root, c, "Sumber", "data.items");
-                propertyRow(root, c, "Kunci item", "field.id");
-                propertyRow(root, c, "Paging", "20 item");
-                propertyRow(root, c, "Data Contoh", "Aktif untuk pratinjau");
-                break;
-            case BINDING:
-                propertyRow(root, c, "Profil", "Profil Pengikatan Bawaan");
-                propertyRow(root, c, "Mode", "Satu arah");
-                propertyRow(root, c, "Target ambigu", "Tidak ditebak");
-                propertyRow(root, c, "Siklus", "Dicegah otomatis");
-                break;
-            case ASSET:
-                propertyRow(root, c, "Tema", "Gelap Neon");
-                propertyRow(root, c, "Aset bawaan", String.valueOf(
-                        kernel.libraryManager().assets().allReady().size()
-                ));
-                propertyRow(root, c, "Komponen siap", String.valueOf(
-                        kernel.libraryManager().components().allReady().size()
-                ));
-                propertyRow(root, c, "Template siap", String.valueOf(
-                        kernel.libraryManager().templates().allReady().size()
-                ));
-                break;
-        }
+        final String key = editableResourceKey(section);
+        final String fallback = editableFallback(section);
+        String current = kernel.projectManager().current().resources().getOrDefault(
+                key,
+                fallback
+        );
+
+        propertyRow(root, c, "Kunci Properti", key);
+
+        EditText value = new EditText(c);
+        value.setSingleLine(false);
+        value.setText(current);
+        value.setTextColor(UiKit.TEKS);
+        value.setHintTextColor(UiKit.TEKS_REDUP);
+        value.setHint("Nilai properti");
+        value.setPadding(
+                UiKit.dp(c, 12),
+                UiKit.dp(c, 10),
+                UiKit.dp(c, 12),
+                UiKit.dp(c, 10)
+        );
+        value.setBackground(UiKit.kartuPx(
+                c,
+                UiKit.PERMUKAAN,
+                UiKit.NEON_BIRU,
+                12,
+                1
+        ));
+        root.addView(value, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                UiKit.dp(c, 86)
+        ));
+
+        UiKit.ruang(root, c, 8);
+        TextView status = UiKit.teks(
+                c,
+                "Status: sinkron dengan working state",
+                11f,
+                UiKit.TEKS_REDUP
+        );
+        root.addView(status);
+
+        TextView apply = UiKit.tombol(c, "Terapkan Properti", true);
+        apply.setOnClickListener(v -> {
+            String next = value.getText().toString();
+            if (next.trim().isEmpty()) {
+                status.setText("Ditolak: nilai tidak boleh kosong");
+                return;
+            }
+            try {
+                LinkedHashMap<String, String> upserts = new LinkedHashMap<>();
+                upserts.put(key, next);
+                kernel.projectManager().applyResourceTransaction(
+                        upserts,
+                        Collections.emptySet()
+                );
+                status.setText("Diterapkan • belum disimpan");
+            } catch (RuntimeException error) {
+                status.setText("Ditolak aman • " + error.getClass().getSimpleName());
+            }
+        });
+        root.addView(apply);
+
+        UiKit.ruang(root, c, 12);
+        propertyRow(
+                root,
+                c,
+                "Revisi Tersimpan",
+                String.valueOf(kernel.projectManager().savedRevision())
+        );
+        propertyRow(
+                root,
+                c,
+                "Perubahan Tertunda",
+                kernel.projectManager().hasUnsavedChanges() ? "YA" : "TIDAK"
+        );
         return scroll;
     }
 
@@ -144,22 +180,28 @@ public final class EditorPaneFactory {
         root.addView(UiKit.judul(c, "Representasi Deklaratif", 18f));
         TextView note = UiKit.teks(
                 c,
-                "Kode adalah jalur cadangan lanjutan. ToolBox tidak mengeksekusi "
-                        + "kode sembarang yang diunduh di host.",
+                "Kode ini deklaratif, bukan arbitrary executable code. Format: satu resourceId=value per baris. "
+                        + "Hanya namespace fungsi aktif yang diterima.",
                 11.5f,
                 UiKit.TEKS_REDUP
         );
         note.setPadding(0, UiKit.dp(c, 4), 0, UiKit.dp(c, 12));
         root.addView(note);
 
-        TextView code = UiKit.teks(
-                c,
-                codeText(kernel, section),
-                11.5f,
-                UiKit.TEKS
+        final String key = editableResourceKey(section);
+        final String fallback = editableFallback(section);
+        final String prefix = editablePrefix(section);
+        String current = kernel.projectManager().current().resources().getOrDefault(
+                key,
+                fallback
         );
+
+        EditText code = new EditText(c);
+        code.setText(key + "=" + current);
         code.setTypeface(Typeface.MONOSPACE);
-        code.setTextIsSelectable(true);
+        code.setTextColor(UiKit.TEKS);
+        code.setHintTextColor(UiKit.TEKS_REDUP);
+        code.setGravity(Gravity.TOP | Gravity.START);
         code.setPadding(
                 UiKit.dp(c, 14),
                 UiKit.dp(c, 14),
@@ -175,8 +217,51 @@ public final class EditorPaneFactory {
         ));
         root.addView(code, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
+                UiKit.dp(c, 220)
         ));
+
+        TextView status = UiKit.teks(
+                c,
+                "Status: belum ada perubahan kode",
+                11f,
+                UiKit.TEKS_REDUP
+        );
+        root.addView(status);
+
+        TextView apply = UiKit.tombol(c, "Terapkan Kode Deklaratif", true);
+        apply.setOnClickListener(v -> {
+            try {
+                LinkedHashMap<String, String> upserts = new LinkedHashMap<>();
+                String[] lines = code.getText().toString().split("\\n");
+                for (String raw : lines) {
+                    String line = raw.trim();
+                    if (line.isEmpty()) continue;
+                    int split = line.indexOf('=');
+                    if (split <= 0 || split == line.length() - 1) {
+                        throw new IllegalArgumentException("format baris tidak valid");
+                    }
+                    String resourceId = line.substring(0, split).trim();
+                    String value = line.substring(split + 1);
+                    if (!resourceId.startsWith(prefix)) {
+                        throw new IllegalArgumentException(
+                                "namespace tidak sesuai fungsi aktif"
+                        );
+                    }
+                    upserts.put(resourceId, value);
+                }
+                if (upserts.isEmpty()) {
+                    throw new IllegalArgumentException("tidak ada perubahan");
+                }
+                kernel.projectManager().applyResourceTransaction(
+                        upserts,
+                        Collections.emptySet()
+                );
+                status.setText("Diterapkan • Visual/Properti membaca working state yang sama");
+            } catch (RuntimeException error) {
+                status.setText("Ditolak aman • " + error.getMessage());
+            }
+        });
+        root.addView(apply);
         return scroll;
     }
 
@@ -495,6 +580,39 @@ public final class EditorPaneFactory {
                         + "\n}";
             default:
                 return "{}";
+        }
+    }
+
+    private static String editableResourceKey(AuthoringSection section) {
+        switch (section) {
+            case UI: return "ui.object.home.primary.text";
+            case LOGIC: return "logic.ui.home.primary.action";
+            case DATA: return "data.editor.query";
+            case BINDING: return "binding.ui.home.primary.mode";
+            case ASSET: return "asset.editor.active";
+            default: return "config.editor.value";
+        }
+    }
+
+    private static String editableFallback(AuthoringSection section) {
+        switch (section) {
+            case UI: return "Buka Detail";
+            case LOGIC: return "open.detail";
+            case DATA: return "all";
+            case BINDING: return "auto";
+            case ASSET: return "asset.theme.dark.neon";
+            default: return "default";
+        }
+    }
+
+    private static String editablePrefix(AuthoringSection section) {
+        switch (section) {
+            case UI: return "ui.";
+            case LOGIC: return "logic.";
+            case DATA: return "data.";
+            case BINDING: return "binding.";
+            case ASSET: return "asset.";
+            default: return "config.";
         }
     }
 
