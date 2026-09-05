@@ -32,6 +32,7 @@ public final class ProductServices {
     private final RepositoryInventory inventory;
     private final InputRouter inputRouter;
     private final ConditionalPropertyEngine conditionalProperties;
+    private final DataProviderRegistry dataProviders;
 
     public ProductServices(ProjectManager projects) {
         Objects.requireNonNull(projects, "projects");
@@ -63,6 +64,7 @@ public final class ProductServices {
         inventory = new RepositoryInventory();
         inputRouter = new InputRouter();
         conditionalProperties = new ConditionalPropertyEngine();
+        dataProviders = new DataProviderRegistry();
 
         projectGraph.registerEntity("screen.home");
         projectGraph.registerEntity("screen.detail");
@@ -192,6 +194,7 @@ public final class ProductServices {
     public RepositoryInventory inventory() { return inventory; }
     public InputRouter inputRouter() { return inputRouter; }
     public ConditionalPropertyEngine conditionalProperties() { return conditionalProperties; }
+    public DataProviderRegistry dataProviders() { return dataProviders; }
 
     public boolean isReady() {
         return screens.startScreenId() != null
@@ -207,6 +210,7 @@ public final class ProductServices {
                 && completion.isReady()
                 && deep.isReady()
                 && inventory.complete()
-                && inputRouter.complete();
+                && inputRouter.complete()
+                && dataProviders.complete();
     }
 }
