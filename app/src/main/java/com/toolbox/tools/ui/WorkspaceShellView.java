@@ -398,7 +398,7 @@ public final class WorkspaceShellView extends FrameLayout {
             addEdgeCommand("Pemulihan & Backup", this::showRecovery);
             addEdgeCommand("Freeze / Mode Simpan", this::showFreeze);
             addEdgeCommand("Perbaikan & Kesehatan", this::showHealth);
-            addEdgeCommand("Paket Evolusi", this::showEvolution);
+            addEdgeCommand("Paket Evolusi Tanpa Rebuild", this::showEvolution);
             addEdgeCommand("Bangun & SIAP", this::showBuild);
             addEdgeCommand("Diagnostik", this::showDiagnostics);
             addEdgeCommand("Pengaturan", this::showSettings);
@@ -705,7 +705,7 @@ public final class WorkspaceShellView extends FrameLayout {
                         showFreeze();
                     } else if ("Perbaikan & Kesehatan".equals(value)) {
                         showHealth();
-                    } else if ("Paket Evolusi".equals(value)) {
+                    } else if ("Paket Evolusi Tanpa Rebuild".equals(value)) {
                         showEvolution();
                     } else if ("Bangun & SIAP".equals(value)) {
                         showBuild();
