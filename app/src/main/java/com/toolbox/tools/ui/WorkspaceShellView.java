@@ -18,6 +18,9 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowInsets;
 import android.widget.FrameLayout;
+import android.widget.GridLayout;
+import android.widget.ImageView;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -28,6 +31,7 @@ import com.toolbox.tools.core.AppKernel;
 import com.toolbox.tools.core.RecoveryCandidate;
 import com.toolbox.tools.build.BuildHandoffPackage;
 import com.toolbox.tools.android.AndroidBuildProvenance;
+import com.toolbox.tools.android.InstalledApplicationCatalog;
 import com.toolbox.tools.editor.EdgeItem;
 import com.toolbox.tools.editor.EdgePanelModel;
 import com.toolbox.tools.editor.EditorMode;
@@ -84,6 +88,13 @@ public final class WorkspaceShellView extends FrameLayout {
         BOTTOM
     }
 
+    private enum WorkspacePurpose {
+        STANDARD,
+        NEW_UI,
+        NEW_COMPONENT,
+        EDIT_COMPONENT
+    }
+
     private final AppKernel kernel;
     private final FrameLayout workspace;
     private final FrameLayout edgeContainer;
@@ -98,6 +109,7 @@ public final class WorkspaceShellView extends FrameLayout {
     private Representation representation = Representation.VISUAL;
     private AuthoringSection active = AuthoringSection.UI;
     private String editorEntry = "Proyek Tersimpan";
+    private WorkspacePurpose workspacePurpose = WorkspacePurpose.STANDARD;
     private boolean edgeOpen = true;
     private EdgeAnchor edgeAnchor;
     private Insets systemInsets = Insets.NONE;
@@ -478,39 +490,64 @@ public final class WorkspaceShellView extends FrameLayout {
         ScrollView scroll = new ScrollView(getContext());
         LinearLayout root = UiKit.kolom(getContext());
         root.setPadding(
-                UiKit.dp(getContext(), 24),
+                UiKit.dp(getContext(), 22),
                 UiKit.dp(getContext(), 28),
-                UiKit.dp(getContext(), 270),
+                UiKit.dp(getContext(), 78),
                 UiKit.dp(getContext(), 28)
         );
         scroll.addView(root);
 
-        TextView title = UiKit.judul(getContext(), "Editor", 27f);
+        TextView title = UiKit.judul(getContext(), "Editor Visual", 27f);
         title.setTextColor(UiKit.NEON);
         root.addView(title);
 
         TextView desc = UiKit.teks(
                 getContext(),
-                "Pilih Jalur Editor dari panel. Keempat jalur masuk ke Editor terpadu yang sama; "
-                        + "konteks dan kapabilitasnya yang berbeda.",
-                12.5f,
+                "Pilih pintu kerja secara visual.",
+                11f,
                 UiKit.TEKS_REDUP
         );
-        desc.setPadding(0, UiKit.dp(getContext(), 5), 0, UiKit.dp(getContext(), 18));
+        desc.setPadding(
+                0,
+                UiKit.dp(getContext(), 4),
+                0,
+                UiKit.dp(getContext(), 14)
+        );
         root.addView(desc);
 
-        LinearLayout card = card();
-        addInfo(card, "Pilihan 1 • Proyek Tersimpan", "Project Store • revisi " + kernel.projectManager().savedRevision());
-        addInfo(
-                card,
-                "Pilihan 2 • Aplikasi Terinstal",
-                "Editing door ditemukan: "
-                        + kernel.productServices().completion().installedTargets.all().size()
-                        + " • capability-based • tanpa bypass sandbox/signature."
+        GridLayout grid = new GridLayout(getContext());
+        grid.setColumnCount(2);
+        addEditorRoute(
+                grid,
+                UiKit.ICON_FOLDER,
+                "Proyek Tersimpan",
+                () -> openEditor("Proyek Tersimpan")
         );
-        addInfo(card, "Pilihan 3 • Edit ToolBox", "Permukaan deklaratif dapat diedit; kernel/recovery/safety core terlindungi.");
-        addInfo(card, "Pilihan 4 • Buat / Edit Komponen", "Component Registry • varian • composite • template.");
-        root.addView(card);
+        addEditorRoute(
+                grid,
+                UiKit.ICON_APPS,
+                "Aplikasi Terinstal",
+                this::showInstalledTargets
+        );
+        addEditorRoute(
+                grid,
+                UiKit.ICON_EDITOR,
+                "Edit ToolBox",
+                () -> openEditor("Edit ToolBox")
+        );
+        addEditorRoute(
+                grid,
+                UiKit.ICON_PLUS,
+                "Buat UI Baru",
+                this::openNewUiEditor
+        );
+        addEditorRoute(
+                grid,
+                UiKit.ICON_COMPONENT,
+                "Buat / Edit Komponen",
+                this::showComponentStudioChooser
+        );
+        root.addView(grid);
 
         workspace.addView(scroll, new FrameLayout.LayoutParams(
                 LayoutParams.MATCH_PARENT,
@@ -518,17 +555,64 @@ public final class WorkspaceShellView extends FrameLayout {
         ));
     }
 
+    private void addEditorRoute(
+            GridLayout grid,
+            int icon,
+            String label,
+            Runnable action
+    ) {
+        LinearLayout tile = UiKit.visualTile(
+                getContext(),
+                icon,
+                label,
+                false
+        );
+        tile.setOnClickListener(v -> action.run());
+        GridLayout.LayoutParams p = new GridLayout.LayoutParams();
+        p.width = 0;
+        p.height = UiKit.dp(getContext(), 112);
+        p.columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f);
+        p.setMargins(
+                UiKit.dp(getContext(), 5),
+                UiKit.dp(getContext(), 5),
+                UiKit.dp(getContext(), 5),
+                UiKit.dp(getContext(), 5)
+        );
+        grid.addView(tile, p);
+    }
+
     private void renderEditorWorkspace() {
         View pane;
+        boolean blankVisual = workspacePurpose == WorkspacePurpose.NEW_UI
+                || workspacePurpose == WorkspacePurpose.NEW_COMPONENT
+                || workspacePurpose == WorkspacePurpose.EDIT_COMPONENT;
+        String namespace = workspacePurpose == WorkspacePurpose.NEW_UI
+                ? "ui.object.custom."
+                : "ui.object.component.studio.";
         if (kernel.editorEnvironment().shell().mode() != EditorMode.EDIT) {
-            pane = new UiCanvasView(getContext(), kernel, objectId -> {
-                kernel.productServices()
-                        .editorContext()
-                        .select(objectId);
-                panelPage = PanelPage.CONTEXT;
-                persistEditorContext();
-                renderEdge();
-            });
+            pane = blankVisual
+                    ? new UiCanvasView(
+                            getContext(),
+                            kernel,
+                            objectId -> {
+                                kernel.productServices()
+                                        .editorContext()
+                                        .select(objectId);
+                                panelPage = PanelPage.CONTEXT;
+                                persistEditorContext();
+                                renderEdge();
+                            },
+                            true,
+                            namespace
+                    )
+                    : new UiCanvasView(getContext(), kernel, objectId -> {
+                        kernel.productServices()
+                                .editorContext()
+                                .select(objectId);
+                        panelPage = PanelPage.CONTEXT;
+                        persistEditorContext();
+                        renderEdge();
+                    });
         } else {
             switch (representation) {
                 case PROPERTI:
@@ -539,15 +623,28 @@ public final class WorkspaceShellView extends FrameLayout {
                     break;
                 case VISUAL:
                 default:
-                    pane = EditorPaneFactory.visual(
-                            getContext(),
-                            kernel,
-                            active,
-                            objectId -> {
-                                panelPage = PanelPage.CONTEXT;
-                                renderEdge();
-                            }
-                    );
+                    if (blankVisual) {
+                        pane = new UiCanvasView(
+                                getContext(),
+                                kernel,
+                                objectId -> {
+                                    panelPage = PanelPage.CONTEXT;
+                                    renderEdge();
+                                },
+                                true,
+                                namespace
+                        );
+                    } else {
+                        pane = EditorPaneFactory.visual(
+                                getContext(),
+                                kernel,
+                                active,
+                                objectId -> {
+                                    panelPage = PanelPage.CONTEXT;
+                                    renderEdge();
+                                }
+                        );
+                    }
                     break;
             }
         }
@@ -605,11 +702,12 @@ public final class WorkspaceShellView extends FrameLayout {
         }
 
         if (screen == Screen.EDITOR_CHOOSER) {
-            edgeHeader("Editor", "4 Pilihan Edit");
+            edgeHeader("Editor", "Pintu Kerja Visual");
             addEdgeCommand("Proyek Tersimpan", () -> openEditor("Proyek Tersimpan"));
             addEdgeCommand("Aplikasi Terinstal", this::showInstalledTargets);
             addEdgeCommand("Edit ToolBox", () -> openEditor("Edit ToolBox"));
-            addEdgeCommand("Buat / Edit Komponen", () -> openEditor("Buat / Edit Komponen"));
+            addEdgeCommand("Buat UI Baru", this::openNewUiEditor);
+            addEdgeCommand("Buat / Edit Komponen", this::showComponentStudioChooser);
             addEdgeCommand("‹ Antarmuka ToolBox", this::openHome);
             return;
         }
@@ -763,7 +861,14 @@ public final class WorkspaceShellView extends FrameLayout {
     private TextView addEdgeCommand(String label, Runnable action) {
         TextView v = UiKit.tombol(getContext(), label, false);
         v.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
-        v.setTextSize(12f);
+        v.setTextSize(11.5f);
+        android.graphics.drawable.Drawable icon = UiKit.menuIcon(
+                getContext(),
+                iconForLabel(label),
+                UiKit.NEON_BIRU
+        );
+        v.setCompoundDrawablesWithIntrinsicBounds(icon, null, null, null);
+        v.setCompoundDrawablePadding(UiKit.dp(getContext(), 10));
         v.setOnClickListener(view -> action.run());
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
                 LayoutParams.MATCH_PARENT,
@@ -858,6 +963,13 @@ public final class WorkspaceShellView extends FrameLayout {
     }
 
     private void openEditor(String entry) {
+        openEditor(entry, WorkspacePurpose.STANDARD);
+    }
+
+    private void openEditor(
+            String entry,
+            WorkspacePurpose purpose
+    ) {
         String leaving = lifecycleScreenId();
         dispatchScreenLifecycle(
                 AppLifecycleManager.Event.SCREEN_LEAVE,
@@ -867,6 +979,7 @@ public final class WorkspaceShellView extends FrameLayout {
                 stateHoldId()
         );
         editorEntry = entry;
+        workspacePurpose = purpose;
         screen = Screen.EDITOR_WORKSPACE;
         panelPage = PanelPage.ROOT;
         representation = Representation.VISUAL;
@@ -884,6 +997,126 @@ public final class WorkspaceShellView extends FrameLayout {
                 lifecycleScreenId()
         );
         renderAll();
+    }
+
+    private void openNewUiEditor() {
+        navigateWithDirtyGuard(() -> {
+            clearWorkingPrefix("ui.object.custom.");
+            LinkedHashMap<String, String> updates = new LinkedHashMap<>();
+            updates.put("ui.screen.home.mode", "custom");
+            kernel.projectManager().applyResourceTransaction(
+                    updates,
+                    Collections.emptySet()
+            );
+            openEditor("Buat UI Baru", WorkspacePurpose.NEW_UI);
+        });
+    }
+
+    private void showComponentStudioChooser() {
+        showActionOverlay(
+                "Komponen",
+                Arrays.asList(
+                        "Buat Komponen Baru",
+                        "Edit Komponen yang Ada"
+                ),
+                value -> {
+                    closeOverlay();
+                    if ("Buat Komponen Baru".equals(value)) {
+                        clearWorkingPrefix(
+                                "ui.object.component.studio."
+                        );
+                        openEditor(
+                                "Komponen Baru",
+                                WorkspacePurpose.NEW_COMPONENT
+                        );
+                    } else {
+                        showExistingComponentPicker();
+                    }
+                }
+        );
+    }
+
+    private void showExistingComponentPicker() {
+        List<com.toolbox.tools.library.ComponentDefinition> components =
+                kernel.libraryManager().components().allReady();
+        List<String> rows = new ArrayList<>();
+        for (com.toolbox.tools.library.ComponentDefinition component
+                : components) {
+            rows.add(
+                    component.labelIndonesia()
+                            + " • "
+                            + component.componentId()
+            );
+        }
+        if (rows.isEmpty()) {
+            showInfoOverlay(
+                    "Komponen",
+                    Collections.singletonList(
+                            "Registry komponen belum mempunyai item siap."
+                    )
+            );
+            return;
+        }
+        showActionOverlay(
+                "Pilih Komponen untuk Diedit",
+                rows,
+                value -> {
+                    for (com.toolbox.tools.library.ComponentDefinition component
+                            : components) {
+                        String row = component.labelIndonesia()
+                                + " • "
+                                + component.componentId();
+                        if (!row.equals(value)) continue;
+                        prepareComponentStudio(component);
+                        closeOverlay();
+                        openEditor(
+                                "Edit Komponen • "
+                                        + component.labelIndonesia(),
+                                WorkspacePurpose.EDIT_COMPONENT
+                        );
+                        return;
+                    }
+                }
+        );
+    }
+
+    private void prepareComponentStudio(
+            com.toolbox.tools.library.ComponentDefinition component
+    ) {
+        clearWorkingPrefix("ui.object.component.studio.");
+        String id = "ui.object.component.studio.current";
+        LinkedHashMap<String, String> updates = new LinkedHashMap<>();
+        updates.put(id + ".kind", component.componentId());
+        updates.put(id + ".text", component.labelIndonesia());
+        updates.put(id + ".position.x.dp", "36");
+        updates.put(id + ".position.y.dp", "110");
+        updates.put(id + ".width.dp", "168");
+        updates.put(id + ".height.dp", "52");
+        updates.put(id + ".radius.dp", "14");
+        updates.put(id + ".color", "neon");
+        updates.put(id + ".text.color", "background");
+        kernel.projectManager().applyResourceTransaction(
+                updates,
+                Collections.emptySet()
+        );
+    }
+
+    private void clearWorkingPrefix(String prefix) {
+        java.util.LinkedHashSet<String> deletes =
+                new java.util.LinkedHashSet<>();
+        for (String key : kernel.projectManager()
+                .current()
+                .resources()
+                .keySet()) {
+            if (key.startsWith(prefix)) deletes.add(key);
+        }
+        if (!deletes.isEmpty()) {
+            kernel.projectManager().applyResourceTransaction(
+                    Collections.emptyMap(),
+                    deletes
+            );
+        }
+        kernel.editorEnvironment().shell().clearSelection();
     }
 
     private void setRepresentation(Representation next) {
@@ -949,8 +1182,8 @@ public final class WorkspaceShellView extends FrameLayout {
     private void applyEdgeLayout(boolean animate) {
         boolean landscape = isLandscape();
         int panelThickness = UiKit.dp(getContext(), landscape ? 210 : 238);
-        int handleLong = UiKit.dp(getContext(), 72);
-        int handleShort = UiKit.dp(getContext(), 56);
+        int handleLong = UiKit.dp(getContext(), 78);
+        int handleShort = UiKit.dp(getContext(), 34);
         int margin = UiKit.dp(getContext(), 4);
 
         if (landscape && edgeAnchor != EdgeAnchor.TOP && edgeAnchor != EdgeAnchor.BOTTOM) {
@@ -1034,6 +1267,29 @@ public final class WorkspaceShellView extends FrameLayout {
     }
 
     private void updateEdgeHandleVisual() {
+        GradientDrawable fused = new GradientDrawable();
+        fused.setColor(UiKit.PERMUKAAN);
+        fused.setStroke(UiKit.dp(getContext(), 1), UiKit.GARIS);
+        float r = UiKit.dp(getContext(), 22);
+        if (edgeAnchor == EdgeAnchor.RIGHT) {
+            fused.setCornerRadii(new float[] {
+                    r, r, 0, 0, 0, 0, r, r
+            });
+        } else if (edgeAnchor == EdgeAnchor.LEFT) {
+            fused.setCornerRadii(new float[] {
+                    0, 0, r, r, r, r, 0, 0
+            });
+        } else if (edgeAnchor == EdgeAnchor.BOTTOM) {
+            fused.setCornerRadii(new float[] {
+                    r, r, r, r, 0, 0, 0, 0
+            });
+        } else {
+            fused.setCornerRadii(new float[] {
+                    0, 0, 0, 0, r, r, r, r
+            });
+        }
+        edgeHandle.setBackground(fused);
+        edgeHandle.setElevation(UiKit.dp(getContext(), 4));
         String symbol;
         if (edgeAnchor == EdgeAnchor.RIGHT) {
             symbol = edgeOpen ? "›" : "‹";
@@ -1097,6 +1353,7 @@ public final class WorkspaceShellView extends FrameLayout {
                 kernel.editorEnvironment().shell().editEnabled()
                         ? "Edit AKTIF"
                         : "Edit NONAKTIF",
+                UiKit.ICON_EDITOR,
                 0,
                 () -> {
                     kernel.editorEnvironment().shell().setEditEnabled(
@@ -1106,22 +1363,22 @@ public final class WorkspaceShellView extends FrameLayout {
                     renderAll();
                 }
         );
-        addBubbleShortcut("Tool", 1, () -> {
+        addBubbleShortcut("Tool", UiKit.ICON_APPS, 1, () -> {
             hideBubbleShortcuts();
             showTools();
         });
-        addBubbleShortcut("Pengaturan", 2, () -> {
+        addBubbleShortcut("Pengaturan", UiKit.ICON_SETTINGS, 2, () -> {
             hideBubbleShortcuts();
             showSettings();
         });
-        addBubbleShortcut("Floating Window", 3, () -> {
+        addBubbleShortcut("Floating Window", UiKit.ICON_LAYOUT, 3, () -> {
             hideBubbleShortcuts();
             showFloatingContextWindow();
         });
         if (getContext() instanceof WorkspaceHostActions
                 && ((WorkspaceHostActions) getContext())
                     .externalTargetActive()) {
-            addBubbleShortcut("Kembali ToolBox", 4, () -> {
+            addBubbleShortcut("Kembali ToolBox", UiKit.ICON_HOME, 4, () -> {
                 hideBubbleShortcuts();
                 ((WorkspaceHostActions) getContext())
                         .returnToToolBoxProject();
@@ -1131,47 +1388,59 @@ public final class WorkspaceShellView extends FrameLayout {
 
     private void addBubbleShortcut(
             String label,
+            int icon,
             int index,
             Runnable action
     ) {
-        TextView item = UiKit.chip(getContext(), label, false);
-        item.setGravity(Gravity.CENTER);
-        item.setTextSize(10.5f);
+        LinearLayout item = UiKit.visualTile(
+                getContext(),
+                icon,
+                label,
+                false
+        );
         item.setElevation(UiKit.dp(getContext(), 18));
-        item.setClickable(true);
-        item.setFocusable(true);
         item.setContentDescription("Pintasan " + label);
         item.setOnClickListener(v -> action.run());
 
-        int width = UiKit.dp(getContext(), 112);
-        int height = UiKit.dp(getContext(), 42);
-        int gap = UiKit.dp(getContext(), 8);
-        int sideGap = UiKit.dp(getContext(), 14);
-        int margin = UiKit.dp(getContext(), 8);
         int itemCount = getContext() instanceof WorkspaceHostActions
                 && ((WorkspaceHostActions) getContext())
                     .externalTargetActive()
                 ? 5
                 : 4;
-        int totalHeight = height * itemCount
-                + gap * (itemCount - 1);
-
         float centerX = bubble.getX() + bubble.getWidth() / 2f;
         float centerY = bubble.getY() + bubble.getHeight() / 2f;
-        boolean placeRight = centerX <= getWidth() / 2f;
+        float radius = UiKit.dp(
+                getContext(),
+                itemCount == 5 ? 112 : 102
+        );
+        float start = itemCount == 5 ? -135f : -120f;
+        float sweep = itemCount == 5 ? 270f : 240f;
+        float angle = start
+                + (itemCount == 1
+                    ? 0
+                    : sweep * index / (float) (itemCount - 1));
+        double rad = Math.toRadians(angle);
+        int width = UiKit.dp(getContext(), 82);
+        int height = UiKit.dp(getContext(), 70);
+        int margin = UiKit.dp(getContext(), 6);
 
-        float x = placeRight
-                ? bubble.getX() + bubble.getWidth() + sideGap
-                : bubble.getX() - width - sideGap;
-        float maxX = Math.max(margin, getWidth() - width - margin);
-        x = Math.max(margin, Math.min(maxX, x));
+        float x = centerX
+                + (float) Math.cos(rad) * radius
+                - width / 2f;
+        float y = centerY
+                + (float) Math.sin(rad) * radius
+                - height / 2f;
+        x = Math.max(
+                margin,
+                Math.min(getWidth() - width - margin, x)
+        );
+        y = Math.max(
+                margin,
+                Math.min(getHeight() - height - margin, y)
+        );
 
-        float groupTop = centerY - totalHeight / 2f;
-        float maxTop = Math.max(margin, getHeight() - totalHeight - margin);
-        groupTop = Math.max(margin, Math.min(maxTop, groupTop));
-        float y = groupTop + index * (height + gap);
-
-        FrameLayout.LayoutParams p = new FrameLayout.LayoutParams(width, height);
+        FrameLayout.LayoutParams p =
+                new FrameLayout.LayoutParams(width, height);
         p.leftMargin = Math.round(x);
         p.topMargin = Math.round(y);
         bubbleQuickLayer.addView(item, p);
@@ -1326,6 +1595,7 @@ public final class WorkspaceShellView extends FrameLayout {
                         "Proyek Tersimpan",
                         "Aplikasi Terinstal",
                         "Edit ToolBox",
+                        "Buat UI Baru",
                         "Buat / Edit Komponen",
                         "Pemulihan & Backup",
                         "Freeze / Mode Simpan",
@@ -1338,9 +1608,12 @@ public final class WorkspaceShellView extends FrameLayout {
                     closeOverlay();
                     if ("Aplikasi Terinstal".equals(value)) {
                         showInstalledTargets();
+                    } else if ("Buat UI Baru".equals(value)) {
+                        openNewUiEditor();
+                    } else if ("Buat / Edit Komponen".equals(value)) {
+                        showComponentStudioChooser();
                     } else if ("Proyek Tersimpan".equals(value)
-                            || "Edit ToolBox".equals(value)
-                            || "Buat / Edit Komponen".equals(value)) {
+                            || "Edit ToolBox".equals(value)) {
                         openEditor(value);
                     } else if ("Pemulihan & Backup".equals(value)) {
                         showRecovery();
@@ -3208,29 +3481,40 @@ public final class WorkspaceShellView extends FrameLayout {
 
         makeHeaderDraggable(titleView, scroll);
 
+        GridLayout visualGrid = new GridLayout(getContext());
+        visualGrid.setColumnCount(2);
         for (String row : rows) {
             boolean activeRow = row != null
                     && row.startsWith("✓ ");
-            TextView item = UiKit.tombol(
+            String clean = stripMark(row);
+            LinearLayout item = UiKit.visualTile(
                     getContext(),
-                    row,
+                    iconForLabel(clean),
+                    clean,
                     activeRow
             );
-            item.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
-            item.setTextSize(12f);
             if (activeRow) {
                 item.setContentDescription(
-                        "Pilihan aktif • " + stripMark(row)
+                        "Pilihan aktif • " + clean
                 );
             }
             item.setOnClickListener(v -> handler.onCommand(row));
-            LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
-                    LayoutParams.MATCH_PARENT,
-                    UiKit.dp(getContext(), 46)
+            GridLayout.LayoutParams p = new GridLayout.LayoutParams();
+            p.width = 0;
+            p.height = UiKit.dp(getContext(), 94);
+            p.columnSpec = GridLayout.spec(
+                    GridLayout.UNDEFINED,
+                    1f
             );
-            p.bottomMargin = UiKit.dp(getContext(), 6);
-            card.addView(item, p);
+            p.setMargins(
+                    UiKit.dp(getContext(), 4),
+                    UiKit.dp(getContext(), 4),
+                    UiKit.dp(getContext(), 4),
+                    UiKit.dp(getContext(), 4)
+            );
+            visualGrid.addView(item, p);
         }
+        card.addView(visualGrid);
 
         FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
                 Math.min(
@@ -3593,136 +3877,384 @@ public final class WorkspaceShellView extends FrameLayout {
     }
 
     private void showInstalledTargets() {
-        List<ProductCompletionServices.InstalledTargetBridge.Target> targets =
-                kernel.productServices().completion().installedTargets.all();
-        if (targets.isEmpty()) {
-            showInfoOverlay(
-                    "Aplikasi Terinstal",
+        List<InstalledApplicationCatalog.Entry> apps =
+                InstalledApplicationCatalog.list(getContext());
+
+        overlayLayer.removeAllViews();
+        overlayLayer.setVisibility(VISIBLE);
+        overlayLayer.bringToFront();
+        bubble.bringToFront();
+        overlayLayer.setBackgroundColor(Color.argb(150, 0, 0, 0));
+        overlayLayer.setOnClickListener(v -> closeOverlay());
+
+        LinearLayout card = UiKit.kolom(getContext());
+        card.setPadding(
+                UiKit.dp(getContext(), 14),
+                UiKit.dp(getContext(), 14),
+                UiKit.dp(getContext(), 14),
+                UiKit.dp(getContext(), 14)
+        );
+        card.setBackground(UiKit.kartuPx(
+                getContext(),
+                Color.rgb(9, 26, 34),
+                UiKit.NEON_BIRU,
+                22,
+                1
+        ));
+        card.setOnClickListener(v -> {});
+
+        LinearLayout header = UiKit.baris(getContext());
+        TextView title = UiKit.judul(
+                getContext(),
+                "Pilih Aplikasi Terpasang",
+                17f
+        );
+        title.setTextColor(UiKit.NEON_BIRU);
+        header.addView(
+                title,
+                new LinearLayout.LayoutParams(
+                        0,
+                        UiKit.dp(getContext(), 44),
+                        1
+                )
+        );
+        TextView close = UiKit.chip(getContext(), "Tutup", false);
+        close.setOnClickListener(v -> closeOverlay());
+        header.addView(close);
+        card.addView(header);
+
+        TextView note = UiKit.teks(
+                getContext(),
+                "Pilih aplikasi dulu • capability diperiksa sesudah dipilih.",
+                10.5f,
+                UiKit.TEKS_REDUP
+        );
+        card.addView(note);
+
+        EditText search = new EditText(getContext());
+        search.setSingleLine(true);
+        search.setHint("Cari nama atau package");
+        search.setHintTextColor(UiKit.TEKS_REDUP);
+        search.setTextColor(UiKit.TEKS);
+        search.setBackground(UiKit.kartuPx(
+                getContext(),
+                UiKit.LATAR,
+                UiKit.GARIS,
+                12,
+                1
+        ));
+        search.setPadding(
+                UiKit.dp(getContext(), 12),
+                0,
+                UiKit.dp(getContext(), 12),
+                0
+        );
+        LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(
+                LayoutParams.MATCH_PARENT,
+                UiKit.dp(getContext(), 46)
+        );
+        sp.topMargin = UiKit.dp(getContext(), 10);
+        sp.bottomMargin = UiKit.dp(getContext(), 8);
+        card.addView(search, sp);
+
+        ScrollView scroll = new ScrollView(getContext());
+        GridLayout grid = new GridLayout(getContext());
+        grid.setColumnCount(2);
+        scroll.addView(grid);
+        card.addView(
+                scroll,
+                new LinearLayout.LayoutParams(
+                        LayoutParams.MATCH_PARENT,
+                        0,
+                        1
+                )
+        );
+
+        Runnable rebuild = () -> {
+            grid.removeAllViews();
+            String query = search.getText()
+                    .toString()
+                    .trim()
+                    .toLowerCase(java.util.Locale.ROOT);
+            for (InstalledApplicationCatalog.Entry app : apps) {
+                if (!query.isEmpty()
+                        && !app.label()
+                            .toLowerCase(java.util.Locale.ROOT)
+                            .contains(query)
+                        && !app.packageName()
+                            .toLowerCase(java.util.Locale.ROOT)
+                            .contains(query)) {
+                    continue;
+                }
+                LinearLayout tile = UiKit.kolom(getContext());
+                tile.setGravity(Gravity.CENTER);
+                tile.setPadding(
+                        UiKit.dp(getContext(), 8),
+                        UiKit.dp(getContext(), 8),
+                        UiKit.dp(getContext(), 8),
+                        UiKit.dp(getContext(), 8)
+                );
+                tile.setBackground(UiKit.kartuPx(
+                        getContext(),
+                        UiKit.PERMUKAAN_2,
+                        UiKit.GARIS,
+                        16,
+                        1
+                ));
+                tile.setClickable(true);
+                tile.setFocusable(true);
+                tile.setContentDescription(
+                        "Aplikasi terpasang • "
+                                + app.label()
+                                + " • "
+                                + app.packageName()
+                );
+
+                ImageView icon = new ImageView(getContext());
+                try {
+                    icon.setImageDrawable(
+                            getContext()
+                                    .getPackageManager()
+                                    .getApplicationIcon(
+                                            app.packageName()
+                                    )
+                    );
+                } catch (android.content.pm.PackageManager.NameNotFoundException error) {
+                    icon.setImageDrawable(
+                            UiKit.menuIcon(
+                                    getContext(),
+                                    UiKit.ICON_APPS,
+                                    UiKit.NEON_BIRU
+                            )
+                    );
+                }
+                tile.addView(
+                        icon,
+                        new LinearLayout.LayoutParams(
+                                UiKit.dp(getContext(), 42),
+                                UiKit.dp(getContext(), 42)
+                        )
+                );
+                TextView label = UiKit.judul(
+                        getContext(),
+                        app.label(),
+                        10.5f
+                );
+                label.setGravity(Gravity.CENTER);
+                label.setMaxLines(2);
+                tile.addView(label);
+                TextView pkg = UiKit.teks(
+                        getContext(),
+                        app.packageName(),
+                        8.5f,
+                        UiKit.TEKS_REDUP
+                );
+                pkg.setGravity(Gravity.CENTER);
+                pkg.setMaxLines(1);
+                tile.addView(pkg);
+                tile.setOnClickListener(
+                        v -> onInstalledApplicationSelected(app)
+                );
+
+                GridLayout.LayoutParams gp =
+                        new GridLayout.LayoutParams();
+                gp.width = 0;
+                gp.height = UiKit.dp(getContext(), 116);
+                gp.columnSpec = GridLayout.spec(
+                        GridLayout.UNDEFINED,
+                        1f
+                );
+                gp.setMargins(
+                        UiKit.dp(getContext(), 4),
+                        UiKit.dp(getContext(), 4),
+                        UiKit.dp(getContext(), 4),
+                        UiKit.dp(getContext(), 4)
+                );
+                grid.addView(tile, gp);
+            }
+        };
+        search.addTextChangedListener(
+                new android.text.TextWatcher() {
+                    @Override
+                    public void beforeTextChanged(
+                            CharSequence text,
+                            int start,
+                            int count,
+                            int after
+                    ) {}
+                    @Override
+                    public void onTextChanged(
+                            CharSequence text,
+                            int start,
+                            int before,
+                            int count
+                    ) {
+                        rebuild.run();
+                    }
+                    @Override
+                    public void afterTextChanged(
+                            android.text.Editable text
+                    ) {}
+                }
+        );
+        rebuild.run();
+
+        FrameLayout.LayoutParams params =
+                new FrameLayout.LayoutParams(
+                        Math.min(
+                                UiKit.dp(getContext(), 400),
+                                getResources()
+                                    .getDisplayMetrics()
+                                    .widthPixels
+                                    - UiKit.dp(getContext(), 20)
+                        ),
+                        Math.min(
+                                UiKit.dp(getContext(), 660),
+                                getResources()
+                                    .getDisplayMetrics()
+                                    .heightPixels
+                                    - UiKit.dp(getContext(), 40)
+                        ),
+                        Gravity.CENTER
+                );
+        overlayLayer.addView(card, params);
+    }
+
+    private void onInstalledApplicationSelected(
+            InstalledApplicationCatalog.Entry app
+    ) {
+        ProductCompletionServices.InstalledTargetBridge.Target target =
+                kernel.productServices()
+                        .completion()
+                        .installedTargets
+                        .lookup(app.packageName());
+        if (target == null) {
+            showActionOverlay(
+                    app.label(),
                     Arrays.asList(
-                            "Tidak ada aplikasi dengan editing door yang ditemukan.",
-                            "Target dapat memakai Managed Runtime atau ACTION_EDIT yang kompatibel.",
-                            "Sandbox dan signature aplikasi tetap dihormati."
-                    )
+                            "Buka Aplikasi",
+                            "Capability Edit • Read-only"
+                    ),
+                    value -> {
+                        if ("Buka Aplikasi".equals(value)
+                                && getContext()
+                                    instanceof WorkspaceHostActions) {
+                            boolean opened =
+                                    ((WorkspaceHostActions) getContext())
+                                            .launchInstalledApplication(
+                                                    app.packageName()
+                                            );
+                            if (!opened) {
+                                toast(
+                                        "Aplikasi tidak mempunyai launcher yang dapat dibuka."
+                                );
+                            }
+                        } else {
+                            showInfoOverlay(
+                                    "Capability Target",
+                                    Arrays.asList(
+                                            app.label()
+                                                    + " • "
+                                                    + app.packageName(),
+                                            "Aplikasi tetap dapat dipilih.",
+                                            "Editing door: tidak dideklarasikan.",
+                                            "Mode: read-only sampai adapter/door tersedia.",
+                                            "Sandbox dan signature Android tidak dibypass."
+                                    )
+                            );
+                        }
+                    }
             );
             return;
         }
-        List<String> rows = new ArrayList<>();
-        for (ProductCompletionServices.InstalledTargetBridge.Target target : targets) {
-            rows.add(
-                    target.label()
-                            + " • "
-                            + target.packageName()
-                            + (target.supportsInternalEditor()
-                                ? " • Editor Internal"
-                                : " • Handoff")
-            );
-        }
-        showActionOverlay("Pilih Target Berdasarkan Capability", rows, value -> {
-            for (ProductCompletionServices.InstalledTargetBridge.Target target : targets) {
-                String row = target.label()
-                        + " • "
-                        + target.packageName()
-                        + (target.supportsInternalEditor()
-                            ? " • Editor Internal"
-                            : " • Handoff");
-                if (!row.equals(value)) continue;
-                try {
-                    String sessionId;
-                    if (ProductCompletionServices
-                            .InstalledTargetBridge
-                            .DOOR_MANAGED_RUNTIME
-                            .equals(target.editDoor())) {
-                        ManagedAppProtocol.Descriptor descriptor =
-                                new ManagedAppProtocol.Descriptor(
-                                        target.packageName(),
-                                        target.protocolVersion(),
-                                        kernel.productServices()
-                                            .managedAppProtocol()
-                                            .parseCapabilities(
-                                                    target.capabilities()
-                                            ),
-                                        target.projectId(),
-                                        target.revision()
-                                );
-                        ManagedAppProtocol.Session session =
+        openDiscoveredTarget(target);
+    }
+
+    private void openDiscoveredTarget(
+            ProductCompletionServices.InstalledTargetBridge.Target target
+    ) {
+        try {
+            String sessionId;
+            if (ProductCompletionServices
+                    .InstalledTargetBridge
+                    .DOOR_MANAGED_RUNTIME
+                    .equals(target.editDoor())) {
+                ManagedAppProtocol.Descriptor descriptor =
+                        new ManagedAppProtocol.Descriptor(
+                                target.packageName(),
+                                target.protocolVersion(),
                                 kernel.productServices()
                                     .managedAppProtocol()
-                                    .negotiate(
-                                            descriptor,
-                                            descriptor.capabilities()
-                                    );
-                        sessionId = session.sessionId();
-                    } else {
-                        sessionId = "session.generic."
-                                + target.packageName()
-                                    .toLowerCase(java.util.Locale.ROOT)
-                                    .replace('.', '_');
-                    }
-
-                    activeTargetPackage = target.packageName();
-                    activeTargetSession = sessionId;
-
-                    if (!(getContext()
-                            instanceof WorkspaceHostActions)) {
-                        toast("Host editing door tidak tersedia.");
-                        return;
-                    }
-                    WorkspaceHostActions host =
-                            (WorkspaceHostActions) getContext();
-
-                    if (target.supportsInternalEditor()) {
-                        boolean opened = host.openManagedTargetEditor(
-                                target.packageName(),
-                                target.providerAuthority(),
-                                target.projectId()
+                                    .parseCapabilities(
+                                            target.capabilities()
+                                    ),
+                                target.projectId(),
+                                target.revision()
                         );
-                        if (!opened) {
-                            toast(
-                                    "Provider target menolak editor internal."
+                ManagedAppProtocol.Session session =
+                        kernel.productServices()
+                            .managedAppProtocol()
+                            .negotiate(
+                                    descriptor,
+                                    descriptor.capabilities()
                             );
-                            return;
-                        }
-                        closeOverlay();
-                        return;
-                    }
+                sessionId = session.sessionId();
+            } else {
+                sessionId = "session.generic."
+                        + target.packageName()
+                            .toLowerCase(java.util.Locale.ROOT)
+                            .replace('.', '_');
+            }
+            activeTargetPackage = target.packageName();
+            activeTargetSession = sessionId;
 
-                    boolean launched =
-                            host.launchInstalledTarget(
-                                    target.packageName(),
-                                    target.editDoor(),
-                                    sessionId,
-                                    target.projectId(),
-                                    target.revision()
-                            );
-                    if (!launched) {
-                        toast("Editing door target tidak dapat dibuka.");
-                        return;
-                    }
-
-                    closeOverlay();
-                    showInfoOverlay(
-                            "Editing Door Dibuka",
-                            Arrays.asList(
-                                    target.label()
-                                            + " • "
-                                            + target.packageName(),
-                                    "Pintu: " + target.editDoor(),
-                                    "Capability: "
-                                            + android.text.TextUtils.join(
-                                                    ", ",
-                                                    target.capabilities()
-                                            ),
-                                    "Mode: handoff aman; editor internal tidak tersedia.",
-                                    "Sandbox dan signature Android tetap dihormati.",
-                                    "Project ToolBox lokal tidak dimutasi."
-                            )
-                    );
-                } catch (RuntimeException error) {
-                    toast("Target gagal dinegosiasikan secara aman.");
-                }
+            if (!(getContext() instanceof WorkspaceHostActions)) {
+                toast("Host editing door tidak tersedia.");
                 return;
             }
-        });
+            WorkspaceHostActions host =
+                    (WorkspaceHostActions) getContext();
+            if (target.supportsInternalEditor()) {
+                boolean opened = host.openManagedTargetEditor(
+                        target.packageName(),
+                        target.providerAuthority(),
+                        target.projectId()
+                );
+                if (!opened) {
+                    toast("Provider target menolak editor internal.");
+                    return;
+                }
+                closeOverlay();
+                return;
+            }
+            boolean launched = host.launchInstalledTarget(
+                    target.packageName(),
+                    target.editDoor(),
+                    sessionId,
+                    target.projectId(),
+                    target.revision()
+            );
+            if (!launched) {
+                toast("Editing door target tidak dapat dibuka.");
+                return;
+            }
+            closeOverlay();
+            showInfoOverlay(
+                    "Editing Door Dibuka",
+                    Arrays.asList(
+                            target.label() + " • " + target.packageName(),
+                            "Pintu: " + target.editDoor(),
+                            "Capability: "
+                                    + android.text.TextUtils.join(
+                                            ", ",
+                                            target.capabilities()
+                                    ),
+                            "Sandbox dan signature Android tetap dihormati."
+                    )
+            );
+        } catch (RuntimeException error) {
+            toast("Target gagal dinegosiasikan secara aman.");
+        }
     }
 
     private String remapUiResourceKey(String key) {
@@ -4056,6 +4588,54 @@ public final class WorkspaceShellView extends FrameLayout {
             case EDITOR_WORKSPACE:
             default: return "Editor";
         }
+    }
+
+    private int iconForLabel(String value) {
+        String label = value == null
+                ? ""
+                : stripMark(value).toLowerCase(
+                        java.util.Locale.ROOT
+                );
+        if (label.contains("aplikasi")) return UiKit.ICON_APPS;
+        if (label.contains("komponen")) return UiKit.ICON_COMPONENT;
+        if (label.contains("buat ui")
+                || label.equals("ui")
+                || label.contains("visual")) return UiKit.ICON_LAYOUT;
+        if (label.contains("logika")
+                || label.contains("alur")
+                || label.contains("peristiwa")) return UiKit.ICON_FLOW;
+        if (label.contains("data")) return UiKit.ICON_DATA;
+        if (label.contains("pengikatan")
+                || label.contains("hubung")) return UiKit.ICON_LINK;
+        if (label.contains("aset")
+                || label.contains("template")
+                || label.contains("kit")) return UiKit.ICON_ASSET;
+        if (label.contains("pengaturan")) return UiKit.ICON_SETTINGS;
+        if (label.contains("simpan")) return UiKit.ICON_SAVE;
+        if (label.contains("urung")
+                || label.contains("ulang")) return UiKit.ICON_HISTORY;
+        if (label.contains("bangun")
+                || label.contains("siap")) return UiKit.ICON_BUILD;
+        if (label.contains("freeze")
+                || label.contains("pemulihan")
+                || label.contains("backup")
+                || label.contains("mode simpan")) return UiKit.ICON_SHIELD;
+        if (label.contains("kesehatan")
+                || label.contains("diagnostik")) return UiKit.ICON_HEALTH;
+        if (label.contains("kode")) return UiKit.ICON_CODE;
+        if (label.contains("properti")
+                || label.contains("mode kerja")) return UiKit.ICON_SLIDERS;
+        if (label.contains("pratinjau")
+                || label.contains("uji")
+                || label.contains("langsung")) return UiKit.ICON_PLAY;
+        if (label.contains("proyek")
+                || label.contains("file")) return UiKit.ICON_FOLDER;
+        if (label.contains("antarmuka")
+                || label.contains("beranda")
+                || label.contains("toolbox")) return UiKit.ICON_HOME;
+        if (label.contains("buat")
+                || label.contains("tambah")) return UiKit.ICON_PLUS;
+        return UiKit.ICON_EDITOR;
     }
 
     private static String contextDisplayLabel(
