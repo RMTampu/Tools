@@ -5,7 +5,7 @@
   "stageMap": "FULL_PRODUCT",
   "statusPolicy": {
     "readyRequiresValidation": true,
-    "unsupportedRuntimeTypesRemainDraft": true,
+    "unsupportedRuntimeTypesRemainDraft": false,
     "noSilentDuplicateMerge": true,
     "noOriginalEvictionByCacheCleanup": true,
     "firebaseRequiresUserPermission": true,
@@ -44,6 +44,17 @@
       "consumer": "AndroidManifest/Workspace",
       "loader": "Android Resources / String",
       "semantic": "Bahasa Indonesia default dan label produk"
+    },
+    {
+      "assetId": "toolbox.registry.inventory",
+      "path": "app/src/main/assets/toolbox/registry_inventory.json",
+      "sha256": "11513e3775b65539e0bf01aa0bfe8e44b6968739217611be08d3fb3011a3ad06",
+      "type": "REGISTRY_JSON",
+      "required": true,
+      "owner": "foundation.registry",
+      "consumer": "RepositoryInventory / ProductServices / CI zero-gap gate",
+      "loader": "Android AssetManager / JSON",
+      "semantic": "Inventory authoritative component+capability+action+asset+permission+engine+implementation"
     }
   ],
   "managedAssetReadyKinds": {
@@ -60,20 +71,16 @@
       "validator": "hash + size + consumer contract + bounded JSON syntax"
     }
   },
-  "managedAssetDraftOnlyKinds": [
-    "IMAGE",
-    "ICON",
-    "FONT",
-    "AUDIO",
-    "VIDEO"
-  ],
+  "managedAssetDraftOnlyKinds": [],
   "route": [
     "AssetDescriptor",
     "AssetPayloadValidator",
     "AssetRegistry.publishReady",
     "AssetStore.importOriginal",
     "AssetStore.readOriginal",
-    "LibraryManager"
+    "LibraryManager",
+    "ExternalAssetGateway.inspectAndPersist",
+    "ACTION_OPEN_DOCUMENT persisted content URI"
   ],
   "requiredInvariants": [
     "closed physical Android asset universe",
@@ -94,7 +101,9 @@
     "App.patch declarative data only",
     "remote verification before mutation",
     "recovery snapshot before mutation",
-    "Firebase absent from public maturation"
+    "Firebase absent from public maturation",
+    "authoritative registry inventory packaged in assets",
+    "external image/icon/font/audio/video route is content-URI bounded and SHA-256 identified"
   ],
   "managedBuiltinAssets": [
     "asset.theme.dark.neon",
@@ -102,5 +111,27 @@
     "asset.binding.profiles",
     "asset.animation.presets",
     "asset.component.kit"
-  ]
+  ],
+  "externalUserAssetReadyKinds": {
+    "IMAGE": {
+      "mimePrefix": "image/",
+      "validator": "SAF content URI + bounded stream + SHA-256 + metadata"
+    },
+    "ICON": {
+      "mimePrefix": "image/",
+      "validator": "SAF content URI + bounded stream + SHA-256 + metadata"
+    },
+    "FONT": {
+      "mimePrefix": "font/ or approved font MIME",
+      "validator": "SAF content URI + bounded stream + SHA-256 + metadata"
+    },
+    "AUDIO": {
+      "mimePrefix": "audio/",
+      "validator": "SAF content URI + bounded stream + SHA-256 + streaming contract"
+    },
+    "VIDEO": {
+      "mimePrefix": "video/",
+      "validator": "SAF content URI + bounded stream + SHA-256 + streaming contract"
+    }
+  }
 }
