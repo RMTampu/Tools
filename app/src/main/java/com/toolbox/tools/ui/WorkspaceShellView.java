@@ -394,6 +394,15 @@ public final class WorkspaceShellView extends FrameLayout {
                 kernel.projectManager().current().projectId(),
                 18f
         ));
+        if (getContext() instanceof WorkspaceHostActions
+                && ((WorkspaceHostActions) getContext())
+                    .externalTargetActive()) {
+            addInfo(
+                    project,
+                    "Mode target",
+                    "Editor internal target eksternal • Back/Kembali ToolBox untuk keluar"
+            );
+        }
         addInfo(
                 project,
                 "Status kerja",
@@ -477,9 +486,9 @@ public final class WorkspaceShellView extends FrameLayout {
         addInfo(
                 card,
                 "Pilihan 2 • Aplikasi Terinstal",
-                "ToolBox-aware ditemukan: "
+                "Editing door ditemukan: "
                         + kernel.productServices().completion().installedTargets.all().size()
-                        + " • tanpa bypass sandbox/signature."
+                        + " • capability-based • tanpa bypass sandbox/signature."
         );
         addInfo(card, "Pilihan 3 • Edit ToolBox", "Permukaan deklaratif dapat diedit; kernel/recovery/safety core terlindungi.");
         addInfo(card, "Pilihan 4 • Buat / Edit Komponen", "Component Registry • varian • composite • template.");
@@ -1091,6 +1100,15 @@ public final class WorkspaceShellView extends FrameLayout {
             hideBubbleShortcuts();
             showFloatingContextWindow();
         });
+        if (getContext() instanceof WorkspaceHostActions
+                && ((WorkspaceHostActions) getContext())
+                    .externalTargetActive()) {
+            addBubbleShortcut("Kembali ToolBox", 4, () -> {
+                hideBubbleShortcuts();
+                ((WorkspaceHostActions) getContext())
+                        .returnToToolBoxProject();
+            });
+        }
     }
 
     private void addBubbleShortcut(
@@ -1112,7 +1130,13 @@ public final class WorkspaceShellView extends FrameLayout {
         int gap = UiKit.dp(getContext(), 8);
         int sideGap = UiKit.dp(getContext(), 14);
         int margin = UiKit.dp(getContext(), 8);
-        int totalHeight = height * 4 + gap * 3;
+        int itemCount = getContext() instanceof WorkspaceHostActions
+                && ((WorkspaceHostActions) getContext())
+                    .externalTargetActive()
+                ? 5
+                : 4;
+        int totalHeight = height * itemCount
+                + gap * (itemCount - 1);
 
         float centerX = bubble.getX() + bubble.getWidth() / 2f;
         float centerY = bubble.getY() + bubble.getHeight() / 2f;
