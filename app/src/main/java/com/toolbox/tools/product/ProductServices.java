@@ -44,6 +44,7 @@ public final class ProductServices {
     private final ManagedAppProtocol managedAppProtocol;
     private final VisibleArtifactManager visibleArtifacts;
     private final AssetIntegrityVerifier assetIntegrity;
+    private final BindingAutoConnectService bindingAutoConnect;
 
     public ProductServices(ProjectManager projects) {
         this(
@@ -60,10 +61,31 @@ public final class ProductServices {
             RecoveryManager recovery,
             VisibleWorkspaceStore visibleWorkspace
     ) {
+        this(
+                projects,
+                runtimeState,
+                recovery,
+                visibleWorkspace,
+                com.toolbox.tools.runtime.DefaultRuntimeFactory.create(
+                        com.toolbox.tools.library.DefaultLibraryFactory
+                                .create()
+                                .components()
+                )
+        );
+    }
+
+    public ProductServices(
+            ProjectManager projects,
+            RuntimeStateStore runtimeState,
+            RecoveryManager recovery,
+            VisibleWorkspaceStore visibleWorkspace,
+            com.toolbox.tools.runtime.RuntimeEnvironment runtimeEnvironment
+    ) {
         Objects.requireNonNull(projects, "projects");
         Objects.requireNonNull(runtimeState, "runtimeState");
         Objects.requireNonNull(recovery, "recovery");
         Objects.requireNonNull(visibleWorkspace, "visibleWorkspace");
+        Objects.requireNonNull(runtimeEnvironment, "runtimeEnvironment");
         screens = new ScreenManager();
         localization = new LocalizationManager();
         themes = new ThemeTokenManager();
@@ -99,6 +121,11 @@ public final class ProductServices {
         );
         importSecurity = new ImportSecurityValidator();
         diagnostics = new DiagnosticCenter();
+        bindingAutoConnect = new BindingAutoConnectService(
+                runtimeEnvironment,
+                projects,
+                diagnostics
+        );
         clipboard = new ClipboardService();
         projectGraph = new ProjectGraphManager();
         visualLayout = new VisualLayoutEngine();
@@ -337,6 +364,9 @@ public final class ProductServices {
     public ManagedAppProtocol managedAppProtocol() { return managedAppProtocol; }
     public VisibleArtifactManager visibleArtifacts() { return visibleArtifacts; }
     public AssetIntegrityVerifier assetIntegrity() { return assetIntegrity; }
+    public BindingAutoConnectService bindingAutoConnect() {
+        return bindingAutoConnect;
+    }
 
     public boolean isReady() {
         return screens.startScreenId() != null
@@ -356,6 +386,7 @@ public final class ProductServices {
                 && dataProviders.complete()
                 && assetLoads.audit().isPass()
                 && visibleArtifacts != null
-                && assetIntegrity != null;
+                && assetIntegrity != null
+                && bindingAutoConnect != null;
     }
 }
