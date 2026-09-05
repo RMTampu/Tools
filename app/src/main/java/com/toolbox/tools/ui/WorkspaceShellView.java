@@ -292,7 +292,7 @@ public final class WorkspaceShellView extends FrameLayout {
         post(() -> {
             restoreBubblePosition();
             applyEdgeLayout(false);
-            sampleRuntimeResources();
+            sampleRuntimeResources(0);
         });
     }
 
@@ -322,9 +322,14 @@ public final class WorkspaceShellView extends FrameLayout {
     }
 
     private void renderAll() {
+        long startedNs = System.nanoTime();
         renderWorkspace();
         renderEdge();
-        post(this::sampleRuntimeResources);
+        long renderMs = Math.max(
+                0,
+                (System.nanoTime() - startedNs) / 1_000_000L
+        );
+        post(() -> sampleRuntimeResources(renderMs));
     }
 
     private void renderWorkspace() {
@@ -2767,16 +2772,31 @@ public final class WorkspaceShellView extends FrameLayout {
         bubble.setY(Math.max(minY, Math.min(maxY, bubble.getY())));
     }
 
-    private void sampleRuntimeResources() {
+    private void sampleRuntimeResources(long renderMs) {
         String screenId = screen == Screen.HOME
                 ? "screen.home"
                 : "screen.editor.workspace";
+        int visibleNodes = countViews(this);
+        int heavyViews = countHeavyViews(this);
+        int translucent = countTranslucentViews(this);
+        int animations = countActiveAnimations(this);
+
         kernel.productServices().resources().enterScreen(screenId);
-        kernel.productServices().resources().sample(
+        com.toolbox.tools.product.ResourceGuard.Pressure pressure =
+                kernel.productServices().resources().sample(
+                        screenId,
+                        Debug.getPss() * 1024L,
+                        visibleNodes,
+                        heavyViews
+                );
+        kernel.productServices().resources().applyPressure(pressure);
+
+        kernel.productServices().renderDiagnostics().record(
                 screenId,
-                Debug.getPss() * 1024L,
-                countViews(this),
-                countHeavyViews(this)
+                visibleNodes,
+                translucent,
+                animations,
+                renderMs
         );
     }
 
@@ -2786,6 +2806,28 @@ public final class WorkspaceShellView extends FrameLayout {
         ViewGroup group = (ViewGroup) view;
         for (int i = 0; i < group.getChildCount(); i++) {
             count += countViews(group.getChildAt(i));
+        }
+        return count;
+    }
+
+    private static int countTranslucentViews(View view) {
+        int count = view.getAlpha() < 0.999f ? 1 : 0;
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                count += countTranslucentViews(group.getChildAt(i));
+            }
+        }
+        return count;
+    }
+
+    private static int countActiveAnimations(View view) {
+        int count = view.getAnimation() != null ? 1 : 0;
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                count += countActiveAnimations(group.getChildAt(i));
+            }
         }
         return count;
     }
