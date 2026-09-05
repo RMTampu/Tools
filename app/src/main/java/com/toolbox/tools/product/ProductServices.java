@@ -45,6 +45,7 @@ public final class ProductServices {
     private final VisibleArtifactManager visibleArtifacts;
     private final AssetIntegrityVerifier assetIntegrity;
     private final BindingAutoConnectService bindingAutoConnect;
+    private final ProjectAssetAudit projectAssetAudit;
 
     public ProductServices(ProjectManager projects) {
         this(
@@ -266,6 +267,12 @@ public final class ProductServices {
             assetLoads.reference(item.descriptor().assetId());
         }
 
+        projectAssetAudit = new ProjectAssetAudit(
+                visibleWorkspace,
+                assetIntegrity,
+                assetLoads
+        );
+
         projectGraph.registerEntity("screen.home");
         projectGraph.registerEntity("screen.detail");
         projectGraph.registerEntity("object.home.primary");
@@ -403,6 +410,9 @@ public final class ProductServices {
     public BindingAutoConnectService bindingAutoConnect() {
         return bindingAutoConnect;
     }
+    public ProjectAssetAudit projectAssetAudit() {
+        return projectAssetAudit;
+    }
 
     public boolean isReady() {
         return screens.startScreenId() != null
@@ -423,6 +433,7 @@ public final class ProductServices {
                 && assetLoads.audit().isPass()
                 && visibleArtifacts != null
                 && assetIntegrity != null
-                && bindingAutoConnect != null;
+                && bindingAutoConnect != null
+                && projectAssetAudit != null;
     }
 }
