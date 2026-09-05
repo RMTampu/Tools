@@ -22,7 +22,9 @@ import com.toolbox.tools.core.ProjectAccessStatus;
 import com.toolbox.tools.core.ProjectLoadResult;
 import com.toolbox.tools.core.VisibleWorkspaceStore;
 import com.toolbox.tools.product.AppLifecycleManager;
+import com.toolbox.tools.product.ProductStoragePolicy;
 import com.toolbox.tools.ui.StoragePickerHost;
+import com.toolbox.tools.ui.StorageSetupView;
 import com.toolbox.tools.ui.SafeRecoveryView;
 import com.toolbox.tools.ui.UiKit;
 import com.toolbox.tools.ui.WorkspaceHostActions;
@@ -584,7 +586,32 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
             ));
             return;
         }
+
+        if (ProductStoragePolicy.requiresUserOwnedStorageSetup(
+                BuildConfig.DEBUG,
+                externalTargetPackage != null,
+                hasPersistedUserStorage()
+        )) {
+            shell = null;
+            setContentView(new StorageSetupView(this, this));
+            return;
+        }
+
         renderShell();
+    }
+
+    private boolean hasPersistedUserStorage() {
+        String value = getSharedPreferences(PREFS, MODE_PRIVATE)
+                .getString(KEY_TREE_URI, null);
+        if (value == null) return false;
+        try {
+            return safGateway.hasPersistedReadWriteAccess(
+                    getContentResolver(),
+                    Uri.parse(value)
+            );
+        } catch (RuntimeException error) {
+            return false;
+        }
     }
 
     private void renderShell() {
