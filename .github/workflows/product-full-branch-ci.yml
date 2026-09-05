@@ -177,63 +177,88 @@ jobs:
           }
 
           assert_text 'ToolBox'
-          assert_text 'Proyek Demo • Produk Penuh • Bahasa Indonesia'
-          assert_text 'Visual'
-          assert_text 'Properti'
-          assert_text 'Kode'
-          assert_text 'Edit'
-          assert_text 'Pratinjau'
-          assert_text 'Uji'
-          assert_text 'Langsung'
+          assert_text 'Antarmuka ToolBox • Android 11 • Visual-first'
+          assert_text 'Satu Editor • lima fungsi di dalamnya'
+          assert_text '4 PILIHAN EDITOR'
+          assert_text 'Panel Utama'
+          assert_text 'Editor'
+
+          # Antarmuka awal bukan layar edit dan tidak memiliki lima menu bawah.
+          dump_ui
+          ! grep -F 'text="UI"' "$RUNNER_TEMP/window.xml"
+          ! grep -F 'text="Simpan"' "$RUNNER_TEMP/window.xml"
+
+          # Edge harus bisa ditutup/dibuka bahkan di luar kondisi Edit.
+          tap_text '‹'
+          assert_text '›'
+          tap_text '›'
+          assert_text 'Panel Utama'
+
+          # Entry Editor menampilkan empat pilihan edit sebelum workspace.
+          tap_text 'Editor'
+          assert_text 'Pilih Jalur Editor'
+          assert_text 'Proyek Tersimpan'
+          assert_text 'Aplikasi Terinstal'
+          assert_text 'Edit ToolBox'
+          assert_text 'Buat / Edit Komponen'
+
+          tap_text 'Proyek Tersimpan'
+          assert_text 'Bangun aplikasi secara visual'
+          assert_text 'Fungsi Editor • 5-in-1'
+          assert_text 'Representasi • Visual'
+          assert_text 'Mode Kerja • Edit'
+
+          # Lima fungsi tetap satu Editor, dipilih dari panel, bukan menu bawah.
+          tap_text 'Fungsi Editor • 5-in-1'
+          assert_text 'Fungsi 5-in-1'
           assert_text 'UI'
           assert_text 'Logika'
           assert_text 'Data'
           assert_text 'Pengikatan'
           assert_text 'Aset'
-          assert_text 'Tambah ke Layar'
 
           tap_text 'Logika'
           assert_text 'Editor Logika Visual'
-
-          tap_text 'Data'
-          assert_text 'Editor Data'
-
-          tap_text 'Pengikatan'
-          assert_text 'Pusat Pengikatan'
-
-          tap_text 'Aset'
-          assert_text 'Pusat Aset & Library'
-
+          tap_text 'Fungsi Editor • 5-in-1'
           tap_text 'UI'
           assert_text 'Bangun aplikasi secara visual'
 
+          # Representasi berada di panel dan benar-benar mengganti workspace.
+          tap_text 'Representasi • Visual'
           tap_text 'Properti'
           assert_text 'Properti Terstruktur'
-
+          tap_text 'Representasi • Properti'
           tap_text 'Kode'
           assert_text 'Representasi Deklaratif'
-
+          tap_text 'Representasi • Kode'
           tap_text 'Visual'
           assert_text 'Bangun aplikasi secara visual'
 
+          # Mode berada di panel. Edge tetap dapat dibuka/tutup pada Pratinjau.
+          tap_text 'Mode Kerja • Edit'
           tap_text 'Pratinjau'
-          assert_text 'Bangun aplikasi secara visual'
-          dump_ui
-          ! grep -F 'Tambah ke Layar' "$RUNNER_TEMP/window.xml"
+          assert_text 'Mode Kerja • Pratinjau'
+          tap_text '‹'
+          assert_text '›'
+          tap_text '›'
+          assert_text 'Mode Kerja • Pratinjau'
 
+          tap_text 'Mode Kerja • Pratinjau'
           tap_text 'Edit'
+          assert_text 'Mode Kerja • Edit'
+
+          # Menu kontekstual memiliki aksi nyata, bukan placeholder.
+          tap_text 'Konteks • UI'
           assert_text 'Tambah ke Layar'
-
           tap_text 'Komponen'
-          assert_text 'Gunakan nilai bawaan'
-          assert_text 'Tutup'
-          tap_text 'Tutup'
+          assert_text 'Tombol Aksi'
+          tap_text 'Tombol Aksi'
+          assert_text 'Tombol Aksi'
 
+          # Bubble tetap menjadi akses cepat.
           tap_text 'TB'
           assert_text 'Akses Cepat'
           assert_text 'Edit: AKTIF'
-          tap_text 'Tutup'
-
           tap_text 'Alat'
           assert_text 'Alat ToolBox'
           tap_text 'Bangun & SIAP'
