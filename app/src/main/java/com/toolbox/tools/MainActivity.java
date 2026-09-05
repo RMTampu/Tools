@@ -51,6 +51,7 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
     private final ExternalAssetGateway externalAssets = new ExternalAssetGateway();
     private final EvolutionPackageGateway evolutionPackages = new EvolutionPackageGateway();
     private String evolutionStatus = "Belum ada paket staged";
+    private String storageLoadFailure;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -97,6 +98,9 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
         String value = getSharedPreferences(PREFS, MODE_PRIVATE)
                 .getString(KEY_TREE_URI, null);
         if (value == null) return "Belum dipilih";
+        if (storageLoadFailure != null) {
+            return "Akses gagal • relink diperlukan";
+        }
         try {
             return safGateway.hasPersistedReadWriteAccess(
                     getContentResolver(),
@@ -147,6 +151,7 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
                     .apply();
 
             kernel = selectedKernel;
+            storageLoadFailure = null;
             bindRuntimeApkIdentity(kernel);
             localKernel = selectedKernel;
             externalTargetPackage = null;
@@ -198,7 +203,16 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
     public void requestEvolutionPackage() {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("application/json");
+        intent.setType("*/*");
+        intent.putExtra(
+                Intent.EXTRA_MIME_TYPES,
+                new String[] {
+                        "application/json",
+                        "application/vnd.toolbox.patch+json",
+                        "application/octet-stream",
+                        "text/json"
+                }
+        );
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         startActivityForResult(intent, REQUEST_EVOLUTION_PACKAGE);
     }
@@ -321,8 +335,11 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
                     );
                     return result;
                 }
-            } catch (IOException | RuntimeException ignored) {
-                // Fallback app-private dipakai sampai user melakukan relink.
+            } catch (IOException | RuntimeException error) {
+                storageLoadFailure = "SAF_LOAD_FAILED";
+            }
+            if (storageLoadFailure == null) {
+                storageLoadFailure = "SAF_GRANT_MISSING";
             }
         }
         return AppKernel.createPersistent(

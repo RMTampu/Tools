@@ -277,18 +277,57 @@ public final class FreezeEngine {
     }
 
     private void loadPersisted() {
-        state = parseState(
-                persistent.get(KEY_STATE),
-                State.NORMAL
-        );
-        saveMode = parseMode(
-                persistent.get(KEY_MODE),
-                SaveMode.NORMAL
-        );
-        frozenRevision = parseLong(persistent.get(KEY_FROZEN));
-        recoveryARevision = parseLong(persistent.get(KEY_RECOVERY_A));
-        recoveryBRevision = parseLong(persistent.get(KEY_RECOVERY_B));
-        lastWorkingRevision = parseLong(persistent.get(KEY_WORKING));
+        String rawState = persistent.get(KEY_STATE);
+        String rawMode = persistent.get(KEY_MODE);
+        String rawFrozen = persistent.get(KEY_FROZEN);
+        String rawRecoveryA = persistent.get(KEY_RECOVERY_A);
+        String rawRecoveryB = persistent.get(KEY_RECOVERY_B);
+        String rawWorking = persistent.get(KEY_WORKING);
+
+        State parsedState = parseState(rawState);
+        SaveMode parsedMode = parseMode(rawMode);
+        Long parsedFrozen = parseLongStrict(rawFrozen);
+        Long parsedRecoveryA = parseLongStrict(rawRecoveryA);
+        Long parsedRecoveryB = parseLongStrict(rawRecoveryB);
+        Long parsedWorking = parseLongStrict(rawWorking);
+
+        boolean invalid =
+                (rawState != null && parsedState == null)
+                || (rawMode != null && parsedMode == null)
+                || parsedFrozen == null
+                || parsedRecoveryA == null
+                || parsedRecoveryB == null
+                || parsedWorking == null;
+
+        state = parsedState == null ? State.NORMAL : parsedState;
+        saveMode = parsedMode == null
+                ? SaveMode.NORMAL
+                : parsedMode;
+        frozenRevision = parsedFrozen == null ? 0 : parsedFrozen;
+        recoveryARevision =
+                parsedRecoveryA == null ? 0 : parsedRecoveryA;
+        recoveryBRevision =
+                parsedRecoveryB == null ? 0 : parsedRecoveryB;
+        lastWorkingRevision =
+                parsedWorking == null ? 0 : parsedWorking;
+
+        if (!invalid) {
+            invalid = (state == State.NORMAL
+                    && (frozenRevision != 0
+                        || saveMode != SaveMode.NORMAL))
+                    || (state == State.FROZEN
+                        && frozenRevision <= 0);
+        }
+
+        if (invalid) {
+            state = State.FAILED_SAFE;
+            saveMode = SaveMode.NORMAL;
+            recovery.markRecoveryRequired(
+                    "FREEZE_METADATA_INVALID",
+                    "BOOTSTRAP"
+            );
+            persistState();
+        }
     }
 
     private void persistState() {
@@ -321,30 +360,31 @@ public final class FreezeEngine {
                 : raw;
     }
 
-    private static long parseLong(String value) {
-        if (value == null || value.trim().isEmpty()) return 0;
+    private static Long parseLongStrict(String value) {
+        if (value == null || value.trim().isEmpty()) return 0L;
         try {
-            return Math.max(0, Long.parseLong(value));
+            long parsed = Long.parseLong(value);
+            return parsed < 0 ? null : parsed;
         } catch (NumberFormatException error) {
-            return 0;
+            return null;
         }
     }
 
-    private static State parseState(String value, State fallback) {
-        if (value == null) return fallback;
+    private static State parseState(String value) {
+        if (value == null) return State.NORMAL;
         try {
             return State.valueOf(value);
         } catch (IllegalArgumentException error) {
-            return fallback;
+            return null;
         }
     }
 
-    private static SaveMode parseMode(String value, SaveMode fallback) {
-        if (value == null) return fallback;
+    private static SaveMode parseMode(String value) {
+        if (value == null) return SaveMode.NORMAL;
         try {
             return SaveMode.valueOf(value);
         } catch (IllegalArgumentException error) {
-            return fallback;
+            return null;
         }
     }
 

@@ -176,6 +176,28 @@ workflow=(REPO/".github/workflows/product-full-branch-ci.yml").read_text()
 assert "secrets." not in workflow
 assert "firebase test" not in workflow.lower()
 
+android_test_manifest=(
+    APP/"src/androidTest/AndroidManifest.xml"
+).read_text()
+assert 'android.permission.MANAGE_DOCUMENTS' in android_test_manifest
+assert 'android:grantUriPermissions="true"' in android_test_manifest
+
+runtime_state=(
+    APP/"src/main/java/com/toolbox/tools/core/FileRuntimeStateStore.java"
+).read_text()
+for marker in [
+    "_toolbox.runtime.sha256",
+    "RUNTIME_STATE_CORRUPT",
+    ".pending",
+    ".backup",
+]:
+    assert marker in runtime_state,marker
+
+external_asset=(
+    APP/"src/main/java/com/toolbox/tools/android/ExternalAssetGateway.java"
+).read_text()
+assert '"image/svg+xml".equals(mime)' not in external_asset
+
 method_counts={}
 for i in range(1,10):
     doc=REPO/plan["domains"][f"R{i}"]["sourceMethodDoc"]

@@ -35,7 +35,13 @@ public final class RecoveryManager {
     }
 
     public synchronized boolean isRecoveryRequired() {
-        return Boolean.parseBoolean(state.get(KEY_REQUIRED));
+        String raw = state.get(KEY_REQUIRED);
+        if (raw == null || "false".equalsIgnoreCase(raw)) {
+            return false;
+        }
+        // Nilai apa pun selain false dianggap unsafe agar metadata semantic
+        // corruption tidak pernah membuka jalur normal secara diam-diam.
+        return true;
     }
 
     public synchronized String reason() {

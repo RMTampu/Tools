@@ -7,6 +7,8 @@ import com.toolbox.tools.core.FileVisibleWorkspaceStore;
 import com.toolbox.tools.core.ProjectState;
 import com.toolbox.tools.core.RuntimeStateStore;
 import com.toolbox.tools.core.VisibleWorkspaceStore;
+import com.toolbox.tools.core.RecoveryManager;
+import com.toolbox.tools.android.ExternalAssetGateway;
 import com.toolbox.tools.delivery.PatchManifest;
 import com.toolbox.tools.delivery.PatchPayload;
 import com.toolbox.tools.delivery.PatchTransactionJournal;
@@ -16,6 +18,8 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.ByteArrayInputStream;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -23,6 +27,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 
 import static org.junit.Assert.*;
@@ -82,6 +87,115 @@ public final class MaximalProductionClosureTest {
         RuntimeStateStore third = new FileRuntimeStateStore(file);
         assertNull(third.get("safe.mode"));
         assertEquals("FROZEN", third.get("freeze.state"));
+    }
+
+    @Test
+    public void corruptRuntimeStateFailsClosedIntoSafeRecovery()
+            throws Exception {
+        File folder = temp.newFolder("runtime-corrupt");
+        File file = new File(folder, "runtime.properties");
+
+        Properties corrupt = new Properties();
+        corrupt.setProperty("_toolbox.runtime.schema", "1");
+        corrupt.setProperty(
+                "_toolbox.runtime.sha256",
+                "0000000000000000000000000000000000000000000000000000000000000000"
+        );
+        corrupt.setProperty("safe.mode", "false");
+        try (FileOutputStream output = new FileOutputStream(file)) {
+            corrupt.store(output, "corrupt");
+            output.getFD().sync();
+        }
+
+        FileRuntimeStateStore recovered =
+                new FileRuntimeStateStore(file);
+        assertEquals("true", recovered.get("safe.mode"));
+        assertEquals(
+                "true",
+                recovered.get("recovery.required")
+        );
+        assertEquals(
+                "RUNTIME_STATE_CORRUPT",
+                recovered.get("recovery.reason")
+        );
+        assertTrue(
+                new RecoveryManager(recovered)
+                        .isRecoveryRequired()
+        );
+    }
+
+    @Test
+    public void interruptedRuntimeSwapRecoversVerifiedBackup()
+            throws Exception {
+        File folder = temp.newFolder("runtime-backup");
+        File file = new File(folder, "runtime.properties");
+        FileRuntimeStateStore first =
+                new FileRuntimeStateStore(file);
+        first.put("safe.mode", "true");
+        first.put("freeze.state", "FROZEN");
+
+        File backup = new File(file.getPath() + ".backup");
+        copy(file, backup);
+
+        Properties corrupt = new Properties();
+        corrupt.setProperty("_toolbox.runtime.schema", "1");
+        corrupt.setProperty(
+                "_toolbox.runtime.sha256",
+                "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        );
+        corrupt.setProperty("safe.mode", "false");
+        try (FileOutputStream output = new FileOutputStream(file)) {
+            corrupt.store(output, "interrupted");
+            output.getFD().sync();
+        }
+
+        FileRuntimeStateStore second =
+                new FileRuntimeStateStore(file);
+        assertEquals("true", second.get("safe.mode"));
+        assertEquals("FROZEN", second.get("freeze.state"));
+
+        FileRuntimeStateStore third =
+                new FileRuntimeStateStore(file);
+        assertEquals("true", third.get("safe.mode"));
+        assertEquals("FROZEN", third.get("freeze.state"));
+    }
+
+    @Test
+    public void unsupportedImageFormatsAreRejectedBeforeAssetRegistration() {
+        assertTrue(ExternalAssetGateway.allowedMime("image/png"));
+        assertTrue(ExternalAssetGateway.allowedMime("image/jpeg"));
+        assertTrue(ExternalAssetGateway.allowedMime("image/webp"));
+        assertFalse(
+                ExternalAssetGateway.allowedMime("image/svg+xml")
+        );
+        assertFalse(
+                ExternalAssetGateway.allowedMime("image/avif")
+        );
+    }
+
+    @Test
+    public void invalidFreezeMetadataEntersFailedSafe() {
+        AppKernel kernel = AppKernel.createDefault();
+        com.toolbox.tools.core.MemoryRuntimeStateStore state =
+                new com.toolbox.tools.core.MemoryRuntimeStateStore();
+        state.put("freeze.state", "INVALID_STATE");
+        state.put("freeze.save.mode", "NORMAL");
+        RecoveryManager recovery = new RecoveryManager(state);
+        FreezeEngine freeze = new FreezeEngine(
+                kernel.projectManager(),
+                state,
+                recovery
+        );
+
+        assertEquals(
+                FreezeEngine.State.FAILED_SAFE,
+                freeze.state()
+        );
+        assertTrue(recovery.isRecoveryRequired());
+        assertEquals(
+                "FREEZE_METADATA_INVALID",
+                recovery.reason()
+        );
     }
 
     @Test
@@ -439,6 +553,20 @@ public final class MaximalProductionClosureTest {
             );
             previousResources = result.resourceCount();
             previousReferences = result.referenceCount();
+        }
+    }
+
+    private static void copy(File from, File to)
+            throws Exception {
+        try (FileInputStream input = new FileInputStream(from);
+             FileOutputStream output = new FileOutputStream(to)) {
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = input.read(buffer)) != -1) {
+                output.write(buffer, 0, read);
+            }
+            output.flush();
+            output.getFD().sync();
         }
     }
 

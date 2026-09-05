@@ -51,8 +51,10 @@ public final class SafeModeController {
     }
 
     public synchronized boolean isSafeMode() {
-        return Boolean.parseBoolean(state.get(KEY_SAFE_MODE))
-                || recovery.isRecoveryRequired();
+        String raw = state.get(KEY_SAFE_MODE);
+        boolean explicitSafe = raw != null
+                && !"false".equalsIgnoreCase(raw);
+        return explicitSafe || recovery.isRecoveryRequired();
     }
 
     public synchronized String statusIndonesia() {

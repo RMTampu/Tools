@@ -194,7 +194,7 @@ public final class ExternalAssetGateway {
 
     public static boolean allowedMime(String mime) {
         if (mime == null) return false;
-        return mime.startsWith("image/")
+        return supportedRasterImageMime(mime)
                 || mime.startsWith("audio/")
                 || mime.startsWith("video/")
                 || mime.startsWith("font/")
@@ -202,6 +202,17 @@ public final class ExternalAssetGateway {
                 || "application/octet-stream".equals(mime)
                 || "application/font-sfnt".equals(mime)
                 || "application/vnd.ms-fontobject".equals(mime);
+    }
+
+    private static boolean supportedRasterImageMime(String mime) {
+        return "image/png".equals(mime)
+                || "image/x-png".equals(mime)
+                || "image/jpeg".equals(mime)
+                || "image/jpg".equals(mime)
+                || "image/webp".equals(mime)
+                || "image/gif".equals(mime)
+                || "image/bmp".equals(mime)
+                || "image/x-ms-bmp".equals(mime);
     }
 
     public static String kindForMime(String mime) {
@@ -236,7 +247,6 @@ public final class ExternalAssetGateway {
         if ("image/png".equals(mime)) return ".png";
         if ("image/jpeg".equals(mime)) return ".jpg";
         if ("image/webp".equals(mime)) return ".webp";
-        if ("image/svg+xml".equals(mime)) return ".svg";
         if (mime.startsWith("audio/")) return ".audio";
         if (mime.startsWith("video/")) return ".video";
         if (mime.startsWith("font/") || mime.contains("font")) {
