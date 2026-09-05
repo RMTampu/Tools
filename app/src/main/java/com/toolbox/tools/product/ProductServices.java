@@ -34,6 +34,7 @@ public final class ProductServices {
     private final ConditionalPropertyEngine conditionalProperties;
     private final DataProviderRegistry dataProviders;
     private final AssetLoadManager assetLoads;
+    private final RenderDiagnostics renderDiagnostics;
 
     public ProductServices(ProjectManager projects) {
         Objects.requireNonNull(projects, "projects");
@@ -67,6 +68,7 @@ public final class ProductServices {
         conditionalProperties = new ConditionalPropertyEngine();
         dataProviders = new DataProviderRegistry();
         assetLoads = new AssetLoadManager();
+        renderDiagnostics = new RenderDiagnostics();
         for (com.toolbox.tools.library.BuiltinAssetCatalog.BuiltinAsset item
                 : com.toolbox.tools.library.BuiltinAssetCatalog.all()) {
             assetLoads.register(
@@ -208,6 +210,7 @@ public final class ProductServices {
     public ConditionalPropertyEngine conditionalProperties() { return conditionalProperties; }
     public DataProviderRegistry dataProviders() { return dataProviders; }
     public AssetLoadManager assetLoads() { return assetLoads; }
+    public RenderDiagnostics renderDiagnostics() { return renderDiagnostics; }
 
     public boolean isReady() {
         return screens.startScreenId() != null
