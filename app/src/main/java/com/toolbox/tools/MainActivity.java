@@ -19,6 +19,7 @@ import com.toolbox.tools.core.AppKernel;
 import com.toolbox.tools.core.ProjectAccessStatus;
 import com.toolbox.tools.core.ProjectLoadResult;
 import com.toolbox.tools.core.VisibleWorkspaceStore;
+import com.toolbox.tools.product.AppLifecycleManager;
 import com.toolbox.tools.ui.StoragePickerHost;
 import com.toolbox.tools.ui.SafeRecoveryView;
 import com.toolbox.tools.ui.UiKit;
@@ -55,6 +56,10 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
 
         kernel = createKernelFromRememberedStorage();
         resourceController = new RuntimeResourceController(this, kernel);
+        kernel.productServices().lifecycle().emit(
+                AppLifecycleManager.Event.APP_START,
+                null
+        );
         discoverAwareTargets();
         renderEntry();
     }
@@ -492,6 +497,12 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
 
     @Override
     protected void onStop() {
+        if (kernel != null) {
+            kernel.productServices().lifecycle().emit(
+                    AppLifecycleManager.Event.BACKGROUND,
+                    null
+            );
+        }
         if (resourceController != null) {
             resourceController.onUiHidden();
         }
@@ -501,6 +512,12 @@ public final class MainActivity extends Activity implements StoragePickerHost, W
     @Override
     protected void onResume() {
         super.onResume();
+        if (kernel != null) {
+            kernel.productServices().lifecycle().emit(
+                    AppLifecycleManager.Event.FOREGROUND,
+                    null
+            );
+        }
         if (resourceController != null) {
             resourceController.sample(
                     getWindow() == null
