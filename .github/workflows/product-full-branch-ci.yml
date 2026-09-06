@@ -547,6 +547,8 @@ jobs:
           sleep 1
           assert_text 'com.toolbox.fixture'
           INSTALLED_APP_PICKER_OPEN_PASS=1
+          adb_cmd shell input keyevent 4
+          sleep 1
           tap_text 'Tutup'
 
           # Jalur komponen memisahkan Buat Baru dan Edit yang Ada.
