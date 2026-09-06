@@ -1158,9 +1158,10 @@ public final class ProductRuntimeInstrumentedTest {
         try (ActivityScenario<MainActivity> scenario =
                      ActivityScenario.launch(MainActivity.class)) {
             scenario.onActivity(activity -> {
+                AppKernel auditKernel = AppKernel.createDefault();
                 UiCanvasView canvas = new UiCanvasView(
                         activity,
-                        activity.kernelForTest(),
+                        auditKernel,
                         objectId -> {},
                         true,
                         "ui.object.audit."
@@ -1177,6 +1178,10 @@ public final class ProductRuntimeInstrumentedTest {
                                 .toString()
                                 .contains("Kanvas UI kosong")
                 );
+                assertEquals(
+                        View.IMPORTANT_FOR_ACCESSIBILITY_YES,
+                        canvas.getImportantForAccessibility()
+                );
                 assertFalse(
                         treeContainsTextForAudit(
                                 canvas,
@@ -1192,7 +1197,7 @@ public final class ProductRuntimeInstrumentedTest {
                 assertTrue(addButton.performClick());
 
                 boolean persisted = false;
-                for (String key : activity.kernelForTest()
+                for (String key : auditKernel
                         .projectManager()
                         .current()
                         .resources()
