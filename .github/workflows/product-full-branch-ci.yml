@@ -551,6 +551,17 @@ jobs:
           sleep 1
           tap_text 'Tutup'
 
+          # Buat UI Baru dimulai dari kanvas kosong, bukan demo screen.
+          tap_desc 'Menu visual • Buat UI Baru'
+          assert_desc 'Kanvas UI kosong'
+          dump_ui
+          assert_not_contains 'text="Bangun aplikasi secara visual"' "$RUNNER_TEMP/window.xml"
+          BLANK_UI_CANVAS_PASS=1
+          tap_text '‹ Pilih Jalur Editor'
+          assert_text 'Perubahan Belum Disimpan'
+          tap_text 'Buang perubahan lalu keluar'
+          assert_text 'Editor Visual'
+
           # Jalur komponen memisahkan Buat Baru dan Edit yang Ada.
           tap_desc 'Menu visual • Buat / Edit Komponen'
           assert_text 'Buat Komponen Baru'
@@ -564,16 +575,6 @@ jobs:
           tap_desc 'Menu visual • Edit Komponen yang Ada'
           assert_text 'Pilih Komponen untuk Diedit'
           tap_text 'Tutup'
-
-          # Buat UI Baru dimulai dari kanvas kosong, bukan demo screen.
-          tap_desc 'Menu visual • Buat UI Baru'
-          assert_desc 'Kanvas UI kosong'
-          dump_ui
-          assert_not_contains 'text="Bangun aplikasi secara visual"' "$RUNNER_TEMP/window.xml"
-          BLANK_UI_CANVAS_PASS=1
-          tap_text '‹ Pilih Jalur Editor'
-          assert_text 'Perubahan Belum Disimpan'
-          tap_text 'Buang perubahan lalu keluar'
           assert_text 'Editor Visual'
 
           tap_desc 'Menu visual • Proyek Tersimpan'
