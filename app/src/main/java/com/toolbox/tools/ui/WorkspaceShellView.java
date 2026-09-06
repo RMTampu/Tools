@@ -3475,6 +3475,7 @@ public final class WorkspaceShellView extends FrameLayout {
                 1
         ));
         TextView close = UiKit.chip(getContext(), "Tutup", false);
+        close.setContentDescription("Tutup pemilih aplikasi");
         close.setOnClickListener(v -> closeOverlay());
         header.addView(close);
         card.addView(header);
@@ -3933,6 +3934,7 @@ public final class WorkspaceShellView extends FrameLayout {
 
         EditText search = new EditText(getContext());
         search.setSingleLine(true);
+        search.setContentDescription("Cari aplikasi terpasang");
         search.setHint("Cari nama atau package");
         search.setHintTextColor(UiKit.TEKS_REDUP);
         search.setTextColor(UiKit.TEKS);
