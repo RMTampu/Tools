@@ -547,9 +547,12 @@ jobs:
           sleep 1
           assert_text 'com.toolbox.fixture'
           INSTALLED_APP_PICKER_OPEN_PASS=1
+          # Back pertama menutup IME, Back kedua ditangani WorkspaceShell
+          # untuk menutup overlay pemilih tanpa bergantung posisi tombol.
           adb_cmd shell input keyevent 4
           sleep 1
-          tap_desc 'Tutup pemilih aplikasi'
+          adb_cmd shell input keyevent 4
+          sleep 1
           assert_text 'Editor Visual'
 
           # Buat UI Baru dimulai dari kanvas kosong, bukan demo screen.
