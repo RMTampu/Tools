@@ -38,6 +38,7 @@ public final class UiCanvasView extends FrameLayout {
     private final SelectionListener listener;
     private final boolean blankMode;
     private final String objectNamespace;
+    private FrameLayout blankCanvas;
     private TextView primaryButton;
     private float downX;
     private float downY;
@@ -163,7 +164,10 @@ public final class UiCanvasView extends FrameLayout {
                 }
         );
         setContentDescription(
-                "Canvas UI • pinch untuk zoom • dua jari untuk pan"
+                blankMode
+                        ? "Kanvas UI kosong • pilih komponen visual di atas • "
+                                + "pinch untuk zoom • dua jari untuk pan"
+                        : "Canvas UI • pinch untuk zoom • dua jari untuk pan"
         );
     }
 
@@ -737,7 +741,8 @@ public final class UiCanvasView extends FrameLayout {
         addPaletteItem(palette,UiKit.ICON_COMPONENT,"Kartu","component.card",160,150);
         addView(palette,new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT,UiKit.dp(c,82),Gravity.TOP));
 
-        FrameLayout canvas = new FrameLayout(c);
+        blankCanvas = new FrameLayout(c);
+        FrameLayout canvas = blankCanvas;
         canvas.setContentDescription("Kanvas UI kosong • pilih komponen visual di atas");
         canvas.setBackground(UiKit.kartuPx(c,Color.rgb(6,18,24),UiKit.GARIS,22,1));
         FrameLayout.LayoutParams cp=new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT,LayoutParams.MATCH_PARENT);
@@ -761,10 +766,15 @@ public final class UiCanvasView extends FrameLayout {
     ) {
         LinearLayout tile=UiKit.visualTile(getContext(),icon,label,false);
         tile.setContentDescription("Tambah "+label+" ke kanvas");
-        tile.setOnClickListener(v->{
-            View canvas=getChildCount()>1?getChildAt(1):null;
-            if(canvas instanceof FrameLayout){
-                createDroppedObject((FrameLayout)canvas,payload,UiKit.dp(getContext(),xDp),UiKit.dp(getContext(),yDp));
+        tile.setOnClickListener(v -> {
+            FrameLayout canvas = blankCanvas;
+            if (canvas != null) {
+                createDroppedObject(
+                        canvas,
+                        payload,
+                        UiKit.dp(getContext(), xDp),
+                        UiKit.dp(getContext(), yDp)
+                );
             }
         });
         LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,UiKit.dp(getContext(),66),1);
