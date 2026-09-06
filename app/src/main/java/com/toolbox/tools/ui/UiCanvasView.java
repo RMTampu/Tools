@@ -169,6 +169,11 @@ public final class UiCanvasView extends FrameLayout {
                                 + "pinch untuk zoom • dua jari untuk pan"
                         : "Canvas UI • pinch untuk zoom • dua jari untuk pan"
         );
+        if (blankMode) {
+            setImportantForAccessibility(
+                    View.IMPORTANT_FOR_ACCESSIBILITY_YES
+            );
+        }
     }
 
     @Override
@@ -744,6 +749,10 @@ public final class UiCanvasView extends FrameLayout {
         blankCanvas = new FrameLayout(c);
         FrameLayout canvas = blankCanvas;
         canvas.setContentDescription("Kanvas UI kosong • pilih komponen visual di atas");
+        canvas.setImportantForAccessibility(
+                View.IMPORTANT_FOR_ACCESSIBILITY_YES
+        );
+        canvas.setFocusable(true);
         canvas.setBackground(UiKit.kartuPx(c,Color.rgb(6,18,24),UiKit.GARIS,22,1));
         FrameLayout.LayoutParams cp=new FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT,LayoutParams.MATCH_PARENT);
         cp.topMargin=UiKit.dp(c,86);cp.leftMargin=UiKit.dp(c,10);cp.rightMargin=UiKit.dp(c,10);cp.bottomMargin=UiKit.dp(c,10);
