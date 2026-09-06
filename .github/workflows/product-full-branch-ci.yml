@@ -539,28 +539,28 @@ jobs:
           VISUAL_FIRST_MENU_PASS=1
 
           # Semua aplikasi terpasang ditampilkan sebelum capability filter.
-          tap_text 'Aplikasi Terinstal'
+          tap_desc 'Menu visual • Aplikasi Terinstal'
           assert_text 'Pilih Aplikasi Terpasang'
           assert_text 'com.toolbox.fixture'
           INSTALLED_APP_PICKER_OPEN_PASS=1
           tap_text 'Tutup'
 
           # Jalur komponen memisahkan Buat Baru dan Edit yang Ada.
-          tap_text 'Buat / Edit Komponen'
+          tap_desc 'Menu visual • Buat / Edit Komponen'
           assert_text 'Buat Komponen Baru'
           assert_text 'Edit Komponen yang Ada'
-          tap_text 'Buat Komponen Baru'
+          tap_desc 'Menu visual • Buat Komponen Baru'
           assert_desc 'Kanvas UI kosong'
           tap_text '‹ Pilih Jalur Editor'
           assert_text 'Editor Visual'
 
-          tap_text 'Buat / Edit Komponen'
-          tap_text 'Edit Komponen yang Ada'
+          tap_desc 'Menu visual • Buat / Edit Komponen'
+          tap_desc 'Menu visual • Edit Komponen yang Ada'
           assert_text 'Pilih Komponen untuk Diedit'
           tap_text 'Tutup'
 
           # Buat UI Baru dimulai dari kanvas kosong, bukan demo screen.
-          tap_text 'Buat UI Baru'
+          tap_desc 'Menu visual • Buat UI Baru'
           assert_desc 'Kanvas UI kosong'
           dump_ui
           assert_not_contains 'text="Bangun aplikasi secara visual"' "$RUNNER_TEMP/window.xml"
@@ -570,7 +570,7 @@ jobs:
           tap_text 'Buang perubahan lalu keluar'
           assert_text 'Editor Visual'
 
-          tap_text 'Proyek Tersimpan'
+          tap_desc 'Menu visual • Proyek Tersimpan'
           assert_text 'Bangun aplikasi secara visual'
           assert_text 'Fungsi Editor • 5-in-1'
           assert_text 'Representasi • Visual'
@@ -762,8 +762,28 @@ jobs:
 
           adb_cmd exec-out screencap -p > app/build/assurance/product-full-api30.png
 
+          # Nilai performa dari metrik frame nyata, bukan sekadar file gfxinfo tersedia.
+          adb_cmd shell dumpsys gfxinfo com.toolbox.tools reset >/dev/null
+          for _ in $(seq 1 8); do
+            tap_desc 'Handle panel'
+          done
+          sleep 1
           adb_cmd shell dumpsys gfxinfo com.toolbox.tools             > app/build/assurance/product-full-gfxinfo.txt
           test -s app/build/assurance/product-full-gfxinfo.txt
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+          raw=Path('app/build/assurance/product-full-gfxinfo.txt').read_text()
+          m=re.search(r'Janky frames:\s*(\d+)\s*\(([0-9.]+)%\)',raw)
+          if not m:
+              raise SystemExit('GFX_JANK_METRIC_MISSING')
+          count=int(m.group(1))
+          pct=float(m.group(2))
+          print(f'GFX_JANKY_FRAMES={count}')
+          print(f'GFX_JANK_PERCENT={pct:.2f}')
+          if pct > 20.0:
+              raise SystemExit(f'FRAME_JANK_BUDGET_BREACH={pct:.2f}%')
+          PY
           GFXINFO_RUNTIME_PASS=1
 
           PSS_KB="$(adb_cmd shell dumpsys meminfo com.toolbox.tools             | awk '/TOTAL PSS:/ {print $3; exit} /^ *TOTAL / {print $2; exit}'             | tr -d '\r')"
