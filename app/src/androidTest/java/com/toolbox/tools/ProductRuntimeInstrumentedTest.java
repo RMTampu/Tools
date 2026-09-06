@@ -1171,11 +1171,41 @@ public final class ProductRuntimeInstrumentedTest {
                                 "Kanvas UI kosong"
                         )
                 );
+                assertNotNull(canvas.getContentDescription());
+                assertTrue(
+                        canvas.getContentDescription()
+                                .toString()
+                                .contains("Kanvas UI kosong")
+                );
                 assertFalse(
                         treeContainsTextForAudit(
                                 canvas,
                                 "Bangun aplikasi secara visual"
                         )
+                );
+
+                View addButton = findViewByDescriptionForAudit(
+                        canvas,
+                        "Tambah Tombol ke kanvas"
+                );
+                assertNotNull(addButton);
+                assertTrue(addButton.performClick());
+
+                boolean persisted = false;
+                for (String key : activity.kernelForTest()
+                        .projectManager()
+                        .current()
+                        .resources()
+                        .keySet()) {
+                    if (key.startsWith("ui.object.audit.")
+                            && key.endsWith(".kind")) {
+                        persisted = true;
+                        break;
+                    }
+                }
+                assertTrue(
+                        "palet visual harus menambahkan objek ke kanvas kosong",
+                        persisted
                 );
                 assertTrue(activity.shellForTest().edgeHandleFusedForTest());
             });
@@ -1247,23 +1277,31 @@ public final class ProductRuntimeInstrumentedTest {
             View view,
             String target
     ) {
+        return findViewByDescriptionForAudit(view, target) != null;
+    }
+
+    private static View findViewByDescriptionForAudit(
+            View view,
+            String target
+    ) {
         CharSequence description = view.getContentDescription();
         if (description != null
                 && description.toString().contains(target)) {
-            return true;
+            return view;
         }
         if (view instanceof ViewGroup) {
             ViewGroup group = (ViewGroup) view;
             for (int i = 0; i < group.getChildCount(); i++) {
-                if (treeContainsDescriptionForAudit(
+                View found = findViewByDescriptionForAudit(
                         group.getChildAt(i),
                         target
-                )) {
-                    return true;
+                );
+                if (found != null) {
+                    return found;
                 }
             }
         }
-        return false;
+        return null;
     }
 
 }
