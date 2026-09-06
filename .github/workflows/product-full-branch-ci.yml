@@ -542,14 +542,15 @@ jobs:
           tap_desc 'Menu visual • Aplikasi Terinstal'
           assert_text 'Pilih Aplikasi Terpasang'
           assert_text 'Cari nama atau package'
-          tap_text 'Cari nama atau package'
+          tap_desc 'Cari aplikasi terpasang'
           adb_cmd shell input text 'com.toolbox.fixture'
           sleep 1
           assert_text 'com.toolbox.fixture'
           INSTALLED_APP_PICKER_OPEN_PASS=1
           adb_cmd shell input keyevent 4
           sleep 1
-          tap_text 'Tutup'
+          tap_desc 'Tutup pemilih aplikasi'
+          assert_text 'Editor Visual'
 
           # Buat UI Baru dimulai dari kanvas kosong, bukan demo screen.
           tap_desc 'Menu visual • Buat UI Baru'
