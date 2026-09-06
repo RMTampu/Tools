@@ -541,6 +541,10 @@ jobs:
           # Semua aplikasi terpasang ditampilkan sebelum capability filter.
           tap_desc 'Menu visual • Aplikasi Terinstal'
           assert_text 'Pilih Aplikasi Terpasang'
+          assert_text 'Cari nama atau package'
+          tap_text 'Cari nama atau package'
+          adb_cmd shell input text 'com.toolbox.fixture'
+          sleep 1
           assert_text 'com.toolbox.fixture'
           INSTALLED_APP_PICKER_OPEN_PASS=1
           tap_text 'Tutup'
