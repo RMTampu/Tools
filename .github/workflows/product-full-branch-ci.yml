@@ -555,9 +555,18 @@ jobs:
           sleep 1
           assert_text 'Editor Visual'
 
-          # Buat UI Baru dimulai dari kanvas kosong, bukan demo screen.
+          # Buat UI Baru harus benar-benar masuk ke workspace baru, lalu
+          # mengekspos palet kanvas kosong pada API30. Deskripsi FrameLayout
+          # kosong sendiri dapat dipangkas oleh uiautomator --compressed,
+          # jadi witness runtime memakai target palet yang interaktif dan
+          # tetap memverifikasi tidak ada demo surface.
           tap_desc 'Menu visual • Buat UI Baru'
-          assert_desc 'Kanvas UI kosong'
+          sleep 1
+          assert_text 'Editor • Buat UI Baru'
+          assert_desc 'Tambah Tombol ke kanvas'
+          assert_desc 'Tambah Teks ke kanvas'
+          assert_desc 'Tambah Input ke kanvas'
+          assert_desc 'Tambah Kartu ke kanvas'
           dump_ui
           assert_not_contains 'text="Bangun aplikasi secara visual"' "$RUNNER_TEMP/window.xml"
           BLANK_UI_CANVAS_PASS=1
