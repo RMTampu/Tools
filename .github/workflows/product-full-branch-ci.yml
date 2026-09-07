@@ -569,11 +569,11 @@ jobs:
           sleep 1
           assert_text 'com.toolbox.fixture'
           INSTALLED_APP_PICKER_OPEN_PASS=1
-          assert_desc 'Tutup pemilih aplikasi'
-          # Tutup IME lebih dulu, lalu tutup overlay melalui target
-          # aksesibilitas unik agar navigasi tidak ambigu pada API30.
+          # Tutup IME lebih dulu. Pada API30, accessibility dump saat IME
+          # masih aktif dapat memangkas kontrol header di belakang keyboard.
           adb_cmd shell input keyevent 4
           sleep 1
+          assert_desc 'Tutup pemilih aplikasi'
           tap_desc 'Tutup pemilih aplikasi'
           assert_text 'Editor Visual'
           assert_not_contains 'text="Pilih Aplikasi Terpasang"' "$RUNNER_TEMP/window.xml"
