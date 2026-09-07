@@ -23,6 +23,7 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 concurrency:
   group: toolbox-produk-penuh-public-ci
@@ -37,6 +38,26 @@ jobs:
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           persist-credentials: false
+
+      - name: Publikasikan status run aktif
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' > "$RUNNER_TEMP/toolbox-status.json"
+          import json, os
+          run_id=os.environ["GITHUB_RUN_ID"]
+          repo=os.environ["GITHUB_REPOSITORY"]
+          print(json.dumps({
+              "state":"pending",
+              "target_url":f"https://github.com/{repo}/actions/runs/{run_id}",
+              "description":f"ToolBox public CI run {run_id} sedang berjalan",
+              "context":"toolbox-product-full"
+          }))
+          PY
+          curl --fail-with-body -sS -X POST             -H "Accept: application/vnd.github+json"             -H "Authorization: Bearer $GITHUB_TOKEN"             -H "X-GitHub-Api-Version: 2022-11-28"             "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA"             --data-binary @"$RUNNER_TEMP/toolbox-status.json"
 
       - name: Setup JDK
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
@@ -950,3 +971,32 @@ jobs:
             app/build/reports/androidTests/connected/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publikasikan status run akhir
+        if: always()
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TOOLBOX_JOB_STATUS: ${{ job.status }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$TOOLBOX_JOB_STATUS" in
+            success) STATE=success ;;
+            cancelled) STATE=error ;;
+            *) STATE=failure ;;
+          esac
+          export STATE
+          python3 - <<'PY' > "$RUNNER_TEMP/toolbox-status-final.json"
+          import json, os
+          run_id=os.environ["GITHUB_RUN_ID"]
+          repo=os.environ["GITHUB_REPOSITORY"]
+          state=os.environ["STATE"]
+          print(json.dumps({
+              "state":state,
+              "target_url":f"https://github.com/{repo}/actions/runs/{run_id}",
+              "description":f"ToolBox public CI run {run_id}: {state}",
+              "context":"toolbox-product-full"
+          }))
+          PY
+          curl --fail-with-body -sS -X POST             -H "Accept: application/vnd.github+json"             -H "Authorization: Bearer $GITHUB_TOKEN"             -H "X-GitHub-Api-Version: 2022-11-28"             "https://api.github.com/repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA"             --data-binary @"$RUNNER_TEMP/toolbox-status-final.json"
