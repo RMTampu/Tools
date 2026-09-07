@@ -550,6 +550,7 @@ jobs:
           # Entry Editor adalah pintu kerja visual.
           tap_text 'Editor'
           assert_text 'Editor Visual'
+          assert_desc 'Handle panel kanan • tertutup'
           assert_text 'Proyek Tersimpan'
           assert_text 'Aplikasi Terinstal'
           assert_text 'Edit ToolBox'
