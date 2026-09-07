@@ -1,1 +1,113 @@
-PLACEHOLDER
+name: ToolBox Produk Penuh Public CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [baseline-v12-maximal-work]
+    paths:
+      - 'app/**'
+      - '.github/workflows/product-full-branch-ci.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: toolbox-produk-penuh-public-ci
+  cancel-in-progress: true
+
+jobs:
+  full-product:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    steps:
+      - name: Checkout exact public source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup JDK
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961
+        with:
+          distribution: temurin
+          java-version: '17.0.20+1'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699
+        with:
+          cmdline-tools-version: '14742923'
+          packages: ''
+
+      - name: Install Android 11 API30 inputs
+        run: sdkmanager 'platform-tools' 'emulator' 'platforms;android-30' 'build-tools;34.0.0' 'system-images;android-30;google_apis;x86_64'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
+        with:
+          gradle-version: '8.2.1'
+          cache-disabled: true
+
+      - name: Audit build dan behavior
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 app/scripts/product_full_assurance_prebuild.py
+          python3 app/scripts/product_full_asset_validate.py
+          gradle --no-daemon :app:testDebugUnitTest --rerun-tasks
+          python3 app/scripts/product_full_mutation_test.py
+          gradle --no-daemon :app:testDebugUnitTest --rerun-tasks
+          python3 app/scripts/product_behavior_evidence.py
+          gradle --no-daemon :app:assembleDebug :app:assembleRelease :fixture:assembleDebug
+          APK=app/build/outputs/apk/release/app-release-unsigned.apk
+          test -s "$APK"
+          sha256sum "$APK" > "$APK.sha256"
+          B="$("$ANDROID_SDK_ROOT/build-tools/34.0.0/aapt" dump badging "$APK")"
+          grep -F "package: name='com.toolbox.tools'" <<< "$B"
+          grep -F "versionCode='14'" <<< "$B"
+          grep -F "sdkVersion:'30'" <<< "$B"
+          grep -F "targetSdkVersion:'30'" <<< "$B"
+
+      - name: Uji workbench produk penuh pada emulator API30
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --depth=1 origin 78545069dac1b294780f71153575b82592297336
+          git show 78545069dac1b294780f71153575b82592297336:.github/workflows/product-full-branch-ci.yml > "$RUNNER_TEMP/original-full.yml"
+          python3 - "$RUNNER_TEMP/original-full.yml" "$RUNNER_TEMP/runtime.sh" <<'PY'
+          import sys
+          src=open(sys.argv[1],encoding='utf-8').read().splitlines()
+          start=next(i for i,l in enumerate(src) if l.strip()=='- name: Uji workbench produk penuh pada emulator API30')
+          run_line=next(i for i in range(start+1,len(src)) if src[i].strip()=='run: |')
+          end=next(i for i in range(run_line+1,len(src)) if src[i].strip()=='- name: Buat identitas kandidat publik')
+          body=[]
+          for line in src[run_line+1:end]:
+              body.append(line[10:] if line.startswith('          ') else line)
+          text='\n'.join(body)+'\n'
+          text=text.replace("BLANK_UI_CANVAS_PASS=1\ntap_text '‹ Pilih Jalur Editor'", "BLANK_UI_CANVAS_PASS=1\ntap_desc 'Handle panel kanan • tertutup'\ntap_text '‹ Pilih Jalur Editor'")
+          text=text.replace("assert_desc 'Kanvas UI kosong'\ntap_text '‹ Pilih Jalur Editor'", "assert_desc 'Kanvas UI kosong'\ntap_desc 'Handle panel kanan • tertutup'\ntap_text '‹ Pilih Jalur Editor'")
+          text=text.replace("tap_desc 'Menu visual • Proyek Tersimpan'\nassert_text 'Bangun aplikasi secara visual'", "tap_desc 'Menu visual • Proyek Tersimpan'\nassert_text 'Bangun aplikasi secara visual'\ntap_desc 'Handle panel kanan • tertutup'")
+          open(sys.argv[2],'w',encoding='utf-8').write(text)
+          PY
+          bash "$RUNNER_TEMP/runtime.sh"
+
+      - name: Finalisasi zero-gap
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 app/scripts/product_full_candidate_manifest.py
+          python3 app/scripts/product_full_asset_finalize.py
+          python3 app/scripts/product_full_finalize.py
+          python3 app/scripts/product_zero_gap_finalize.py
+
+      - name: Upload paket siap signing private
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+        with:
+          name: toolbox-produk-penuh-v14-visual-first-public-ready-private-signing
+          path: |
+            app/build/outputs/apk/release/app-release-unsigned.apk
+            app/build/outputs/apk/release/app-release-unsigned.apk.sha256
+            app/build/assurance/
+            app/build/outputs/androidTest-results/connected/
+            app/build/reports/androidTests/connected/
+          if-no-files-found: error
+          retention-days: 14
