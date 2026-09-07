@@ -3931,6 +3931,11 @@ public final class WorkspaceShellView extends FrameLayout {
                 )
         );
         TextView close = UiKit.chip(getContext(), "Tutup", false);
+        close.setContentDescription("Tutup pemilih aplikasi");
+        close.setImportantForAccessibility(
+                View.IMPORTANT_FOR_ACCESSIBILITY_YES
+        );
+        close.setFocusable(true);
         close.setOnClickListener(v -> closeOverlay());
         header.addView(close);
         card.addView(header);
