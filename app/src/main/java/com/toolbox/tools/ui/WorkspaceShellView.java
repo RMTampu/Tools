@@ -919,7 +919,12 @@ public final class WorkspaceShellView extends FrameLayout {
         screen = Screen.EDITOR_CHOOSER;
         panelPage = PanelPage.ROOT;
         kernel.editorEnvironment().shell().clearSelection();
+
+        // Pintu kerja visual harus dapat disentuh penuh. Edge tetap tersedia
+        // sebagai handle, tetapi otomatis dilipat agar tidak menutupi tile.
+        edgeOpen = false;
         persistEditorContext();
+        applyEdgeLayout(false);
         dispatchScreenLifecycle(
                 AppLifecycleManager.Event.SCREEN_ENTER,
                 lifecycleScreenId()
@@ -987,7 +992,11 @@ public final class WorkspaceShellView extends FrameLayout {
         activateToolSection(active);
         kernel.editorEnvironment().shell().setMode(EditorMode.EDIT);
         kernel.editorEnvironment().shell().setEditEnabled(true);
+
+        // Editor mendapat area kerja penuh; Edge tidak menghalangi kanvas.
+        edgeOpen = false;
         persistEditorContext();
+        applyEdgeLayout(false);
         dispatchScreenLifecycle(
                 AppLifecycleManager.Event.SCREEN_ENTER,
                 lifecycleScreenId()
