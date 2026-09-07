@@ -700,7 +700,7 @@ jobs:
           assert_text 'Tampilkan Pesan'
           tap_text 'Tampilkan Pesan'
           tap_text 'Aksi'
-          assert_text '✓ Tampilkan Pesan'
+          assert_desc 'Pilihan aktif • Tampilkan Pesan'
           tap_text 'Tutup'
           tap_text '‹ Kembali'
 
@@ -714,7 +714,7 @@ jobs:
           assert_text 'Aktifkan'
           tap_text 'Aktifkan'
           tap_clickable_text 'Kelola Data Contoh'
-          assert_text '✓ Aktifkan'
+          assert_desc 'Pilihan aktif • Aktifkan'
           tap_text 'Tutup'
           tap_text '‹ Kembali'
 
@@ -741,7 +741,7 @@ jobs:
           assert_text 'Token Bawaan'
           tap_text 'Token Bawaan'
           tap_clickable_text 'Impor Aset'
-          assert_text '✓ Token Bawaan'
+          assert_desc 'Pilihan aktif • Token Bawaan'
           tap_text 'Tutup'
           tap_text '‹ Kembali'
 
