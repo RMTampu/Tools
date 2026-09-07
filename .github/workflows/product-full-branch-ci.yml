@@ -568,13 +568,14 @@ jobs:
           sleep 1
           assert_text 'com.toolbox.fixture'
           INSTALLED_APP_PICKER_OPEN_PASS=1
-          # Back pertama menutup IME, Back kedua ditangani WorkspaceShell
-          # untuk menutup overlay pemilih tanpa bergantung posisi tombol.
+          assert_desc 'Tutup pemilih aplikasi'
+          # Tutup IME lebih dulu, lalu tutup overlay melalui target
+          # aksesibilitas unik agar navigasi tidak ambigu pada API30.
           adb_cmd shell input keyevent 4
           sleep 1
-          adb_cmd shell input keyevent 4
-          sleep 1
+          tap_desc 'Tutup pemilih aplikasi'
           assert_text 'Editor Visual'
+          assert_not_contains 'text="Pilih Aplikasi Terpasang"' "$RUNNER_TEMP/window.xml"
 
           # Buat UI Baru harus benar-benar masuk ke workspace baru, lalu
           # mengekspos palet kanvas kosong pada API30. Deskripsi FrameLayout
