@@ -186,6 +186,9 @@ public final class WorkspaceShellView extends FrameLayout {
                 18,
                 1
         ));
+        // Edge bergerak sebagai satu surface. Hardware layer menghindari
+        // repaint seluruh subtree saat panel hanya berpindah posisi.
+        edgeContainer.setLayerType(View.LAYER_TYPE_HARDWARE, null);
         addView(edgeContainer);
 
         ScrollView edgeScroll = new ScrollView(context);
@@ -217,6 +220,7 @@ public final class WorkspaceShellView extends FrameLayout {
         edgeHandle.setElevation(UiKit.dp(context, 16));
         edgeHandle.setClickable(true);
         edgeHandle.setFocusable(true);
+        edgeHandle.setLayerType(View.LAYER_TYPE_HARDWARE, null);
         addView(edgeHandle);
 
         GestureDetector edgeGesture = new GestureDetector(
@@ -1168,9 +1172,16 @@ public final class WorkspaceShellView extends FrameLayout {
     }
 
     private void setEdgeOpen(boolean open) {
+        if (edgeOpen == open) {
+            updateEdgeHandleState();
+            return;
+        }
         edgeOpen = open;
         persistEditorContext();
-        applyEdgeLayout(false);
+
+        // Buka/tutup Edge adalah transform visual saja. Jangan mengganti
+        // LayoutParams pada setiap tap karena itu memaksa relayout subtree.
+        applyEdgeVisibility(false);
     }
 
     private void repositionEdge() {
@@ -1203,40 +1214,32 @@ public final class WorkspaceShellView extends FrameLayout {
 
         FrameLayout.LayoutParams panelParams;
         FrameLayout.LayoutParams handleParams;
-        float tx = 0f;
-        float ty = 0f;
 
         if (!landscape) {
             boolean right = edgeAnchor == EdgeAnchor.RIGHT;
             panelParams = new FrameLayout.LayoutParams(
                     panelThickness,
                     LayoutParams.MATCH_PARENT,
-                    (right ? Gravity.END : Gravity.START)
+                    right ? Gravity.END : Gravity.START
             );
             panelParams.topMargin = UiKit.dp(getContext(), 10);
             panelParams.bottomMargin = UiKit.dp(getContext(), 10);
             if (right) panelParams.rightMargin = margin;
             else panelParams.leftMargin = margin;
 
+            // Handle selalu ditambatkan ke tepi layar. Posisi terbuka
+            // dipindahkan memakai translation, bukan margin/layout pass.
             handleParams = new FrameLayout.LayoutParams(
                     handleShort,
                     handleLong,
                     Gravity.CENTER_VERTICAL | (right ? Gravity.END : Gravity.START)
             );
-            int openOffset = Math.max(0, panelThickness - handleShort / 2);
-            if (right) {
-                handleParams.rightMargin = edgeOpen ? openOffset : 0;
-                tx = edgeOpen ? 0f : panelThickness - UiKit.dp(getContext(), 8);
-            } else {
-                handleParams.leftMargin = edgeOpen ? openOffset : 0;
-                tx = edgeOpen ? 0f : -(panelThickness - UiKit.dp(getContext(), 8));
-            }
         } else {
             boolean bottom = edgeAnchor == EdgeAnchor.BOTTOM;
             panelParams = new FrameLayout.LayoutParams(
                     LayoutParams.MATCH_PARENT,
                     panelThickness,
-                    (bottom ? Gravity.BOTTOM : Gravity.TOP)
+                    bottom ? Gravity.BOTTOM : Gravity.TOP
             );
             panelParams.leftMargin = UiKit.dp(getContext(), 10);
             panelParams.rightMargin = UiKit.dp(getContext(), 10);
@@ -1248,26 +1251,15 @@ public final class WorkspaceShellView extends FrameLayout {
                     handleShort,
                     Gravity.CENTER_HORIZONTAL | (bottom ? Gravity.BOTTOM : Gravity.TOP)
             );
-            int openOffset = Math.max(0, panelThickness - handleShort / 2);
-            if (bottom) {
-                handleParams.bottomMargin = edgeOpen ? openOffset : 0;
-                ty = edgeOpen ? 0f : panelThickness - UiKit.dp(getContext(), 8);
-            } else {
-                handleParams.topMargin = edgeOpen ? openOffset : 0;
-                ty = edgeOpen ? 0f : -(panelThickness - UiKit.dp(getContext(), 8));
-            }
         }
 
         edgeContainer.setLayoutParams(panelParams);
         edgeHandle.setLayoutParams(handleParams);
-        edgeContainer.animate().cancel();
-        if (animate) {
-            edgeContainer.animate().translationX(tx).translationY(ty).setDuration(120).start();
-        } else {
-            edgeContainer.setTranslationX(tx);
-            edgeContainer.setTranslationY(ty);
-        }
-        updateEdgeHandleVisual();
+        updateEdgeHandleShape();
+        applyEdgeVisibility(animate);
+
+        // Z-order hanya perlu dipastikan ketika layout/anchor dikonfigurasi,
+        // bukan pada setiap buka/tutup.
         edgeContainer.bringToFront();
         edgeHandle.bringToFront();
         overlayLayer.bringToFront();
@@ -1275,7 +1267,60 @@ public final class WorkspaceShellView extends FrameLayout {
         bubble.bringToFront();
     }
 
-    private void updateEdgeHandleVisual() {
+    private void applyEdgeVisibility(boolean animate) {
+        boolean landscape = isLandscape();
+        int panelThickness = UiKit.dp(getContext(), landscape ? 210 : 238);
+        int handleShort = UiKit.dp(getContext(), 34);
+        int hiddenOffset = panelThickness - UiKit.dp(getContext(), 8);
+        int openHandleOffset = Math.max(
+                0,
+                panelThickness - handleShort / 2
+        );
+
+        float panelTx = 0f;
+        float panelTy = 0f;
+        float handleTx = 0f;
+        float handleTy = 0f;
+
+        if (!landscape) {
+            boolean right = edgeAnchor == EdgeAnchor.RIGHT;
+            if (!edgeOpen) {
+                panelTx = right ? hiddenOffset : -hiddenOffset;
+            } else {
+                handleTx = right ? -openHandleOffset : openHandleOffset;
+            }
+        } else {
+            boolean bottom = edgeAnchor == EdgeAnchor.BOTTOM;
+            if (!edgeOpen) {
+                panelTy = bottom ? hiddenOffset : -hiddenOffset;
+            } else {
+                handleTy = bottom ? -openHandleOffset : openHandleOffset;
+            }
+        }
+
+        edgeContainer.animate().cancel();
+        edgeHandle.animate().cancel();
+        if (animate) {
+            edgeContainer.animate()
+                    .translationX(panelTx)
+                    .translationY(panelTy)
+                    .setDuration(120)
+                    .start();
+            edgeHandle.animate()
+                    .translationX(handleTx)
+                    .translationY(handleTy)
+                    .setDuration(120)
+                    .start();
+        } else {
+            edgeContainer.setTranslationX(panelTx);
+            edgeContainer.setTranslationY(panelTy);
+            edgeHandle.setTranslationX(handleTx);
+            edgeHandle.setTranslationY(handleTy);
+        }
+        updateEdgeHandleState();
+    }
+
+    private void updateEdgeHandleShape() {
         GradientDrawable fused = new GradientDrawable();
         fused.setColor(UiKit.PERMUKAAN);
         fused.setStroke(UiKit.dp(getContext(), 1), UiKit.GARIS);
@@ -1299,6 +1344,9 @@ public final class WorkspaceShellView extends FrameLayout {
         }
         edgeHandle.setBackground(fused);
         edgeHandle.setElevation(UiKit.dp(getContext(), 4));
+    }
+
+    private void updateEdgeHandleState() {
         String symbol;
         if (edgeAnchor == EdgeAnchor.RIGHT) {
             symbol = edgeOpen ? "›" : "‹";
