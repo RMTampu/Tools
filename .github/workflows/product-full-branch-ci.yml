@@ -816,25 +816,60 @@ jobs:
 
           adb_cmd exec-out screencap -p > app/build/assurance/product-full-api30.png
 
-          # Nilai performa dari metrik frame nyata, bukan sekadar file gfxinfo tersedia.
+          # R8 frame budget: ukur sampel interaksi yang cukup besar.
+          # uiautomator dipakai hanya sekali untuk menemukan handle; pengukuran
+          # memakai input tap mentah agar dump XML tidak mengotori frame sample.
+          dump_ui
+          HANDLE_CENTER="$(python3 - "$RUNNER_TEMP/window.xml" <<'PY'
+          import re,sys,xml.etree.ElementTree as ET
+          root=ET.parse(sys.argv[1]).getroot()
+          for n in root.iter('node'):
+              if not n.attrib.get('content-desc','').startswith('Handle panel'):
+                  continue
+              m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',n.attrib.get('bounds',''))
+              if m:
+                  l,t,r,b=map(int,m.groups())
+                  print(f"{(l+r)//2} {(t+b)//2}")
+                  raise SystemExit(0)
+          raise SystemExit('HANDLE_PANEL_BOUNDS_MISSING')
+          PY
+          )"
+          read -r HANDLE_X HANDLE_Y <<< "$HANDLE_CENTER"
+          [[ "$HANDLE_X" =~ ^[0-9]+$ && "$HANDLE_Y" =~ ^[0-9]+$ ]]
+
+          # Warm-up layout/renderer sebelum reset statistik.
+          for _ in $(seq 1 12); do
+            adb_cmd shell input tap "$HANDLE_X" "$HANDLE_Y"
+            sleep 0.06
+          done
+          sleep 0.5
           adb_cmd shell dumpsys gfxinfo com.toolbox.tools reset >/dev/null
-          for _ in $(seq 1 8); do
-            tap_desc 'Handle panel'
+
+          # 60 perubahan panel memberi sample representatif dan menghindari
+          # false breach dari 4/8 frame pada sampel terlalu kecil.
+          for _ in $(seq 1 60); do
+            adb_cmd shell input tap "$HANDLE_X" "$HANDLE_Y"
+            sleep 0.06
           done
           sleep 1
-          adb_cmd shell dumpsys gfxinfo com.toolbox.tools             > app/build/assurance/product-full-gfxinfo.txt
+          adb_cmd shell dumpsys gfxinfo com.toolbox.tools > app/build/assurance/product-full-gfxinfo.txt
           test -s app/build/assurance/product-full-gfxinfo.txt
           python3 - <<'PY'
           import re
           from pathlib import Path
           raw=Path('app/build/assurance/product-full-gfxinfo.txt').read_text()
-          m=re.search(r'Janky frames:\s*(\d+)\s*\(([0-9.]+)%\)',raw)
-          if not m:
+          total_match=re.search(r'Total frames rendered:\s*(\d+)',raw)
+          jank_match=re.search(r'Janky frames:\s*(\d+)\s*\(([0-9.]+)%\)',raw)
+          if not total_match or not jank_match:
               raise SystemExit('GFX_JANK_METRIC_MISSING')
-          count=int(m.group(1))
-          pct=float(m.group(2))
+          total=int(total_match.group(1))
+          count=int(jank_match.group(1))
+          pct=float(jank_match.group(2))
+          print(f'GFX_TOTAL_FRAMES={total}')
           print(f'GFX_JANKY_FRAMES={count}')
           print(f'GFX_JANK_PERCENT={pct:.2f}')
+          if total < 30:
+              raise SystemExit(f'GFX_SAMPLE_TOO_SMALL={total}')
           if pct > 20.0:
               raise SystemExit(f'FRAME_JANK_BUDGET_BREACH={pct:.2f}%')
           PY
